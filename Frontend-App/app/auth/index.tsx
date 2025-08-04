@@ -14,6 +14,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { Car, User, Phone, Lock } from 'lucide-react-native';
+import { SafeArea } from '@/components/SafeArea';
 
 export default function AuthScreen() {
   const [activeTab, setActiveTab] = useState<'vendor' | 'driver'>('vendor');
@@ -60,7 +61,7 @@ export default function AuthScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeArea style={styles.container}>
       <LinearGradient
         colors={['#3B82F6', '#1E40AF']}
         style={styles.gradient}
@@ -167,7 +168,7 @@ export default function AuthScreen() {
           </View>
         </KeyboardAvoidingView>
       </LinearGradient>
-    </SafeAreaView>
+    </SafeArea>
   );
 }
 
