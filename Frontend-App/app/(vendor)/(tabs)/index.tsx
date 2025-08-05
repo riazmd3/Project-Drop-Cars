@@ -14,6 +14,7 @@ import { useBooking } from '@/contexts/BookingContext';
 import { Menu, Plus, TrendingUp, Users, Clock } from 'lucide-react-native';
 import { DrawerActions } from '@react-navigation/native';
 import { useNavigation } from 'expo-router';
+import { SafeArea } from '@/components/SafeArea';
 
 export default function VendorDashboard() {
   const { user } = useAuth();
@@ -34,7 +35,7 @@ export default function VendorDashboard() {
     .reduce((sum, b) => sum + b.vendorPricing.commission, 0);
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeArea style={styles.container}>
       <LinearGradient
         colors={['#3B82F6', '#1E40AF']}
         style={styles.header}
@@ -128,7 +129,7 @@ export default function VendorDashboard() {
           ))}
         </View>
       </ScrollView>
-    </SafeAreaView>
+    </SafeArea>
   );
 }
 
