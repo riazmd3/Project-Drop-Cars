@@ -21,14 +21,14 @@ export default function AuthScreen() {
   const [isLogin, setIsLogin] = useState(true);
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
-  const [mpin, setMpin] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   
   const { login, signup } = useAuth();
   const router = useRouter();
 
   const handleAuth = async () => {
-    if (!phone || !mpin || (!isLogin && !name)) {
+    if (!phone || !password || (!isLogin && !name)) {
       Alert.alert('Error', 'Please fill all fields');
       return;
     }
@@ -39,9 +39,9 @@ export default function AuthScreen() {
       let success = false;
       
       if (isLogin) {
-        success = await login(phone, mpin, activeTab);
+        success = await login(phone, password, activeTab);
       } else {
-        success = await signup(phone, name, mpin, activeTab);
+        success = await signup(phone, name, password, activeTab);
       }
 
       if (success) {
@@ -131,13 +131,12 @@ export default function AuthScreen() {
               <Lock color="#6B7280" size={20} />
               <TextInput
                 style={styles.input}
-                placeholder="MPIN (4 digits)"
+                placeholder="Password"
                 placeholderTextColor="#9CA3AF"
-                value={mpin}
-                onChangeText={setMpin}
+                value={password}
+                onChangeText={setPassword}
                 secureTextEntry
-                keyboardType="numeric"
-                maxLength={4}
+                // maxLength={4}
               />
             </View>
 
