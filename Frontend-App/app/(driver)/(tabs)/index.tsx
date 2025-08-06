@@ -18,6 +18,7 @@ import { useWallet } from '@/contexts/WalletContext';
 import { Menu, Wallet, TrendingUp, Clock, CircleCheck as CheckCircle, MapPin, Navigation, Car, Phone, User, CircleAlert as AlertCircle } from 'lucide-react-native';
 import { DrawerActions } from '@react-navigation/native';
 import { useNavigation } from 'expo-router';
+import { SafeArea } from '@/components/SafeArea';
 
 export default function DriverDashboard() {
   const { user } = useAuth();
@@ -95,7 +96,7 @@ export default function DriverDashboard() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeArea style={styles.container}>
       <LinearGradient
         colors={['#10B981', '#059669']}
         style={styles.header}
@@ -314,7 +315,7 @@ export default function DriverDashboard() {
           </View>
         </View>
       </Modal>
-    </SafeAreaView>
+    </SafeArea>
   );
 }
 

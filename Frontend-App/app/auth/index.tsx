@@ -14,20 +14,21 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { Car, User, Phone, Lock } from 'lucide-react-native';
+import { SafeArea } from '@/components/SafeArea';
 
 export default function AuthScreen() {
   const [activeTab, setActiveTab] = useState<'vendor' | 'driver'>('vendor');
   const [isLogin, setIsLogin] = useState(true);
   const [phone, setPhone] = useState('');
   const [name, setName] = useState('');
-  const [mpin, setMpin] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   
   const { login, signup } = useAuth();
   const router = useRouter();
 
   const handleAuth = async () => {
-    if (!phone || !mpin || (!isLogin && !name)) {
+    if (!phone || !password || (!isLogin && !name)) {
       Alert.alert('Error', 'Please fill all fields');
       return;
     }
@@ -38,9 +39,9 @@ export default function AuthScreen() {
       let success = false;
       
       if (isLogin) {
-        success = await login(phone, mpin, activeTab);
+        success = await login(phone, password, activeTab);
       } else {
-        success = await signup(phone, name, mpin, activeTab);
+        success = await signup(phone, name, password, activeTab);
       }
 
       if (success) {
@@ -60,7 +61,7 @@ export default function AuthScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeArea style={styles.container}>
       <LinearGradient
         colors={['#3B82F6', '#1E40AF']}
         style={styles.gradient}
@@ -130,13 +131,12 @@ export default function AuthScreen() {
               <Lock color="#6B7280" size={20} />
               <TextInput
                 style={styles.input}
-                placeholder="MPIN (4 digits)"
+                placeholder="Password"
                 placeholderTextColor="#9CA3AF"
-                value={mpin}
-                onChangeText={setMpin}
+                value={password}
+                onChangeText={setPassword}
                 secureTextEntry
-                keyboardType="numeric"
-                maxLength={4}
+                // maxLength={4}
               />
             </View>
 
@@ -167,7 +167,7 @@ export default function AuthScreen() {
           </View>
         </KeyboardAvoidingView>
       </LinearGradient>
-    </SafeAreaView>
+    </SafeArea>
   );
 }
 

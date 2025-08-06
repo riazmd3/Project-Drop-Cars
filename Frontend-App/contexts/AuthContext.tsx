@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { AuthContextType, User } from '@/types/auth';
+import axiosInstance from '../app/api/axiosInstance';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -82,29 +83,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const signup = async (phone: string, name: string, mpin: string, userType: 'vendor' | 'driver'): Promise<boolean> => {
+  const signup = async (phone: string, name: string, password: string, userType: 'vendor' | 'driver'): Promise<boolean> => {
     try {
       setIsLoading(true);
-      
-      const newUser: User = {
-        id: Math.random().toString(),
-        phone,
-        name,
-        type: userType,
-        isVerified: true,
-        createdAt: new Date().toISOString()
-      };
-      
+
+      const endpoint = userType === 'vendor' ? '/users/vendor/signup' : '/users/driver/signup';
+
+      const response = await axiosInstance.post(endpoint, {
+        full_name: name,
+        mobile_number: phone,
+        password: password
+      });
+
+      const newUser = response.data;
+      console.log(response.data)
+
       await AsyncStorage.setItem('user', JSON.stringify(newUser));
       setUser(newUser);
       return true;
+
     } catch (error) {
-      console.error('Signup error:', error);
+      console.error('Signup API error:', error);
       return false;
     } finally {
       setIsLoading(false);
     }
   };
+
 
   const logout = async () => {
     try {
