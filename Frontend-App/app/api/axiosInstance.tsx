@@ -1,9 +1,10 @@
 // src/api/axiosInstance.ts
 
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
 const axiosInstance = axios.create({
-  baseURL: 'http://172.20.10.7:8000/api', 
+  baseURL: 'http://127.0.0.1:8000/api', 
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -14,10 +15,10 @@ const axiosInstance = axios.create({
 // Optional: Add interceptors (e.g., for auth tokens or logging)
 axiosInstance.interceptors.request.use(
   async (config) => {
-    // const token = await AsyncStorage.getItem('token');
-    // if (token) {
-    //   config.headers.Authorization = `Bearer ${token}`;
-    // }
+    const token = await AsyncStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
     return config;
   },
   (error) => Promise.reject(error)
