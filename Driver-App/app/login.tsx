@@ -44,16 +44,12 @@ export default function LoginScreen() {
         const dummyUser = {
           id: '1',
           name: 'Riaz',
-          mobile: '9876543210',
+          primaryMobile: '9876543210',
           address: 'Chennai, Tamil Nadu',
+          aadharNumber: '123456789012',
           languages: ['Tamil', 'English'],
-          cars: [{
-            id: '1',
-            name: 'Tata Nexon',
-            type: 'SUV',
-            registration: 'TN10BZ1234',
-            isDefault: true
-          }]
+          password: 'password123',
+          documents: {}
         };
         
         await login(dummyUser, 'dummy-jwt-token');

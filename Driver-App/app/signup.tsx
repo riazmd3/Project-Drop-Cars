@@ -8,7 +8,6 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import PersonalDetailsStep from '@/components/signup/PersonalDetailsStep';
-import CarDetailsStep from '@/components/signup/CarDetailsStep';
 import DocumentsStep from '@/components/signup/DocumentsStep';
 import { ArrowLeft } from 'lucide-react-native';
 import { TouchableOpacity } from 'react-native';
@@ -17,7 +16,6 @@ export default function SignupScreen() {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     personalDetails: {},
-    carDetails: [],
     documents: {},
   });
   const router = useRouter();
@@ -27,7 +25,7 @@ export default function SignupScreen() {
   };
 
   const nextStep = () => {
-    if (currentStep < 3) {
+    if (currentStep < 2) {
       setCurrentStep(currentStep + 1);
     }
   };
@@ -50,15 +48,6 @@ export default function SignupScreen() {
         );
       case 2:
         return (
-          <CarDetailsStep
-            data={formData.carDetails}
-            onUpdate={(data) => updateFormData('carDetails', data)}
-            onNext={nextStep}
-            onBack={previousStep}
-          />
-        );
-      case 3:
-        return (
           <DocumentsStep
             data={formData.documents}
             onUpdate={(data) => updateFormData('documents', data)}
@@ -79,12 +68,12 @@ export default function SignupScreen() {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Driver Registration</Text>
         <View style={styles.stepIndicator}>
-          <Text style={styles.stepText}>{currentStep}/3</Text>
+          <Text style={styles.stepText}>{currentStep}/2</Text>
         </View>
       </View>
 
       <View style={styles.progressBar}>
-        <View style={[styles.progressFill, { width: `${(currentStep / 3) * 100}%` }]} />
+        <View style={[styles.progressFill, { width: `${(currentStep / 2) * 100}%` }]} />
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>

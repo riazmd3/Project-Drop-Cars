@@ -4,18 +4,15 @@ import * as SecureStore from 'expo-secure-store';
 interface User {
   id: string;
   name: string;
-  mobile: string;
+  primaryMobile: string;
+  secondaryMobile?: string;
+  paymentMethod?: string;
+  paymentNumber?: string;
+  password: string;
   address: string;
+  aadharNumber: string;
   languages: string[];
-  cars: Car[];
-}
-
-interface Car {
-  id: string;
-  name: string;
-  type: string;
-  registration: string;
-  isDefault: boolean;
+  documents: any;
 }
 
 interface AuthContextType {
@@ -33,7 +30,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = async (userData: User, token: string) => {
     try {
       await SecureStore.setItemAsync('authToken', token);
-      await SecureStore.setItemAsync('userData', JSON.stringify(userData));
+      await SecureStore.deleteItemAsync('userData');
       setUser(userData);
     } catch (error) {
       throw new Error('Failed to save authentication data');
