@@ -11,6 +11,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { ArrowLeft, Upload, Check, FileText } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { signupAccount, SignupData } from '@/services/signupService';
 
 interface DocumentsStepProps {
   data: any;
@@ -25,6 +26,7 @@ const documentTypes = [
 
 export default function DocumentsStep({ data, onUpdate, onBack, formData }: DocumentsStepProps) {
   const [documents, setDocuments] = useState(data);
+  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const router = useRouter();
 
@@ -59,23 +61,65 @@ export default function DocumentsStep({ data, onUpdate, onBack, formData }: Docu
       return;
     }
 
+    setLoading(true);
+
     try {
-      // Create complete user profile
-      const completeUserData = {
-        id: Date.now().toString(),
-        ...formData.personalDetails,
+      // Prepare signup data
+      const signupData: SignupData = {
+        name: formData.personalDetails.name,
+        primaryMobile: formData.personalDetails.primaryMobile,
+        secondaryMobile: formData.personalDetails.secondaryMobile,
+        paymentMethod: formData.personalDetails.paymentMethod,
+        paymentNumber: formData.personalDetails.paymentNumber,
+        password: formData.personalDetails.password,
+        address: formData.personalDetails.address,
+        aadharNumber: formData.personalDetails.aadharNumber,
+        languages: formData.personalDetails.languages,
         documents: documents,
       };
 
-      await login(completeUserData, 'registration-jwt-token');
-      router.replace('/(tabs)');
-      Alert.alert('Success', 'Registration completed successfully!');
-    } catch (error) {
-      Alert.alert('Error', 'Registration failed. Please try again.');
+      // Call signup API
+      const response = await signupAccount(signupData);
+      
+      if (response.success) {
+        // Create user object for local auth
+        const userData = {
+          id: response.accountId,
+          name: formData.personalDetails.name,
+          primaryMobile: formData.personalDetails.primaryMobile,
+          secondaryMobile: formData.personalDetails.secondaryMobile,
+          paymentMethod: formData.personalDetails.paymentMethod,
+          paymentNumber: formData.personalDetails.paymentNumber,
+          password: formData.personalDetails.password,
+          address: formData.personalDetails.address,
+          aadharNumber: formData.personalDetails.aadharNumber,
+          languages: formData.personalDetails.languages,
+          documents: documents,
+        };
+
+        // Login with the new user data
+        await login(userData, response.token);
+        
+        // Show success message and redirect to car add page
+        Alert.alert(
+          'Account Created Successfully!',
+          'Welcome to Drop Cars! Now let\'s add your first car.',
+          [
+            {
+              text: 'Continue',
+              onPress: () => router.replace('/add-car')
+            }
+          ]
+        );
+      }
+    } catch (error: any) {
+      Alert.alert('Signup Failed', error.message || 'Please try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
-  const DocumentUpload = ({ docType }) => {
+  const DocumentUpload = ({ docType }: { docType: { key: string; label: string; required: boolean } }) => {
     const isUploaded = documents[docType.key];
     
     return (
@@ -120,8 +164,14 @@ export default function DocumentsStep({ data, onUpdate, onBack, formData }: Docu
           <Text style={styles.backButtonText}>Back</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-          <Text style={styles.submitButtonText}>Submit Registration</Text>
+        <TouchableOpacity 
+          style={[styles.submitButton, loading && styles.submitButtonDisabled]} 
+          onPress={handleSubmit}
+          disabled={loading}
+        >
+          <Text style={styles.submitButtonText}>
+            {loading ? 'Creating Account...' : 'Create Account'}
+          </Text>
         </TouchableOpacity>
       </View>
     </View>
@@ -219,6 +269,9 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 16,
     paddingHorizontal: 32,
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#9CA3AF',
   },
   submitButtonText: {
     color: '#FFFFFF',
