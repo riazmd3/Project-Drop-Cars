@@ -24,7 +24,7 @@ export interface SignupResponse {
 
 export const signupAccount = async (data: SignupData): Promise<SignupResponse> => {
   try {
-    const response = await axiosInstance.post('/api/signup', data);
+    const response = await axiosInstance.post('/api/users/vehicleowner/signup', data);
     return response.data;
   } catch (error: any) {
     if (error.response?.data) {

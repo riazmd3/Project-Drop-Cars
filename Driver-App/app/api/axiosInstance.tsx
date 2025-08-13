@@ -1,6 +1,7 @@
 import axios from 'axios';
+import * as SecureStore from 'expo-secure-store';
 
-const API_BASE_URL = ''; 
+const API_BASE_URL = 'http://127.0.0.1:8000';
 
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
@@ -12,27 +13,28 @@ const axiosInstance = axios.create({
 
 // Request interceptor to add auth token
 axiosInstance.interceptors.request.use(
-  (config) => {
+  async (config: any) => {
     // Add auth token if available
-    const token = localStorage.getItem('authToken');
+    const token = await SecureStore.getItemAsync('authToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => {
+  (error: any) => {
     return Promise.reject(error);
   }
 );
 
 // Response interceptor for error handling
 axiosInstance.interceptors.response.use(
-  (response) => response,
-  (error) => {
+  (response: any) => response,
+  (error: any) => {
     if (error.response?.status === 401) {
       // Handle unauthorized access
-      localStorage.removeItem('authToken');
-      window.location.href = '/login';
+      SecureStore.deleteItemAsync('authToken');
+      // In React Native, we'll handle navigation differently
+      console.log('Unauthorized access - token removed');
     }
     return Promise.reject(error);
   }
