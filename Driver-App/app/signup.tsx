@@ -9,11 +9,13 @@ import {
 import { useRouter } from 'expo-router';
 import PersonalDetailsStep from '@/components/signup/PersonalDetailsStep';
 import DocumentsStep from '@/components/signup/DocumentsStep';
+import ConnectionTest from '@/components/ConnectionTest';
 import { ArrowLeft } from 'lucide-react-native';
 import { TouchableOpacity } from 'react-native';
 
 export default function SignupScreen() {
   const [currentStep, setCurrentStep] = useState(1);
+  const [showConnectionTest, setShowConnectionTest] = useState(false);
   const [formData, setFormData] = useState({
     personalDetails: {},
     documents: {},
@@ -37,6 +39,10 @@ export default function SignupScreen() {
   };
 
   const renderStep = () => {
+    if (showConnectionTest) {
+      return <ConnectionTest />;
+    }
+
     switch (currentStep) {
       case 1:
         return (
@@ -67,14 +73,28 @@ export default function SignupScreen() {
           <ArrowLeft color="#1F2937" size={24} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Driver Registration</Text>
-        <View style={styles.stepIndicator}>
-          <Text style={styles.stepText}>{currentStep}/2</Text>
+        <View style={styles.headerRight}>
+          <TouchableOpacity 
+            onPress={() => setShowConnectionTest(!showConnectionTest)}
+            style={styles.debugButton}
+          >
+            <Text style={styles.debugButtonText}>
+              {showConnectionTest ? 'Hide Debug' : 'Debug API'}
+            </Text>
+          </TouchableOpacity>
+          {!showConnectionTest && (
+            <View style={styles.stepIndicator}>
+              <Text style={styles.stepText}>{currentStep}/2</Text>
+            </View>
+          )}
         </View>
       </View>
 
-      <View style={styles.progressBar}>
-        <View style={[styles.progressFill, { width: `${(currentStep / 2) * 100}%` }]} />
-      </View>
+      {!showConnectionTest && (
+        <View style={styles.progressBar}>
+          <View style={[styles.progressFill, { width: `${(currentStep / 2) * 100}%` }]} />
+        </View>
+      )}
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {renderStep()}
@@ -104,6 +124,22 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: 'Inter-SemiBold',
     color: '#1F2937',
+  },
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  debugButton: {
+    backgroundColor: '#F59E0B',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  debugButtonText: {
+    color: '#FFFFFF',
+    fontSize: 12,
+    fontFamily: 'Inter-SemiBold',
   },
   stepIndicator: {
     backgroundColor: '#3B82F6',

@@ -1,41 +1,53 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
-const API_BASE_URL = 'http://127.0.0.1:8000';
+// For React Native, use machine IP instead of localhost
+const API_BASE_URL = 'http://10.0.2.2:8000'; // Android Emulator
+// const API_BASE_URL = 'http://192.168.1.XXX:8000'; // Physical device
+
+console.log('🔧 API Config:', { baseURL: API_BASE_URL });
 
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 10000,
+  timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
+    'Accept': 'application/json',
   },
 });
 
-// Request interceptor to add auth token
+// Request interceptor with logging
 axiosInstance.interceptors.request.use(
   async (config: any) => {
-    // Add auth token if available
+    console.log('🚀 Request:', {
+      method: config.method?.toUpperCase(),
+      url: `${config.baseURL}${config.url}`,
+      data: config.data
+    });
+
     const token = await SecureStore.getItemAsync('authToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error: any) => {
-    return Promise.reject(error);
-  }
+  (error: any) => Promise.reject(error)
 );
 
-// Response interceptor for error handling
+// Response interceptor with error logging
 axiosInstance.interceptors.response.use(
-  (response: any) => response,
+  (response: any) => {
+    console.log('✅ Response:', { status: response.status, data: response.data });
+    return response;
+  },
   (error: any) => {
-    if (error.response?.status === 401) {
-      // Handle unauthorized access
-      SecureStore.deleteItemAsync('authToken');
-      // In React Native, we'll handle navigation differently
-      console.log('Unauthorized access - token removed');
-    }
+    console.error('❌ API Error:', {
+      message: error.message,
+      code: error.code,
+      status: error.response?.status,
+      url: error.config?.url,
+      data: error.response?.data
+    });
     return Promise.reject(error);
   }
 );
