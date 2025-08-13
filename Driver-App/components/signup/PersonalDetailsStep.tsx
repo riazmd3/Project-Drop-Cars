@@ -6,8 +6,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   Alert,
+  ScrollView,
 } from 'react-native';
-import { User, Phone, MapPin, ArrowRight } from 'lucide-react-native';
+import { User, Phone, MapPin, ArrowRight, CreditCard, Lock, Hash } from 'lucide-react-native';
 
 interface PersonalDetailsStepProps {
   data: any;
@@ -16,11 +17,17 @@ interface PersonalDetailsStepProps {
 }
 
 const languagesList = ["Tamil", "English", "Malayalam", "Hindi", "Telugu"];
+const paymentMethods = ["GPay", "PhonePe"];
 
 export default function PersonalDetailsStep({ data, onUpdate, onNext }: PersonalDetailsStepProps) {
   const [name, setName] = useState(data.name || '');
-  const [mobile, setMobile] = useState(data.mobile || '');
+  const [primaryMobile, setPrimaryMobile] = useState(data.primaryMobile || '');
+  const [secondaryMobile, setSecondaryMobile] = useState(data.secondaryMobile || '');
+  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(data.paymentMethod || '');
+  const [paymentNumber, setPaymentNumber] = useState(data.paymentNumber || '');
+  const [password, setPassword] = useState(data.password || '');
   const [address, setAddress] = useState(data.address || '');
+  const [aadharNumber, setAadharNumber] = useState(data.aadharNumber || '');
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(data.languages || []);
 
   const toggleLanguage = (lang: string) => {
@@ -34,20 +41,40 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
   };
 
   const handleNext = () => {
-    if (!name || !mobile || !address || selectedLanguages.length === 0) {
-      Alert.alert('Error', 'Please fill all fields and select at least one language');
+    if (!name || !primaryMobile || !password || !address || !aadharNumber || selectedLanguages.length === 0) {
+      Alert.alert('Error', 'Please fill all required fields and select at least one language');
       return;
     }
 
-    if (mobile.length !== 10) {
-      Alert.alert('Error', 'Please enter a valid 10-digit mobile number');
+    if (primaryMobile.length !== 10) {
+      Alert.alert('Error', 'Please enter a valid 10-digit primary mobile number');
+      return;
+    }
+
+    if (secondaryMobile && secondaryMobile.length !== 10) {
+      Alert.alert('Error', 'Please enter a valid 10-digit secondary mobile number');
+      return;
+    }
+
+    if (aadharNumber.length !== 12) {
+      Alert.alert('Error', 'Please enter a valid 12-digit Aadhar number');
+      return;
+    }
+
+    if (selectedPaymentMethod && !paymentNumber) {
+      Alert.alert('Error', 'Please enter payment number for selected payment method');
       return;
     }
 
     const personalData = {
       name,
-      mobile,
+      primaryMobile,
+      secondaryMobile,
+      paymentMethod: selectedPaymentMethod,
+      paymentNumber,
+      password,
       address,
+      aadharNumber,
       languages: selectedLanguages
     };
 
@@ -56,12 +83,12 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
   };
 
   return (
-    <View style={styles.container}>
+    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       <Text style={styles.title}>Personal Details</Text>
       <Text style={styles.subtitle}>Let's start with your basic information</Text>
 
       <View style={styles.form}>
-        {/* Name */}
+        {/* Full Name */}
         <View style={styles.inputGroup}>
           <User color="#6B7280" size={20} />
           <TextInput
@@ -72,16 +99,78 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
           />
         </View>
 
-        {/* Mobile */}
+        {/* Primary Mobile */}
         <View style={styles.inputGroup}>
           <Phone color="#6B7280" size={20} />
           <TextInput
             style={styles.input}
-            placeholder="Mobile Number"
-            value={mobile}
-            onChangeText={setMobile}
+            placeholder="Primary Mobile Number"
+            value={primaryMobile}
+            onChangeText={setPrimaryMobile}
             keyboardType="phone-pad"
             maxLength={10}
+          />
+        </View>
+
+        {/* Secondary Mobile */}
+        <View style={styles.inputGroup}>
+          <Phone color="#6B7280" size={20} />
+          <TextInput
+            style={styles.input}
+            placeholder="Secondary Mobile Number (Optional)"
+            value={secondaryMobile}
+            onChangeText={setSecondaryMobile}
+            keyboardType="phone-pad"
+            maxLength={10}
+          />
+        </View>
+
+        {/* Payment Method Selection */}
+        <Text style={styles.label}>Select Payment Method (Optional)</Text>
+        <View style={styles.paymentMethodContainer}>
+          {paymentMethods.map((method) => (
+            <TouchableOpacity
+              key={method}
+              style={[
+                styles.paymentOption, 
+                selectedPaymentMethod === method && styles.selectedPayment
+              ]}
+              onPress={() => setSelectedPaymentMethod(method)}
+            >
+              <Text style={[
+                styles.paymentOptionText,
+                selectedPaymentMethod === method && styles.selectedPaymentText
+              ]}>
+                {selectedPaymentMethod === method ? '✔ ' : ''}{method}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+
+        {/* Payment Number */}
+        {selectedPaymentMethod && (
+          <View style={styles.inputGroup}>
+            <CreditCard color="#6B7280" size={20} />
+            <TextInput
+              style={styles.input}
+              placeholder={`${selectedPaymentMethod} Number`}
+              value={paymentNumber}
+              onChangeText={setPaymentNumber}
+              keyboardType="phone-pad"
+              maxLength={10}
+            />
+          </View>
+        )}
+
+        {/* Password */}
+        <View style={styles.inputGroup}>
+          <Lock color="#6B7280" size={20} />
+          <TextInput
+            style={styles.input}
+            placeholder="Password"
+            value={password}
+            onChangeText={setPassword}
+            secureTextEntry
           />
         </View>
 
@@ -94,6 +183,20 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
             value={address}
             onChangeText={setAddress}
             multiline
+            numberOfLines={3}
+          />
+        </View>
+
+        {/* Aadhar Number */}
+        <View style={styles.inputGroup}>
+          <Hash color="#6B7280" size={20} />
+          <TextInput
+            style={styles.input}
+            placeholder="Aadhar Number"
+            value={aadharNumber}
+            onChangeText={setAadharNumber}
+            keyboardType="numeric"
+            maxLength={12}
           />
         </View>
 
@@ -117,15 +220,30 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
           <ArrowRight color="#FFFFFF" size={20} />
         </TouchableOpacity>
       </View>
-    </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1 },
-  title: { fontSize: 24, fontFamily: 'Inter-Bold', color: '#1F2937', marginBottom: 8 },
-  subtitle: { fontSize: 14, fontFamily: 'Inter-Regular', color: '#6B7280', marginBottom: 32 },
-  form: { flex: 1 },
+  container: { 
+    flex: 1,
+    paddingBottom: 20,
+  },
+  title: { 
+    fontSize: 24, 
+    fontFamily: 'Inter-Bold', 
+    color: '#1F2937', 
+    marginBottom: 8 
+  },
+  subtitle: { 
+    fontSize: 14, 
+    fontFamily: 'Inter-Regular', 
+    color: '#6B7280', 
+    marginBottom: 32 
+  },
+  form: { 
+    flex: 1 
+  },
   inputGroup: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -142,17 +260,63 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  input: { flex: 1, marginLeft: 12, fontSize: 16, fontFamily: 'Inter-Medium', color: '#1F2937' },
-  label: { fontSize: 16, fontWeight: 'bold', marginBottom: 10 },
-  option: {
-    padding: 10,
+  input: { 
+    flex: 1, 
+    marginLeft: 12, 
+    fontSize: 16, 
+    fontFamily: 'Inter-Medium', 
+    color: '#1F2937' 
+  },
+  label: { 
+    fontSize: 16, 
+    fontFamily: 'Inter-SemiBold',
+    color: '#1F2937',
+    marginBottom: 10,
+    marginTop: 8,
+  },
+  paymentMethodContainer: {
+    flexDirection: 'row',
+    marginBottom: 16,
+    gap: 12,
+  },
+  paymentOption: {
+    flex: 1,
+    padding: 12,
     borderWidth: 1,
-    borderColor: '#ccc',
+    borderColor: '#E5E7EB',
+    borderRadius: 8,
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+  },
+  selectedPayment: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6',
+  },
+  paymentOptionText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: '#6B7280',
+  },
+  selectedPaymentText: {
+    color: '#FFFFFF',
+  },
+  option: {
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     borderRadius: 8,
     marginBottom: 8,
+    backgroundColor: '#F9FAFB',
   },
-  selected: { backgroundColor: '#cce5ff', borderColor: '#3399ff' },
-  optionText: { fontSize: 14 },
+  selected: { 
+    backgroundColor: '#DBEAFE', 
+    borderColor: '#3B82F6' 
+  },
+  optionText: { 
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: '#1F2937',
+  },
   nextButton: {
     backgroundColor: '#3B82F6',
     borderRadius: 12,
@@ -162,5 +326,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 24,
   },
-  nextButtonText: { color: '#FFFFFF', fontSize: 16, fontFamily: 'Inter-SemiBold', marginRight: 8 },
+  nextButtonText: { 
+    color: '#FFFFFF', 
+    fontSize: 16, 
+    fontFamily: 'Inter-SemiBold', 
+    marginRight: 8 
+  },
 });

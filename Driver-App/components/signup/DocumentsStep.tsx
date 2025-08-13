@@ -20,13 +20,7 @@ interface DocumentsStepProps {
 }
 
 const documentTypes = [
-  { key: 'aadharFront', label: 'Aadhar Front', required: true },
-  { key: 'aadharBack', label: 'Aadhar Back', required: true },
-  { key: 'rcFront', label: 'RC Front', required: true },
-  { key: 'rcBack', label: 'RC Back', required: true },
-  { key: 'insurance', label: 'Insurance', required: true },
-  { key: 'fitnessCertificate', label: 'Fitness Certificate', required: true },
-  { key: 'permit', label: 'Permit', required: true },
+  { key: 'aadharFront', label: 'Aadhar Front Image', required: true },
 ];
 
 export default function DocumentsStep({ data, onUpdate, onBack, formData }: DocumentsStepProps) {
@@ -61,7 +55,7 @@ export default function DocumentsStep({ data, onUpdate, onBack, formData }: Docu
     const missingDocs = requiredDocs.filter(doc => !documents[doc.key]);
 
     if (missingDocs.length > 0) {
-      Alert.alert('Error', 'Please upload all required documents');
+      Alert.alert('Error', 'Please upload Aadhar front image');
       return;
     }
 
@@ -70,7 +64,6 @@ export default function DocumentsStep({ data, onUpdate, onBack, formData }: Docu
       const completeUserData = {
         id: Date.now().toString(),
         ...formData.personalDetails,
-        cars: formData.carDetails,
         documents: documents,
       };
 
@@ -112,8 +105,8 @@ export default function DocumentsStep({ data, onUpdate, onBack, formData }: Docu
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Documents</Text>
-      <Text style={styles.subtitle}>Upload your required documents</Text>
+      <Text style={styles.title}>Document Verification</Text>
+      <Text style={styles.subtitle}>Upload your Aadhar front image for verification</Text>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {documentTypes.map((docType) => (
@@ -128,7 +121,7 @@ export default function DocumentsStep({ data, onUpdate, onBack, formData }: Docu
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
-          <Text style={styles.submitButtonText}>Submit</Text>
+          <Text style={styles.submitButtonText}>Submit Registration</Text>
         </TouchableOpacity>
       </View>
     </View>

@@ -18,7 +18,7 @@ import WelcomeScreen from '@/components/WelcomeScreen';
 
 export default function LoginScreen() {
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [mpin, setMpin] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const router = useRouter();
@@ -26,8 +26,8 @@ export default function LoginScreen() {
   const { colors } = useTheme();
 
   const handleLogin = async () => {
-    if (!phoneNumber || !mpin) {
-      Alert.alert('Error', 'Please enter both phone number and MPIN');
+    if (!phoneNumber || !password) {
+      Alert.alert('Error', 'Please enter both phone number and password');
       return;
     }
 
@@ -39,8 +39,8 @@ export default function LoginScreen() {
     setLoading(true);
 
     try {
-      // Test credentials: 9876543210 / 0000
-      if (phoneNumber === '9876543210' && mpin === '0000') {
+      // Test credentials: 9876543210 / password123
+      if (phoneNumber === '9876543210' && password === 'password123') {
         const dummyUser = {
           id: '1',
           name: 'Riaz',
@@ -59,7 +59,7 @@ export default function LoginScreen() {
         await login(dummyUser, 'dummy-jwt-token');
         setShowWelcome(true);
       } else {
-        Alert.alert('Error', 'Invalid credentials. Use test credentials: 9876543210 / 0000');
+        Alert.alert('Error', 'Invalid credentials. Use test credentials: 9876543210 / password123');
       }
     } catch (error) {
       Alert.alert('Error', 'Login failed. Please try again.');
@@ -70,7 +70,7 @@ export default function LoginScreen() {
 
   const autoFillTestCredentials = () => {
     setPhoneNumber('9876543210');
-    setMpin('0000');
+    setPassword('password123');
   };
 
   const handleWelcomeComplete = () => {
@@ -99,7 +99,7 @@ export default function LoginScreen() {
               <Smartphone color="#6B7280" size={20} />
               <TextInput
                 style={styles.input}
-                placeholder="Enter mobile number"
+                placeholder="Enter primary mobile number"
                 placeholderTextColor="#9CA3AF"
                 value={phoneNumber}
                 onChangeText={setPhoneNumber}
@@ -112,13 +112,11 @@ export default function LoginScreen() {
               <Lock color="#6B7280" size={20} />
               <TextInput
                 style={styles.input}
-                placeholder="Enter 4-digit MPIN"
+                placeholder="Enter password"
                 placeholderTextColor="#9CA3AF"
-                value={mpin}
-                onChangeText={setMpin}
+                value={password}
+                onChangeText={setPassword}
                 secureTextEntry
-                keyboardType="numeric"
-                maxLength={4}
               />
             </View>
 
