@@ -45,13 +45,22 @@ export const signupAccount = async (personalData: any, documents: any): Promise<
       console.log('🖼️ Image appended to FormData:', { uri: imageUri, type: imageType, name: imageName });
     }
     
+    // Helper function to format phone numbers for backend
+    const formatPhoneForBackend = (phone: string): string => {
+      if (!phone) return '';
+      // Remove +91 prefix if present and ensure it's properly formatted
+      const cleanPhone = phone.replace(/^\+91/, '');
+      // Add +91 prefix back
+      return `+91${cleanPhone}`;
+    };
+
     // Append all other fields
     formData.append('full_name', personalData.fullName || '');
-    formData.append('primary_number', personalData.primaryMobile || '');
-    formData.append('secondary_number', personalData.secondaryMobile || '');
+    formData.append('primary_number', formatPhoneForBackend(personalData.primaryMobile || ''));
+    formData.append('secondary_number', personalData.secondaryMobile ? formatPhoneForBackend(personalData.secondaryMobile) : '');
     formData.append('password', personalData.password || '');
     formData.append('address', personalData.address || '');
-    formData.append('gpay_number', personalData.paymentNumber || '');
+    formData.append('gpay_number', formatPhoneForBackend(personalData.paymentNumber || ''));
     formData.append('aadhar_number', personalData.aadharNumber || '');
     formData.append('organization_id', personalData.organizationId || 'org_001');
     

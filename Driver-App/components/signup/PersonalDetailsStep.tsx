@@ -76,13 +76,13 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
       return;
     }
 
-    if (primaryMobile.length !== 13) {
-      Alert.alert('Error', 'Please enter a valid 10-digit primary mobile number');
+    if (!validateIndianMobile(primaryMobile)) {
+      Alert.alert('Error', 'Please enter a valid primary mobile number starting with 6, 7, 8, or 9');
       return;
     }
 
-    if (secondaryMobile && secondaryMobile.length !== 13) {
-      Alert.alert('Error', 'Please enter a valid 10-digit secondary mobile number');
+    if (secondaryMobile && !validateIndianMobile(secondaryMobile)) {
+      Alert.alert('Error', 'Please enter a valid secondary mobile number starting with 6, 7, 8, or 9');
       return;
     }
 
@@ -93,6 +93,11 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
 
     if (!selectedPaymentMethod || !paymentNumber) {
       Alert.alert('Error', 'Please select payment method and enter payment number');
+      return;
+    }
+
+    if (!validateIndianMobile(paymentNumber)) {
+      Alert.alert('Error', 'Please enter a valid payment number starting with 6, 7, 8, or 9');
       return;
     }
 
@@ -147,10 +152,11 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
             keyboardType="phone-pad"
             maxLength={13}
           />
-          {primaryMobile && !validateIndianMobile(primaryMobile) && (
-            <Text style={styles.errorText}>Must start with 6, 7, 8, or 9</Text>
-          )}
         </View>
+        <Text style={styles.helperText}>Enter 10-digit mobile number starting with 6, 7, 8, or 9</Text>
+        {primaryMobile && !validateIndianMobile(primaryMobile) && (
+          <Text style={styles.errorText}>Must start with 6, 7, 8, or 9</Text>
+        )}
 
         {/* Secondary Mobile */}
         <View style={styles.inputGroup}>
@@ -169,10 +175,13 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
             keyboardType="phone-pad"
             maxLength={13}
           />
-          {secondaryMobile && !validateIndianMobile(secondaryMobile) && (
-            <Text style={styles.errorText}>Must start with 6, 7, 8, or 9</Text>
-          )}
         </View>
+        {secondaryMobile && (
+          <Text style={styles.helperText}>Enter 10-digit mobile number starting with 6, 7, 8, or 9</Text>
+        )}
+        {secondaryMobile && !validateIndianMobile(secondaryMobile) && (
+          <Text style={styles.errorText}>Must start with 6, 7, 8, or 9</Text>
+        )}
 
         {/* Payment Method Selection */}
         <Text style={styles.label}>Select Payment Method *</Text>
@@ -203,11 +212,21 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
             style={styles.input}
             placeholder={`${selectedPaymentMethod || 'GPay/PhonePe'} Number *`}
             value={paymentNumber}
-            onChangeText={setPaymentNumber}
+            onChangeText={(text) => {
+              // Allow only digits and +91 prefix
+              const cleanText = text.replace(/[^\d+]/g, '');
+              if (cleanText.startsWith('+91') || cleanText.length <= 10) {
+                setPaymentNumber(cleanText);
+              }
+            }}
             keyboardType="phone-pad"
             maxLength={13}
           />
         </View>
+        <Text style={styles.helperText}>Enter 10-digit mobile number starting with 6, 7, 8, or 9</Text>
+        {paymentNumber && !validateIndianMobile(paymentNumber) && (
+          <Text style={styles.errorText}>Must start with 6, 7, 8, or 9</Text>
+        )}
 
         {/* Password */}
         <View style={styles.inputGroup}>
@@ -389,5 +408,20 @@ const styles = StyleSheet.create({
     fontSize: 16, 
     fontFamily: 'Inter-SemiBold', 
     marginRight: 8 
+  },
+  errorText: {
+    color: '#EF4444',
+    fontSize: 12,
+    fontFamily: 'Inter-Regular',
+    marginTop: 4,
+    marginLeft: 44
+  },
+  helperText: {
+    color: '#6B7280',
+    fontSize: 12,
+    fontFamily: 'Inter-Regular',
+    marginTop: 4,
+    marginLeft: 44,
+    marginBottom: 8
   },
 });
