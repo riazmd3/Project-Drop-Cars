@@ -8,10 +8,10 @@ import {
   ScrollView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { ArrowLeft, Upload, CheckCircle, FileText } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft, Upload, Check, FileText } from 'lucide-react-native';
+import { signupAccount, testSignupDataStructure } from '@/services/signupService';
 import * as ImagePicker from 'expo-image-picker';
-import { signupAccount, SignupData } from '@/services/signupService';
 
 interface DocumentsStepProps {
   data: any;
@@ -64,23 +64,14 @@ export default function DocumentsStep({ data, onUpdate, onBack, formData }: Docu
     setLoading(true);
 
     try {
-      // Map form data to match backend API structure
-      const signupData: SignupData = {
-        full_name: formData.personalDetails.fullName,
-        primary_number: formData.personalDetails.primaryMobile,
-        secondary_number: formData.personalDetails.secondaryMobile,
-        password: formData.personalDetails.password,
-        address: formData.personalDetails.address,
-        gpay_number: formData.personalDetails.paymentMethod === 'GPay' ? formData.personalDetails.paymentNumber : undefined,
-        aadhar_number: formData.personalDetails.aadharNumber,
-        organization_id: formData.personalDetails.organizationId,
-        aadhar_front_img: documents.aadharFront,
-      };
-
-      console.log('📤 Mapped signup data:', signupData);
-
-      // Call signup API
-      const response = await signupAccount(signupData);
+      console.log('📤 Starting signup process...');
+      
+      // Test data structure first
+      const testData = testSignupDataStructure(formData.personalDetails, documents);
+      console.log('🧪 Data structure test completed');
+      
+      // Call the signup API
+      const response = await signupAccount(formData.personalDetails, documents);
       
       if (response.status === 'success') {
         // Create user object for local auth
@@ -115,7 +106,26 @@ export default function DocumentsStep({ data, onUpdate, onBack, formData }: Docu
         );
       }
     } catch (error: any) {
-      Alert.alert('Signup Failed', error.message || 'Please try again.');
+      console.error('❌ Signup failed:', error);
+      
+      // Provide specific error messages
+      let errorMessage = 'Signup failed. Please try again.';
+      
+      if (error.code === 'ECONNABORTED') {
+        errorMessage = 'Request timeout - server is taking too long to respond. Please try again.';
+      } else if (error.code === 'ERR_NETWORK') {
+        errorMessage = 'Network error - please check your internet connection and try again.';
+      } else if (error.code === 'ENOTFOUND') {
+        errorMessage = 'Server not found - please check if the backend server is running.';
+      } else if (error.response?.status === 400) {
+        errorMessage = `Bad request: ${error.response.data?.message || 'Invalid data provided'}`;
+      } else if (error.response?.status === 500) {
+        errorMessage = 'Server error - please try again later or contact support.';
+      } else if (error.response?.data?.message) {
+        errorMessage = error.response.data.message;
+      }
+      
+      Alert.alert('Signup Failed', errorMessage);
     } finally {
       setLoading(false);
     }
@@ -132,7 +142,7 @@ export default function DocumentsStep({ data, onUpdate, onBack, formData }: Docu
         <View style={styles.documentLeft}>
           <View style={[styles.documentIcon, isUploaded && styles.uploadedIcon]}>
             {isUploaded ? (
-              <Check color="#FFFFFF" size={20} />
+              <CheckCircle color="#FFFFFF" size={20} />
             ) : (
               <FileText color="#6B7280" size={20} />
             )}

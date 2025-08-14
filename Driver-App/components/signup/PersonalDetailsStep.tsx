@@ -62,8 +62,8 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
       return;
     }
 
-    if (selectedPaymentMethod && !paymentNumber) {
-      Alert.alert('Error', 'Please enter payment number for selected payment method');
+    if (!selectedPaymentMethod || !paymentNumber) {
+      Alert.alert('Error', 'Please select payment method and enter payment number');
       return;
     }
 
@@ -128,7 +128,7 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
         </View>
 
         {/* Payment Method Selection */}
-        <Text style={styles.label}>Select Payment Method (Optional)</Text>
+        <Text style={styles.label}>Select Payment Method *</Text>
         <View style={styles.paymentMethodContainer}>
           {paymentMethods.map((method) => (
             <TouchableOpacity
@@ -150,19 +150,17 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
         </View>
 
         {/* Payment Number */}
-        {selectedPaymentMethod && (
-          <View style={styles.inputGroup}>
-            <CreditCard color="#6B7280" size={20} />
-            <TextInput
-              style={styles.input}
-              placeholder={`${selectedPaymentMethod} Number`}
-              value={paymentNumber}
-              onChangeText={setPaymentNumber}
-              keyboardType="phone-pad"
-              maxLength={10}
-            />
-          </View>
-        )}
+        <View style={styles.inputGroup}>
+          <CreditCard color="#6B7280" size={20} />
+          <TextInput
+            style={styles.input}
+            placeholder={`${selectedPaymentMethod || 'GPay/PhonePe'} Number *`}
+            value={paymentNumber}
+            onChangeText={setPaymentNumber}
+            keyboardType="phone-pad"
+            maxLength={10}
+          />
+        </View>
 
         {/* Password */}
         <View style={styles.inputGroup}>
