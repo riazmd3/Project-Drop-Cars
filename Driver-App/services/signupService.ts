@@ -1,25 +1,22 @@
 import axiosInstance from '@/app/api/axiosInstance';
 
+// Updated interface to match your working Postman request
 export interface SignupData {
-  name: string;
-  primaryMobile: string;
-  secondaryMobile?: string;
-  paymentMethod?: string;
-  paymentNumber?: string;
+  primary_number: string;
+  secondary_number?: string;
   password: string;
   address: string;
-  aadharNumber: string;
-  languages: string[];
-  documents: {
-    aadharFront: string;
-  };
+  gpay_number?: string;
+  aadhar_number: string;
+  organization_id: string;
+  aadhar_front_img: string;
 }
 
 export interface SignupResponse {
-  success: boolean;
   message: string;
-  accountId: string;
-  token: string;
+  user_id: string;
+  aadhar_img_url: string;
+  status: string;
 }
 
 export const signupAccount = async (data: SignupData): Promise<SignupResponse> => {

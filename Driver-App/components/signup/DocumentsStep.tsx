@@ -64,27 +64,27 @@ export default function DocumentsStep({ data, onUpdate, onBack, formData }: Docu
     setLoading(true);
 
     try {
-      // Prepare signup data
+      // Map form data to match backend API structure
       const signupData: SignupData = {
-        name: formData.personalDetails.name,
-        primaryMobile: formData.personalDetails.primaryMobile,
-        secondaryMobile: formData.personalDetails.secondaryMobile,
-        paymentMethod: formData.personalDetails.paymentMethod,
-        paymentNumber: formData.personalDetails.paymentNumber,
+        primary_number: formData.personalDetails.primaryMobile,
+        secondary_number: formData.personalDetails.secondaryMobile,
         password: formData.personalDetails.password,
         address: formData.personalDetails.address,
-        aadharNumber: formData.personalDetails.aadharNumber,
-        languages: formData.personalDetails.languages,
-        documents: documents,
+        gpay_number: formData.personalDetails.paymentMethod === 'GPay' ? formData.personalDetails.paymentNumber : undefined,
+        aadhar_number: formData.personalDetails.aadharNumber,
+        organization_id: 'org_001', // Default organization ID as shown in Postman
+        aadhar_front_img: documents.aadharFront,
       };
+
+      console.log('📤 Mapped signup data:', signupData);
 
       // Call signup API
       const response = await signupAccount(signupData);
       
-      if (response.success) {
+      if (response.status === 'success') {
         // Create user object for local auth
         const userData = {
-          id: response.accountId,
+          id: response.user_id,
           name: formData.personalDetails.name,
           primaryMobile: formData.personalDetails.primaryMobile,
           secondaryMobile: formData.personalDetails.secondaryMobile,
@@ -98,7 +98,7 @@ export default function DocumentsStep({ data, onUpdate, onBack, formData }: Docu
         };
 
         // Login with the new user data
-        await login(userData, response.token);
+        await login(userData, 'registration-token');
         
         // Show success message and redirect to car add page
         Alert.alert(

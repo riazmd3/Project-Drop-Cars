@@ -20,7 +20,6 @@ const languagesList = ["Tamil", "English", "Malayalam", "Hindi", "Telugu"];
 const paymentMethods = ["GPay", "PhonePe"];
 
 export default function PersonalDetailsStep({ data, onUpdate, onNext }: PersonalDetailsStepProps) {
-  const [name, setName] = useState(data.name || '');
   const [primaryMobile, setPrimaryMobile] = useState(data.primaryMobile || '');
   const [secondaryMobile, setSecondaryMobile] = useState(data.secondaryMobile || '');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(data.paymentMethod || '');
@@ -28,6 +27,7 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
   const [password, setPassword] = useState(data.password || '');
   const [address, setAddress] = useState(data.address || '');
   const [aadharNumber, setAadharNumber] = useState(data.aadharNumber || '');
+  const [organizationId, setOrganizationId] = useState(data.organizationId || 'org_001');
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>(data.languages || []);
 
   const toggleLanguage = (lang: string) => {
@@ -41,7 +41,7 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
   };
 
   const handleNext = () => {
-    if (!name || !primaryMobile || !password || !address || !aadharNumber || selectedLanguages.length === 0) {
+    if (!primaryMobile || !password || !address || !aadharNumber || selectedLanguages.length === 0) {
       Alert.alert('Error', 'Please fill all required fields and select at least one language');
       return;
     }
@@ -67,7 +67,6 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
     }
 
     const personalData = {
-      name,
       primaryMobile,
       secondaryMobile,
       paymentMethod: selectedPaymentMethod,
@@ -75,6 +74,7 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
       password,
       address,
       aadharNumber,
+      organizationId,
       languages: selectedLanguages
     };
 
@@ -88,17 +88,6 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
       <Text style={styles.subtitle}>Let's start with your basic information</Text>
 
       <View style={styles.form}>
-        {/* Full Name */}
-        <View style={styles.inputGroup}>
-          <User color="#6B7280" size={20} />
-          <TextInput
-            style={styles.input}
-            placeholder="Full Name"
-            value={name}
-            onChangeText={setName}
-          />
-        </View>
-
         {/* Primary Mobile */}
         <View style={styles.inputGroup}>
           <Phone color="#6B7280" size={20} />
@@ -197,6 +186,17 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
             onChangeText={setAadharNumber}
             keyboardType="numeric"
             maxLength={12}
+          />
+        </View>
+
+        {/* Organization ID */}
+        <View style={styles.inputGroup}>
+          <Hash color="#6B7280" size={20} />
+          <TextInput
+            style={styles.input}
+            placeholder="Organization ID"
+            value={organizationId}
+            onChangeText={setOrganizationId}
           />
         </View>
 

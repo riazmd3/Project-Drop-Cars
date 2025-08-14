@@ -3,7 +3,6 @@ import * as SecureStore from 'expo-secure-store';
 
 interface User {
   id: string;
-  name: string;
   primaryMobile: string;
   secondaryMobile?: string;
   paymentMethod?: string;
@@ -11,6 +10,7 @@ interface User {
   password: string;
   address: string;
   aadharNumber: string;
+  organizationId: string;
   languages: string[];
   documents: any;
 }
