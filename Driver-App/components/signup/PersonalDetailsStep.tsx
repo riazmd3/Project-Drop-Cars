@@ -19,6 +19,35 @@ interface PersonalDetailsStepProps {
 const languagesList = ["Tamil", "English", "Malayalam", "Hindi", "Telugu"];
 const paymentMethods = ["GPay", "PhonePe"];
 
+// Helper function to validate Indian mobile numbers
+const validateIndianMobile = (phone: string): boolean => {
+  // Remove +91 prefix if present
+  const cleanPhone = phone.replace(/^\+91/, '');
+  
+  // Check if it's exactly 10 digits and starts with 6, 7, 8, or 9
+  const phoneRegex = /^[6-9]\d{9}$/;
+  return phoneRegex.test(cleanPhone);
+};
+
+// Helper function to format phone number for display
+const formatPhoneNumber = (phone: string): string => {
+  // Remove any non-digit characters
+  const cleanPhone = phone.replace(/\D/g, '');
+  
+  // If it's 10 digits, add +91 prefix
+  if (cleanPhone.length === 10) {
+    return `+91${cleanPhone}`;
+  }
+  
+  // If it already has +91 and 10 digits, return as is
+  if (phone.startsWith('+91') && cleanPhone.length === 13) {
+    return phone;
+  }
+  
+  // Otherwise return the cleaned number
+  return cleanPhone;
+};
+
 export default function PersonalDetailsStep({ data, onUpdate, onNext }: PersonalDetailsStepProps) {
   const [fullName, setFullName] = useState(data.fullName || '');
   const [primaryMobile, setPrimaryMobile] = useState(data.primaryMobile || '');
@@ -47,12 +76,12 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
       return;
     }
 
-    if (primaryMobile.length !== 10) {
+    if (primaryMobile.length !== 13) {
       Alert.alert('Error', 'Please enter a valid 10-digit primary mobile number');
       return;
     }
 
-    if (secondaryMobile && secondaryMobile.length !== 10) {
+    if (secondaryMobile && secondaryMobile.length !== 13) {
       Alert.alert('Error', 'Please enter a valid 10-digit secondary mobile number');
       return;
     }
@@ -106,12 +135,21 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
           <Phone color="#6B7280" size={20} />
           <TextInput
             style={styles.input}
-            placeholder="Primary Mobile Number"
+            placeholder="Primary Mobile Number (10 digits)"
             value={primaryMobile}
-            onChangeText={setPrimaryMobile}
+            onChangeText={(text) => {
+              // Allow only digits and +91 prefix
+              const cleanText = text.replace(/[^\d+]/g, '');
+              if (cleanText.startsWith('+91') || cleanText.length <= 10) {
+                setPrimaryMobile(cleanText);
+              }
+            }}
             keyboardType="phone-pad"
-            maxLength={10}
+            maxLength={13}
           />
+          {primaryMobile && !validateIndianMobile(primaryMobile) && (
+            <Text style={styles.errorText}>Must start with 6, 7, 8, or 9</Text>
+          )}
         </View>
 
         {/* Secondary Mobile */}
@@ -121,10 +159,19 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
             style={styles.input}
             placeholder="Secondary Mobile Number (Optional)"
             value={secondaryMobile}
-            onChangeText={setSecondaryMobile}
+            onChangeText={(text) => {
+              // Allow only digits and +91 prefix
+              const cleanText = text.replace(/[^\d+]/g, '');
+              if (cleanText.startsWith('+91') || cleanText.length <= 10) {
+                setSecondaryMobile(cleanText);
+              }
+            }}
             keyboardType="phone-pad"
-            maxLength={10}
+            maxLength={13}
           />
+          {secondaryMobile && !validateIndianMobile(secondaryMobile) && (
+            <Text style={styles.errorText}>Must start with 6, 7, 8, or 9</Text>
+          )}
         </View>
 
         {/* Payment Method Selection */}
@@ -158,7 +205,7 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
             value={paymentNumber}
             onChangeText={setPaymentNumber}
             keyboardType="phone-pad"
-            maxLength={10}
+            maxLength={13}
           />
         </View>
 

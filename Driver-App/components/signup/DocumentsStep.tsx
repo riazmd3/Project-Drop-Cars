@@ -61,6 +61,18 @@ export default function DocumentsStep({ data, onUpdate, onBack, formData }: Docu
       return;
     }
 
+    // Additional validation for image
+    if (!documents.aadharFront) {
+      Alert.alert('Error', 'Please select an Aadhar front image');
+      return;
+    }
+
+    // Validate image URI format
+    if (!documents.aadharFront.startsWith('file://')) {
+      Alert.alert('Error', 'Invalid image format. Please select the image again.');
+      return;
+    }
+
     setLoading(true);
 
     try {

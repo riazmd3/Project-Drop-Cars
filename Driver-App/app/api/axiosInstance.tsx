@@ -22,13 +22,20 @@ axiosInstance.interceptors.request.use(
     console.log('🚀 Request:', {
       method: config.method?.toUpperCase(),
       url: `${config.baseURL}${config.url}`,
-      data: config.data
+      data: config.data instanceof FormData ? 'FormData (file upload)' : config.data,
+      contentType: config.headers['Content-Type']
     });
 
     const token = await SecureStore.getItemAsync('authToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Don't override Content-Type if it's already set (for FormData)
+    if (config.data instanceof FormData && !config.headers['Content-Type']) {
+      config.headers['Content-Type'] = 'multipart/form-data';
+    }
+    
     return config;
   },
   (error: any) => Promise.reject(error)
