@@ -3,6 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 
 interface User {
   id: string;
+  fullName: string;
   primaryMobile: string;
   secondaryMobile?: string;
   paymentMethod?: string;

@@ -20,6 +20,7 @@ const languagesList = ["Tamil", "English", "Malayalam", "Hindi", "Telugu"];
 const paymentMethods = ["GPay", "PhonePe"];
 
 export default function PersonalDetailsStep({ data, onUpdate, onNext }: PersonalDetailsStepProps) {
+  const [fullName, setFullName] = useState(data.fullName || '');
   const [primaryMobile, setPrimaryMobile] = useState(data.primaryMobile || '');
   const [secondaryMobile, setSecondaryMobile] = useState(data.secondaryMobile || '');
   const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(data.paymentMethod || '');
@@ -41,7 +42,7 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
   };
 
   const handleNext = () => {
-    if (!primaryMobile || !password || !address || !aadharNumber || selectedLanguages.length === 0) {
+    if (!fullName || !primaryMobile || !password || !address || !aadharNumber || selectedLanguages.length === 0) {
       Alert.alert('Error', 'Please fill all required fields and select at least one language');
       return;
     }
@@ -67,6 +68,7 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
     }
 
     const personalData = {
+      fullName,
       primaryMobile,
       secondaryMobile,
       paymentMethod: selectedPaymentMethod,
@@ -88,6 +90,17 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
       <Text style={styles.subtitle}>Let's start with your basic information</Text>
 
       <View style={styles.form}>
+        {/* Full Name */}
+        <View style={styles.inputGroup}>
+          <User color="#6B7280" size={20} />
+          <TextInput
+            style={styles.input}
+            placeholder="Full Name"
+            value={fullName}
+            onChangeText={setFullName}
+          />
+        </View>
+
         {/* Primary Mobile */}
         <View style={styles.inputGroup}>
           <Phone color="#6B7280" size={20} />

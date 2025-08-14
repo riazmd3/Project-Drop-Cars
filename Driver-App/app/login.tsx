@@ -43,6 +43,7 @@ export default function LoginScreen() {
       if (phoneNumber === '9876543210' && password === 'password123') {
         const dummyUser = {
           id: '1',
+          fullName: 'Riaz',
           primaryMobile: '9876543210',
           address: 'Chennai, Tamil Nadu',
           aadharNumber: '123456789012',

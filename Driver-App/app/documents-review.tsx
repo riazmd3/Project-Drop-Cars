@@ -29,7 +29,7 @@ export default function DocumentsReviewScreen() {
           </View>
           <Text style={styles.title}>Setup Complete!</Text>
           <Text style={styles.subtitle}>
-            Great job! You've successfully completed your initial setup.
+            Great job, {user?.fullName}! You've successfully completed your initial setup.
           </Text>
         </View>
 

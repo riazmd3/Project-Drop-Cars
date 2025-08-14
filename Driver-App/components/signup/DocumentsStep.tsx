@@ -66,13 +66,14 @@ export default function DocumentsStep({ data, onUpdate, onBack, formData }: Docu
     try {
       // Map form data to match backend API structure
       const signupData: SignupData = {
+        full_name: formData.personalDetails.fullName,
         primary_number: formData.personalDetails.primaryMobile,
         secondary_number: formData.personalDetails.secondaryMobile,
         password: formData.personalDetails.password,
         address: formData.personalDetails.address,
         gpay_number: formData.personalDetails.paymentMethod === 'GPay' ? formData.personalDetails.paymentNumber : undefined,
         aadhar_number: formData.personalDetails.aadharNumber,
-        organization_id: 'org_001', // Default organization ID as shown in Postman
+        organization_id: formData.personalDetails.organizationId,
         aadhar_front_img: documents.aadharFront,
       };
 
@@ -85,7 +86,7 @@ export default function DocumentsStep({ data, onUpdate, onBack, formData }: Docu
         // Create user object for local auth
         const userData = {
           id: response.user_id,
-          name: formData.personalDetails.name,
+          fullName: formData.personalDetails.fullName,
           primaryMobile: formData.personalDetails.primaryMobile,
           secondaryMobile: formData.personalDetails.secondaryMobile,
           paymentMethod: formData.personalDetails.paymentMethod,
@@ -93,6 +94,7 @@ export default function DocumentsStep({ data, onUpdate, onBack, formData }: Docu
           password: formData.personalDetails.password,
           address: formData.personalDetails.address,
           aadharNumber: formData.personalDetails.aadharNumber,
+          organizationId: formData.personalDetails.organizationId,
           languages: formData.personalDetails.languages,
           documents: documents,
         };

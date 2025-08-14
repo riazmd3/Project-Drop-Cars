@@ -2,6 +2,7 @@ import axiosInstance from '@/app/api/axiosInstance';
 
 // Updated interface to match your working Postman request
 export interface SignupData {
+  full_name: string;
   primary_number: string;
   secondary_number?: string;
   password: string;

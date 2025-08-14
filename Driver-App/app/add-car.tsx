@@ -61,7 +61,7 @@ export default function AddCarScreen() {
         <View style={styles.welcomeSection}>
           <Text style={styles.welcomeTitle}>Welcome to Drop Cars!</Text>
           <Text style={styles.welcomeSubtitle}>
-            Hi there! Let's get you started by adding your first car and driver.
+            Hi {user?.fullName}, let's get you started by adding your first car and driver.
           </Text>
         </View>
 
