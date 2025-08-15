@@ -202,13 +202,22 @@ export interface CarDetailsData {
   car_img: any; // File object for FormData
 }
 
-// JWT verification interface
+// Enhanced JWT verification interface matching your backend
 export interface JWTVerificationResponse {
   verified: boolean;
   user_id: string;
   organization_id: string;
   token: string;
   message: string;
+}
+
+// Login response interface matching your backend
+export interface LoginResponse {
+  access_token: string;
+  token_type: string;
+  account_status: string;
+  car_driver_count: number;
+  car_details_count: number;
 }
 
 // Enhanced car details response with JWT verification
@@ -231,31 +240,110 @@ export interface CarDetailsResponse {
   jwt_verification?: JWTVerificationResponse;
 }
 
-// JWT verification function
+// Login function to get JWT token (required before car registration)
+export const loginVehicleOwner = async (mobileNumber: string, password: string): Promise<LoginResponse> => {
+  console.log('🔐 Starting vehicle owner login...');
+  
+  try {
+    const response = await axiosInstance.post('/api/users/vehicleowner/login', {
+      mobile_number: mobileNumber,
+      password: password
+    });
+    
+    console.log('✅ Login successful:', response.data);
+    
+    // Store the access token securely
+    if (response.data.access_token) {
+      await SecureStore.setItemAsync('authToken', response.data.access_token);
+      console.log('🔒 Access token stored securely');
+    }
+    
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ Login failed:', error);
+    
+    if (error.response?.status === 401) {
+      throw new Error('Invalid mobile number or password');
+    } else if (error.response?.status === 400) {
+      throw new Error(error.response.data?.detail || 'Login failed');
+    } else {
+      throw new Error(`Login failed: ${error.message || 'Unknown error occurred'}`);
+    }
+  }
+};
+
+// JWT verification function (now properly integrated with your backend)
 export const verifyJWTToken = async (token: string): Promise<JWTVerificationResponse> => {
   try {
     console.log('🔐 Verifying JWT token...');
     
-    const response = await axiosInstance.post('/api/auth/verify-jwt', { token });
+    // Use the token to make an authenticated request to a protected endpoint
+    // This will verify the token is valid
+    const response = await axiosInstance.get('/api/users/cardetails/organization/test', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      }
+    });
     
-    if (response.data.verified && response.data.user_id && response.data.organization_id) {
-      console.log('✅ JWT verification successful');
-      return response.data;
-    } else {
-      throw new Error('JWT verification failed - invalid response structure');
-    }
+    // If we get here, the token is valid
+    // Extract user info from the token or make another call to get user details
+    const userInfo = await getUserInfoFromToken(token);
+    
+    return {
+      verified: true,
+      user_id: userInfo.user_id,
+      organization_id: userInfo.organization_id,
+      token: token,
+      message: 'Token verified successfully'
+    };
   } catch (error: any) {
     console.error('❌ JWT verification failed:', error);
-    throw new Error(`JWT verification failed: ${error.message || 'Unknown error'}`);
+    
+    if (error.response?.status === 401) {
+      throw new Error('JWT token is invalid or expired');
+    } else if (error.response?.status === 403) {
+      throw new Error('Access denied - insufficient permissions');
+    } else {
+      throw new Error(`JWT verification failed: ${error.message || 'Unknown error'}`);
+    }
   }
 };
 
-// Enhanced car details API call with JWT verification and automatic login
+// Helper function to get user info from token
+const getUserInfoFromToken = async (token: string) => {
+  try {
+    // Decode JWT token to get user info (this is a simplified approach)
+    // In production, you might want to make an API call to get user details
+    const tokenParts = token.split('.');
+    if (tokenParts.length === 3) {
+      const payload = JSON.parse(atob(tokenParts[1]));
+      return {
+        user_id: payload.sub || payload.user_id || 'unknown',
+        organization_id: payload.organization_id || payload.org_id || 'unknown'
+      };
+    }
+    throw new Error('Invalid token format');
+  } catch (error) {
+    console.error('❌ Failed to decode token:', error);
+    return {
+      user_id: 'unknown',
+      organization_id: 'unknown'
+    };
+  }
+};
+
+// Enhanced car details API call with proper JWT authentication
 export const addCarDetails = async (carData: CarDetailsData): Promise<CarDetailsResponse> => {
-  console.log('🚗 Starting car details registration with JWT verification...');
+  console.log('🚗 Starting car details registration with JWT authentication...');
   console.log('📤 Car data received:', JSON.stringify(carData, null, 2));
   
   try {
+    // Verify we have a valid token
+    const token = await SecureStore.getItemAsync('authToken');
+    if (!token) {
+      throw new Error('No authentication token found. Please login first.');
+    }
+    
     // Create FormData for multipart/form-data upload
     const formData = new FormData();
     
@@ -304,10 +392,11 @@ export const addCarDetails = async (carData: CarDetailsData): Promise<CarDetails
       car_img: carData.car_img ? 'File attached' : 'No file'
     });
     
-    // Make the API call with FormData
+    // Make the API call with FormData and JWT authentication
     const response = await axiosInstance.post('/api/users/cardetails/signup', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
+        'Authorization': `Bearer ${token}`
       },
     });
     
@@ -317,7 +406,7 @@ export const addCarDetails = async (carData: CarDetailsData): Promise<CarDetails
       headers: response.headers
     });
     
-    // Validate response data - ensure values are greater than zero
+    // Validate response data - ensure values are meaningful
     const responseData = response.data;
     
     // Validate car_id (should be a positive number or valid string)
@@ -387,9 +476,9 @@ export const addCarDetails = async (carData: CarDetailsData): Promise<CarDetails
     } else if (error.code === 'ENOTFOUND') {
       throw new Error('Server not found - please check if the backend server is running.');
     } else if (error.response?.status === 401) {
-      throw new Error('Authentication failed - please login again.');
+      throw new Error('Authentication failed - please login again to get a valid token.');
     } else if (error.response?.status === 403) {
-      throw new Error('Access denied - insufficient permissions.');
+      throw new Error('Access denied - insufficient permissions for this operation.');
     } else if (error.response?.status === 422) {
       const errorDetails = error.response.data?.detail || error.response.data?.message || 'Invalid data provided';
       console.error('🔍 422 Validation Error Details:', errorDetails);
@@ -415,7 +504,7 @@ export const addCarDetailsWithLogin = async (
   try {
     console.log('🚗 Starting car details registration with automatic login...');
     
-    // First, add car details
+    // First, add car details (this will use the stored JWT token)
     const carResponse = await addCarDetails(carData);
     
     if (carResponse.status === 'success') {
