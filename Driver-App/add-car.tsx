@@ -12,14 +12,14 @@ import {
 import { useRouter } from 'expo-router';
 import { Car, Plus, ArrowLeft, Upload, CheckCircle, FileText, Save } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { addCarDetails, testCarDetailsDataStructure, CarDetailsData } from '@/services/signupService';
+import { addCarDetailsWithLogin, testCarDetailsDataStructure, CarDetailsData } from '@/services/signupService';
 import { useAuth } from '@/contexts/AuthContext';
 
 const carTypes = ['SEDAN', 'HATCHBACK', 'SUV', 'INNOVA', 'INNOVA CRYSTA', 'OTHER'];
 
 export default function AddCarPage() {
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, login } = useAuth();
   const [loading, setLoading] = useState(false);
   const [carData, setCarData] = useState({
     car_name: '',
@@ -80,19 +80,44 @@ export default function AddCarPage() {
     setLoading(true);
 
     try {
-      console.log('🚗 Starting car details submission...');
+      console.log('🚗 Starting car details submission with JWT verification...');
       
       // Test data structure first
       const testData = testCarDetailsDataStructure(carData);
       console.log('🧪 Car details data structure test completed');
       
-      // Call the car details API
-      const response = await addCarDetails(carData);
+      // Create user data for login
+      const userData = {
+        id: user?.id || carData.vehicle_owner_id,
+        fullName: user?.fullName || 'Vehicle Owner',
+        primaryMobile: user?.primaryMobile || '',
+        secondaryMobile: user?.secondaryMobile || '',
+        paymentMethod: user?.paymentMethod || '',
+        paymentNumber: user?.paymentNumber || '',
+        password: user?.password || '',
+        address: user?.address || '',
+        aadharNumber: user?.aadharNumber || '',
+        organizationId: user?.organizationId || carData.organization_id,
+        languages: user?.languages || [],
+        documents: user?.documents || {},
+      };
+      
+      // Call the enhanced car details API with JWT verification and automatic login
+      const response = await addCarDetailsWithLogin(carData, userData, async (enhancedUser, token) => {
+        try {
+          // Automatically login the user
+          await login(enhancedUser, token);
+          console.log('✅ User automatically logged in after car registration');
+        } catch (loginError) {
+          console.error('❌ Automatic login failed:', loginError);
+          throw new Error('Car added but automatic login failed');
+        }
+      });
       
       if (response.status === 'success') {
         Alert.alert(
           'Car Added Successfully!',
-          `Your ${carData.car_name} has been registered successfully.`,
+          `Your ${carData.car_name} has been registered and you are now logged in.`,
           [
             {
               text: 'Continue',
@@ -239,6 +264,13 @@ export default function AddCarPage() {
             required={true} 
           />
         </View>
+
+        <View style={styles.infoSection}>
+          <Text style={styles.infoTitle}>🔐 JWT Verification & Auto-Login</Text>
+          <Text style={styles.infoText}>
+            After successful car registration, your JWT token will be verified and you'll be automatically logged in to the system.
+          </Text>
+        </View>
       </ScrollView>
 
       <View style={styles.footer}>
@@ -249,7 +281,7 @@ export default function AddCarPage() {
         >
           <Save color="#FFFFFF" size={20} />
           <Text style={styles.submitButtonText}>
-            {loading ? 'Adding Car...' : 'Add Car'}
+            {loading ? 'Adding Car & Verifying JWT...' : 'Add Car & Login'}
           </Text>
         </TouchableOpacity>
       </View>
@@ -300,6 +332,26 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-SemiBold',
     color: '#1F2937',
     marginBottom: 20,
+  },
+  infoSection: {
+    backgroundColor: '#EFF6FF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  infoTitle: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    color: '#1E40AF',
+    marginBottom: 8,
+  },
+  infoText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: '#374151',
+    lineHeight: 20,
   },
   inputGroup: {
     flexDirection: 'row',

@@ -1,4 +1,5 @@
 import axiosInstance from '@/app/api/axiosInstance';
+import * as SecureStore from 'expo-secure-store';
 
 // Single API call interface matching your working Postman request
 export interface SignupData {
@@ -201,6 +202,16 @@ export interface CarDetailsData {
   car_img: any; // File object for FormData
 }
 
+// JWT verification interface
+export interface JWTVerificationResponse {
+  verified: boolean;
+  user_id: string;
+  organization_id: string;
+  token: string;
+  message: string;
+}
+
+// Enhanced car details response with JWT verification
 export interface CarDetailsResponse {
   message: string;
   car_id: string;
@@ -217,11 +228,31 @@ export interface CarDetailsResponse {
     fc_img_url: string;
     car_img_url: string;
   };
+  jwt_verification?: JWTVerificationResponse;
 }
 
-// Car details API call using FormData for multiple file uploads
+// JWT verification function
+export const verifyJWTToken = async (token: string): Promise<JWTVerificationResponse> => {
+  try {
+    console.log('🔐 Verifying JWT token...');
+    
+    const response = await axiosInstance.post('/api/auth/verify-jwt', { token });
+    
+    if (response.data.verified && response.data.user_id && response.data.organization_id) {
+      console.log('✅ JWT verification successful');
+      return response.data;
+    } else {
+      throw new Error('JWT verification failed - invalid response structure');
+    }
+  } catch (error: any) {
+    console.error('❌ JWT verification failed:', error);
+    throw new Error(`JWT verification failed: ${error.message || 'Unknown error'}`);
+  }
+};
+
+// Enhanced car details API call with JWT verification and automatic login
 export const addCarDetails = async (carData: CarDetailsData): Promise<CarDetailsResponse> => {
-  console.log('🚗 Starting car details registration with FormData...');
+  console.log('🚗 Starting car details registration with JWT verification...');
   console.log('📤 Car data received:', JSON.stringify(carData, null, 2));
   
   try {
@@ -286,7 +317,53 @@ export const addCarDetails = async (carData: CarDetailsData): Promise<CarDetails
       headers: response.headers
     });
     
-    return response.data;
+    // Validate response data - ensure values are greater than zero
+    const responseData = response.data;
+    
+    // Validate car_id (should be a positive number or valid string)
+    if (!responseData.car_id || responseData.car_id <= 0) {
+      throw new Error('Invalid car ID received from server');
+    }
+    
+    // Validate car details exist and have valid values
+    if (!responseData.car_details) {
+      throw new Error('Car details not received from server');
+    }
+    
+    const carDetails = responseData.car_details;
+    
+    // Validate required fields have meaningful values
+    if (!carDetails.car_name || carDetails.car_name.trim().length === 0) {
+      throw new Error('Car name not received from server');
+    }
+    
+    if (!carDetails.car_type || carDetails.car_type.trim().length === 0) {
+      throw new Error('Car type not received from server');
+    }
+    
+    if (!carDetails.car_number || carDetails.car_number.trim().length === 0) {
+      throw new Error('Car number not received from server');
+    }
+    
+    if (!carDetails.organization_id || carDetails.organization_id.trim().length === 0) {
+      throw new Error('Organization ID not received from server');
+    }
+    
+    if (!carDetails.vehicle_owner_id || carDetails.vehicle_owner_id.trim().length === 0) {
+      throw new Error('Vehicle owner ID not received from server');
+    }
+    
+    // Validate image URLs exist (they should be non-empty strings)
+    const imageFields = ['rc_front_img_url', 'rc_back_img_url', 'insurance_img_url', 'fc_img_url', 'car_img_url'];
+    for (const field of imageFields) {
+      if (!carDetails[field] || carDetails[field].trim().length === 0) {
+        throw new Error(`${field.replace('_', ' ')} URL not received from server`);
+      }
+    }
+    
+    console.log('✅ All response values validated successfully');
+    
+    return responseData;
   } catch (error: any) {
     console.error('❌ Car details registration failed with error:', {
       message: error.message,
@@ -309,6 +386,10 @@ export const addCarDetails = async (carData: CarDetailsData): Promise<CarDetails
       throw new Error('Network error - please check your internet connection and try again.');
     } else if (error.code === 'ENOTFOUND') {
       throw new Error('Server not found - please check if the backend server is running.');
+    } else if (error.response?.status === 401) {
+      throw new Error('Authentication failed - please login again.');
+    } else if (error.response?.status === 403) {
+      throw new Error('Access denied - insufficient permissions.');
     } else if (error.response?.status === 422) {
       const errorDetails = error.response.data?.detail || error.response.data?.message || 'Invalid data provided';
       console.error('🔍 422 Validation Error Details:', errorDetails);
@@ -322,6 +403,79 @@ export const addCarDetails = async (carData: CarDetailsData): Promise<CarDetails
     } else {
       throw new Error(`Car details registration failed: ${error.message || 'Unknown error occurred'}`);
     }
+  }
+};
+
+// Enhanced car details API with JWT verification and automatic login
+export const addCarDetailsWithLogin = async (
+  carData: CarDetailsData, 
+  userData: any, 
+  onLoginSuccess: (user: any, token: string) => void
+): Promise<CarDetailsResponse> => {
+  try {
+    console.log('🚗 Starting car details registration with automatic login...');
+    
+    // First, add car details
+    const carResponse = await addCarDetails(carData);
+    
+    if (carResponse.status === 'success') {
+      console.log('✅ Car details added successfully, proceeding with JWT verification...');
+      
+      // Get the JWT token from secure storage
+      const token = await SecureStore.getItemAsync('authToken');
+      
+      if (token) {
+        // Verify the JWT token
+        const jwtVerification = await verifyJWTToken(token);
+        
+        if (jwtVerification.verified && 
+            jwtVerification.user_id && 
+            jwtVerification.organization_id &&
+            jwtVerification.user_id.length > 0 &&
+            jwtVerification.organization_id.length > 0) {
+          
+          console.log('✅ JWT verification successful, proceeding with automatic login...');
+          
+          // Create enhanced user object with car information
+          const enhancedUser = {
+            ...userData,
+            id: jwtVerification.user_id,
+            organizationId: jwtVerification.organization_id,
+            cars: [{
+              id: carResponse.car_id,
+              name: carData.car_name,
+              type: carData.car_type,
+              number: carData.car_number,
+              rcFrontUrl: carResponse.car_details.rc_front_img_url,
+              rcBackUrl: carResponse.car_details.rc_back_img_url,
+              insuranceUrl: carResponse.car_details.insurance_img_url,
+              fcUrl: carResponse.car_details.fc_img_url,
+              carUrl: carResponse.car_details.car_img_url
+            }]
+          };
+          
+          // Call the login success callback
+          onLoginSuccess(enhancedUser, token);
+          
+          console.log('🎉 Automatic login completed successfully');
+          
+          // Return enhanced response with JWT verification data
+          return {
+            ...carResponse,
+            jwt_verification: jwtVerification
+          };
+        } else {
+          throw new Error('JWT verification failed - invalid user or organization data');
+        }
+      } else {
+        throw new Error('No authentication token found');
+      }
+    } else {
+      throw new Error('Car details registration was not successful');
+    }
+  } catch (error: any) {
+    console.error('❌ Car details with login failed:', error);
+    throw error;
   }
 };
 

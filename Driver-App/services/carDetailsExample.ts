@@ -1,8 +1,15 @@
-import { addCarDetails, testCarDetailsDataStructure, CarDetailsData } from './signupService';
+import { 
+  addCarDetails, 
+  addCarDetailsWithLogin,
+  verifyJWTToken,
+  testCarDetailsDataStructure, 
+  CarDetailsData,
+  JWTVerificationResponse 
+} from './signupService';
 
-// Example usage of the car details API
+// Example usage of the car details API with JWT verification
 export const exampleCarDetailsUsage = async () => {
-  console.log('🚗 Example: Using Car Details API');
+  console.log('🚗 Example: Using Car Details API with JWT Verification');
   
   // Sample car data matching your Postman request
   const sampleCarData: CarDetailsData = {
@@ -34,8 +41,91 @@ export const exampleCarDetailsUsage = async () => {
   }
 };
 
-// Example of how to handle the API response
-export const handleCarDetailsResponse = (response: any) => {
+// Example of using the enhanced API with JWT verification and automatic login
+export const exampleCarDetailsWithLogin = async () => {
+  console.log('🚗 Example: Using Car Details API with JWT Verification and Auto-Login');
+  
+  const sampleCarData: CarDetailsData = {
+    car_name: 'Honda City',
+    car_type: 'SEDAN',
+    car_number: 'DL-01-AB-5678',
+    organization_id: 'org_456',
+    vehicle_owner_id: '3920c226-gcdd-53fd-b6c4-92744991e0df',
+    rc_front_img: 'file://path/to/honda_rc_front.png',
+    rc_back_img: 'file://path/to/honda_rc_back.png',
+    insurance_img: 'file://path/to/honda_insurance.png',
+    fc_img: 'file://path/to/honda_fc.png',
+    car_img: 'file://path/to/honda_city.png'
+  };
+
+  const sampleUserData = {
+    id: '3920c226-gcdd-53fd-b6c4-92744991e0df',
+    fullName: 'John Doe',
+    primaryMobile: '+919876543210',
+    secondaryMobile: '+919876543211',
+    paymentMethod: 'GPay',
+    paymentNumber: '+919876543210',
+    password: 'securepassword123',
+    address: '123 Main Street, New Delhi',
+    aadharNumber: '123456789012',
+    organizationId: 'org_456',
+    languages: ['English', 'Hindi'],
+    documents: { aadharFront: 'file://path/to/aadhar.png' }
+  };
+
+  try {
+    console.log('🧪 Testing data structure...');
+    const testResult = testCarDetailsDataStructure(sampleCarData);
+    console.log('✅ Data structure test completed');
+
+    // Example of using the enhanced API with automatic login
+    // console.log('📤 Calling enhanced car details API with JWT verification...');
+    // const response = await addCarDetailsWithLogin(sampleCarData, sampleUserData, async (enhancedUser, token) => {
+    //   console.log('🎉 Auto-login callback triggered');
+    //   console.log('Enhanced User:', enhancedUser);
+    //   console.log('Token:', token);
+    //   
+    //   // Here you would typically call your login function
+    //   // await login(enhancedUser, token);
+    // });
+    // console.log('✅ Enhanced API Response:', response);
+
+  } catch (error) {
+    console.error('❌ Error:', error);
+  }
+};
+
+// Example of JWT verification standalone
+export const exampleJWTVerification = async (token: string) => {
+  console.log('🔐 Example: JWT Token Verification');
+  
+  try {
+    const verification = await verifyJWTToken(token);
+    
+    if (verification.verified) {
+      console.log('✅ JWT Verification Successful');
+      console.log('User ID:', verification.user_id);
+      console.log('Organization ID:', verification.organization_id);
+      console.log('Message:', verification.message);
+      
+      // Validate that values are greater than zero (meaningful)
+      if (verification.user_id.length > 0 && verification.organization_id.length > 0) {
+        console.log('✅ All verification values are meaningful');
+        return verification;
+      } else {
+        throw new Error('JWT verification values are not meaningful');
+      }
+    } else {
+      throw new Error('JWT verification failed');
+    }
+  } catch (error) {
+    console.error('❌ JWT Verification Error:', error);
+    throw error;
+  }
+};
+
+// Example of how to handle the enhanced API response
+export const handleEnhancedCarDetailsResponse = (response: any) => {
   if (response.status === 'success') {
     console.log('🎉 Car added successfully!');
     console.log('Car ID:', response.car_id);
@@ -53,13 +143,21 @@ export const handleCarDetailsResponse = (response: any) => {
       fcUrl: carDetails.fc_img_url,
       carUrl: carDetails.car_img_url
     });
+    
+    // Check if JWT verification data exists
+    if (response.jwt_verification) {
+      console.log('🔐 JWT Verification Data:', response.jwt_verification);
+      console.log('User ID:', response.jwt_verification.user_id);
+      console.log('Organization ID:', response.jwt_verification.organization_id);
+      console.log('Verified:', response.jwt_verification.verified);
+    }
   } else {
     console.log('⚠️ API returned non-success status:', response.status);
   }
 };
 
-// Example validation function
-export const validateCarDetails = (carData: CarDetailsData): { isValid: boolean; errors: string[] } => {
+// Enhanced validation function with JWT considerations
+export const validateCarDetailsWithJWT = (carData: CarDetailsData, token?: string): { isValid: boolean; errors: string[] } => {
   const errors: string[] = [];
   
   // Required text fields
@@ -86,6 +184,11 @@ export const validateCarDetails = (carData: CarDetailsData): { isValid: boolean;
   const carNumberRegex = /^[A-Z]{2}-\d{2}-[A-Z]{2}-\d{4}$/;
   if (!carNumberRegex.test(carData.car_number)) {
     errors.push('Car number must be in format: XX-XX-XX-XXXX (e.g., MH-12-AB-1234)');
+  }
+  
+  // JWT token validation (if provided)
+  if (token && token.trim().length === 0) {
+    errors.push('JWT token is required for verification');
   }
   
   return {
@@ -149,9 +252,51 @@ export const createCarDetailsFormData = (carData: CarDetailsData): FormData => {
   return formData;
 };
 
+// Example of complete workflow with JWT verification
+export const completeCarRegistrationWorkflow = async (carData: CarDetailsData, userData: any) => {
+  console.log('🚀 Starting Complete Car Registration Workflow');
+  
+  try {
+    // Step 1: Validate input data
+    const validation = validateCarDetailsWithJWT(carData);
+    if (!validation.isValid) {
+      throw new Error(`Validation failed: ${validation.errors.join(', ')}`);
+    }
+    console.log('✅ Step 1: Data validation passed');
+    
+    // Step 2: Test data structure
+    const testResult = testCarDetailsDataStructure(carData);
+    console.log('✅ Step 2: Data structure test passed');
+    
+    // Step 3: Register car with JWT verification and auto-login
+    const response = await addCarDetailsWithLogin(carData, userData, async (enhancedUser, token) => {
+      console.log('🎉 Auto-login callback executed');
+      console.log('Enhanced User Data:', enhancedUser);
+      console.log('JWT Token:', token);
+      
+      // Here you would integrate with your authentication system
+      // await yourAuthSystem.login(enhancedUser, token);
+    });
+    
+    console.log('✅ Step 3: Car registration with JWT verification completed');
+    
+    // Step 4: Handle response
+    handleEnhancedCarDetailsResponse(response);
+    
+    return response;
+    
+  } catch (error) {
+    console.error('❌ Workflow failed:', error);
+    throw error;
+  }
+};
+
 export default {
   exampleCarDetailsUsage,
-  handleCarDetailsResponse,
-  validateCarDetails,
-  createCarDetailsFormData
+  exampleCarDetailsWithLogin,
+  exampleJWTVerification,
+  handleEnhancedCarDetailsResponse,
+  validateCarDetailsWithJWT,
+  createCarDetailsFormData,
+  completeCarRegistrationWorkflow
 };
