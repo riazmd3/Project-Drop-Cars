@@ -13,6 +13,7 @@ import { useRouter } from 'expo-router';
 import { Car, Plus, ArrowLeft, Upload, CheckCircle, FileText, Save, Lock, User } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { addCarDetailsWithLogin, testCarDetailsDataStructure, CarDetailsData, loginVehicleOwner } from '@/services/signupService';
+import { authService, getCompleteUserData } from '@/services/authService';
 import { useAuth } from '@/contexts/AuthContext';
 import * as SecureStore from 'expo-secure-store';
 
@@ -20,7 +21,7 @@ const carTypes = ['SEDAN', 'HATCHBACK', 'SUV', 'INNOVA', 'INNOVA CRYSTA', 'OTHER
 
 export default function AddCarPage() {
   const router = useRouter();
-  const { user, login } = useAuth();
+  const { user, login, refreshUserData } = useAuth();
   const [loading, setLoading] = useState(false);
   const [showLoginForm, setShowLoginForm] = useState(false);
   const [loginData, setLoginData] = useState({
@@ -31,8 +32,8 @@ export default function AddCarPage() {
     car_name: '',
     car_type: '',
     car_number: '',
-    organization_id: user?.organizationId || 'org_123',
-    vehicle_owner_id: user?.id || '2819b115-fbcc-42ec-a5b3-81633980d9ce',
+    organization_id: '',
+    vehicle_owner_id: '',
     rc_front_img: null,
     rc_back_img: null,
     insurance_img: null,
@@ -47,12 +48,40 @@ export default function AddCarPage() {
 
   const checkAuthenticationStatus = async () => {
     try {
-      const token = await SecureStore.getItemAsync('authToken');
-      if (!token) {
+      const isAuth = await authService.isAuthenticated();
+      if (!isAuth) {
         setShowLoginForm(true);
+      } else {
+        // User is authenticated, load their data
+        await loadUserData();
       }
     } catch (error) {
       console.error('Error checking auth status:', error);
+      setShowLoginForm(true);
+    }
+  };
+
+  const loadUserData = async () => {
+    try {
+      const userData = await getCompleteUserData();
+      if (userData) {
+        // Update car data with real user information
+        setCarData(prev => ({
+          ...prev,
+          organization_id: userData.organizationId,
+          vehicle_owner_id: userData.id
+        }));
+        
+        console.log('✅ User data loaded:', userData);
+        console.log('📊 User details:', {
+          name: userData.fullName,
+          address: userData.address,
+          languages: userData.languages.join(', '),
+          organization: userData.organizationId
+        });
+      }
+    } catch (error) {
+      console.error('Error loading user data:', error);
       setShowLoginForm(true);
     }
   };
@@ -102,6 +131,12 @@ export default function AddCarPage() {
         console.log('✅ Login successful, token received');
         setShowLoginForm(false);
         
+        // Load user data after successful login
+        await loadUserData();
+        
+        // Refresh user data in auth context
+        await refreshUserData();
+        
         // Update car data with user info if available
         if (loginResponse.car_details_count !== undefined) {
           console.log(`📊 User has ${loginResponse.car_details_count} cars and ${loginResponse.car_driver_count} drivers`);
@@ -135,6 +170,12 @@ export default function AddCarPage() {
       return;
     }
 
+    // Validate organization and vehicle owner ID
+    if (!carData.organization_id || !carData.vehicle_owner_id) {
+      Alert.alert('Error', 'User information not loaded. Please login again.');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -144,21 +185,8 @@ export default function AddCarPage() {
       const testData = testCarDetailsDataStructure(carData);
       console.log('🧪 Car details data structure test completed');
       
-      // Create user data for login
-      const userData = {
-        id: user?.id || carData.vehicle_owner_id,
-        fullName: user?.fullName || 'Vehicle Owner',
-        primaryMobile: user?.primaryMobile || loginData.mobileNumber,
-        secondaryMobile: user?.secondaryMobile || '',
-        paymentMethod: user?.paymentMethod || '',
-        paymentNumber: user?.paymentNumber || '',
-        password: user?.password || loginData.password,
-        address: user?.address || '',
-        aadharNumber: user?.aadharNumber || '',
-        organizationId: user?.organizationId || carData.organization_id,
-        languages: user?.languages || [],
-        documents: user?.documents || {},
-      };
+      // Get real user data for login
+      const userData = await getCompleteUserData();
       
       // Call the enhanced car details API with JWT verification and automatic login
       const response = await addCarDetailsWithLogin(carData, userData, async (enhancedUser, token) => {
@@ -341,6 +369,30 @@ export default function AddCarPage() {
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={styles.formSection}>
+          <Text style={styles.sectionTitle}>User Information</Text>
+          
+          <View style={styles.userInfoContainer}>
+            <Text style={styles.userInfoLabel}>Name:</Text>
+            <Text style={styles.userInfoValue}>{user?.fullName || 'Loading...'}</Text>
+          </View>
+          
+          <View style={styles.userInfoContainer}>
+            <Text style={styles.userInfoLabel}>Address:</Text>
+            <Text style={styles.userInfoValue}>{user?.address || 'Loading...'}</Text>
+          </View>
+          
+          <View style={styles.userInfoContainer}>
+            <Text style={styles.userInfoLabel}>Languages:</Text>
+            <Text style={styles.userInfoValue}>{user?.languages?.join(', ') || 'Loading...'}</Text>
+          </View>
+          
+          <View style={styles.userInfoContainer}>
+            <Text style={styles.userInfoLabel}>Organization ID:</Text>
+            <Text style={styles.userInfoValue}>{carData.organization_id || 'Loading...'}</Text>
+          </View>
+        </View>
+
         <View style={styles.formSection}>
           <Text style={styles.sectionTitle}>Car Information</Text>
           
@@ -621,6 +673,27 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Regular',
     color: '#374151',
     lineHeight: 20,
+  },
+  userInfoContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  userInfoLabel: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+    color: '#374151',
+    flex: 1,
+  },
+  userInfoValue: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: '#1F2937',
+    flex: 2,
+    textAlign: 'right',
   },
   footer: {
     padding: 20,

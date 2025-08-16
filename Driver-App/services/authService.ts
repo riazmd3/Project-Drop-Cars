@@ -13,6 +13,16 @@ export interface LoginResponse {
   account_status: string;
   car_driver_count: number;
   car_details_count: number;
+  user_data?: {
+    id: string;
+    full_name: string;
+    primary_number: string;
+    secondary_number?: string;
+    address: string;
+    aadhar_number: string;
+    organization_id: string;
+    languages: string[];
+  };
 }
 
 export interface JWTVerificationResponse {
@@ -23,10 +33,23 @@ export interface JWTVerificationResponse {
   message: string;
 }
 
+// User data interface
+export interface UserData {
+  id: string;
+  fullName: string;
+  primaryMobile: string;
+  secondaryMobile?: string;
+  address: string;
+  aadharNumber: string;
+  organizationId: string;
+  languages: string[];
+}
+
 // Authentication service class
 class AuthService {
   private static instance: AuthService;
   private token: string | null = null;
+  private userData: UserData | null = null;
 
   private constructor() {}
 
@@ -53,6 +76,11 @@ class AuthService {
       if (response.data.access_token) {
         await this.setToken(response.data.access_token);
         console.log('🔒 Access token stored securely');
+        
+        // Extract and store user data from token
+        const userInfo = await this.extractUserDataFromToken(response.data.access_token);
+        await this.setUserData(userInfo);
+        console.log('👤 User data extracted and stored:', userInfo);
       }
       
       return response.data;
@@ -83,16 +111,75 @@ class AuthService {
     return this.token;
   }
 
-  // Clear authentication token
+  // Set user data
+  async setUserData(userData: UserData): Promise<void> {
+    this.userData = userData;
+    await SecureStore.setItemAsync('userData', JSON.stringify(userData));
+  }
+
+  // Get stored user data
+  async getUserData(): Promise<UserData | null> {
+    if (!this.userData) {
+      const storedData = await SecureStore.getItemAsync('userData');
+      if (storedData) {
+        this.userData = JSON.parse(storedData);
+      }
+    }
+    return this.userData;
+  }
+
+  // Clear authentication token and user data
   async clearToken(): Promise<void> {
     this.token = null;
+    this.userData = null;
     await SecureStore.deleteItemAsync('authToken');
+    await SecureStore.deleteItemAsync('userData');
   }
 
   // Check if user is authenticated
   async isAuthenticated(): Promise<boolean> {
     const token = await this.getToken();
     return !!token;
+  }
+
+  // Extract user data from JWT token
+  private async extractUserDataFromToken(token: string): Promise<UserData> {
+    try {
+      const tokenParts = token.split('.');
+      if (tokenParts.length === 3) {
+        const payload = JSON.parse(atob(tokenParts[1]));
+        
+        // Extract user information from token payload
+        const userData: UserData = {
+          id: payload.sub || payload.user_id || payload.vehicle_owner_id || '',
+          fullName: payload.full_name || payload.name || '',
+          primaryMobile: payload.primary_number || payload.mobile || '',
+          secondaryMobile: payload.secondary_number || '',
+          address: payload.address || '',
+          aadharNumber: payload.aadhar_number || '',
+          organizationId: payload.organization_id || payload.org_id || '',
+          languages: payload.languages || payload.spoken_languages || []
+        };
+        
+        console.log('🔍 Extracted user data from token:', userData);
+        return userData;
+      }
+      throw new Error('Invalid token format');
+    } catch (error) {
+      console.error('❌ Failed to extract user data from token:', error);
+      
+      // Return minimal user data if token decoding fails
+      return {
+        id: '',
+        fullName: '',
+        primaryMobile: '',
+        secondaryMobile: '',
+        address: '',
+        aadharNumber: '',
+        organizationId: '',
+        languages: []
+      };
+    }
   }
 
   // Verify JWT token by making an authenticated request
@@ -114,13 +201,13 @@ class AuthService {
       });
       
       // If we get here, the token is valid
-      // Extract user info from the token
-      const userInfo = await this.decodeToken(token);
+      // Get user data from stored data
+      const userData = await this.getUserData();
       
       return {
         verified: true,
-        user_id: userInfo.user_id,
-        organization_id: userInfo.organization_id,
+        user_id: userData?.id || '',
+        organization_id: userData?.organizationId || '',
         token: token,
         message: 'Token verified successfully'
       };
@@ -136,27 +223,6 @@ class AuthService {
       } else {
         throw new Error(`JWT verification failed: ${error.message || 'Unknown error'}`);
       }
-    }
-  }
-
-  // Decode JWT token to extract user information
-  private async decodeToken(token: string): Promise<{ user_id: string; organization_id: string }> {
-    try {
-      const tokenParts = token.split('.');
-      if (tokenParts.length === 3) {
-        const payload = JSON.parse(atob(tokenParts[1]));
-        return {
-          user_id: payload.sub || payload.user_id || payload.vehicle_owner_id || 'unknown',
-          organization_id: payload.organization_id || payload.org_id || 'unknown'
-        };
-      }
-      throw new Error('Invalid token format');
-    } catch (error) {
-      console.error('❌ Failed to decode token:', error);
-      return {
-        user_id: 'unknown',
-        organization_id: 'unknown'
-      };
     }
   }
 
@@ -205,6 +271,15 @@ class AuthService {
       throw new Error('Failed to retrieve user profile');
     }
   }
+
+  // Get complete user data for forms
+  async getCompleteUserData(): Promise<UserData> {
+    const userData = await this.getUserData();
+    if (!userData) {
+      throw new Error('No user data found. Please login again.');
+    }
+    return userData;
+  }
 }
 
 // Export singleton instance
@@ -219,5 +294,6 @@ export const isAuthenticated = () => authService.isAuthenticated();
 export const getAuthHeaders = () => authService.getAuthHeaders();
 export const logout = () => authService.logout();
 export const getUserProfile = () => authService.getUserProfile();
+export const getCompleteUserData = () => authService.getCompleteUserData();
 
 export default authService;
