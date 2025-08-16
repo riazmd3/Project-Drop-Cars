@@ -12,6 +12,7 @@ export interface SignupData {
   aadhar_number: string;
   organization_id: string;
   aadhar_front_img: any; // File object for FormData
+  
 }
 
 export interface SignupResponse {

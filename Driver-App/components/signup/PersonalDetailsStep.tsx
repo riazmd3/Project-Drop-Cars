@@ -16,7 +16,7 @@ interface PersonalDetailsStepProps {
   onNext: () => void;
 }
 
-const languagesList = ["Tamil", "English", "Malayalam", "Hindi", "Telugu"];
+
 const paymentMethods = ["GPay", "PhonePe"];
 
 // Helper function to validate Indian mobile numbers
@@ -58,21 +58,13 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
   const [address, setAddress] = useState(data.address || '');
   const [aadharNumber, setAadharNumber] = useState(data.aadharNumber || '');
   const [organizationId, setOrganizationId] = useState(data.organizationId || 'org_001');
-  const [selectedLanguages, setSelectedLanguages] = useState<string[]>(data.languages || []);
 
-  const toggleLanguage = (lang: string) => {
-    let updated;
-    if (selectedLanguages.includes(lang)) {
-      updated = selectedLanguages.filter(l => l !== lang);
-    } else {
-      updated = [...selectedLanguages, lang];
-    }
-    setSelectedLanguages(updated);
-  };
+
+
 
   const handleNext = () => {
-    if (!fullName || !primaryMobile || !password || !address || !aadharNumber || selectedLanguages.length === 0) {
-      Alert.alert('Error', 'Please fill all required fields and select at least one language');
+    if (!fullName || !primaryMobile || !password || !address || !aadharNumber) {
+      Alert.alert('Error', 'Please fill all required fields');
       return;
     }
 
@@ -111,7 +103,7 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
       address,
       aadharNumber,
       organizationId,
-      languages: selectedLanguages
+
     };
 
     onUpdate(personalData);
@@ -277,19 +269,7 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
           />
         </View>
 
-        {/* Languages */}
-        <Text style={styles.label}>Select Spoken Languages</Text>
-        {languagesList.map((lang) => (
-          <TouchableOpacity
-            key={lang}
-            style={[styles.option, selectedLanguages.includes(lang) && styles.selected]}
-            onPress={() => toggleLanguage(lang)}
-          >
-            <Text style={styles.optionText}>
-              {selectedLanguages.includes(lang) ? '✔ ' : ''}{lang}
-            </Text>
-          </TouchableOpacity>
-        ))}
+
 
         {/* Next Button */}
         <TouchableOpacity style={styles.nextButton} onPress={handleNext}>
@@ -377,23 +357,7 @@ const styles = StyleSheet.create({
   selectedPaymentText: {
     color: '#FFFFFF',
   },
-  option: {
-    padding: 12,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    borderRadius: 8,
-    marginBottom: 8,
-    backgroundColor: '#F9FAFB',
-  },
-  selected: { 
-    backgroundColor: '#DBEAFE', 
-    borderColor: '#3B82F6' 
-  },
-  optionText: { 
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-    color: '#1F2937',
-  },
+
   nextButton: {
     backgroundColor: '#3B82F6',
     borderRadius: 12,
