@@ -137,6 +137,11 @@ export default function AddCarPage() {
         // Refresh user data in auth context
         await refreshUserData();
         
+        // Wait a moment for the auth context to update
+        setTimeout(async () => {
+          await refreshUserData();
+        }, 500);
+        
         // Update car data with user info if available
         if (loginResponse.car_details_count !== undefined) {
           console.log(`📊 User has ${loginResponse.car_details_count} cars and ${loginResponse.car_driver_count} drivers`);
@@ -382,14 +387,18 @@ export default function AddCarPage() {
             <Text style={styles.userInfoValue}>{user?.address || 'Loading...'}</Text>
           </View>
           
-          <View style={styles.userInfoContainer}>
-            <Text style={styles.userInfoLabel}>Languages:</Text>
-            <Text style={styles.userInfoValue}>{user?.languages?.join(', ') || 'Loading...'}</Text>
-          </View>
+
           
           <View style={styles.userInfoContainer}>
             <Text style={styles.userInfoLabel}>Organization ID:</Text>
             <Text style={styles.userInfoValue}>{carData.organization_id || 'Loading...'}</Text>
+          </View>
+          
+          <View style={styles.userInfoContainer}>
+            <Text style={styles.userInfoLabel}>Debug Info:</Text>
+            <Text style={styles.userInfoValue}>
+              {user ? `User ID: ${user.id}, Auth: ${!!user.fullName}` : 'No user data'}
+            </Text>
           </View>
         </View>
 

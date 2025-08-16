@@ -77,10 +77,19 @@ class AuthService {
         await this.setToken(response.data.access_token);
         console.log('🔒 Access token stored securely');
         
-        // Extract and store user data from token
-        const userInfo = await this.extractUserDataFromToken(response.data.access_token);
-        await this.setUserData(userInfo);
-        console.log('👤 User data extracted and stored:', userInfo);
+        // Extract basic user data from token
+        const basicUserInfo = await this.extractUserDataFromToken(response.data.access_token);
+        
+        // Fetch complete user profile from backend
+        try {
+          const completeUserProfile = await this.fetchUserProfileFromBackend(response.data.access_token);
+          const userInfo = { ...basicUserInfo, ...completeUserProfile };
+          await this.setUserData(userInfo);
+          console.log('👤 Complete user data fetched and stored:', userInfo);
+        } catch (profileError) {
+          console.warn('⚠️ Could not fetch complete profile, using basic token data:', profileError);
+          await this.setUserData(basicUserInfo);
+        }
       }
       
       return response.data;
@@ -279,6 +288,38 @@ class AuthService {
       throw new Error('No user data found. Please login again.');
     }
     return userData;
+  }
+
+  // Fetch complete user profile from backend
+  private async fetchUserProfileFromBackend(token: string): Promise<Partial<UserData>> {
+    try {
+      console.log('🔍 Fetching complete user profile from backend...');
+      
+      const response = await axiosInstance.get('/api/users/vehicleowner/profile', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      if (response.data) {
+        console.log('✅ User profile fetched:', response.data);
+        
+        // Map backend response to our UserData format
+        return {
+          fullName: response.data.full_name || response.data.name || '',
+          primaryMobile: response.data.primary_number || response.data.mobile || '',
+          secondaryMobile: response.data.secondary_number || '',
+          address: response.data.address || '',
+          aadharNumber: response.data.aadhar_number || '',
+          languages: response.data.languages || response.data.spoken_languages || []
+        };
+      }
+      
+      return {};
+    } catch (error: any) {
+      console.error('❌ Failed to fetch user profile:', error);
+      throw new Error('Could not fetch complete user profile');
+    }
   }
 }
 

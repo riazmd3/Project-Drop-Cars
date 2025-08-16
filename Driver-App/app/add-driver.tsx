@@ -10,9 +10,14 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, User, Phone, MapPin, Hash, Upload, Save } from 'lucide-react-native';
+import { ArrowLeft, User, Phone, MapPin, Hash, Upload, Save, Languages } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import * as ImagePicker from 'expo-image-picker';
+
+const spokenLanguageOptions = [
+  'English', 'Hindi', 'Marathi', 'Gujarati', 'Bengali', 'Tamil', 
+  'Telugu', 'Kannada', 'Malayalam', 'Punjabi', 'Urdu', 'Other'
+];
 
 export default function AddDriverScreen() {
   const [driverData, setDriverData] = useState({
@@ -22,6 +27,7 @@ export default function AddDriverScreen() {
     aadharNumber: '',
     licenseNumber: '',
     experience: '',
+    spokenLanguages: [] as string[],
   });
   const [documents, setDocuments] = useState({
     aadharFront: '',
@@ -56,6 +62,11 @@ export default function AddDriverScreen() {
   const handleSave = () => {
     if (!driverData.name || !driverData.mobile || !driverData.address || !driverData.aadharNumber) {
       Alert.alert('Error', 'Please fill all required fields');
+      return;
+    }
+
+    if (driverData.spokenLanguages.length === 0) {
+      Alert.alert('Error', 'Please select at least one spoken language');
       return;
     }
 
@@ -195,6 +206,34 @@ export default function AddDriverScreen() {
               keyboardType="numeric"
               maxLength={2}
             />
+          </View>
+
+          <Text style={styles.fieldLabel}>Spoken Languages</Text>
+          <View style={styles.languageSelector}>
+            {spokenLanguageOptions.map((language) => (
+              <TouchableOpacity
+                key={language}
+                style={[
+                  styles.languageButton,
+                  driverData.spokenLanguages.includes(language) && styles.selectedLanguageButton
+                ]}
+                onPress={() => {
+                  setDriverData(prev => ({
+                    ...prev,
+                    spokenLanguages: prev.spokenLanguages.includes(language)
+                      ? prev.spokenLanguages.filter(lang => lang !== language)
+                      : [...prev.spokenLanguages, language]
+                  }));
+                }}
+              >
+                <Text style={[
+                  styles.languageButtonText,
+                  driverData.spokenLanguages.includes(language) && styles.selectedLanguageButtonText
+                ]}>
+                  {language}
+                </Text>
+              </TouchableOpacity>
+            ))}
           </View>
 
           <Text style={styles.sectionTitle}>Required Documents</Text>
@@ -384,6 +423,40 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
     marginLeft: 8,
+  },
+  fieldLabel: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+    color: '#374151',
+    marginBottom: 12,
+    marginTop: 8,
+  },
+  languageSelector: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    marginBottom: 16,
+  },
+  languageButton: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginRight: 8,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  selectedLanguageButton: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6',
+  },
+  languageButtonText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: '#6B7280',
+  },
+  selectedLanguageButtonText: {
+    color: '#FFFFFF',
   },
 });
 
