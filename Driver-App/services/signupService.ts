@@ -1,5 +1,5 @@
 import axiosInstance from '@/app/api/axiosInstance';
-import * as SecureStore from 'expo-secure-store';
+import { authService, getAuthHeaders } from './authService';
 
 // Single API call interface matching your working Postman request
 export interface SignupData {
@@ -252,11 +252,11 @@ export const loginVehicleOwner = async (mobileNumber: string, password: string):
     
     console.log('✅ Login successful:', response.data);
     
-    // Store the access token securely
-    if (response.data.access_token) {
-      await SecureStore.setItemAsync('authToken', response.data.access_token);
-      console.log('🔒 Access token stored securely');
-    }
+          // Store the access token securely
+      if (response.data.access_token) {
+        await authService.setToken(response.data.access_token);
+        console.log('🔒 Access token stored securely');
+      }
     
     return response.data;
   } catch (error: any) {
@@ -339,7 +339,7 @@ export const addCarDetails = async (carData: CarDetailsData): Promise<CarDetails
   
   try {
     // Verify we have a valid token
-    const token = await SecureStore.getItemAsync('authToken');
+    const token = await authService.getToken();
     if (!token) {
       throw new Error('No authentication token found. Please login first.');
     }
@@ -393,10 +393,11 @@ export const addCarDetails = async (carData: CarDetailsData): Promise<CarDetails
     });
     
     // Make the API call with FormData and JWT authentication
+    const authHeaders = await getAuthHeaders();
     const response = await axiosInstance.post('/api/users/cardetails/signup', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
-        'Authorization': `Bearer ${token}`
+        ...authHeaders
       },
     });
     
@@ -511,7 +512,7 @@ export const addCarDetailsWithLogin = async (
       console.log('✅ Car details added successfully, proceeding with JWT verification...');
       
       // Get the JWT token from secure storage
-      const token = await SecureStore.getItemAsync('authToken');
+      const token = await authService.getToken();
       
       if (token) {
         // Verify the JWT token

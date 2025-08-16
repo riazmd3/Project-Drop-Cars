@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -10,10 +10,11 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { Car, Plus, ArrowLeft, Upload, CheckCircle, FileText, Save } from 'lucide-react-native';
+import { Car, Plus, ArrowLeft, Upload, CheckCircle, FileText, Save, Lock, User } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { addCarDetailsWithLogin, testCarDetailsDataStructure, CarDetailsData } from '@/services/signupService';
+import { addCarDetailsWithLogin, testCarDetailsDataStructure, CarDetailsData, loginVehicleOwner } from '@/services/signupService';
 import { useAuth } from '@/contexts/AuthContext';
+import * as SecureStore from 'expo-secure-store';
 
 const carTypes = ['SEDAN', 'HATCHBACK', 'SUV', 'INNOVA', 'INNOVA CRYSTA', 'OTHER'];
 
@@ -21,6 +22,11 @@ export default function AddCarPage() {
   const router = useRouter();
   const { user, login } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [showLoginForm, setShowLoginForm] = useState(false);
+  const [loginData, setLoginData] = useState({
+    mobileNumber: '',
+    password: ''
+  });
   const [carData, setCarData] = useState({
     car_name: '',
     car_type: '',
@@ -34,12 +40,33 @@ export default function AddCarPage() {
     car_img: null
   });
 
+  // Check if user is authenticated on component mount
+  useEffect(() => {
+    checkAuthenticationStatus();
+  }, []);
+
+  const checkAuthenticationStatus = async () => {
+    try {
+      const token = await SecureStore.getItemAsync('authToken');
+      if (!token) {
+        setShowLoginForm(true);
+      }
+    } catch (error) {
+      console.error('Error checking auth status:', error);
+      setShowLoginForm(true);
+    }
+  };
+
   const updateCarField = (field: string, value: string) => {
     setCarData(prev => ({ ...prev, [field]: value }));
   };
 
   const updateCarImage = (field: string, imageUri: string) => {
     setCarData(prev => ({ ...prev, [field]: imageUri }));
+  };
+
+  const updateLoginField = (field: string, value: string) => {
+    setLoginData(prev => ({ ...prev, [field]: value }));
   };
 
   const pickImage = async (field: string) => {
@@ -56,6 +83,37 @@ export default function AddCarPage() {
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to pick image');
+    }
+  };
+
+  const handleLogin = async () => {
+    if (!loginData.mobileNumber || !loginData.password) {
+      Alert.alert('Error', 'Please enter both mobile number and password');
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      console.log('🔐 Attempting to login...');
+      const loginResponse = await loginVehicleOwner(loginData.mobileNumber, loginData.password);
+      
+      if (loginResponse.access_token) {
+        console.log('✅ Login successful, token received');
+        setShowLoginForm(false);
+        
+        // Update car data with user info if available
+        if (loginResponse.car_details_count !== undefined) {
+          console.log(`📊 User has ${loginResponse.car_details_count} cars and ${loginResponse.car_driver_count} drivers`);
+        }
+        
+        Alert.alert('Login Successful', 'You can now add your car details.');
+      }
+    } catch (error: any) {
+      console.error('❌ Login failed:', error);
+      Alert.alert('Login Failed', error.message || 'Please check your credentials and try again.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -90,11 +148,11 @@ export default function AddCarPage() {
       const userData = {
         id: user?.id || carData.vehicle_owner_id,
         fullName: user?.fullName || 'Vehicle Owner',
-        primaryMobile: user?.primaryMobile || '',
+        primaryMobile: user?.primaryMobile || loginData.mobileNumber,
         secondaryMobile: user?.secondaryMobile || '',
         paymentMethod: user?.paymentMethod || '',
         paymentNumber: user?.paymentNumber || '',
-        password: user?.password || '',
+        password: user?.password || loginData.password,
         address: user?.address || '',
         aadharNumber: user?.aadharNumber || '',
         organizationId: user?.organizationId || carData.organization_id,
@@ -128,7 +186,22 @@ export default function AddCarPage() {
       }
     } catch (error: any) {
       console.error('❌ Car details submission failed:', error);
-      Alert.alert('Error', error.message || 'Failed to add car. Please try again.');
+      
+      // Handle authentication errors specifically
+      if (error.message.includes('authentication') || error.message.includes('token')) {
+        Alert.alert(
+          'Authentication Required', 
+          'Please login again to continue.',
+          [
+            {
+              text: 'Login Again',
+              onPress: () => setShowLoginForm(true)
+            }
+          ]
+        );
+      } else {
+        Alert.alert('Error', error.message || 'Failed to add car. Please try again.');
+      }
     } finally {
       setLoading(false);
     }
@@ -188,6 +261,74 @@ export default function AddCarPage() {
       ))}
     </View>
   );
+
+  // Show login form if user is not authenticated
+  if (showLoginForm) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+            <ArrowLeft color="#6B7280" size={24} />
+          </TouchableOpacity>
+          <Text style={styles.headerTitle}>Authentication Required</Text>
+          <View style={styles.placeholder} />
+        </View>
+
+        <View style={styles.loginContainer}>
+          <View style={styles.loginHeader}>
+            <Lock color="#3B82F6" size={48} />
+            <Text style={styles.loginTitle}>Login Required</Text>
+            <Text style={styles.loginSubtitle}>
+              You need to login to add car details. This ensures secure access to your account.
+            </Text>
+          </View>
+
+          <View style={styles.formSection}>
+            <Text style={styles.sectionTitle}>Vehicle Owner Login</Text>
+            
+            <View style={styles.inputGroup}>
+              <User color="#6B7280" size={20} />
+              <TextInput
+                style={styles.input}
+                placeholder="Mobile Number"
+                value={loginData.mobileNumber}
+                onChangeText={(value) => updateLoginField('mobileNumber', value)}
+                keyboardType="phone-pad"
+              />
+            </View>
+
+            <View style={styles.inputGroup}>
+              <Lock color="#6B7280" size={20} />
+              <TextInput
+                style={styles.input}
+                placeholder="Password"
+                value={loginData.password}
+                onChangeText={(value) => updateLoginField('password', value)}
+                secureTextEntry
+              />
+            </View>
+
+            <TouchableOpacity 
+              style={[styles.loginButton, loading && styles.loginButtonDisabled]} 
+              onPress={handleLogin}
+              disabled={loading}
+            >
+              <Text style={styles.loginButtonText}>
+                {loading ? 'Logging in...' : 'Login'}
+              </Text>
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.infoSection}>
+            <Text style={styles.infoTitle}>🔐 JWT Authentication</Text>
+            <Text style={styles.infoText}>
+              After login, you'll receive a JWT token that will be used to securely add your car details.
+            </Text>
+          </View>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -315,6 +456,28 @@ const styles = StyleSheet.create({
   placeholder: {
     width: 40,
   },
+  loginContainer: {
+    flex: 1,
+    padding: 20,
+  },
+  loginHeader: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  loginTitle: {
+    fontSize: 24,
+    fontFamily: 'Inter-Bold',
+    color: '#1F2937',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  loginSubtitle: {
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 24,
+  },
   content: {
     flex: 1,
     padding: 20,
@@ -332,26 +495,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-SemiBold',
     color: '#1F2937',
     marginBottom: 20,
-  },
-  infoSection: {
-    backgroundColor: '#EFF6FF',
-    borderRadius: 16,
-    padding: 16,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: '#BFDBFE',
-  },
-  infoTitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: '#1E40AF',
-    marginBottom: 8,
-  },
-  infoText: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    color: '#374151',
-    lineHeight: 20,
   },
   inputGroup: {
     flexDirection: 'row',
@@ -459,6 +602,26 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginTop: 2,
   },
+  infoSection: {
+    backgroundColor: '#EFF6FF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  infoTitle: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    color: '#1E40AF',
+    marginBottom: 8,
+  },
+  infoText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: '#374151',
+    lineHeight: 20,
+  },
   footer: {
     padding: 20,
     backgroundColor: '#FFFFFF',
@@ -482,5 +645,21 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
     marginLeft: 8,
+  },
+  loginButton: {
+    backgroundColor: '#3B82F6',
+    borderRadius: 12,
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  loginButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+  },
+  loginButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
   },
 });
