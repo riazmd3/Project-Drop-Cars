@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,7 +13,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { ArrowLeft, Car, Plus, X, Check } from 'lucide-react-native';
+import { ArrowLeft, Car, Plus, X, Check, Edit, Trash2 } from 'lucide-react-native';
+import { getCars, updateCar, deleteCar, setDefaultCar, CarDetails } from '@/services/carManagementService';
+import * as ImagePicker from 'expo-image-picker';
 
 const carTypes = ['Sedan', 'Hatchback', 'SUV', 'Innova', 'Innova Crysta', 'Other'];
 
@@ -22,7 +24,38 @@ export default function MyCarsScreen() {
   const { colors } = useTheme();
   const router = useRouter();
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [cars, setCars] = useState<CarDetails[]>([]);
+  const [loading, setLoading] = useState(false);
   const [newCar, setNewCar] = useState({ name: '', type: '', registration: '' });
+  const [editingCar, setEditingCar] = useState<CarDetails | null>(null);
+  const [editForm, setEditForm] = useState({
+    car_name: '',
+    car_type: '',
+    car_number: '',
+    rc_front_img: null,
+    rc_back_img: null,
+    insurance_img: null,
+    fc_img: null,
+    car_img: null
+  });
+
+  // Fetch cars from API
+  useEffect(() => {
+    fetchCars();
+  }, []);
+
+  const fetchCars = async () => {
+    try {
+      setLoading(true);
+      const carsList = await getCars();
+      setCars(carsList);
+    } catch (error: any) {
+      Alert.alert('Error', `Failed to fetch cars: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const addCar = () => {
     if (!newCar.name || !newCar.type || !newCar.registration) {
@@ -45,6 +78,111 @@ export default function MyCarsScreen() {
     setNewCar({ name: '', type: '', registration: '' });
     setShowAddModal(false);
     Alert.alert('Success', 'Car added successfully');
+  };
+
+  // Edit car functions
+  const openEditModal = (car: CarDetails) => {
+    setEditingCar(car);
+    setEditForm({
+      car_name: car.car_name,
+      car_type: car.car_type,
+      car_number: car.car_number,
+      rc_front_img: null,
+      rc_back_img: null,
+      insurance_img: null,
+      fc_img: null,
+      car_img: null
+    });
+    setShowEditModal(true);
+  };
+
+  const pickImage = async (fieldName: string) => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 1,
+      });
+
+      if (!result.canceled) {
+        setEditForm(prev => ({
+          ...prev,
+          [fieldName]: result.assets[0].uri
+        }));
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to pick image');
+    }
+  };
+
+  const handleEditCar = async () => {
+    if (!editingCar) return;
+
+    try {
+      setLoading(true);
+      const updateData = {
+        car_id: editingCar.car_id,
+        organization_id: editingCar.organization_id,
+        vehicle_owner_id: editingCar.vehicle_owner_id,
+        ...editForm
+      };
+
+      // Remove null values
+      Object.keys(updateData).forEach(key => {
+        if (updateData[key as keyof typeof updateData] === null) {
+          delete updateData[key as keyof typeof updateData];
+        }
+      });
+
+      await updateCar(updateData);
+      Alert.alert('Success', 'Car updated successfully');
+      setShowEditModal(false);
+      fetchCars(); // Refresh the list
+    } catch (error: any) {
+      Alert.alert('Error', `Failed to update car: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteCar = async (carId: string) => {
+    Alert.alert(
+      'Delete Car',
+      'Are you sure you want to delete this car?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              await deleteCar(carId);
+              Alert.alert('Success', 'Car deleted successfully');
+              fetchCars(); // Refresh the list
+            } catch (error: any) {
+              Alert.alert('Error', `Failed to delete car: ${error.message}`);
+            } finally {
+              setLoading(false);
+            }
+          }
+        }
+      ]
+    );
+  };
+
+  const handleSetDefaultCar = async (carId: string) => {
+    try {
+      setLoading(true);
+      await setDefaultCar(carId);
+      Alert.alert('Success', 'Default car updated');
+      fetchCars(); // Refresh the list
+    } catch (error: any) {
+      Alert.alert('Error', `Failed to set default car: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const setDefaultCar = (carId) => {
@@ -180,6 +318,63 @@ export default function MyCarsScreen() {
       fontSize: 16,
       fontFamily: 'Inter-SemiBold',
       marginTop: 8,
+    },
+    loadingContainer: {
+      alignItems: 'center',
+      paddingVertical: 40,
+    },
+    loadingText: {
+      fontSize: 16,
+      fontFamily: 'Inter-Medium',
+      color: colors.textSecondary,
+    },
+    emptyState: {
+      alignItems: 'center',
+      paddingVertical: 40,
+    },
+    emptyStateText: {
+      fontSize: 18,
+      fontFamily: 'Inter-SemiBold',
+      color: colors.text,
+      marginBottom: 8,
+    },
+    emptyStateSubtext: {
+      fontSize: 14,
+      fontFamily: 'Inter-Medium',
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    carHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    carInfo: {
+      flex: 1,
+    },
+    carType: {
+      fontSize: 14,
+      fontFamily: 'Inter-Medium',
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    deleteButton: {
+      borderColor: colors.error,
+      marginLeft: 8,
+    },
+    imageUploadButton: {
+      backgroundColor: colors.background,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      padding: 12,
+      alignItems: 'center',
+    },
+    imageUploadText: {
+      fontSize: 14,
+      fontFamily: 'Inter-Medium',
+      color: colors.textSecondary,
     },
     modalOverlay: {
       flex: 1,
@@ -320,9 +515,61 @@ export default function MyCarsScreen() {
       </View>
 
       <ScrollView style={dynamicStyles.content} showsVerticalScrollIndicator={false}>
-        {user?.cars?.map((car) => (
-          <CarCard key={car.id} car={car} />
-        ))}
+        {loading ? (
+          <View style={dynamicStyles.loadingContainer}>
+            <Text style={dynamicStyles.loadingText}>Loading cars...</Text>
+          </View>
+        ) : cars.length > 0 ? (
+          cars.map((car) => (
+            <View key={car.car_id} style={dynamicStyles.carCard}>
+              <View style={dynamicStyles.carHeader}>
+                <View style={dynamicStyles.carInfo}>
+                  <Text style={dynamicStyles.carName}>{car.car_name}</Text>
+                  <Text style={dynamicStyles.carType}>{car.car_type}</Text>
+                </View>
+                <View style={dynamicStyles.carActions}>
+                  <TouchableOpacity 
+                    style={dynamicStyles.actionButton}
+                    onPress={() => openEditModal(car)}
+                  >
+                    <Edit color={colors.primary} size={16} />
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[dynamicStyles.actionButton, dynamicStyles.deleteButton]}
+                    onPress={() => handleDeleteCar(car.car_id)}
+                  >
+                    <Trash2 color={colors.error} size={16} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+              
+              <View style={dynamicStyles.carDetails}>
+                <View style={dynamicStyles.carDetailRow}>
+                  <Text style={dynamicStyles.carDetailLabel}>Registration:</Text>
+                  <Text style={dynamicStyles.carDetailValue}>{car.car_number}</Text>
+                </View>
+                <View style={dynamicStyles.carDetailRow}>
+                  <Text style={dynamicStyles.carDetailLabel}>Status:</Text>
+                  <Text style={dynamicStyles.carDetailValue}>{car.status}</Text>
+                </View>
+              </View>
+
+              <View style={dynamicStyles.carActions}>
+                <TouchableOpacity 
+                  style={[dynamicStyles.actionButton, dynamicStyles.defaultButton]}
+                  onPress={() => handleSetDefaultCar(car.car_id)}
+                >
+                  <Text style={dynamicStyles.defaultButtonText}>Set as Default</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ))
+        ) : (
+          <View style={dynamicStyles.emptyState}>
+            <Text style={dynamicStyles.emptyStateText}>No cars found</Text>
+            <Text style={dynamicStyles.emptyStateSubtext}>Add your first car to get started</Text>
+          </View>
+        )}
 
         <TouchableOpacity 
           style={dynamicStyles.addButton}
@@ -399,6 +646,109 @@ export default function MyCarsScreen() {
 
             <TouchableOpacity style={dynamicStyles.submitButton} onPress={addCar}>
               <Text style={dynamicStyles.submitButtonText}>Add Car</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Edit Car Modal */}
+      <Modal
+        visible={showEditModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => setShowEditModal(false)}
+      >
+        <View style={dynamicStyles.modalOverlay}>
+          <View style={dynamicStyles.modalContent}>
+            <View style={dynamicStyles.modalHeader}>
+              <Text style={dynamicStyles.modalTitle}>Edit Car</Text>
+              <TouchableOpacity 
+                onPress={() => setShowEditModal(false)}
+                style={dynamicStyles.closeButton}
+              >
+                <X color={colors.textSecondary} size={24} />
+              </TouchableOpacity>
+            </View>
+
+            <View style={dynamicStyles.inputGroup}>
+              <Text style={dynamicStyles.inputLabel}>Car Name</Text>
+              <TextInput
+                style={dynamicStyles.input}
+                placeholder="e.g., Tata Nexon"
+                value={editForm.car_name}
+                onChangeText={(value) => setEditForm({ ...editForm, car_name: value })}
+                placeholderTextColor={colors.textSecondary}
+              />
+            </View>
+
+            <View style={dynamicStyles.inputGroup}>
+              <Text style={dynamicStyles.inputLabel}>Car Type</Text>
+              <View style={dynamicStyles.typeSelector}>
+                {carTypes.map((type) => (
+                  <TouchableOpacity
+                    key={type}
+                    style={[
+                      dynamicStyles.typeButton,
+                      editForm.car_type === type && dynamicStyles.selectedTypeButton
+                    ]}
+                    onPress={() => setEditForm({ ...editForm, car_type: type })}
+                  >
+                    <Text style={[
+                      dynamicStyles.typeButtonText,
+                      editForm.car_type === type && dynamicStyles.selectedTypeButtonText
+                    ]}>
+                      {type}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+
+            <View style={dynamicStyles.inputGroup}>
+              <Text style={dynamicStyles.inputLabel}>Registration Number</Text>
+              <TextInput
+                style={dynamicStyles.input}
+                placeholder="e.g., TN10BZ1234"
+                value={editForm.car_number}
+                onChangeText={(value) => setEditForm({ ...editForm, car_number: value.toUpperCase() })}
+                autoCapitalize="characters"
+                placeholderTextColor={colors.textSecondary}
+              />
+            </View>
+
+            {/* Image upload sections */}
+            <View style={dynamicStyles.inputGroup}>
+              <Text style={dynamicStyles.inputLabel}>RC Front Image</Text>
+              <TouchableOpacity 
+                style={dynamicStyles.imageUploadButton}
+                onPress={() => pickImage('rc_front_img')}
+              >
+                <Text style={dynamicStyles.imageUploadText}>
+                  {editForm.rc_front_img ? 'Image Selected' : 'Select Image'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={dynamicStyles.inputGroup}>
+              <Text style={dynamicStyles.inputLabel}>RC Back Image</Text>
+              <TouchableOpacity 
+                style={dynamicStyles.imageUploadButton}
+                onPress={() => pickImage('rc_back_img')}
+              >
+                <Text style={dynamicStyles.imageUploadText}>
+                  {editForm.rc_back_img ? 'Image Selected' : 'Select Image'}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <TouchableOpacity 
+              style={dynamicStyles.submitButton} 
+              onPress={handleEditCar}
+              disabled={loading}
+            >
+              <Text style={dynamicStyles.submitButtonText}>
+                {loading ? 'Updating...' : 'Update Car'}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>

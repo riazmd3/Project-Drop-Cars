@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -13,8 +13,9 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft, User, Phone, Plus, X, Upload, FileText, Languages } from 'lucide-react-native';
+import { ArrowLeft, User, Phone, Plus, X, Upload, FileText, Languages, Edit, Trash2 } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { getDrivers, addDriver, editDriver, deleteDriver, DriverData, DriverResponse } from '@/services/driverService';
 
 const spokenLanguageOptions = [
   'English', 'Hindi', 'Marathi', 'Gujarati', 'Bengali', 'Tamil', 
@@ -46,8 +47,11 @@ export default function MyDriversScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
   const router = useRouter();
-  const [drivers, setDrivers] = useState(dummyDrivers);
+  const [drivers, setDrivers] = useState<any[]>([]);
+  const [loading, setLoading] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingDriver, setEditingDriver] = useState<any>(null);
   const [newDriver, setNewDriver] = useState({
     name: '',
     mobile: '',
@@ -55,6 +59,14 @@ export default function MyDriversScreen() {
     rcFront: null,
     rcBack: null,
     spokenLanguages: [] as string[],
+  });
+  const [editForm, setEditForm] = useState({
+    driver_name: '',
+    mobile_number: '',
+    aadhar_number: '',
+    rc_front_img: null,
+    rc_back_img: null,
+    spoken_languages: [] as string[],
   });
 
   const pickDocument = async (documentType) => {
@@ -77,7 +89,24 @@ export default function MyDriversScreen() {
     }
   };
 
-  const addDriver = () => {
+  // Fetch drivers from API
+  useEffect(() => {
+    fetchDrivers();
+  }, []);
+
+  const fetchDrivers = async () => {
+    try {
+      setLoading(true);
+      const driversList = await getDrivers();
+      setDrivers(driversList);
+    } catch (error: any) {
+      Alert.alert('Error', `Failed to fetch drivers: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const addDriver = async () => {
     if (!newDriver.name || !newDriver.mobile) {
       Alert.alert('Error', 'Please enter driver name and mobile number');
       return;
@@ -88,16 +117,117 @@ export default function MyDriversScreen() {
       return;
     }
 
-    const driverToAdd = {
-      id: Date.now().toString(),
-      ...newDriver,
-      status: 'active'
-    };
+    try {
+      setLoading(true);
+      const driverData: DriverData = {
+        driver_name: newDriver.name,
+        mobile_number: newDriver.mobile,
+        aadhar_number: newDriver.aadhar,
+        rc_front_img: newDriver.rcFront,
+        rc_back_img: newDriver.rcBack,
+        spoken_languages: newDriver.spokenLanguages,
+        organization_id: user?.organization_id || 'org_123', // Replace with actual org ID
+        vehicle_owner_id: user?.id || '2819b115-fbcc-42ec-a5b3-81633980d9ce' // Replace with actual user ID
+      };
 
-    setDrivers([...drivers, driverToAdd]);
-    setNewDriver({ name: '', mobile: '', aadhar: null, rcFront: null, rcBack: null, spokenLanguages: [] });
-    setShowAddModal(false);
-    Alert.alert('Success', 'Driver added successfully');
+      await addDriver(driverData);
+      Alert.alert('Success', 'Driver added successfully');
+      setNewDriver({ name: '', mobile: '', aadhar: null, rcFront: null, rcBack: null, spokenLanguages: [] });
+      setShowAddModal(false);
+      fetchDrivers(); // Refresh the list
+    } catch (error: any) {
+      Alert.alert('Error', `Failed to add driver: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Edit driver functions
+  const openEditModal = (driver: any) => {
+    setEditingDriver(driver);
+    setEditForm({
+      driver_name: driver.driver_name || driver.name,
+      mobile_number: driver.mobile_number || driver.mobile,
+      aadhar_number: driver.aadhar_number || driver.aadhar || '',
+      rc_front_img: null,
+      rc_back_img: null,
+      spoken_languages: driver.spoken_languages || driver.spokenLanguages || []
+    });
+    setShowEditModal(true);
+  };
+
+  const pickEditImage = async (fieldName: string) => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 1,
+      });
+
+      if (!result.canceled) {
+        setEditForm(prev => ({
+          ...prev,
+          [fieldName]: result.assets[0].uri
+        }));
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to pick image');
+    }
+  };
+
+  const handleEditDriver = async () => {
+    if (!editingDriver) return;
+
+    try {
+      setLoading(true);
+      const updateData: DriverData = {
+        driver_id: editingDriver.driver_id || editingDriver.id,
+        driver_name: editForm.driver_name,
+        mobile_number: editForm.mobile_number,
+        aadhar_number: editForm.aadhar_number,
+        rc_front_img: editForm.rc_front_img,
+        rc_back_img: editForm.rc_back_img,
+        spoken_languages: editForm.spoken_languages,
+        organization_id: user?.organization_id || 'org_123',
+        vehicle_owner_id: user?.id || '2819b115-fbcc-42ec-a5b3-81633980d9ce'
+      };
+
+      await editDriver(updateData);
+      Alert.alert('Success', 'Driver updated successfully');
+      setShowEditModal(false);
+      fetchDrivers(); // Refresh the list
+    } catch (error: any) {
+      Alert.alert('Error', `Failed to update driver: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDeleteDriver = async (driverId: string) => {
+    Alert.alert(
+      'Delete Driver',
+      'Are you sure you want to delete this driver?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              setLoading(true);
+              await deleteDriver(driverId);
+              Alert.alert('Success', 'Driver deleted successfully');
+              fetchDrivers(); // Refresh the list
+            } catch (error: any) {
+              Alert.alert('Error', `Failed to delete driver: ${error.message}`);
+            } finally {
+              setLoading(false);
+            }
+          }
+        }
+      ]
+    );
   };
 
   const dynamicStyles = StyleSheet.create({
@@ -337,6 +467,103 @@ export default function MyDriversScreen() {
     selectedLanguageButtonText: {
       color: '#FFFFFF',
     },
+    loadingContainer: {
+      alignItems: 'center',
+      paddingVertical: 40,
+    },
+    loadingText: {
+      fontSize: 16,
+      fontFamily: 'Inter-Medium',
+      color: colors.textSecondary,
+    },
+    emptyState: {
+      alignItems: 'center',
+      paddingVertical: 40,
+    },
+    emptyStateText: {
+      fontSize: 18,
+      fontFamily: 'Inter-SemiBold',
+      color: colors.text,
+      marginBottom: 8,
+    },
+    emptyStateSubtext: {
+      fontSize: 14,
+      fontFamily: 'Inter-Medium',
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    driverInfo: {
+      flex: 1,
+    },
+    driverMobile: {
+      fontSize: 14,
+      fontFamily: 'Inter-Medium',
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    driverActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    actionButton: {
+      backgroundColor: colors.background,
+      borderRadius: 8,
+      padding: 8,
+      borderWidth: 1,
+      borderColor: colors.border,
+      marginLeft: 8,
+    },
+    deleteButton: {
+      borderColor: colors.error,
+    },
+    languagesSection: {
+      marginTop: 12,
+    },
+    languagesTitle: {
+      fontSize: 14,
+      fontFamily: 'Inter-Medium',
+      color: colors.textSecondary,
+      marginBottom: 8,
+    },
+    languageTags: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+    },
+    languageTag: {
+      backgroundColor: colors.primary + '20',
+      color: colors.primary,
+      fontSize: 12,
+      fontFamily: 'Inter-Medium',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 12,
+      marginRight: 8,
+      marginBottom: 4,
+    },
+    statusSection: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginTop: 12,
+    },
+    statusLabel: {
+      fontSize: 14,
+      fontFamily: 'Inter-Medium',
+      color: colors.textSecondary,
+      marginRight: 8,
+    },
+    imageUploadButton: {
+      backgroundColor: colors.background,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 8,
+      padding: 12,
+      alignItems: 'center',
+    },
+    imageUploadText: {
+      fontSize: 14,
+      fontFamily: 'Inter-Medium',
+      color: colors.textSecondary,
+    },
   });
 
   const DriverCard = ({ driver }) => (
@@ -427,9 +654,84 @@ export default function MyDriversScreen() {
       </View>
 
       <ScrollView style={dynamicStyles.content} showsVerticalScrollIndicator={false}>
-        {drivers.map((driver) => (
-          <DriverCard key={driver.id} driver={driver} />
-        ))}
+        {loading ? (
+          <View style={dynamicStyles.loadingContainer}>
+            <Text style={dynamicStyles.loadingText}>Loading drivers...</Text>
+          </View>
+        ) : drivers.length > 0 ? (
+          drivers.map((driver) => (
+            <View key={driver.driver_id || driver.id} style={dynamicStyles.driverCard}>
+              <View style={dynamicStyles.driverHeader}>
+                <View style={dynamicStyles.driverInfo}>
+                  <Text style={dynamicStyles.driverName}>
+                    {driver.driver_name || driver.name}
+                  </Text>
+                  <Text style={dynamicStyles.driverMobile}>
+                    {driver.mobile_number || driver.mobile}
+                  </Text>
+                </View>
+                <View style={dynamicStyles.driverActions}>
+                  <TouchableOpacity 
+                    style={dynamicStyles.actionButton}
+                    onPress={() => openEditModal(driver)}
+                  >
+                    <Edit color={colors.primary} size={16} />
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={[dynamicStyles.actionButton, dynamicStyles.deleteButton]}
+                    onPress={() => handleDeleteDriver(driver.driver_id || driver.id)}
+                  >
+                    <Trash2 color={colors.error} size={16} />
+                  </TouchableOpacity>
+                </View>
+              </View>
+              
+              <View style={dynamicStyles.driverDetails}>
+                <View style={dynamicStyles.driverDetailRow}>
+                  <Phone color={colors.textSecondary} size={16} />
+                  <Text style={dynamicStyles.driverDetailText}>
+                    {driver.mobile_number || driver.mobile}
+                  </Text>
+                </View>
+                {driver.aadhar_number && (
+                  <View style={dynamicStyles.driverDetailRow}>
+                    <FileText color={colors.textSecondary} size={16} />
+                    <Text style={dynamicStyles.driverDetailText}>
+                      Aadhar: {driver.aadhar_number}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              {driver.spoken_languages && driver.spoken_languages.length > 0 && (
+                <View style={dynamicStyles.languagesSection}>
+                  <Text style={dynamicStyles.languagesTitle}>Languages:</Text>
+                  <View style={dynamicStyles.languageTags}>
+                    {driver.spoken_languages.map((lang: string, index: number) => (
+                      <Text key={index} style={dynamicStyles.languageTag}>
+                        {lang}
+                      </Text>
+                    ))}
+                  </View>
+                </View>
+              )}
+
+              <View style={dynamicStyles.statusSection}>
+                <Text style={dynamicStyles.statusLabel}>Status:</Text>
+                <View style={dynamicStyles.statusBadge}>
+                  <Text style={dynamicStyles.statusText}>
+                    {(driver.status || 'active').toUpperCase()}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          ))
+        ) : (
+          <View style={dynamicStyles.emptyState}>
+            <Text style={dynamicStyles.emptyStateText}>No drivers found</Text>
+            <Text style={dynamicStyles.emptyStateSubtext}>Add your first driver to get started</Text>
+          </View>
+        )}
 
         <TouchableOpacity 
           style={dynamicStyles.addButton}
