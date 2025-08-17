@@ -23,7 +23,7 @@ export default function SignIn() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   
-  const { signIn, loading, error } = useVendorAuth();
+  const { signIn, loading, error, clearError } = useVendorAuth();
 
   const handleSignIn = async () => {
     if (!primaryNumber.trim() || !password.trim()) {
@@ -38,18 +38,41 @@ export default function SignIn() {
       });
       
       if (result) {
-        // Successfully signed in, navigate to main app
-        router.replace('/(tabs)');
+        // Check account status before redirecting
+        const accountStatus = result.vendor.account_status;
+        
+        if (accountStatus === 'Active') {
+          // Account is active, proceed to dashboard
+          router.replace('/(tabs)');
+        } else if (accountStatus === 'Pending' || accountStatus === 'Inactive') {
+          // Account is inactive, show inactive screen
+          router.push('/(auth)/account-status?status=inactive&message=Your account is currently inactive and requires verification. It will be activated within 24 hours after verification.');
+        } else if (accountStatus === 'Blocked' || accountStatus === 'Suspended') {
+          // Account is blocked, show blocked screen
+          router.push('/(auth)/account-status?status=blocked&message=Your account has been blocked due to policy violations. Please contact support for assistance.');
+        } else {
+          // Unknown status, show inactive screen
+          router.push('/(auth)/account-status?status=inactive&message=Your account status is unclear. Please contact support for assistance.');
+        }
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to sign in. Please try again.');
     }
   };
 
-  // Show error if any
-  if (error) {
-    Alert.alert('Error', error);
-  }
+  // Clear error when component unmounts or when user starts typing
+  const handleInputChange = (field: string, value: string) => {
+    if (field === 'primaryNumber') {
+      setPrimaryNumber(value);
+    } else if (field === 'password') {
+      setPassword(value);
+    }
+    
+    // Clear any existing errors when user starts typing
+    if (error) {
+      clearError();
+    }
+  };
 
   return (
     <KeyboardAvoidingView 
@@ -76,7 +99,7 @@ export default function SignIn() {
                 style={styles.input}
                 placeholder="Enter your mobile number"
                 value={primaryNumber}
-                onChangeText={setPrimaryNumber}
+                onChangeText={(value) => handleInputChange('primaryNumber', value)}
                 keyboardType="phone-pad"
                 placeholderTextColor="#9CA3AF"
               />
@@ -91,7 +114,7 @@ export default function SignIn() {
                 style={styles.input}
                 placeholder="Enter your password"
                 value={password}
-                onChangeText={setPassword}
+                onChangeText={(value) => handleInputChange('password', value)}
                 secureTextEntry={!showPassword}
                 placeholderTextColor="#9CA3AF"
               />

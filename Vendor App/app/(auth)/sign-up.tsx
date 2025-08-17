@@ -130,9 +130,8 @@ export default function SignUp() {
       const result = await signUp(signUpData);
       
       if (result) {
-        Alert.alert('Success', 'Account created successfully!', [
-          { text: 'OK', onPress: () => router.replace('/sign-in') }
-        ]);
+        // Redirect to success page instead of sign-in
+        router.push('/(auth)/signup-success');
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to create account. Please try again.');

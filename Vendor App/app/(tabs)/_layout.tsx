@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { Chrome as Home, Plus, Menu as MenuIcon } from 'lucide-react-native';
+import { Chrome as Home, Plus, Menu as MenuIcon, User } from 'lucide-react-native';
 
 export default function TabLayout() {
   return (
@@ -15,6 +15,11 @@ export default function TabLayout() {
           borderTopColor: '#E5E7EB',
           paddingBottom: 5,
           height: 60,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 8,
+          elevation: 8,
         },
         tabBarLabelStyle: {
           fontSize: 12,
@@ -24,7 +29,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: 'Home',
+          title: 'Dashboard',
           tabBarIcon: ({ size, color }) => (
             <Home size={size} color={color} />
           ),
@@ -33,9 +38,18 @@ export default function TabLayout() {
       <Tabs.Screen
         name="create-order"
         options={{
-          title: 'Create Order',
+          title: 'New Order',
           tabBarIcon: ({ size, color }) => (
             <Plus size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ size, color }) => (
+            <User size={size} color={color} />
           ),
         }}
       />
