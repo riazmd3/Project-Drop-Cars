@@ -57,14 +57,8 @@ export default function SignIn() {
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         {/* Header Section */}
         <View style={styles.headerSection}>
-          <View style={styles.logoContainer}>
-            <View style={styles.logoCircle}>
-              <Car size={32} color="#3B82F6" />
-            </View>
-            <Text style={styles.appName}>Drop Cars</Text>
-            <Text style={styles.appSubtitle}>Vendor Portal</Text>
-          </View>
-          
+          {/* Logo and title removed as requested */}
+          <View style={styles.logoContainer}></View>
           <View style={styles.welcomeContainer}>
             <Text style={styles.welcomeTitle}>Welcome Back!</Text>
             <Text style={styles.welcomeSubtitle}>Sign in to your vendor account to continue</Text>

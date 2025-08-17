@@ -313,19 +313,12 @@ export default function SignUp() {
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         {/* Header Section */}
         <View style={styles.headerSection}>
-          <View style={styles.logoContainer}>
-            <View style={styles.logoCircle}>
-              <Car size={32} color="#3B82F6" />
-            </View>
-            <Text style={styles.appName}>Drop Cars</Text>
-            <Text style={styles.appSubtitle}>Vendor Portal</Text>
-          </View>
-          
+          {/* Logo and title removed as requested */}
+          <View style={styles.logoContainer}></View>
           <View style={styles.welcomeContainer}>
             <Text style={styles.welcomeTitle}>Create Account</Text>
             <Text style={styles.welcomeSubtitle}>Join as a vendor partner</Text>
           </View>
-
           {renderStepIndicator()}
         </View>
 
