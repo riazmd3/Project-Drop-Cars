@@ -10,30 +10,35 @@ import {
   Platform,
   ScrollView,
   Dimensions,
+  Image,
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { User, Phone, Lock, CreditCard, FileText, Camera, Eye, EyeOff, ArrowRight, CircleCheck as CheckCircle, Car, Shield } from 'lucide-react-native';
+import { User, Phone, Lock, FileText, Camera, Eye, EyeOff, ArrowRight, CircleCheck as CheckCircle, MapPin, Trash2 } from 'lucide-react-native';
+import { useVendorAuth } from '../../hooks/useVendorAuth';
+import { pickImage, ImageInfo } from '../../utils/imageUtils';
+import { validateFormData } from '../../utils/validation';
 
 const { width, height } = Dimensions.get('window');
 
 export default function SignUp() {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
-    fullName: '',
-    primaryNumber: '',
-    secondaryNumber: '',
-    wallet: '',
-    balanceAccount: '',
-    balanceGpayNumber: '',
-    aadhaarNumber: '',
-    aadhaarImage: '',
+    full_name: '',
+    primary_number: '',
+    secondary_number: '',
+    address: '',
+    aadhar_number: '',
+    gpay_number: '',
+    organization_id: '',
     password: '',
     confirmPassword: '',
   });
+  const [aadharImage, setAadharImage] = useState<ImageInfo | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  
+  const { signUp, loading, error } = useVendorAuth();
 
   const handleInputChange = (field: string, value: string) => {
     setFormData(prev => ({
@@ -42,27 +47,50 @@ export default function SignUp() {
     }));
   };
 
+  const handleImagePick = async () => {
+    try {
+      const image = await pickImage();
+      if (image) {
+        setAadharImage(image);
+      }
+    } catch (error) {
+      Alert.alert('Error', error instanceof Error ? error.message : 'Failed to pick image');
+    }
+  };
+
+  const removeImage = () => {
+    setAadharImage(null);
+  };
+
   const validateStep = (step: number) => {
     switch (step) {
       case 1:
-        if (!formData.fullName.trim()) {
+        if (!formData.full_name.trim()) {
           Alert.alert('Error', 'Please enter your full name');
           return false;
         }
-        if (!formData.primaryNumber.trim() || formData.primaryNumber.length < 10) {
-          Alert.alert('Error', 'Please enter a valid primary mobile number');
+        if (!formData.primary_number.trim()) {
+          Alert.alert('Error', 'Please enter your primary mobile number');
+          return false;
+        }
+        if (!formData.address.trim()) {
+          Alert.alert('Error', 'Please enter your address');
           return false;
         }
         return true;
       case 2:
-        if (!formData.aadhaarNumber.trim() || formData.aadhaarNumber.length !== 12) {
-          Alert.alert('Error', 'Please enter a valid 12-digit Aadhaar number');
+        if (!formData.aadhar_number.trim()) {
+          Alert.alert('Error', 'Please enter your Aadhar number');
+          return false;
+        }
+        if (!formData.gpay_number.trim()) {
+          Alert.alert('Error', 'Please enter your GPay number');
           return false;
         }
         return true;
       case 3:
-        if (!formData.password.trim() || formData.password.length < 6) {
-          Alert.alert('Error', 'Password must be at least 6 characters');
+        if (!formData.password.trim()) {
+          Alert.alert('Error', 'Please enter a password');
           return false;
         }
         if (formData.password !== formData.confirmPassword) {
@@ -86,16 +114,28 @@ export default function SignUp() {
   };
 
   const handleSignUp = async () => {
-    setLoading(true);
+    // Validate all form data
+    const validation = validateFormData(formData);
+    if (!validation.isValid) {
+      Alert.alert('Validation Error', validation.errors.join('\n'));
+      return;
+    }
+
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      Alert.alert('Success', 'Account created successfully!', [
-        { text: 'OK', onPress: () => router.replace('/sign-in') }
-      ]);
+      const signUpData = {
+        ...formData,
+        aadhar_image: aadharImage ? aadharImage.uri : undefined,
+      };
+
+      const result = await signUp(signUpData);
+      
+      if (result) {
+        Alert.alert('Success', 'Account created successfully!', [
+          { text: 'OK', onPress: () => router.replace('/sign-in') }
+        ]);
+      }
     } catch (error) {
       Alert.alert('Error', 'Failed to create account. Please try again.');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -143,8 +183,8 @@ export default function SignUp() {
           <TextInput
             style={styles.input}
             placeholder="Full Name"
-            value={formData.fullName}
-            onChangeText={(value) => handleInputChange('fullName', value)}
+            value={formData.full_name}
+            onChangeText={(value) => handleInputChange('full_name', value)}
             placeholderTextColor="#9CA3AF"
           />
         </View>
@@ -154,8 +194,8 @@ export default function SignUp() {
           <TextInput
             style={styles.input}
             placeholder="Primary Mobile Number"
-            value={formData.primaryNumber}
-            onChangeText={(value) => handleInputChange('primaryNumber', value)}
+            value={formData.primary_number}
+            onChangeText={(value) => handleInputChange('primary_number', value)}
             keyboardType="phone-pad"
             placeholderTextColor="#9CA3AF"
           />
@@ -166,9 +206,33 @@ export default function SignUp() {
           <TextInput
             style={styles.input}
             placeholder="Secondary Mobile Number (Optional)"
-            value={formData.secondaryNumber}
-            onChangeText={(value) => handleInputChange('secondaryNumber', value)}
+            value={formData.secondary_number}
+            onChangeText={(value) => handleInputChange('secondary_number', value)}
             keyboardType="phone-pad"
+            placeholderTextColor="#9CA3AF"
+          />
+        </View>
+
+        <View style={styles.inputContainer}>
+          <MapPin size={20} color="#3B82F6" style={styles.inputIcon} />
+          <TextInput
+            style={styles.input}
+            placeholder="Address (Minimum 10 characters)"
+            value={formData.address}
+            onChangeText={(value) => handleInputChange('address', value)}
+            multiline
+            numberOfLines={3}
+            placeholderTextColor="#9CA3AF"
+          />
+        </View>
+
+        <View style={styles.inputContainer}>
+          <FileText size={20} color="#6B7280" style={styles.inputIcon} />
+          <TextInput
+            style={styles.input}
+            placeholder="Organization ID (Optional)"
+            value={formData.organization_id}
+            onChangeText={(value) => handleInputChange('organization_id', value)}
             placeholderTextColor="#9CA3AF"
           />
         </View>
@@ -179,29 +243,20 @@ export default function SignUp() {
   const renderStep2 = () => (
     <View style={styles.stepContent}>
       <View style={styles.stepHeader}>
-        <Text style={styles.stepTitle}>Financial & Identity</Text>
-        <Text style={styles.stepSubtitle}>Add your financial and identity details</Text>
+        <Text style={styles.stepTitle}>Identity & Payment</Text>
+        <Text style={styles.stepSubtitle}>Add your identity and payment details</Text>
       </View>
       
       <View style={styles.inputGroup}>
         <View style={styles.inputContainer}>
-          <CreditCard size={20} color="#3B82F6" style={styles.inputIcon} />
+          <FileText size={20} color="#3B82F6" style={styles.inputIcon} />
           <TextInput
             style={styles.input}
-            placeholder="Wallet Details"
-            value={formData.wallet}
-            onChangeText={(value) => handleInputChange('wallet', value)}
-            placeholderTextColor="#9CA3AF"
-          />
-        </View>
-
-        <View style={styles.inputContainer}>
-          <CreditCard size={20} color="#3B82F6" style={styles.inputIcon} />
-          <TextInput
-            style={styles.input}
-            placeholder="Balance Account"
-            value={formData.balanceAccount}
-            onChangeText={(value) => handleInputChange('balanceAccount', value)}
+            placeholder="Aadhar Number (12 digits)"
+            value={formData.aadhar_number}
+            onChangeText={(value) => handleInputChange('aadhar_number', value)}
+            keyboardType="numeric"
+            maxLength={12}
             placeholderTextColor="#9CA3AF"
           />
         </View>
@@ -211,35 +266,30 @@ export default function SignUp() {
           <TextInput
             style={styles.input}
             placeholder="GPay Number"
-            value={formData.balanceGpayNumber}
-            onChangeText={(value) => handleInputChange('balanceGpayNumber', value)}
+            value={formData.gpay_number}
+            onChangeText={(value) => handleInputChange('gpay_number', value)}
             keyboardType="phone-pad"
             placeholderTextColor="#9CA3AF"
           />
         </View>
 
-        <View style={styles.inputContainer}>
-          <FileText size={20} color="#3B82F6" style={styles.inputIcon} />
-          <TextInput
-            style={styles.input}
-            placeholder="Aadhaar Number (12 digits)"
-            value={formData.aadhaarNumber}
-            onChangeText={(value) => handleInputChange('aadhaarNumber', value)}
-            keyboardType="numeric"
-            maxLength={12}
-            placeholderTextColor="#9CA3AF"
-          />
-        </View>
-
-        <View style={styles.inputContainer}>
-          <Camera size={20} color="#3B82F6" style={styles.inputIcon} />
-          <TextInput
-            style={styles.input}
-            placeholder="Aadhaar Image URL"
-            value={formData.aadhaarImage}
-            onChangeText={(value) => handleInputChange('aadhaarImage', value)}
-            placeholderTextColor="#9CA3AF"
-          />
+        <View style={styles.imageSection}>
+          <Text style={styles.imageLabel}>Aadhar Front Image (Optional)</Text>
+          <Text style={styles.imageSubtext}>Max size: 5MB, Format: JPG/PNG</Text>
+          
+          {aadharImage ? (
+            <View style={styles.imagePreviewContainer}>
+              <Image source={{ uri: aadharImage.uri }} style={styles.imagePreview} />
+              <TouchableOpacity style={styles.removeImageButton} onPress={removeImage}>
+                <Trash2 size={16} color="#FFFFFF" />
+              </TouchableOpacity>
+            </View>
+          ) : (
+            <TouchableOpacity style={styles.imagePickerButton} onPress={handleImagePick}>
+              <Camera size={24} color="#3B82F6" />
+              <Text style={styles.imagePickerText}>Select Image</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
     </View>
@@ -305,6 +355,11 @@ export default function SignUp() {
     </View>
   );
 
+  // Show error if any
+  if (error) {
+    Alert.alert('Error', error);
+  }
+
   return (
     <KeyboardAvoidingView 
       style={styles.container}
@@ -313,7 +368,6 @@ export default function SignUp() {
       <ScrollView style={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         {/* Header Section */}
         <View style={styles.headerSection}>
-          {/* Logo and title removed as requested */}
           <View style={styles.logoContainer}></View>
           <View style={styles.welcomeContainer}>
             <Text style={styles.welcomeTitle}>Create Account</Text>
@@ -365,14 +419,6 @@ export default function SignUp() {
             <Link href="/sign-in" style={styles.link}>
               <Text style={styles.linkTextBold}>Sign In</Text>
             </Link>
-          </View>
-        </View>
-
-        {/* Footer Section */}
-        <View style={styles.footerSection}>
-          <View style={styles.securityNote}>
-            <Shield size={16} color="#10B981" />
-            <Text style={styles.securityText}>Your data is secure and encrypted</Text>
           </View>
         </View>
       </ScrollView>
@@ -519,7 +565,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     borderWidth: 2,
     borderColor: '#E5E7EB',
-    height: 56,
+    minHeight: 56,
   },
   inputIcon: {
     marginRight: 16,
@@ -529,6 +575,8 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1F2937',
     fontWeight: '500',
+    textAlignVertical: 'top',
+    paddingVertical: 8,
   },
   eyeIcon: {
     padding: 8,
@@ -640,5 +688,61 @@ const styles = StyleSheet.create({
     color: '#166534',
     marginLeft: 8,
     fontWeight: '500',
+  },
+  imageSection: {
+    marginTop: 20,
+    paddingHorizontal: 20,
+  },
+  imageLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  imageSubtext: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginBottom: 16,
+  },
+  imagePreviewContainer: {
+    width: '100%',
+    height: 120,
+    borderRadius: 12,
+    backgroundColor: '#F0F9FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'relative',
+    overflow: 'hidden',
+  },
+  imagePreview: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
+  },
+  removeImageButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#EF4444',
+    borderRadius: 12,
+    padding: 6,
+    zIndex: 1,
+  },
+  imagePickerButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#E0E7FF',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderWidth: 1,
+    borderColor: '#C7D2FE',
+  },
+  imagePickerText: {
+    color: '#3B82F6',
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 8,
   },
 });

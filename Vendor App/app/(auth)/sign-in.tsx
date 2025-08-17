@@ -13,8 +13,8 @@ import {
 } from 'react-native';
 import { Link, router } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Eye, EyeOff, Phone, Lock, ArrowRight, Car, Shield } from 'lucide-react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Eye, EyeOff, Phone, Lock, ArrowRight, Shield } from 'lucide-react-native';
+import { useVendorAuth } from '../../hooks/useVendorAuth';
 
 const { width, height } = Dimensions.get('window');
 
@@ -22,7 +22,8 @@ export default function SignIn() {
   const [primaryNumber, setPrimaryNumber] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
+  
+  const { signIn, loading, error } = useVendorAuth();
 
   const handleSignIn = async () => {
     if (!primaryNumber.trim() || !password.trim()) {
@@ -30,24 +31,25 @@ export default function SignIn() {
       return;
     }
 
-    setLoading(true);
     try {
-      // Simulate API call - replace with actual authentication
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const result = await signIn({
+        primary_number: primaryNumber,
+        password: password,
+      });
       
-      // Store user session
-      await AsyncStorage.setItem('userSession', JSON.stringify({
-        primaryNumber,
-        isLoggedIn: true
-      }));
-
-      router.replace('/(tabs)');
+      if (result) {
+        // Successfully signed in, navigate to main app
+        router.replace('/(tabs)');
+      }
     } catch (error) {
       Alert.alert('Error', 'Failed to sign in. Please try again.');
-    } finally {
-      setLoading(false);
     }
   };
+
+  // Show error if any
+  if (error) {
+    Alert.alert('Error', error);
+  }
 
   return (
     <KeyboardAvoidingView 
@@ -57,7 +59,6 @@ export default function SignIn() {
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         {/* Header Section */}
         <View style={styles.headerSection}>
-          {/* Logo and title removed as requested */}
           <View style={styles.logoContainer}></View>
           <View style={styles.welcomeContainer}>
             <Text style={styles.welcomeTitle}>Welcome Back!</Text>
