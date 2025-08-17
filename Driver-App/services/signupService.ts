@@ -189,7 +189,7 @@ export const testSignupDataStructure = (personalData: any, documents: any) => {
   return testData;
 };
 
-// Car Details API interface matching your Postman request
+// Car Details API interface matching your Postman request exactly
 export interface CarDetailsData {
   car_name: string;
   car_type: string;
@@ -373,7 +373,7 @@ export const addCarDetails = async (carData: CarDetailsData): Promise<CarDetails
     appendImageFile('fc_img', carData.fc_img, 'fc.jpg');
     appendImageFile('car_img', carData.car_img, 'car.jpg');
     
-    // Append text fields
+    // Append text fields exactly as shown in Postman
     formData.append('car_name', carData.car_name || '');
     formData.append('car_type', carData.car_type || '');
     formData.append('car_number', carData.car_number || '');
@@ -394,6 +394,7 @@ export const addCarDetails = async (carData: CarDetailsData): Promise<CarDetails
     });
     
     // Make the API call with FormData and JWT authentication
+    // Endpoint: /api/users/cardetails/signup (matches Postman exactly)
     const authHeaders = await getAuthHeaders();
     const response = await axiosInstance.post('/api/users/cardetails/signup', formData, {
       headers: {

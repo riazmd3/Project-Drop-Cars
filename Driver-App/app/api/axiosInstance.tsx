@@ -31,9 +31,10 @@ axiosInstance.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
-    // Don't override Content-Type if it's already set (for FormData)
-    if (config.data instanceof FormData && !config.headers['Content-Type']) {
+    // Ensure proper Content-Type for FormData (matches Postman form-data)
+    if (config.data instanceof FormData) {
       config.headers['Content-Type'] = 'multipart/form-data';
+      console.log('📤 FormData detected, setting Content-Type to multipart/form-data');
     }
     
     return config;
