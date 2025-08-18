@@ -51,17 +51,75 @@ export const getCars = async (): Promise<CarDetails[]> => {
       throw new Error('No authentication token found. Please login first.');
     }
 
-    const response = await axiosInstance.get('/api/users/cardetails/list', {
-      headers: {
-        'Authorization': `Bearer ${token}`
+    // Try different endpoint variations with query parameters
+    let response;
+    let endpointUsed = '';
+    
+    try {
+      // First try the list endpoint with common query parameters
+      endpointUsed = '/api/users/cardetails/list';
+      response = await axiosInstance.get(endpointUsed, {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        },
+        params: {
+          limit: 100,
+          offset: 0,
+          status: 'all'
+        }
+      });
+    } catch (listError: any) {
+      console.log('⚠️ List endpoint failed, trying alternative...');
+      
+      try {
+        // Try alternative endpoint without /list
+        endpointUsed = '/api/users/cardetails';
+        response = await axiosInstance.get(endpointUsed, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          },
+          params: {
+            limit: 100,
+            offset: 0,
+            status: 'all'
+          }
+        });
+      } catch (secondError: any) {
+        console.log('⚠️ Second endpoint failed, trying user-specific endpoint...');
+        
+        // Try user-specific endpoint (common pattern)
+        endpointUsed = '/api/users/cardetails/user';
+        response = await axiosInstance.get(endpointUsed, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
       }
-    });
+    }
 
-    console.log('✅ Cars list fetched successfully:', response.data);
-    return response.data.cars || [];
+    console.log(`✅ Cars list fetched successfully from ${endpointUsed}:`, response.data);
+    return response.data.cars || response.data || [];
   } catch (error: any) {
-    console.error('❌ Failed to fetch cars:', error);
-    throw error;
+    console.error('❌ Failed to fetch cars:', {
+      message: error.message,
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      url: error.config?.url,
+      params: error.config?.params
+    });
+    
+    // Provide more specific error messages
+    if (error.response?.status === 400) {
+      const errorDetail = error.response.data?.detail || error.response.data?.message || 'Bad request';
+      throw new Error(`Car listing failed: ${errorDetail}. Please check if you have cars registered.`);
+    } else if (error.response?.status === 401) {
+      throw new Error('Authentication failed. Please login again.');
+    } else if (error.response?.status === 404) {
+      throw new Error('Car listing endpoint not found. Please check the API configuration.');
+    } else {
+      throw new Error(`Failed to fetch cars: ${error.message}`);
+    }
   }
 };
 
@@ -296,11 +354,103 @@ export const testCarUpdateDataStructure = (carData: CarUpdateData) => {
 export const testCarManagementConnection = async () => {
   try {
     console.log('🧪 Testing car management endpoint connectivity...');
-    const response = await axiosInstance.get('/api/users/cardetails/list');
-    console.log('✅ Car management endpoint accessible:', response.status);
-    return true;
+    
+    // Get authentication token first
+    const token = await authService.getToken();
+    if (!token) {
+      throw new Error('No authentication token found. Please login first.');
+    }
+    
+    console.log('🔑 Using token:', token.substring(0, 20) + '...');
+    
+    // Test different endpoints with authentication
+    const endpoints = [
+      '/api/users/cardetails/list',
+      '/api/users/cardetails',
+      '/api/users/cardetails/all',
+      '/api/users/cardetails/user',
+      '/api/users/cardetails/owner',
+      '/api/users/cardetails/vehicle-owner'
+    ];
+    
+    for (const endpoint of endpoints) {
+      try {
+        console.log(`🔍 Testing endpoint: ${endpoint}`);
+        const response = await axiosInstance.get(endpoint, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        console.log(`✅ Endpoint ${endpoint} accessible:`, response.status);
+        console.log('📊 Response data:', response.data);
+        return { success: true, endpoint, data: response.data };
+      } catch (endpointError: any) {
+        console.log(`❌ Endpoint ${endpoint} failed:`, {
+          status: endpointError.response?.status,
+          message: endpointError.response?.data?.detail || endpointError.message,
+          data: endpointError.response?.data
+        });
+      }
+    }
+    
+    throw new Error('All car listing endpoints failed');
   } catch (error: any) {
     console.error('❌ Car management endpoint test failed:', error.message);
-    return false;
+    return { success: false, error: error.message };
+  }
+};
+
+// Check if user has cars registered
+export const checkUserCarsStatus = async () => {
+  try {
+    console.log('🔍 Checking user cars status...');
+    
+    const token = await authService.getToken();
+    if (!token) {
+      throw new Error('No authentication token found. Please login first.');
+    }
+    
+    // Try to get user profile or check cars count
+    try {
+      const response = await axiosInstance.get('/api/users/profile', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      console.log('✅ User profile fetched:', response.data);
+      return {
+        hasCars: response.data.car_details_count > 0,
+        carCount: response.data.car_details_count || 0,
+        message: response.data.car_details_count > 0 
+          ? `User has ${response.data.car_details_count} cars registered` 
+          : 'No cars registered yet'
+      };
+    } catch (profileError: any) {
+      console.log('⚠️ Profile endpoint failed, trying alternative...');
+      
+      // Try alternative profile endpoint
+      const response = await axiosInstance.get('/api/users/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      console.log('✅ User info fetched:', response.data);
+      return {
+        hasCars: response.data.car_details_count > 0,
+        carCount: response.data.car_details_count || 0,
+        message: response.data.car_details_count > 0 
+          ? `User has ${response.data.car_details_count} cars registered` 
+          : 'No cars registered yet'
+      };
+    }
+  } catch (error: any) {
+    console.error('❌ Failed to check user cars status:', error.message);
+    return {
+      hasCars: false,
+      carCount: 0,
+      message: `Error checking cars status: ${error.message}`
+    };
   }
 };
