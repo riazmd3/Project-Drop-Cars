@@ -204,7 +204,7 @@ export default function SignUp() {
           <Phone size={20} color="#6B7280" style={styles.inputIcon} />
           <TextInput
             style={styles.input}
-            placeholder="Secondary Mobile Number (Optional)"
+            placeholder="Secondary Mobile Number"
             value={formData.secondary_number}
             onChangeText={(value) => handleInputChange('secondary_number', value)}
             keyboardType="phone-pad"
