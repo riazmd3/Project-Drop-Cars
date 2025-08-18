@@ -49,28 +49,24 @@ export default function SignIn() {
           router.push('/(auth)/account-status?status=inactive&message=Your account is currently inactive and requires verification. It will be activated within 24 hours after verification.');
         } else if (accountStatus === 'Blocked' || accountStatus === 'Suspended') {
           // Account is blocked, show blocked screen
-          router.push('/(auth)/account-status?status=blocked&message=Your account has been blocked due to policy violations. Please contact support for assistance.');
+          router.push('/(auth)/account-status?status=status=blocked&message=Your account has been blocked due to policy violations. Please contact support for assistance.');
         } else {
           // Unknown status, show inactive screen
           router.push('/(auth)/account-status?status=inactive&message=Your account status is unclear. Please contact support for assistance.');
         }
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to sign in. Please try again.');
+      // Show error only once when sign-in fails
+      Alert.alert('Sign In Failed', 'Invalid credentials. Please check your phone number and password and try again.');
     }
   };
 
-  // Clear error when component unmounts or when user starts typing
+  // Clear error when component unmounts
   const handleInputChange = (field: string, value: string) => {
     if (field === 'primaryNumber') {
       setPrimaryNumber(value);
     } else if (field === 'password') {
       setPassword(value);
-    }
-    
-    // Clear any existing errors when user starts typing
-    if (error) {
-      clearError();
     }
   };
 
