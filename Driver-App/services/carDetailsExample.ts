@@ -63,8 +63,6 @@ export const exampleCarDetailsWithLogin = async () => {
     fullName: 'John Doe',
     primaryMobile: '+919876543210',
     secondaryMobile: '+919876543211',
-    paymentMethod: 'GPay',
-    paymentNumber: '+919876543210',
     password: 'securepassword123',
     address: '123 Main Street, New Delhi',
     aadharNumber: '123456789012',
