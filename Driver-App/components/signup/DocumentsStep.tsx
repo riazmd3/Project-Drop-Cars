@@ -10,7 +10,7 @@ import {
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Upload, CheckCircle, FileText } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
-import { signupAccount, testSignupDataStructure, loginVehicleOwner } from '@/services/signupService';
+import { signupAccount, testSignupDataStructure, signupAndLogin } from '@/services/signupService';
 import * as ImagePicker from 'expo-image-picker';
 
 interface DocumentsStepProps {
@@ -82,19 +82,13 @@ export default function DocumentsStep({ data, onUpdate, onBack, formData }: Docu
       const testData = testSignupDataStructure(formData.personalDetails, documents);
       console.log('🧪 Data structure test completed');
       
-      // Call the signup API
-      const response = await signupAccount(formData.personalDetails, documents);
-      
-      if (response.status === 'success') {
-        // Perform login to obtain a real JWT token
-        const loginResp = await loginVehicleOwner(
-          formData.personalDetails.primaryMobile,
-          formData.personalDetails.password
-        );
+      // Signup then login to obtain JWT token per API docs
+      const { signup, login: loginResp } = await signupAndLogin(formData.personalDetails, documents);
 
+      if (signup.status === 'success') {
         // Create user object for local auth
         const userData = {
-          id: response.user_id,
+          id: signup.user_id,
           fullName: formData.personalDetails.fullName,
           primaryMobile: formData.personalDetails.primaryMobile,
           secondaryMobile: formData.personalDetails.secondaryMobile,
@@ -102,21 +96,43 @@ export default function DocumentsStep({ data, onUpdate, onBack, formData }: Docu
           address: formData.personalDetails.address,
           aadharNumber: formData.personalDetails.aadharNumber,
           organizationId: formData.personalDetails.organizationId,
-          languages: formData.personalDetails.languages,
+          languages: formData.personalDetails.languages || [],
           documents: documents,
         };
 
-        // Save user and token locally
+        // Save user and real token
         await login(userData, loginResp.access_token);
 
-        // Show success message and redirect to car add page
+        // Decide next step based on counts from login response
+        const carCount = loginResp.car_details_count ?? 0;
+        const driverCount = loginResp.car_driver_count ?? 0;
+
+        let nextRoute = '/(tabs)';
+        let message = 'Welcome to Drop Cars!';
+        if (carCount === 0) {
+          nextRoute = '/add-car';
+          message = 'Welcome to Drop Cars! Now let\'s add your first car.';
+        } else if (driverCount === 0) {
+          nextRoute = '/add-driver';
+          message = 'Great! Now add your first driver to continue.';
+        }
+
+        // Show success message and redirect
         Alert.alert(
           'Account Created Successfully!',
-          'Welcome to Drop Cars! Now let\'s add your first car.',
+          message,
           [
             {
               text: 'Continue',
-              onPress: () => router.replace('/add-car')
+              onPress: () => {
+                if (nextRoute === '/add-car') {
+                  router.replace('/add-car');
+                } else if (nextRoute === '/add-driver') {
+                  router.replace('/add-driver');
+                } else {
+                  router.replace('/(tabs)');
+                }
+              }
             }
           ]
         );

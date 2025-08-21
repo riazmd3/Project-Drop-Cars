@@ -184,6 +184,23 @@ export const testSignupDataStructure = (personalData: any, documents: any) => {
   return testData;
 };
 
+// Convenience helper: perform signup then login to get JWT
+export const signupAndLogin = async (personalData: any, documents: any) => {
+  // First, perform signup
+  const signupResponse = await signupAccount(personalData, documents);
+  if (signupResponse.status !== 'success') {
+    throw new Error('Signup did not complete successfully');
+  }
+
+  // Clean mobile number for login per API docs (expects 10 digits)
+  const cleanMobile = String(personalData.primaryMobile || '').replace(/^\+91/, '');
+
+  // Then, login to obtain JWT token
+  const loginResponse = await loginVehicleOwner(cleanMobile, personalData.password);
+
+  return { signup: signupResponse, login: loginResponse };
+};
+
 // Car Details API interface matching your Postman request exactly
 export interface CarDetailsData {
   car_name: string;

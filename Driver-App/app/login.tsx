@@ -91,6 +91,18 @@ export default function LoginScreen() {
 
       // Login with the user data and token
       await login(userData, response.data.access_token);
+
+      // Route based on counts from login response
+      const carCount = response.data.car_details_count ?? 0;
+      const driverCount = response.data.car_driver_count ?? 0;
+      if (carCount === 0) {
+        router.replace('/add-car');
+        return;
+      }
+      if (driverCount === 0) {
+        router.replace('/add-driver');
+        return;
+      }
       setShowWelcome(true);
 
     } catch (error: any) {
