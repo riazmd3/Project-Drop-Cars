@@ -10,7 +10,7 @@ import {
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Upload, CheckCircle, FileText } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
-import { signupAccount, testSignupDataStructure } from '@/services/signupService';
+import { signupAccount, testSignupDataStructure, loginVehicleOwner } from '@/services/signupService';
 import * as ImagePicker from 'expo-image-picker';
 
 interface DocumentsStepProps {
@@ -86,13 +86,18 @@ export default function DocumentsStep({ data, onUpdate, onBack, formData }: Docu
       const response = await signupAccount(formData.personalDetails, documents);
       
       if (response.status === 'success') {
+        // Perform login to obtain a real JWT token
+        const loginResp = await loginVehicleOwner(
+          formData.personalDetails.primaryMobile,
+          formData.personalDetails.password
+        );
+
         // Create user object for local auth
         const userData = {
           id: response.user_id,
           fullName: formData.personalDetails.fullName,
           primaryMobile: formData.personalDetails.primaryMobile,
           secondaryMobile: formData.personalDetails.secondaryMobile,
-          
           password: formData.personalDetails.password,
           address: formData.personalDetails.address,
           aadharNumber: formData.personalDetails.aadharNumber,
@@ -101,9 +106,9 @@ export default function DocumentsStep({ data, onUpdate, onBack, formData }: Docu
           documents: documents,
         };
 
-        // Login with the new user data
-        await login(userData, 'registration-token');
-        
+        // Save user and token locally
+        await login(userData, loginResp.access_token);
+
         // Show success message and redirect to car add page
         Alert.alert(
           'Account Created Successfully!',
