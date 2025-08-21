@@ -12,6 +12,7 @@ import {
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Car, Save } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
+import { addCarDetails, testCarDetailsDataStructure } from '@/services/signupService';
 
 export default function AddCarScreen() {
   const [carData, setCarData] = useState({
@@ -25,24 +26,43 @@ export default function AddCarScreen() {
   const router = useRouter();
   const { user } = useAuth();
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!carData.name || !carData.type || !carData.registration) {
       Alert.alert('Error', 'Please fill all required fields');
       return;
     }
 
-    // Here you would typically save to API
-    // For now, we'll just navigate to the next step
-    Alert.alert(
-      'Success', 
-      'Car added successfully! Now add your first driver.',
-      [
-        {
-          text: 'OK',
-          onPress: () => router.push('/add-driver')
-        }
-      ]
-    );
+    try {
+      // Basic mapping to API schema; images can be added later in edit
+      const payload = {
+        car_name: carData.name,
+        car_type: carData.type,
+        car_number: carData.registration,
+        organization_id: user?.organizationId || 'org_001',
+        vehicle_owner_id: user?.id || '',
+        rc_front_img: '',
+        rc_back_img: '',
+        insurance_img: '',
+        fc_img: '',
+        car_img: ''
+      } as any;
+
+      testCarDetailsDataStructure(payload);
+      await addCarDetails(payload);
+
+      Alert.alert(
+        'Success',
+        'Car added successfully! Now add your first driver.',
+        [
+          {
+            text: 'OK',
+            onPress: () => router.push('/add-driver')
+          }
+        ]
+      );
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to add car');
+    }
   };
 
   return (

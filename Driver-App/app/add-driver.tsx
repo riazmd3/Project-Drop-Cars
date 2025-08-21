@@ -12,6 +12,7 @@ import {
 import { useRouter } from 'expo-router';
 import { ArrowLeft, User, Phone, MapPin, Hash, Upload, Save } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
+import { addDriver as addDriverApi, DriverData } from '@/services/driverService';
 import * as ImagePicker from 'expo-image-picker';
 
 
@@ -55,7 +56,7 @@ export default function AddDriverScreen() {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!driverData.name || !driverData.mobile || !driverData.address || !driverData.aadharNumber) {
       Alert.alert('Error', 'Please fill all required fields');
       return;
@@ -68,18 +69,33 @@ export default function AddDriverScreen() {
       return;
     }
 
-    // Here you would typically save to API
-    // For now, we'll just navigate to the next step
-    Alert.alert(
-      'Success', 
-      'Driver added successfully! Your documents are now under review.',
-      [
-        {
-          text: 'OK',
-          onPress: () => router.push('/documents-review')
-        }
-      ]
-    );
+    try {
+      const payload: DriverData = {
+        driver_name: driverData.name,
+        mobile_number: driverData.mobile,
+        aadhar_number: driverData.aadharNumber,
+        rc_front_img: documents.aadharFront || undefined,
+        rc_back_img: documents.aadharBack || undefined,
+        spoken_languages: [],
+        organization_id: user?.organizationId || 'org_001',
+        vehicle_owner_id: user?.id || ''
+      };
+
+      await addDriverApi(payload);
+
+      Alert.alert(
+        'Success',
+        'Driver added successfully! Your documents are now under review.',
+        [
+          {
+            text: 'OK',
+            onPress: () => router.push('/documents-review')
+          }
+        ]
+      );
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to add driver');
+    }
   };
 
   const DocumentUpload = ({ docType, required = false }: { 

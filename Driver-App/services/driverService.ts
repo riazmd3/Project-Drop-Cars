@@ -117,8 +117,8 @@ export const addDriver = async (driverData: DriverData): Promise<DriverResponse>
       vehicle_owner_id: driverData.vehicle_owner_id
     });
 
-    // Make the API call
-    const response = await axiosInstance.post('/api/users/drivers/signup', formData, {
+    // Make the API call (matches provided endpoint)
+    const response = await axiosInstance.post('/api/users/cardriver/signup', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
         'Authorization': `Bearer ${token}`
