@@ -92,8 +92,7 @@ export default function DocumentsStep({ data, onUpdate, onBack, formData }: Docu
           fullName: formData.personalDetails.fullName,
           primaryMobile: formData.personalDetails.primaryMobile,
           secondaryMobile: formData.personalDetails.secondaryMobile,
-          paymentMethod: formData.personalDetails.paymentMethod,
-          paymentNumber: formData.personalDetails.paymentNumber,
+          
           password: formData.personalDetails.password,
           address: formData.personalDetails.address,
           aadharNumber: formData.personalDetails.aadharNumber,
