@@ -9,6 +9,9 @@ export const API_CONFIG = {
   ENDPOINTS: {
     VENDOR_SIGNUP: '/api/users/vendor/signup',
     VENDOR_SIGNIN: '/api/users/vendor/signin',
+    // New Order endpoints
+    CREATE_QUOTE: '/api/orders/oneway/quote',
+    CONFIRM_ORDER: '/api/orders/oneway/confirm',
   },
   
   // Request timeout in milliseconds
@@ -34,6 +37,16 @@ export const getVendorSignupUrl = (): string => {
 // Helper function to get vendor signin URL
 export const getVendorSigninUrl = (): string => {
   return getApiUrl(API_CONFIG.ENDPOINTS.VENDOR_SIGNIN);
+};
+
+// Helper function to get create quote URL
+export const getCreateQuoteUrl = (): string => {
+  return getApiUrl(API_CONFIG.ENDPOINTS.CREATE_QUOTE);
+};
+
+// Helper function to get confirm order URL
+export const getConfirmOrderUrl = (): string => {
+  return getApiUrl(API_CONFIG.ENDPOINTS.CONFIRM_ORDER);
 };
 
 // Helper function to get current API base URL

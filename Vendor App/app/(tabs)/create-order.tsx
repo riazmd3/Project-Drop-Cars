@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,9 @@ import {
   ScrollView,
   Alert,
   Modal,
+  Platform,
+  Animated,
+  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { 
@@ -18,294 +21,686 @@ import {
   Car,
   Mountain,
   FileText,
-  Plus,
-  X
+  Calendar,
+  Clock,
+  X,
+  ChevronDown,
+  Calculator,
+  Send
 } from 'lucide-react-native';
+import DateTimePicker from '@react-native-community/datetimepicker';
+import { mockGoogleMapsService, PlacePrediction } from '../../services/googleMaps';
+import { orderService, OrderQuoteRequest, OrderQuoteResponse, OrderConfirmRequest } from '../../services/orderService';
+import { useVendorAuth } from '../../hooks/useVendorAuth';
+import LocationPicker from '../../components/LocationPicker';
+import QuoteReview from '../../components/QuoteReview';
 
-interface PricingModal {
-  visible: boolean;
-  type: string;
-  title: string;
+const { width } = Dimensions.get('window');
+
+interface FormData {
+  vendor_id: string;
+  trip_type: string;
+  car_type: string;
+  pickup_drop_location: { [key: string]: string };
+  start_date_time: Date;
+  customer_name: string;
+  customer_number: string;
+  cost_per_km: string;
+  extra_cost_per_km: string;
+  driver_allowance: string;
+  extra_driver_allowance: string;
+  permit_charges: string;
+  hill_charges: string;
+  toll_charges: string;
+  pickup_notes: string;
+  send_to: string;
+  near_city: string;
 }
 
+
+
+const carTypes = [
+  'Hatchback',
+  'Sedan', 
+  'New Sedan',
+  'SUV',
+  'Innova',
+  'Innova Crysta'
+];
+
+
+
 export default function CreateOrderScreen() {
-  const [formData, setFormData] = useState({
-    customerName: '',
-    customerPhone: '',
-    pickupLocation: '',
-    dropLocation: '',
-    driverPrice: { normal: '', extra: '' },
-    kilometerCharges: { normal: '', extra: '' },
-    hillCharges: { normal: '', extra: '' },
-    permitCharges: { normal: '', extra: '' },
+  const [formData, setFormData] = useState<FormData>({
+    vendor_id: '83a93a3f-2f6e-4bf6-9f78-1c3f9f42b7b1',
+    trip_type: 'Oneway',
+    car_type: 'Sedan',
+    pickup_drop_location: { '0': '', '1': '' },
+    start_date_time: new Date(),
+    customer_name: '',
+    customer_number: '',
+    cost_per_km: '',
+    extra_cost_per_km: '',
+    driver_allowance: '',
+    extra_driver_allowance: '',
+    permit_charges: '',
+    hill_charges: '',
+    toll_charges: '',
+    pickup_notes: '',
+    send_to: 'ALL',
+    near_city: ''
   });
 
-  const [pricingModal, setPricingModal] = useState<PricingModal>({
-    visible: false,
-    type: '',
-    title: '',
-  });
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [showCarTypePicker, setShowCarTypePicker] = useState(false);
+  const [showSendToPicker, setShowSendToPicker] = useState(false);
+  const [activeLocationField, setActiveLocationField] = useState<'0' | '1' | null>(null);
+  const [quoteResponse, setQuoteResponse] = useState<OrderQuoteResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [showQuoteReview, setShowQuoteReview] = useState(false);
+  
+  // Get vendor auth hook
+  const { getStoredToken, getStoredVendorData } = useVendorAuth();
 
-  const [tempPricing, setTempPricing] = useState({ normal: '', extra: '' });
-
-  const handleInputChange = (field: string, value: string) => {
+  const handleInputChange = (field: keyof FormData, value: string | Date) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
   };
 
-  const openPricingModal = (type: string, title: string) => {
-    const currentPricing = formData[type as keyof typeof formData] as { normal: string; extra: string };
-    setTempPricing(currentPricing);
-    setPricingModal({
-      visible: true,
-      type,
-      title,
-    });
-  };
-
-  const savePricing = () => {
+  const handleLocationChange = (index: string, value: string) => {
     setFormData(prev => ({
       ...prev,
-      [pricingModal.type]: { ...tempPricing }
+      pickup_drop_location: {
+        ...prev.pickup_drop_location,
+        [index]: value
+      }
     }));
-    setPricingModal({ visible: false, type: '', title: '' });
   };
 
-  const calculateTotal = () => {
-    const { driverPrice, kilometerCharges, hillCharges, permitCharges } = formData;
-    
-    const driverTotal = (parseFloat(driverPrice.normal || '0') + parseFloat(driverPrice.extra || '0'));
-    const kmTotal = (parseFloat(kilometerCharges.normal || '0') + parseFloat(kilometerCharges.extra || '0'));
-    const hillTotal = (parseFloat(hillCharges.normal || '0') + parseFloat(hillCharges.extra || '0'));
-    const permitTotal = (parseFloat(permitCharges.normal || '0') + parseFloat(permitCharges.extra || '0'));
-    
-    return driverTotal + kmTotal + hillTotal + permitTotal;
+  const openLocationPicker = (index: '0' | '1') => {
+    setActiveLocationField(index);
+    setShowLocationPicker(true);
   };
 
-  const handleSubmit = () => {
-    if (!formData.customerName.trim() || !formData.customerPhone.trim()) {
-      Alert.alert('Error', 'Please fill in customer details');
+  const onDateChange = (event: any, selectedDate?: Date) => {
+    setShowDatePicker(false);
+    if (selectedDate) {
+      handleInputChange('start_date_time', selectedDate);
+    }
+  };
+
+  const onTimeChange = (event: any, selectedTime?: Date) => {
+    setShowTimePicker(false);
+    if (selectedTime) {
+      const currentDate = formData.start_date_time;
+      const newDateTime = new Date(currentDate);
+      newDateTime.setHours(selectedTime.getHours());
+      newDateTime.setMinutes(selectedTime.getMinutes());
+      handleInputChange('start_date_time', newDateTime);
+    }
+  };
+
+  const getQuote = async () => {
+    // Validation
+    if (!formData.customer_name.trim()) {
+      Alert.alert('Error', 'Please enter customer name');
       return;
     }
-
-    if (!formData.pickupLocation.trim() || !formData.dropLocation.trim()) {
+    if (!formData.customer_number.trim()) {
+      Alert.alert('Error', 'Please enter customer number');
+      return;
+    }
+    if (!formData.pickup_drop_location['0'] || !formData.pickup_drop_location['1']) {
       Alert.alert('Error', 'Please enter pickup and drop locations');
       return;
     }
-
-    const total = calculateTotal();
-    if (total <= 0) {
-      Alert.alert('Error', 'Please set pricing details');
+    if (!formData.cost_per_km) {
+      Alert.alert('Error', 'Please enter cost per km');
       return;
     }
 
-    // Show transaction details
-    Alert.alert(
-      'Order Summary',
-      `Customer: ${formData.customerName}
-Phone: ${formData.customerPhone}
-From: ${formData.pickupLocation}
-To: ${formData.dropLocation}
-Total Amount: ₹${total.toFixed(2)}`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Confirm Order', 
-          onPress: () => {
-            Alert.alert('Success', 'Order created successfully!');
-            // Reset form
-            setFormData({
-              customerName: '',
-              customerPhone: '',
-              pickupLocation: '',
-              dropLocation: '',
-              driverPrice: { normal: '', extra: '' },
-              kilometerCharges: { normal: '', extra: '' },
-              hillCharges: { normal: '', extra: '' },
-              permitCharges: { normal: '', extra: '' },
-            });
-          }
-        }
-      ]
-    );
+    setIsLoading(true);
+    
+    try {
+      // Prepare request data
+      const quoteRequest: OrderQuoteRequest = {
+        vendor_id: formData.vendor_id,
+        trip_type: formData.trip_type,
+        car_type: formData.car_type,
+        pickup_drop_location: formData.pickup_drop_location,
+        start_date_time: formData.start_date_time.toISOString(),
+        customer_name: formData.customer_name,
+        customer_number: formData.customer_number,
+        cost_per_km: parseFloat(formData.cost_per_km),
+        extra_cost_per_km: parseFloat(formData.extra_cost_per_km) || 0,
+        driver_allowance: parseFloat(formData.driver_allowance) || 0,
+        extra_driver_allowance: parseFloat(formData.extra_driver_allowance) || 0,
+        permit_charges: parseFloat(formData.permit_charges) || 0,
+        hill_charges: parseFloat(formData.hill_charges) || 0,
+        toll_charges: parseFloat(formData.toll_charges) || 0,
+        pickup_notes: formData.pickup_notes
+      };
+
+      // Call the real API
+      const response = await orderService.createQuote(quoteRequest);
+      setQuoteResponse(response);
+      setShowQuoteReview(true);
+    } catch (error) {
+      console.error('Error creating quote:', error);
+      Alert.alert('Error', 'Failed to generate quote. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const renderPricingButton = (type: string, title: string, icon: React.ReactNode) => {
-    const pricing = formData[type as keyof typeof formData] as { normal: string; extra: string };
-    const hasValue = pricing.normal || pricing.extra;
+  const confirmOrder = async (sendTo: string, nearCity?: string) => {
+    if (sendTo === 'NEAR_CITY' && !nearCity) {
+      Alert.alert('Error', 'Please select a near city when sending to NEAR_CITY');
+      return;
+    }
+
+    setIsLoading(true);
     
-    return (
-      <TouchableOpacity
-        style={[styles.pricingButton, hasValue && styles.pricingButtonActive]}
-        onPress={() => openPricingModal(type, title)}
-      >
-        <View style={styles.pricingButtonContent}>
-          {icon}
-          <View style={styles.pricingButtonText}>
-            <Text style={[styles.pricingButtonTitle, hasValue && styles.pricingButtonTitleActive]}>
-              {title}
-            </Text>
-            {hasValue && (
-              <Text style={styles.pricingButtonValue}>
-                N: ₹{pricing.normal || '0'} | E: ₹{pricing.extra || '0'}
-              </Text>
-            )}
-          </View>
-        </View>
-        <Plus size={20} color={hasValue ? '#3B82F6' : '#6B7280'} />
-      </TouchableOpacity>
-    );
+    try {
+      // Get access token
+      const accessToken = await getStoredToken();
+      if (!accessToken) {
+        throw new Error('No access token found. Please sign in again.');
+      }
+
+      // Prepare confirm request
+      const confirmRequest: OrderConfirmRequest = {
+        vendor_id: formData.vendor_id,
+        trip_type: formData.trip_type,
+        car_type: formData.car_type,
+        pickup_drop_location: formData.pickup_drop_location,
+        start_date_time: formData.start_date_time.toISOString(),
+        customer_name: formData.customer_name,
+        customer_number: formData.customer_number,
+        cost_per_km: parseFloat(formData.cost_per_km),
+        extra_cost_per_km: parseFloat(formData.extra_cost_per_km) || 0,
+        driver_allowance: parseFloat(formData.driver_allowance) || 0,
+        extra_driver_allowance: parseFloat(formData.extra_driver_allowance) || 0,
+        permit_charges: parseFloat(formData.permit_charges) || 0,
+        hill_charges: parseFloat(formData.hill_charges) || 0,
+        toll_charges: parseFloat(formData.toll_charges) || 0,
+        pickup_notes: formData.pickup_notes,
+        send_to: sendTo as 'ALL' | 'NEAR_CITY',
+        near_city: nearCity
+      };
+
+      // Call the real API
+      const response = await orderService.confirmOrder(confirmRequest, accessToken);
+      console.log('Order created successfully:', response);
+      
+      // Reset form
+      setFormData({
+        vendor_id: '83a93a3f-2f6e-4bf6-9f78-1c3f9f42b7b1',
+        trip_type: 'Oneway',
+        car_type: 'Sedan',
+        pickup_drop_location: { '0': '', '1': '' },
+        start_date_time: new Date(),
+        customer_name: '',
+        customer_number: '',
+        cost_per_km: '',
+        extra_cost_per_km: '',
+        driver_allowance: '',
+        extra_driver_allowance: '',
+        permit_charges: '',
+        hill_charges: '',
+        toll_charges: '',
+        pickup_notes: '',
+        send_to: 'ALL',
+        near_city: ''
+      });
+      setQuoteResponse(null);
+      setShowQuoteReview(false);
+      
+    } catch (error) {
+      console.error('Error confirming order:', error);
+      Alert.alert('Error', 'Failed to create order. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const formatDateTime = (date: Date) => {
+    return {
+      date: date.toLocaleDateString(),
+      time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
   };
 
   return (
     <View style={styles.container}>
+      {/* Modern Google-inspired Header */}
       <LinearGradient
-        colors={['#10B981', '#059669']}
+        colors={['#4285F4', '#34A853', '#FBBC04', '#EA4335']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
         style={styles.header}
       >
-        <Text style={styles.headerTitle}>Create New Order</Text>
-        <Text style={styles.headerSubtitle}>Fill in the order details</Text>
+        <View style={styles.headerContent}>
+          <View style={styles.headerIconContainer}>
+            <Car size={32} color="#FFFFFF" />
+          </View>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.headerTitle}>Create New Order</Text>
+            <Text style={styles.headerSubtitle}>Plan your perfect trip</Text>
+          </View>
+        </View>
       </LinearGradient>
 
-      <ScrollView style={styles.content}>
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Customer Details Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Customer Details</Text>
+          <View style={styles.sectionHeader}>
+            <User size={24} color="#4285F4" />
+            <Text style={styles.sectionTitle}>Customer Details</Text>
+          </View>
           
           <View style={styles.inputContainer}>
-            <User size={20} color="#6B7280" style={styles.inputIcon} />
+            <User size={20} color="#5F6368" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
               placeholder="Customer Name"
-              value={formData.customerName}
-              onChangeText={(value) => handleInputChange('customerName', value)}
-              placeholderTextColor="#9CA3AF"
+              value={formData.customer_name}
+              onChangeText={(value) => handleInputChange('customer_name', value)}
+              placeholderTextColor="#9AA0A6"
             />
           </View>
 
           <View style={styles.inputContainer}>
-            <Phone size={20} color="#6B7280" style={styles.inputIcon} />
+            <Phone size={20} color="#5F6368" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
               placeholder="Customer Mobile Number"
-              value={formData.customerPhone}
-              onChangeText={(value) => handleInputChange('customerPhone', value)}
+              value={formData.customer_number}
+              onChangeText={(value) => handleInputChange('customer_number', value)}
               keyboardType="phone-pad"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor="#9AA0A6"
             />
           </View>
         </View>
 
+        {/* Trip Details Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Locations</Text>
+          <View style={styles.sectionHeader}>
+            <Car size={24} color="#34A853" />
+            <Text style={styles.sectionTitle}>Trip Details</Text>
+          </View>
           
           <View style={styles.inputContainer}>
-            <MapPin size={20} color="#10B981" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Pickup Location"
-              value={formData.pickupLocation}
-              onChangeText={(value) => handleInputChange('pickupLocation', value)}
-              placeholderTextColor="#9CA3AF"
-            />
+            <Car size={20} color="#5F6368" style={styles.inputIcon} />
+            <TouchableOpacity
+              style={styles.pickerButton}
+              onPress={() => setShowCarTypePicker(true)}
+            >
+              <Text style={[styles.pickerButtonText, formData.car_type ? styles.pickerButtonTextActive : styles.pickerButtonTextPlaceholder]}>
+                {formData.car_type || 'Select Car Type'}
+              </Text>
+              <ChevronDown size={20} color="#5F6368" />
+            </TouchableOpacity>
+          </View>
+
+          <View style={styles.row}>
+            <View style={[styles.inputContainer, styles.halfWidth]}>
+              <Calendar size={20} color="#5F6368" style={styles.inputIcon} />
+              <TouchableOpacity
+                style={styles.pickerButton}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <Text style={styles.pickerButtonText}>
+                  {formatDateTime(formData.start_date_time).date}
+                </Text>
+              </TouchableOpacity>
+            </View>
+
+            <View style={[styles.inputContainer, styles.halfWidth]}>
+              <Clock size={20} color="#5F6368" style={styles.inputIcon} />
+              <TouchableOpacity
+                style={styles.pickerButton}
+                onPress={() => setShowTimePicker(true)}
+              >
+                <Text style={styles.pickerButtonText}>
+                  {formatDateTime(formData.start_date_time).time}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+
+        {/* Locations Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <MapPin size={24} color="#FBBC04" />
+            <Text style={styles.sectionTitle}>Locations</Text>
+          </View>
+          
+          <View style={styles.inputContainer}>
+            <MapPin size={20} color="#34A853" style={styles.inputIcon} />
+            <TouchableOpacity
+              style={styles.locationInputButton}
+              onPress={() => openLocationPicker('0')}
+            >
+              <Text style={[styles.locationInputText, formData.pickup_drop_location['0'] ? styles.locationInputTextActive : styles.locationInputTextPlaceholder]}>
+                {formData.pickup_drop_location['0'] || 'Pickup Location (Source)'}
+              </Text>
+              <MapPin size={20} color="#34A853" />
+            </TouchableOpacity>
           </View>
 
           <View style={styles.inputContainer}>
-            <MapPin size={20} color="#EF4444" style={styles.inputIcon} />
+            <MapPin size={20} color="#EA4335" style={styles.inputIcon} />
+            <TouchableOpacity
+              style={styles.locationInputButton}
+              onPress={() => openLocationPicker('1')}
+            >
+              <Text style={[styles.locationInputText, formData.pickup_drop_location['1'] ? styles.locationInputTextActive : styles.locationInputTextPlaceholder]}>
+                {formData.pickup_drop_location['1'] || 'Drop Location (Destination)'}
+              </Text>
+              <MapPin size={20} color="#EA4335" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* Pricing Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <IndianRupee size={24} color="#EA4335" />
+            <Text style={styles.sectionTitle}>Pricing Details</Text>
+          </View>
+          
+          <View style={styles.row}>
+            <View style={[styles.inputContainer, styles.halfWidth]}>
+              <IndianRupee size={20} color="#5F6368" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Cost per KM"
+                value={formData.cost_per_km}
+                onChangeText={(value) => handleInputChange('cost_per_km', value)}
+                keyboardType="numeric"
+                placeholderTextColor="#9AA0A6"
+              />
+            </View>
+
+            <View style={[styles.inputContainer, styles.halfWidth]}>
+              <IndianRupee size={20} color="#5F6368" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Extra Cost per KM"
+                value={formData.extra_cost_per_km}
+                onChangeText={(value) => handleInputChange('extra_cost_per_km', value)}
+                keyboardType="numeric"
+                placeholderTextColor="#9AA0A6"
+              />
+            </View>
+          </View>
+
+          <View style={styles.row}>
+            <View style={[styles.inputContainer, styles.halfWidth]}>
+              <Car size={20} color="#5F6368" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Driver Allowance"
+                value={formData.driver_allowance}
+                onChangeText={(value) => handleInputChange('driver_allowance', value)}
+                keyboardType="numeric"
+                placeholderTextColor="#9AA0A6"
+              />
+            </View>
+
+            <View style={[styles.inputContainer, styles.halfWidth]}>
+              <Car size={20} color="#5F6368" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Extra Driver Allowance"
+                value={formData.extra_driver_allowance}
+                onChangeText={(value) => handleInputChange('extra_driver_allowance', value)}
+                keyboardType="numeric"
+                placeholderTextColor="#9AA0A6"
+              />
+            </View>
+          </View>
+
+          <View style={styles.row}>
+            <View style={[styles.inputContainer, styles.halfWidth]}>
+              <FileText size={20} color="#5F6368" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Permit Charges"
+                value={formData.permit_charges}
+                onChangeText={(value) => handleInputChange('permit_charges', value)}
+                keyboardType="numeric"
+                placeholderTextColor="#9AA0A6"
+              />
+            </View>
+
+            <View style={[styles.inputContainer, styles.halfWidth]}>
+              <Mountain size={20} color="#5F6368" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Hill Charges"
+                value={formData.hill_charges}
+                onChangeText={(value) => handleInputChange('hill_charges', value)}
+                keyboardType="numeric"
+                placeholderTextColor="#9AA0A6"
+              />
+            </View>
+          </View>
+
+          <View style={styles.inputContainer}>
+            <IndianRupee size={20} color="#5F6368" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
-              placeholder="Drop Location"
-              value={formData.dropLocation}
-              onChangeText={(value) => handleInputChange('dropLocation', value)}
-              placeholderTextColor="#9CA3AF"
+              placeholder="Toll Charges"
+              value={formData.toll_charges}
+              onChangeText={(value) => handleInputChange('toll_charges', value)}
+              keyboardType="numeric"
+              placeholderTextColor="#9AA0A6"
             />
           </View>
         </View>
 
+        {/* Driver Assignment Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Pricing Details</Text>
+          <View style={styles.sectionHeader}>
+            <Send size={24} color="#4285F4" />
+            <Text style={styles.sectionTitle}>Driver Assignment</Text>
+          </View>
           
-          {renderPricingButton('driverPrice', 'Driver Price', <Car size={20} color="#3B82F6" />)}
-          {renderPricingButton('kilometerCharges', 'Per KM Charges', <IndianRupee size={20} color="#F59E0B" />)}
-          {renderPricingButton('hillCharges', 'Hill Charges', <Mountain size={20} color="#8B5CF6" />)}
-          {renderPricingButton('permitCharges', 'Permit Charges', <FileText size={20} color="#EF4444" />)}
+          <View style={styles.inputContainer}>
+            <Send size={20} color="#5F6368" style={styles.inputIcon} />
+            <TouchableOpacity
+              style={styles.pickerButton}
+              onPress={() => setShowSendToPicker(true)}
+            >
+              <Text style={styles.pickerButtonText}>
+                {formData.send_to === 'NEAR_CITY' ? `NEAR_CITY - ${formData.near_city}` : formData.send_to}
+              </Text>
+              <ChevronDown size={20} color="#5F6368" />
+            </TouchableOpacity>
+          </View>
+
+          {formData.send_to === 'NEAR_CITY' && (
+            <View style={styles.inputContainer}>
+              <MapPin size={20} color="#5F6368" style={styles.inputIcon} />
+              <TouchableOpacity
+                style={styles.pickerButton}
+                onPress={() => setShowSendToPicker(true)}
+              >
+                <Text style={styles.pickerButtonText}>
+                  {formData.near_city || 'Select Near City'}
+                </Text>
+                <ChevronDown size={20} color="#5F6368" />
+              </TouchableOpacity>
+            </View>
+          )}
         </View>
 
-        <View style={styles.totalContainer}>
-          <Text style={styles.totalLabel}>Total Amount</Text>
-          <Text style={styles.totalValue}>₹{calculateTotal().toFixed(2)}</Text>
+        {/* Additional Notes Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <FileText size={24} color="#34A853" />
+            <Text style={styles.sectionTitle}>Additional Notes</Text>
+          </View>
+          
+          <View style={styles.inputContainer}>
+            <FileText size={20} color="#5F6368" style={styles.inputIcon} />
+            <TextInput
+              style={[styles.input, styles.textArea]}
+              placeholder="Pickup Notes (Optional)"
+              value={formData.pickup_notes}
+              onChangeText={(value) => handleInputChange('pickup_notes', value)}
+              placeholderTextColor="#9AA0A6"
+              multiline
+              numberOfLines={3}
+            />
+          </View>
         </View>
 
-        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+        {/* Quote Button */}
+        <TouchableOpacity 
+          style={[styles.quoteButton, isLoading && styles.disabledButton]} 
+          onPress={getQuote}
+          disabled={isLoading}
+        >
           <LinearGradient
-            colors={['#3B82F6', '#1D4ED8']}
+            colors={['#4285F4', '#34A853']}
             style={styles.gradientButton}
           >
-            <Text style={styles.buttonText}>Create Order</Text>
+            <Calculator size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+            <Text style={styles.buttonText}>
+              {isLoading ? 'Generating Quote...' : 'Get Quote'}
+            </Text>
           </LinearGradient>
         </TouchableOpacity>
+
+
+
+
       </ScrollView>
 
-      {/* Pricing Modal */}
+      {/* Car Type Picker Modal */}
       <Modal
-        visible={pricingModal.visible}
+        visible={showCarTypePicker}
         animationType="slide"
         presentationStyle="pageSheet"
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{pricingModal.title}</Text>
+            <Text style={styles.modalTitle}>Select Car Type</Text>
             <TouchableOpacity
-              onPress={() => setPricingModal({ visible: false, type: '', title: '' })}
+              onPress={() => setShowCarTypePicker(false)}
               style={styles.closeButton}
             >
-              <X size={24} color="#6B7280" />
+              <X size={24} color="#5F6368" />
             </TouchableOpacity>
           </View>
-
           <View style={styles.modalContent}>
-            <View style={styles.pricingInputContainer}>
-              <Text style={styles.pricingInputLabel}>Normal Price</Text>
-              <View style={styles.inputContainer}>
-                <IndianRupee size={20} color="#6B7280" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="0"
-                  value={tempPricing.normal}
-                  onChangeText={(value) => setTempPricing(prev => ({ ...prev, normal: value }))}
-                  keyboardType="numeric"
-                  placeholderTextColor="#9CA3AF"
-                />
-              </View>
-            </View>
-
-            <View style={styles.pricingInputContainer}>
-              <Text style={styles.pricingInputLabel}>Extra Price</Text>
-              <View style={styles.inputContainer}>
-                <IndianRupee size={20} color="#6B7280" style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  placeholder="0"
-                  value={tempPricing.extra}
-                  onChangeText={(value) => setTempPricing(prev => ({ ...prev, extra: value }))}
-                  keyboardType="numeric"
-                  placeholderTextColor="#9CA3AF"
-                />
-              </View>
-            </View>
-
-            <TouchableOpacity style={styles.savePricingButton} onPress={savePricing}>
-              <LinearGradient
-                colors={['#10B981', '#059669']}
-                style={styles.gradientButton}
+            {carTypes.map((type) => (
+              <TouchableOpacity
+                key={type}
+                style={styles.modalOption}
+                onPress={() => {
+                  handleInputChange('car_type', type);
+                  setShowCarTypePicker(false);
+                }}
               >
-                <Text style={styles.buttonText}>Save Pricing</Text>
-              </LinearGradient>
+                <Text style={styles.modalOptionText}>{type}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </Modal>
+
+      {/* Send To Picker Modal */}
+      <Modal
+        visible={showSendToPicker}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Select Driver Assignment</Text>
+            <TouchableOpacity
+              onPress={() => setShowSendToPicker(false)}
+              style={styles.closeButton}
+            >
+              <X size={24} color="#5F6368" />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.modalContent}>
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={() => {
+                handleInputChange('send_to', 'ALL');
+                setShowSendToPicker(false);
+              }}
+            >
+              <Text style={styles.modalOptionText}>ALL</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.modalOption}
+              onPress={() => {
+                handleInputChange('send_to', 'NEAR_CITY');
+                setShowSendToPicker(false);
+              }}
+            >
+              <Text style={styles.modalOptionText}>NEAR_CITY</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
+
+
+
+      {/* Location Picker */}
+      <LocationPicker
+        visible={showLocationPicker}
+        onClose={() => setShowLocationPicker(false)}
+        onLocationSelect={(location) => {
+          if (activeLocationField) {
+            handleLocationChange(activeLocationField, location);
+          }
+          setShowLocationPicker(false);
+        }}
+        title={activeLocationField === '0' ? 'Select Pickup Location' : 'Select Drop Location'}
+        placeholder="Search for a location..."
+        initialValue={activeLocationField ? formData.pickup_drop_location[activeLocationField] : ''}
+      />
+
+      {/* Quote Review */}
+      <QuoteReview
+        visible={showQuoteReview}
+        onClose={() => setShowQuoteReview(false)}
+        quoteData={quoteResponse}
+        onConfirmOrder={confirmOrder}
+        isLoading={isLoading}
+      />
+
+      {/* Date and Time Pickers */}
+      {showDatePicker && (
+        <DateTimePicker
+          value={formData.start_date_time}
+          mode="date"
+          display="default"
+          onChange={onDateChange}
+        />
+      )}
+
+      {showTimePicker && (
+        <DateTimePicker
+          value={formData.start_date_time}
+          mode="time"
+          display="default"
+          onChange={onTimeChange}
+        />
+      )}
     </View>
   );
 }
@@ -313,7 +708,7 @@ Total Amount: ₹${total.toFixed(2)}`,
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F8F9FA',
   },
   header: {
     paddingTop: 60,
@@ -321,6 +716,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  headerTextContainer: {
+    flex: 1,
   },
   headerTitle: {
     fontSize: 28,
@@ -330,7 +741,7 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 16,
-    color: '#E5E7EB',
+    color: 'rgba(255, 255, 255, 0.9)',
   },
   content: {
     flex: 1,
@@ -339,109 +750,97 @@ const styles = StyleSheet.create({
   section: {
     marginTop: 24,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#202124',
+    marginLeft: 12,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 16,
     marginBottom: 16,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#E8EAED',
   },
   inputIcon: {
-    marginRight: 12,
+    marginRight: 16,
   },
   input: {
     flex: 1,
-    height: 52,
+    height: 56,
     fontSize: 16,
-    color: '#1F2937',
+    color: '#202124',
   },
-  pricingButton: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+  textArea: {
+    height: 100,
+    textAlignVertical: 'top',
+    paddingTop: 20,
   },
-  pricingButtonActive: {
-    borderWidth: 2,
-    borderColor: '#3B82F6',
-  },
-  pricingButtonContent: {
+  row: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
   },
-  pricingButtonText: {
+  halfWidth: {
+    width: '48%',
+  },
+  pickerButton: {
     flex: 1,
-    marginLeft: 12,
-  },
-  pricingButtonTitle: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#6B7280',
-  },
-  pricingButtonTitleActive: {
-    color: '#3B82F6',
-  },
-  pricingButtonValue: {
-    fontSize: 14,
-    color: '#10B981',
-    marginTop: 4,
-  },
-  totalContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    marginVertical: 24,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
+    justifyContent: 'space-between',
+    height: 56,
   },
-  totalLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
+  pickerButtonText: {
+    fontSize: 16,
+    color: '#202124',
+    fontWeight: '500',
   },
-  totalValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#10B981',
+  pickerButtonTextActive: {
+    color: '#202124',
   },
-  submitButton: {
-    marginBottom: 40,
-    borderRadius: 12,
+  pickerButtonTextPlaceholder: {
+    color: '#9AA0A6',
+  },
+
+  quoteButton: {
+    marginVertical: 24,
+    borderRadius: 16,
     overflow: 'hidden',
   },
+  confirmButton: {
+    marginTop: 20,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  disabledButton: {
+    opacity: 0.6,
+  },
   gradientButton: {
-    paddingVertical: 16,
+    paddingVertical: 18,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
   buttonText: {
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '600',
   },
+
   modalContainer: {
     flex: 1,
     backgroundColor: '#FFFFFF',
@@ -454,12 +853,12 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#E8EAED',
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#202124',
   },
   closeButton: {
     padding: 8,
@@ -467,20 +866,35 @@ const styles = StyleSheet.create({
   modalContent: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 30,
+    paddingTop: 20,
   },
-  pricingInputContainer: {
-    marginBottom: 24,
+  modalOption: {
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F3F4',
   },
-  pricingInputLabel: {
+  modalOptionText: {
+    fontSize: 18,
+    color: '#202124',
+  },
+
+  locationInputButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    height: 52,
+    paddingHorizontal: 16,
+  },
+  locationInputText: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 12,
+    color: '#202124',
+    flex: 1,
   },
-  savePricingButton: {
-    marginTop: 40,
-    borderRadius: 12,
-    overflow: 'hidden',
+  locationInputTextActive: {
+    color: '#202124',
+  },
+  locationInputTextPlaceholder: {
+    color: '#9AA0A6',
   },
 });
