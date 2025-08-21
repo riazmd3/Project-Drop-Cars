@@ -9,6 +9,8 @@ import {
   Alert,
   Modal,
   Platform,
+  Animated,
+  Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { 
@@ -21,18 +23,19 @@ import {
   FileText,
   Calendar,
   Clock,
-  Plus,
   X,
-  ChevronDown
+  ChevronDown,
+  Calculator,
+  Send
 } from 'lucide-react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
-
 import { mockGoogleMapsService, PlacePrediction } from '../../services/googleMaps';
+import { orderService, OrderQuoteRequest, OrderQuoteResponse, OrderConfirmRequest } from '../../services/orderService';
+import { useVendorAuth } from '../../hooks/useVendorAuth';
+import LocationPicker from '../../components/LocationPicker';
+import QuoteReview from '../../components/QuoteReview';
 
-interface LocationSuggestion {
-  id: string;
-  description: string;
-}
+const { width } = Dimensions.get('window');
 
 interface FormData {
   vendor_id: string;
@@ -54,6 +57,8 @@ interface FormData {
   near_city: string;
 }
 
+
+
 const carTypes = [
   'Hatchback',
   'Sedan', 
@@ -63,9 +68,11 @@ const carTypes = [
   'Innova Crysta'
 ];
 
+
+
 export default function CreateOrderScreen() {
   const [formData, setFormData] = useState<FormData>({
-    vendor_id: '83a93a3f-2f6e-4bf6-9f78-1c3f9f42b7b1', // Mock vendor ID
+    vendor_id: '83a93a3f-2f6e-4bf6-9f78-1c3f9f42b7b1',
     trip_type: 'Oneway',
     car_type: 'Sedan',
     pickup_drop_location: { '0': '', '1': '' },
@@ -88,10 +95,14 @@ export default function CreateOrderScreen() {
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showCarTypePicker, setShowCarTypePicker] = useState(false);
   const [showSendToPicker, setShowSendToPicker] = useState(false);
-  const [showLocationSuggestions, setShowLocationSuggestions] = useState(false);
   const [activeLocationField, setActiveLocationField] = useState<'0' | '1' | null>(null);
-  const [locationSuggestions, setLocationSuggestions] = useState<LocationSuggestion[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [quoteResponse, setQuoteResponse] = useState<OrderQuoteResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [showQuoteReview, setShowQuoteReview] = useState(false);
+  
+  // Get vendor auth hook
+  const { getStoredToken, getStoredVendorData } = useVendorAuth();
 
   const handleInputChange = (field: keyof FormData, value: string | Date) => {
     setFormData(prev => ({
@@ -100,7 +111,7 @@ export default function CreateOrderScreen() {
     }));
   };
 
-  const handleLocationChange = async (index: string, value: string) => {
+  const handleLocationChange = (index: string, value: string) => {
     setFormData(prev => ({
       ...prev,
       pickup_drop_location: {
@@ -108,40 +119,11 @@ export default function CreateOrderScreen() {
         [index]: value
       }
     }));
-    setSearchQuery(value);
-    
-    if (value.length > 2) {
-      try {
-        const predictions = await mockGoogleMapsService.getPlacePredictions(value);
-        const suggestions = predictions.map((prediction, idx) => ({
-          id: prediction.place_id,
-          description: prediction.description
-        }));
-        setLocationSuggestions(suggestions);
-        setShowLocationSuggestions(true);
-      } catch (error) {
-        console.error('Error fetching location suggestions:', error);
-        setLocationSuggestions([]);
-        setShowLocationSuggestions(false);
-      }
-    } else {
-      setShowLocationSuggestions(false);
-    }
   };
 
-  const selectLocation = (suggestion: LocationSuggestion) => {
-    if (activeLocationField) {
-      handleLocationChange(activeLocationField, suggestion.description);
-    }
-    setShowLocationSuggestions(false);
-    setSearchQuery('');
-    setActiveLocationField(null);
-  };
-
-  const openLocationField = (index: '0' | '1') => {
+  const openLocationPicker = (index: '0' | '1') => {
     setActiveLocationField(index);
-    setSearchQuery(formData.pickup_drop_location[index]);
-    setShowLocationSuggestions(true);
+    setShowLocationPicker(true);
   };
 
   const onDateChange = (event: any, selectedDate?: Date) => {
@@ -162,47 +144,7 @@ export default function CreateOrderScreen() {
     }
   };
 
-  const [distance, setDistance] = useState<number>(0);
-
-  const calculateTotal = () => {
-    const costPerKm = parseFloat(formData.cost_per_km) || 0;
-    const extraCostPerKm = parseFloat(formData.extra_cost_per_km) || 0;
-    const driverAllowance = parseFloat(formData.driver_allowance) || 0;
-    const extraDriverAllowance = parseFloat(formData.extra_driver_allowance) || 0;
-    const permitCharges = parseFloat(formData.permit_charges) || 0;
-    const hillCharges = parseFloat(formData.hill_charges) || 0;
-    const tollCharges = parseFloat(formData.toll_charges) || 0;
-    
-    const baseKmAmount = distance * (costPerKm + extraCostPerKm);
-    
-    return baseKmAmount + driverAllowance + extraDriverAllowance + permitCharges + hillCharges + tollCharges;
-  };
-
-  // Calculate distance when locations change
-  useEffect(() => {
-    const calculateDistance = async () => {
-      const origin = formData.pickup_drop_location['0'];
-      const destination = formData.pickup_drop_location['1'];
-      
-      if (origin && destination) {
-        try {
-          const calculatedDistance = await mockGoogleMapsService.calculateDistance(origin, destination);
-          if (calculatedDistance) {
-            setDistance(calculatedDistance);
-          }
-        } catch (error) {
-          console.error('Error calculating distance:', error);
-          setDistance(0);
-        }
-      } else {
-        setDistance(0);
-      }
-    };
-
-    calculateDistance();
-  }, [formData.pickup_drop_location['0'], formData.pickup_drop_location['1']]);
-
-  const handleSubmit = () => {
+  const getQuote = async () => {
     // Validation
     if (!formData.customer_name.trim()) {
       Alert.alert('Error', 'Please enter customer name');
@@ -220,55 +162,110 @@ export default function CreateOrderScreen() {
       Alert.alert('Error', 'Please enter cost per km');
       return;
     }
-    if (formData.send_to === 'NEAR_CITY' && !formData.near_city) {
-      Alert.alert('Error', 'Please enter near city when sending to NEAR_CITY');
+
+    setIsLoading(true);
+    
+    try {
+      // Prepare request data
+      const quoteRequest: OrderQuoteRequest = {
+        vendor_id: formData.vendor_id,
+        trip_type: formData.trip_type,
+        car_type: formData.car_type,
+        pickup_drop_location: formData.pickup_drop_location,
+        start_date_time: formData.start_date_time.toISOString(),
+        customer_name: formData.customer_name,
+        customer_number: formData.customer_number,
+        cost_per_km: parseFloat(formData.cost_per_km),
+        extra_cost_per_km: parseFloat(formData.extra_cost_per_km) || 0,
+        driver_allowance: parseFloat(formData.driver_allowance) || 0,
+        extra_driver_allowance: parseFloat(formData.extra_driver_allowance) || 0,
+        permit_charges: parseFloat(formData.permit_charges) || 0,
+        hill_charges: parseFloat(formData.hill_charges) || 0,
+        toll_charges: parseFloat(formData.toll_charges) || 0,
+        pickup_notes: formData.pickup_notes
+      };
+
+      // Call the real API
+      const response = await orderService.createQuote(quoteRequest);
+      setQuoteResponse(response);
+      setShowQuoteReview(true);
+    } catch (error) {
+      console.error('Error creating quote:', error);
+      Alert.alert('Error', 'Failed to generate quote. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const confirmOrder = async (sendTo: string, nearCity?: string) => {
+    if (sendTo === 'NEAR_CITY' && !nearCity) {
+      Alert.alert('Error', 'Please select a near city when sending to NEAR_CITY');
       return;
     }
 
-    const total = calculateTotal();
+    setIsLoading(true);
     
-    // Show order summary
-    Alert.alert(
-      'Order Summary',
-      `Customer: ${formData.customer_name}
-Phone: ${formData.customer_number}
-From: ${formData.pickup_drop_location['0']}
-To: ${formData.pickup_drop_location['1']}
-Car Type: ${formData.car_type}
-Date: ${formData.start_date_time.toLocaleDateString()}
-Time: ${formData.start_date_time.toLocaleTimeString()}
-Total Amount: ₹${total.toFixed(2)}`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Create Order', 
-          onPress: () => {
-            // Here you would call your API
-            Alert.alert('Success', 'Order created successfully!');
-            // Reset form
-            setFormData({
-              vendor_id: '83a93a3f-2f6e-4bf6-9f78-1c3f9f42b7b1',
-              trip_type: 'Oneway',
-              car_type: 'Sedan',
-              pickup_drop_location: { '0': '', '1': '' },
-              start_date_time: new Date(),
-              customer_name: '',
-              customer_number: '',
-              cost_per_km: '',
-              extra_cost_per_km: '',
-              driver_allowance: '',
-              extra_driver_allowance: '',
-              permit_charges: '',
-              hill_charges: '',
-              toll_charges: '',
-              pickup_notes: '',
-              send_to: 'ALL',
-              near_city: ''
-            });
-          }
-        }
-      ]
-    );
+    try {
+      // Get access token
+      const accessToken = await getStoredToken();
+      if (!accessToken) {
+        throw new Error('No access token found. Please sign in again.');
+      }
+
+      // Prepare confirm request
+      const confirmRequest: OrderConfirmRequest = {
+        vendor_id: formData.vendor_id,
+        trip_type: formData.trip_type,
+        car_type: formData.car_type,
+        pickup_drop_location: formData.pickup_drop_location,
+        start_date_time: formData.start_date_time.toISOString(),
+        customer_name: formData.customer_name,
+        customer_number: formData.customer_number,
+        cost_per_km: parseFloat(formData.cost_per_km),
+        extra_cost_per_km: parseFloat(formData.extra_cost_per_km) || 0,
+        driver_allowance: parseFloat(formData.driver_allowance) || 0,
+        extra_driver_allowance: parseFloat(formData.extra_driver_allowance) || 0,
+        permit_charges: parseFloat(formData.permit_charges) || 0,
+        hill_charges: parseFloat(formData.hill_charges) || 0,
+        toll_charges: parseFloat(formData.toll_charges) || 0,
+        pickup_notes: formData.pickup_notes,
+        send_to: sendTo as 'ALL' | 'NEAR_CITY',
+        near_city: nearCity
+      };
+
+      // Call the real API
+      const response = await orderService.confirmOrder(confirmRequest, accessToken);
+      console.log('Order created successfully:', response);
+      
+      // Reset form
+      setFormData({
+        vendor_id: '83a93a3f-2f6e-4bf6-9f78-1c3f9f42b7b1',
+        trip_type: 'Oneway',
+        car_type: 'Sedan',
+        pickup_drop_location: { '0': '', '1': '' },
+        start_date_time: new Date(),
+        customer_name: '',
+        customer_number: '',
+        cost_per_km: '',
+        extra_cost_per_km: '',
+        driver_allowance: '',
+        extra_driver_allowance: '',
+        permit_charges: '',
+        hill_charges: '',
+        toll_charges: '',
+        pickup_notes: '',
+        send_to: 'ALL',
+        near_city: ''
+      });
+      setQuoteResponse(null);
+      setShowQuoteReview(false);
+      
+    } catch (error) {
+      console.error('Error confirming order:', error);
+      Alert.alert('Error', 'Failed to create order. Please try again.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const formatDateTime = (date: Date) => {
@@ -280,49 +277,65 @@ Total Amount: ₹${total.toFixed(2)}`,
 
   return (
     <View style={styles.container}>
+      {/* Modern Google-inspired Header */}
       <LinearGradient
-        colors={['#10B981', '#059669']}
+        colors={['#4285F4', '#34A853', '#FBBC04', '#EA4335']}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
         style={styles.header}
       >
-        <Text style={styles.headerTitle}>Create New Order</Text>
-        <Text style={styles.headerSubtitle}>Fill in the order details</Text>
+        <View style={styles.headerContent}>
+          <View style={styles.headerIconContainer}>
+            <Car size={32} color="#FFFFFF" />
+          </View>
+          <View style={styles.headerTextContainer}>
+            <Text style={styles.headerTitle}>Create New Order</Text>
+            <Text style={styles.headerSubtitle}>Plan your perfect trip</Text>
+          </View>
+        </View>
       </LinearGradient>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         {/* Customer Details Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Customer Details</Text>
+          <View style={styles.sectionHeader}>
+            <User size={24} color="#4285F4" />
+            <Text style={styles.sectionTitle}>Customer Details</Text>
+          </View>
           
           <View style={styles.inputContainer}>
-            <User size={20} color="#6B7280" style={styles.inputIcon} />
+            <User size={20} color="#5F6368" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
               placeholder="Customer Name"
               value={formData.customer_name}
               onChangeText={(value) => handleInputChange('customer_name', value)}
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor="#9AA0A6"
             />
           </View>
 
           <View style={styles.inputContainer}>
-            <Phone size={20} color="#6B7280" style={styles.inputIcon} />
+            <Phone size={20} color="#5F6368" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
               placeholder="Customer Mobile Number"
               value={formData.customer_number}
               onChangeText={(value) => handleInputChange('customer_number', value)}
               keyboardType="phone-pad"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor="#9AA0A6"
             />
           </View>
         </View>
 
         {/* Trip Details Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Trip Details</Text>
+          <View style={styles.sectionHeader}>
+            <Car size={24} color="#34A853" />
+            <Text style={styles.sectionTitle}>Trip Details</Text>
+          </View>
           
           <View style={styles.inputContainer}>
-            <Car size={20} color="#6B7280" style={styles.inputIcon} />
+            <Car size={20} color="#5F6368" style={styles.inputIcon} />
             <TouchableOpacity
               style={styles.pickerButton}
               onPress={() => setShowCarTypePicker(true)}
@@ -330,180 +343,178 @@ Total Amount: ₹${total.toFixed(2)}`,
               <Text style={[styles.pickerButtonText, formData.car_type ? styles.pickerButtonTextActive : styles.pickerButtonTextPlaceholder]}>
                 {formData.car_type || 'Select Car Type'}
               </Text>
-              <ChevronDown size={20} color="#6B7280" />
+              <ChevronDown size={20} color="#5F6368" />
             </TouchableOpacity>
           </View>
 
-          <View style={styles.inputContainer}>
-            <Calendar size={20} color="#6B7280" style={styles.inputIcon} />
-            <TouchableOpacity
-              style={styles.pickerButton}
-              onPress={() => setShowDatePicker(true)}
-            >
-              <Text style={styles.pickerButtonText}>
-                {formatDateTime(formData.start_date_time).date}
-              </Text>
-            </TouchableOpacity>
-          </View>
+          <View style={styles.row}>
+            <View style={[styles.inputContainer, styles.halfWidth]}>
+              <Calendar size={20} color="#5F6368" style={styles.inputIcon} />
+              <TouchableOpacity
+                style={styles.pickerButton}
+                onPress={() => setShowDatePicker(true)}
+              >
+                <Text style={styles.pickerButtonText}>
+                  {formatDateTime(formData.start_date_time).date}
+                </Text>
+              </TouchableOpacity>
+            </View>
 
-          <View style={styles.inputContainer}>
-            <Clock size={20} color="#6B7280" style={styles.inputIcon} />
-            <TouchableOpacity
-              style={styles.pickerButton}
-              onPress={() => setShowTimePicker(true)}
-            >
-              <Text style={styles.pickerButtonText}>
-                {formatDateTime(formData.start_date_time).time}
-              </Text>
-            </TouchableOpacity>
+            <View style={[styles.inputContainer, styles.halfWidth]}>
+              <Clock size={20} color="#5F6368" style={styles.inputIcon} />
+              <TouchableOpacity
+                style={styles.pickerButton}
+                onPress={() => setShowTimePicker(true)}
+              >
+                <Text style={styles.pickerButtonText}>
+                  {formatDateTime(formData.start_date_time).time}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
 
         {/* Locations Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Locations</Text>
+          <View style={styles.sectionHeader}>
+            <MapPin size={24} color="#FBBC04" />
+            <Text style={styles.sectionTitle}>Locations</Text>
+          </View>
           
           <View style={styles.inputContainer}>
-            <MapPin size={20} color="#10B981" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Pickup Location (Source)"
-              value={formData.pickup_drop_location['0']}
-              onChangeText={(value) => handleLocationChange('0', value)}
-              onFocus={() => openLocationField('0')}
-              placeholderTextColor="#9CA3AF"
-            />
+            <MapPin size={20} color="#34A853" style={styles.inputIcon} />
+            <TouchableOpacity
+              style={styles.locationInputButton}
+              onPress={() => openLocationPicker('0')}
+            >
+              <Text style={[styles.locationInputText, formData.pickup_drop_location['0'] ? styles.locationInputTextActive : styles.locationInputTextPlaceholder]}>
+                {formData.pickup_drop_location['0'] || 'Pickup Location (Source)'}
+              </Text>
+              <MapPin size={20} color="#34A853" />
+            </TouchableOpacity>
           </View>
 
           <View style={styles.inputContainer}>
-            <MapPin size={20} color="#EF4444" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Drop Location (Destination)"
-              value={formData.pickup_drop_location['1']}
-              onChangeText={(value) => handleLocationChange('1', value)}
-              onFocus={() => openLocationField('1')}
-              placeholderTextColor="#9CA3AF"
-            />
+            <MapPin size={20} color="#EA4335" style={styles.inputIcon} />
+            <TouchableOpacity
+              style={styles.locationInputButton}
+              onPress={() => openLocationPicker('1')}
+            >
+              <Text style={[styles.locationInputText, formData.pickup_drop_location['1'] ? styles.locationInputTextActive : styles.locationInputTextPlaceholder]}>
+                {formData.pickup_drop_location['1'] || 'Drop Location (Destination)'}
+              </Text>
+              <MapPin size={20} color="#EA4335" />
+            </TouchableOpacity>
           </View>
-
-          {/* Location Suggestions */}
-          {showLocationSuggestions && (
-            <View style={styles.suggestionsContainer}>
-              {locationSuggestions.map((suggestion) => (
-                <TouchableOpacity
-                  key={suggestion.id}
-                  style={styles.suggestionItem}
-                  onPress={() => selectLocation(suggestion)}
-                >
-                  <MapPin size={16} color="#6B7280" />
-                  <Text style={styles.suggestionText}>{suggestion.description}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
         </View>
 
-        {/* Pricing Section - 2 columns for cost fields */}
+        {/* Pricing Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Pricing Details</Text>
+          <View style={styles.sectionHeader}>
+            <IndianRupee size={24} color="#EA4335" />
+            <Text style={styles.sectionTitle}>Pricing Details</Text>
+          </View>
           
           <View style={styles.row}>
             <View style={[styles.inputContainer, styles.halfWidth]}>
-              <IndianRupee size={20} color="#6B7280" style={styles.inputIcon} />
+              <IndianRupee size={20} color="#5F6368" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Cost per KM"
                 value={formData.cost_per_km}
                 onChangeText={(value) => handleInputChange('cost_per_km', value)}
                 keyboardType="numeric"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#9AA0A6"
               />
             </View>
 
             <View style={[styles.inputContainer, styles.halfWidth]}>
-              <IndianRupee size={20} color="#6B7280" style={styles.inputIcon} />
+              <IndianRupee size={20} color="#5F6368" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Extra Cost per KM"
                 value={formData.extra_cost_per_km}
                 onChangeText={(value) => handleInputChange('extra_cost_per_km', value)}
                 keyboardType="numeric"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#9AA0A6"
               />
             </View>
           </View>
 
           <View style={styles.row}>
             <View style={[styles.inputContainer, styles.halfWidth]}>
-              <Car size={20} color="#6B7280" style={styles.inputIcon} />
+              <Car size={20} color="#5F6368" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Driver Allowance"
                 value={formData.driver_allowance}
                 onChangeText={(value) => handleInputChange('driver_allowance', value)}
                 keyboardType="numeric"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#9AA0A6"
               />
             </View>
 
             <View style={[styles.inputContainer, styles.halfWidth]}>
-              <Car size={20} color="#6B7280" style={styles.inputIcon} />
+              <Car size={20} color="#5F6368" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Extra Driver Allowance"
                 value={formData.extra_driver_allowance}
                 onChangeText={(value) => handleInputChange('extra_driver_allowance', value)}
                 keyboardType="numeric"
-                placeholderTextColor="#9CA3AF"
+                placeholderTextColor="#9AA0A6"
               />
             </View>
           </View>
 
-          {/* Single column fields */}
-          <View style={styles.inputContainer}>
-            <FileText size={20} color="#6B7280" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Permit Charges"
-              value={formData.permit_charges}
-              onChangeText={(value) => handleInputChange('permit_charges', value)}
-              keyboardType="numeric"
-              placeholderTextColor="#9CA3AF"
-            />
+          <View style={styles.row}>
+            <View style={[styles.inputContainer, styles.halfWidth]}>
+              <FileText size={20} color="#5F6368" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Permit Charges"
+                value={formData.permit_charges}
+                onChangeText={(value) => handleInputChange('permit_charges', value)}
+                keyboardType="numeric"
+                placeholderTextColor="#9AA0A6"
+              />
+            </View>
+
+            <View style={[styles.inputContainer, styles.halfWidth]}>
+              <Mountain size={20} color="#5F6368" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Hill Charges"
+                value={formData.hill_charges}
+                onChangeText={(value) => handleInputChange('hill_charges', value)}
+                keyboardType="numeric"
+                placeholderTextColor="#9AA0A6"
+              />
+            </View>
           </View>
 
           <View style={styles.inputContainer}>
-            <Mountain size={20} color="#6B7280" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Hill Charges"
-              value={formData.hill_charges}
-              onChangeText={(value) => handleInputChange('hill_charges', value)}
-              keyboardType="numeric"
-              placeholderTextColor="#9CA3AF"
-            />
-          </View>
-
-          <View style={styles.inputContainer}>
-            <IndianRupee size={20} color="#6B7280" style={styles.inputIcon} />
+            <IndianRupee size={20} color="#5F6368" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
               placeholder="Toll Charges"
               value={formData.toll_charges}
               onChangeText={(value) => handleInputChange('toll_charges', value)}
               keyboardType="numeric"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor="#9AA0A6"
             />
           </View>
         </View>
 
         {/* Driver Assignment Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Driver Assignment</Text>
+          <View style={styles.sectionHeader}>
+            <Send size={24} color="#4285F4" />
+            <Text style={styles.sectionTitle}>Driver Assignment</Text>
+          </View>
           
           <View style={styles.inputContainer}>
-            <Car size={20} color="#6B7280" style={styles.inputIcon} />
+            <Send size={20} color="#5F6368" style={styles.inputIcon} />
             <TouchableOpacity
               style={styles.pickerButton}
               onPress={() => setShowSendToPicker(true)}
@@ -511,79 +522,67 @@ Total Amount: ₹${total.toFixed(2)}`,
               <Text style={styles.pickerButtonText}>
                 {formData.send_to === 'NEAR_CITY' ? `NEAR_CITY - ${formData.near_city}` : formData.send_to}
               </Text>
-              <ChevronDown size={20} color="#6B7280" />
+              <ChevronDown size={20} color="#5F6368" />
             </TouchableOpacity>
           </View>
 
           {formData.send_to === 'NEAR_CITY' && (
             <View style={styles.inputContainer}>
-              <MapPin size={20} color="#6B7280" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Near City"
-                value={formData.near_city}
-                onChangeText={(value) => handleInputChange('near_city', value)}
-                placeholderTextColor="#9CA3AF"
-              />
+              <MapPin size={20} color="#5F6368" style={styles.inputIcon} />
+              <TouchableOpacity
+                style={styles.pickerButton}
+                onPress={() => setShowSendToPicker(true)}
+              >
+                <Text style={styles.pickerButtonText}>
+                  {formData.near_city || 'Select Near City'}
+                </Text>
+                <ChevronDown size={20} color="#5F6368" />
+              </TouchableOpacity>
             </View>
           )}
         </View>
 
         {/* Additional Notes Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Additional Notes</Text>
+          <View style={styles.sectionHeader}>
+            <FileText size={24} color="#34A853" />
+            <Text style={styles.sectionTitle}>Additional Notes</Text>
+          </View>
           
           <View style={styles.inputContainer}>
-            <FileText size={20} color="#6B7280" style={styles.inputIcon} />
+            <FileText size={20} color="#5F6368" style={styles.inputIcon} />
             <TextInput
               style={[styles.input, styles.textArea]}
               placeholder="Pickup Notes (Optional)"
               value={formData.pickup_notes}
               onChangeText={(value) => handleInputChange('pickup_notes', value)}
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor="#9AA0A6"
               multiline
               numberOfLines={3}
             />
           </View>
         </View>
 
-        {/* Distance and Total Amount */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Trip Summary</Text>
-          
-          <View style={styles.summaryContainer}>
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Distance:</Text>
-              <Text style={styles.summaryValue}>{distance.toFixed(1)} km</Text>
-            </View>
-            
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Base Fare:</Text>
-              <Text style={styles.summaryValue}>₹{(distance * (parseFloat(formData.cost_per_km) || 0)).toFixed(2)}</Text>
-            </View>
-            
-            <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Extra Charges:</Text>
-              <Text style={styles.summaryValue}>₹{(distance * (parseFloat(formData.extra_cost_per_km) || 0)).toFixed(2)}</Text>
-            </View>
-          </View>
-        </View>
-
-        {/* Total Amount */}
-        <View style={styles.totalContainer}>
-          <Text style={styles.totalLabel}>Total Amount</Text>
-          <Text style={styles.totalValue}>₹{calculateTotal().toFixed(2)}</Text>
-        </View>
-
-        {/* Submit Button */}
-        <TouchableOpacity style={styles.submitButton} onPress={handleSubmit}>
+        {/* Quote Button */}
+        <TouchableOpacity 
+          style={[styles.quoteButton, isLoading && styles.disabledButton]} 
+          onPress={getQuote}
+          disabled={isLoading}
+        >
           <LinearGradient
-            colors={['#3B82F6', '#1D4ED8']}
+            colors={['#4285F4', '#34A853']}
             style={styles.gradientButton}
           >
-            <Text style={styles.buttonText}>Create Order</Text>
+            <Calculator size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
+            <Text style={styles.buttonText}>
+              {isLoading ? 'Generating Quote...' : 'Get Quote'}
+            </Text>
           </LinearGradient>
         </TouchableOpacity>
+
+
+
+
       </ScrollView>
 
       {/* Car Type Picker Modal */}
@@ -599,7 +598,7 @@ Total Amount: ₹${total.toFixed(2)}`,
               onPress={() => setShowCarTypePicker(false)}
               style={styles.closeButton}
             >
-              <X size={24} color="#6B7280" />
+              <X size={24} color="#5F6368" />
             </TouchableOpacity>
           </View>
           <View style={styles.modalContent}>
@@ -632,7 +631,7 @@ Total Amount: ₹${total.toFixed(2)}`,
               onPress={() => setShowSendToPicker(false)}
               style={styles.closeButton}
             >
-              <X size={24} color="#6B7280" />
+              <X size={24} color="#5F6368" />
             </TouchableOpacity>
           </View>
           <View style={styles.modalContent}>
@@ -657,6 +656,32 @@ Total Amount: ₹${total.toFixed(2)}`,
           </View>
         </View>
       </Modal>
+
+
+
+      {/* Location Picker */}
+      <LocationPicker
+        visible={showLocationPicker}
+        onClose={() => setShowLocationPicker(false)}
+        onLocationSelect={(location) => {
+          if (activeLocationField) {
+            handleLocationChange(activeLocationField, location);
+          }
+          setShowLocationPicker(false);
+        }}
+        title={activeLocationField === '0' ? 'Select Pickup Location' : 'Select Drop Location'}
+        placeholder="Search for a location..."
+        initialValue={activeLocationField ? formData.pickup_drop_location[activeLocationField] : ''}
+      />
+
+      {/* Quote Review */}
+      <QuoteReview
+        visible={showQuoteReview}
+        onClose={() => setShowQuoteReview(false)}
+        quoteData={quoteResponse}
+        onConfirmOrder={confirmOrder}
+        isLoading={isLoading}
+      />
 
       {/* Date and Time Pickers */}
       {showDatePicker && (
@@ -683,7 +708,7 @@ Total Amount: ₹${total.toFixed(2)}`,
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#F8FAFC',
+    backgroundColor: '#F8F9FA',
   },
   header: {
     paddingTop: 60,
@@ -691,6 +716,22 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     borderBottomLeftRadius: 30,
     borderBottomRightRadius: 30,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  headerTextContainer: {
+    flex: 1,
   },
   headerTitle: {
     fontSize: 28,
@@ -700,7 +741,7 @@ const styles = StyleSheet.create({
   },
   headerSubtitle: {
     fontSize: 16,
-    color: '#E5E7EB',
+    color: 'rgba(255, 255, 255, 0.9)',
   },
   content: {
     flex: 1,
@@ -709,38 +750,45 @@ const styles = StyleSheet.create({
   section: {
     marginTop: 24,
   },
-  sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
     marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#202124',
+    marginLeft: 12,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#FFFFFF',
-    borderRadius: 12,
+    borderRadius: 16,
     marginBottom: 16,
-    paddingHorizontal: 16,
+    paddingHorizontal: 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#E8EAED',
   },
   inputIcon: {
-    marginRight: 12,
+    marginRight: 16,
   },
   input: {
     flex: 1,
-    height: 52,
+    height: 56,
     fontSize: 16,
-    color: '#1F2937',
+    color: '#202124',
   },
   textArea: {
-    height: 80,
+    height: 100,
     textAlignVertical: 'top',
-    paddingTop: 16,
+    paddingTop: 20,
   },
   row: {
     flexDirection: 'row',
@@ -754,79 +802,45 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    height: 52,
+    height: 56,
   },
   pickerButtonText: {
     fontSize: 16,
-    color: '#1F2937',
+    color: '#202124',
+    fontWeight: '500',
   },
   pickerButtonTextActive: {
-    color: '#1F2937',
+    color: '#202124',
   },
   pickerButtonTextPlaceholder: {
-    color: '#9CA3AF',
+    color: '#9AA0A6',
   },
-  suggestionsContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    marginTop: -8,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  suggestionItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    padding: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
-  },
-  suggestionText: {
-    fontSize: 16,
-    color: '#1F2937',
-    marginLeft: 12,
-  },
-  totalContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
+
+  quoteButton: {
     marginVertical: 24,
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  totalLabel: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1F2937',
-  },
-  totalValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#10B981',
-  },
-  submitButton: {
-    marginBottom: 40,
-    borderRadius: 12,
+    borderRadius: 16,
     overflow: 'hidden',
   },
+  confirmButton: {
+    marginTop: 20,
+    borderRadius: 16,
+    overflow: 'hidden',
+  },
+  disabledButton: {
+    opacity: 0.6,
+  },
   gradientButton: {
-    paddingVertical: 16,
+    paddingVertical: 18,
     alignItems: 'center',
+    flexDirection: 'row',
+    justifyContent: 'center',
   },
   buttonText: {
     color: '#FFFFFF',
     fontSize: 18,
     fontWeight: '600',
   },
+
   modalContainer: {
     flex: 1,
     backgroundColor: '#FFFFFF',
@@ -839,12 +853,12 @@ const styles = StyleSheet.create({
     paddingTop: 60,
     paddingBottom: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    borderBottomColor: '#E8EAED',
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#202124',
   },
   closeButton: {
     padding: 8,
@@ -857,38 +871,30 @@ const styles = StyleSheet.create({
   modalOption: {
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    borderBottomColor: '#F1F3F4',
   },
   modalOptionText: {
     fontSize: 18,
-    color: '#1F2937',
+    color: '#202124',
   },
-  summaryContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  summaryRow: {
+
+  locationInputButton: {
+    flex: 1,
     flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F3F4F6',
+    justifyContent: 'space-between',
+    height: 52,
+    paddingHorizontal: 16,
   },
-  summaryLabel: {
+  locationInputText: {
     fontSize: 16,
-    color: '#6B7280',
-    fontWeight: '500',
+    color: '#202124',
+    flex: 1,
   },
-  summaryValue: {
-    fontSize: 16,
-    color: '#1F2937',
-    fontWeight: '600',
+  locationInputTextActive: {
+    color: '#202124',
+  },
+  locationInputTextPlaceholder: {
+    color: '#9AA0A6',
   },
 });
