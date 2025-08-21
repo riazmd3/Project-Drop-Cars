@@ -14,7 +14,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { ArrowLeft, Car, Plus, X, Check, Edit, Trash2 } from 'lucide-react-native';
-import { getCars, updateCar, deleteCar, setDefaultCar, CarDetails, testCarManagementConnection, checkUserCarsStatus } from '@/services/carManagementService';
+import { getCars, updateCar, deleteCar, setDefaultCar, CarDetails } from '@/services/carManagementService';
 import * as ImagePicker from 'expo-image-picker';
 
 const carTypes = ['Sedan', 'Hatchback', 'SUV', 'Innova', 'Innova Crysta', 'Other'];
@@ -579,45 +579,7 @@ export default function MyCarsScreen() {
           <Text style={dynamicStyles.addButtonText}>Add New Car</Text>
         </TouchableOpacity>
 
-        {/* Debug button - remove in production */}
-        <TouchableOpacity 
-          style={[dynamicStyles.addButton, { backgroundColor: colors.warning, marginTop: 10 }]}
-          onPress={async () => {
-            try {
-              setLoading(true);
-              const result = await testCarManagementConnection();
-              if (result.success) {
-                Alert.alert('API Test Success', `Endpoint: ${result.endpoint}\nData: ${JSON.stringify(result.data, null, 2)}`);
-              } else {
-                Alert.alert('API Test Failed', result.error);
-              }
-            } catch (error: any) {
-              Alert.alert('API Test Error', error.message);
-            } finally {
-              setLoading(false);
-            }
-          }}
-        >
-          <Text style={dynamicStyles.addButtonText}>Test API Connection</Text>
-        </TouchableOpacity>
-
-        {/* Check Cars Status button */}
-        <TouchableOpacity 
-          style={[dynamicStyles.addButton, { backgroundColor: colors.info || '#007AFF', marginTop: 10 }]}
-          onPress={async () => {
-            try {
-              setLoading(true);
-              const status = await checkUserCarsStatus();
-              Alert.alert('Cars Status', status.message);
-            } catch (error: any) {
-              Alert.alert('Status Check Error', error.message);
-            } finally {
-              setLoading(false);
-            }
-          }}
-        >
-          <Text style={dynamicStyles.addButtonText}>Check Cars Status</Text>
-        </TouchableOpacity>
+        
       </ScrollView>
 
       <Modal

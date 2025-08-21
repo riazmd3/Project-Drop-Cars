@@ -8,7 +8,6 @@ export interface SignupData {
   secondary_number?: string;
   password: string;
   address: string;
-  gpay_number: string;
   aadhar_number: string;
   organization_id: string;
   aadhar_front_img: any; // File object for FormData
@@ -62,7 +61,6 @@ export const signupAccount = async (personalData: any, documents: any): Promise<
     formData.append('secondary_number', personalData.secondaryMobile ? formatPhoneForBackend(personalData.secondaryMobile) : '');
     formData.append('password', personalData.password || '');
     formData.append('address', personalData.address || '');
-    formData.append('gpay_number', formatPhoneForBackend(personalData.paymentNumber || ''));
     formData.append('aadhar_number', personalData.aadharNumber || '');
     formData.append('organization_id', personalData.organizationId || 'org_001');
     
@@ -72,7 +70,6 @@ export const signupAccount = async (personalData: any, documents: any): Promise<
       secondary_number: personalData.secondaryMobile,
       password: personalData.password,
       address: personalData.address,
-      gpay_number: personalData.paymentNumber,
       aadhar_number: personalData.aadharNumber,
       organization_id: personalData.organizationId,
       aadhar_front_img: documents.aadharFront ? 'File attached' : 'No file'
@@ -153,7 +150,6 @@ export const testSignupDataStructure = (personalData: any, documents: any) => {
     secondary_number: personalData.secondaryMobile || '',
     password: personalData.password || '',
     address: personalData.address || '',
-    gpay_number: personalData.paymentNumber || '',
     aadhar_number: personalData.aadharNumber || '',
     organization_id: personalData.organizationId || 'org_001',
     aadhar_front_img: documents.aadharFront ? 'File will be attached' : 'No file',
@@ -165,7 +161,6 @@ export const testSignupDataStructure = (personalData: any, documents: any) => {
     primary_number: !!testData.primary_number,
     password: !!testData.password,
     address: !!testData.address,
-    gpay_number: !!testData.gpay_number,
     aadhar_number: !!testData.aadhar_number,
     organization_id: !!testData.organization_id,
     aadhar_front_img: !!documents.aadharFront,
