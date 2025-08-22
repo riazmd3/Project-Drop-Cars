@@ -1,0 +1,67 @@
+import React from 'react';
+import { Tabs } from 'expo-router';
+import { Chrome as Home, Plus, Menu as MenuIcon, User } from 'lucide-react-native';
+
+export default function TabLayout() {
+  return (
+    <Tabs
+      screenOptions={{
+        headerShown: false,
+        tabBarActiveTintColor: '#3B82F6',
+        tabBarInactiveTintColor: '#6B7280',
+        tabBarStyle: {
+          backgroundColor: '#FFFFFF',
+          borderTopWidth: 1,
+          borderTopColor: '#E5E7EB',
+          paddingBottom: 5,
+          height: 60,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 8,
+          elevation: 8,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
+        },
+      }}>
+      <Tabs.Screen
+        name="index"
+        options={{
+          title: 'Dashboard',
+          tabBarIcon: ({ size, color }) => (
+            <Home size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="create-order"
+        options={{
+          title: 'New Order',
+          tabBarIcon: ({ size, color }) => (
+            <Plus size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="profile"
+        options={{
+          title: 'Profile',
+          tabBarIcon: ({ size, color }) => (
+            <User size={size} color={color} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="menu"
+        options={{
+          title: 'Menu',
+          tabBarIcon: ({ size, color }) => (
+            <MenuIcon size={size} color={color} />
+          ),
+        }}
+      />
+    </Tabs>
+  );
+}
