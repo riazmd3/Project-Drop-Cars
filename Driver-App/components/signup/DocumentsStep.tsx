@@ -18,13 +18,14 @@ interface DocumentsStepProps {
   onUpdate: (data: any) => void;
   onBack: () => void;
   formData: any;
+  onSignupSuccess: (response: any) => void;
 }
 
 const documentTypes = [
   { key: 'aadharFront', label: 'Aadhar Front Image', required: true },
 ];
 
-export default function DocumentsStep({ data, onUpdate, onBack, formData }: DocumentsStepProps) {
+export default function DocumentsStep({ data, onUpdate, onBack, formData, onSignupSuccess }: DocumentsStepProps) {
   const [documents, setDocuments] = useState(data);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -103,39 +104,12 @@ export default function DocumentsStep({ data, onUpdate, onBack, formData }: Docu
         // Save user and real token
         await login(userData, loginResp.access_token);
 
-        // Decide next step based on counts from login response
-        const carCount = loginResp.car_details_count ?? 0;
-        const driverCount = loginResp.car_driver_count ?? 0;
-
-        let nextRoute = '/(tabs)';
-        let message = 'Welcome to Drop Cars!';
-        if (carCount === 0) {
-          nextRoute = '/add-car';
-          message = 'Welcome to Drop Cars! Now let\'s add your first car.';
-        } else if (driverCount === 0) {
-          nextRoute = '/add-driver';
-          message = 'Great! Now add your first driver to continue.';
-        }
-
-        // Show success message and redirect
-        Alert.alert(
-          'Account Created Successfully!',
-          message,
-          [
-            {
-              text: 'Continue',
-              onPress: () => {
-                if (nextRoute === '/add-car') {
-                  router.replace('/add-car');
-                } else if (nextRoute === '/add-driver') {
-                  router.replace('/add-driver');
-                } else {
-                  router.replace('/(tabs)');
-                }
-              }
-            }
-          ]
-        );
+        // Call the success callback with the response data
+        onSignupSuccess({
+          signup,
+          login: loginResp,
+          userData
+        });
       }
     } catch (error: any) {
       console.error('❌ Signup failed:', error);
