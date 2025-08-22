@@ -10,10 +10,9 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Car, Save, Upload, CheckCircle } from 'lucide-react-native';
+import { ArrowLeft, Car, Save } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { addCarDetails, testCarDetailsDataStructure } from '@/services/signupService';
-import * as ImagePicker from 'expo-image-picker';
 
 export default function AddCarScreen() {
   const [carData, setCarData] = useState({
@@ -24,33 +23,8 @@ export default function AddCarScreen() {
     year: '',
     color: '',
   });
-  const [docs, setDocs] = useState({
-    rcFrontImg: '',
-    rcBackImg: '',
-    insuranceImg: '',
-    fcImg: '',
-    carImg: ''
-  });
-  const allowedCarTypes = ['SEDAN', 'SUV', 'INNOVA'] as const;
   const router = useRouter();
   const { user } = useAuth();
-
-  const pickImage = async (key: keyof typeof docs) => {
-    try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 1,
-      });
-
-      if (!result.canceled) {
-        setDocs(prev => ({ ...prev, [key]: result.assets[0].uri }));
-      }
-    } catch (error) {
-      Alert.alert('Error', 'Failed to pick image');
-    }
-  };
 
   const handleSave = async () => {
     if (!carData.name || !carData.type || !carData.registration) {
@@ -58,31 +32,19 @@ export default function AddCarScreen() {
       return;
     }
 
-    if (!allowedCarTypes.includes(carData.type.toUpperCase() as any)) {
-      Alert.alert('Error', "Car type must be one of: 'SEDAN', 'SUV' or 'INNOVA'");
-      return;
-    }
-
-    // Required images validation
-    const missing = Object.entries(docs).filter(([, v]) => !v).map(([k]) => k);
-    if (missing.length > 0) {
-      Alert.alert('Error', 'Please upload all required images: RC Front, RC Back, Insurance, FC, Car');
-      return;
-    }
-
     try {
       // Basic mapping to API schema; images can be added later in edit
       const payload = {
         car_name: carData.name,
-        car_type: carData.type.toUpperCase(),
+        car_type: carData.type,
         car_number: carData.registration,
         organization_id: user?.organizationId || 'org_001',
         vehicle_owner_id: user?.id || '',
-        rc_front_img: docs.rcFrontImg,
-        rc_back_img: docs.rcBackImg,
-        insurance_img: docs.insuranceImg,
-        fc_img: docs.fcImg,
-        car_img: docs.carImg
+        rc_front_img: '',
+        rc_back_img: '',
+        insurance_img: '',
+        fc_img: '',
+        car_img: ''
       } as any;
 
       testCarDetailsDataStructure(payload);
@@ -136,19 +98,14 @@ export default function AddCarScreen() {
             />
           </View>
 
-          <Text style={styles.sectionTitle}>Car Type</Text>
-          <View style={styles.typeSelector}>
-            {allowedCarTypes.map((type) => (
-              <TouchableOpacity
-                key={type}
-                style={[styles.typeButton, carData.type.toUpperCase() === type && styles.selectedTypeButton]}
-                onPress={() => setCarData(prev => ({ ...prev, type }))}
-              >
-                <Text style={[styles.typeButtonText, carData.type.toUpperCase() === type && styles.selectedTypeButtonText]}>
-                  {type}
-                </Text>
-              </TouchableOpacity>
-            ))}
+          <View style={styles.inputGroup}>
+            <Car color="#6B7280" size={20} />
+            <TextInput
+              style={styles.input}
+              placeholder="Car Type (e.g., SUV, Sedan, Hatchback)"
+              value={carData.type}
+              onChangeText={(text) => setCarData(prev => ({ ...prev, type: text }))}
+            />
           </View>
 
           <View style={styles.inputGroup}>
@@ -183,72 +140,6 @@ export default function AddCarScreen() {
               onChangeText={(text) => setCarData(prev => ({ ...prev, color: text }))}
             />
           </View>
-
-          <Text style={styles.sectionTitle}>Required Documents</Text>
-          <TouchableOpacity style={styles.documentCard} onPress={() => pickImage('rcFrontImg')}>
-            <View style={styles.documentLeft}>
-              <View style={[styles.documentIcon, docs.rcFrontImg && styles.uploadedIcon]}>
-                {docs.rcFrontImg ? <CheckCircle color="#FFFFFF" size={20} /> : <Upload color="#6B7280" size={20} />}
-              </View>
-              <View>
-                <Text style={styles.documentTitle}>RC Front Image</Text>
-                <Text style={styles.documentStatus}>{docs.rcFrontImg ? 'Uploaded' : 'Required'}</Text>
-              </View>
-            </View>
-            <Upload color={docs.rcFrontImg ? '#10B981' : '#6B7280'} size={20} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.documentCard} onPress={() => pickImage('rcBackImg')}>
-            <View style={styles.documentLeft}>
-              <View style={[styles.documentIcon, docs.rcBackImg && styles.uploadedIcon]}>
-                {docs.rcBackImg ? <CheckCircle color="#FFFFFF" size={20} /> : <Upload color="#6B7280" size={20} />}
-              </View>
-              <View>
-                <Text style={styles.documentTitle}>RC Back Image</Text>
-                <Text style={styles.documentStatus}>{docs.rcBackImg ? 'Uploaded' : 'Required'}</Text>
-              </View>
-            </View>
-            <Upload color={docs.rcBackImg ? '#10B981' : '#6B7280'} size={20} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.documentCard} onPress={() => pickImage('insuranceImg')}>
-            <View style={styles.documentLeft}>
-              <View style={[styles.documentIcon, docs.insuranceImg && styles.uploadedIcon]}>
-                {docs.insuranceImg ? <CheckCircle color="#FFFFFF" size={20} /> : <Upload color="#6B7280" size={20} />}
-              </View>
-              <View>
-                <Text style={styles.documentTitle}>Insurance Image</Text>
-                <Text style={styles.documentStatus}>{docs.insuranceImg ? 'Uploaded' : 'Required'}</Text>
-              </View>
-            </View>
-            <Upload color={docs.insuranceImg ? '#10B981' : '#6B7280'} size={20} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.documentCard} onPress={() => pickImage('fcImg')}>
-            <View style={styles.documentLeft}>
-              <View style={[styles.documentIcon, docs.fcImg && styles.uploadedIcon]}>
-                {docs.fcImg ? <CheckCircle color="#FFFFFF" size={20} /> : <Upload color="#6B7280" size={20} />}
-              </View>
-              <View>
-                <Text style={styles.documentTitle}>FC Image</Text>
-                <Text style={styles.documentStatus}>{docs.fcImg ? 'Uploaded' : 'Required'}</Text>
-              </View>
-            </View>
-            <Upload color={docs.fcImg ? '#10B981' : '#6B7280'} size={20} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.documentCard} onPress={() => pickImage('carImg')}>
-            <View style={styles.documentLeft}>
-              <View style={[styles.documentIcon, docs.carImg && styles.uploadedIcon]}>
-                {docs.carImg ? <CheckCircle color="#FFFFFF" size={20} /> : <Upload color="#6B7280" size={20} />}
-              </View>
-              <View>
-                <Text style={styles.documentTitle}>Car Image</Text>
-                <Text style={styles.documentStatus}>{docs.carImg ? 'Uploaded' : 'Required'}</Text>
-              </View>
-            </View>
-            <Upload color={docs.carImg ? '#10B981' : '#6B7280'} size={20} />
-          </TouchableOpacity>
 
           <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
             <Save color="#FFFFFF" size={20} />
@@ -326,77 +217,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-SemiBold',
     color: '#1F2937',
     marginBottom: 20,
-  },
-  typeSelector: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginBottom: 16,
-  },
-  typeButton: {
-    backgroundColor: '#F3F4F6',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    marginRight: 8,
-    marginBottom: 8,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-  },
-  selectedTypeButton: {
-    backgroundColor: '#3B82F6',
-    borderColor: '#3B82F6',
-  },
-  typeButtonText: {
-    fontSize: 12,
-    fontFamily: 'Inter-Medium',
-    color: '#6B7280',
-  },
-  selectedTypeButtonText: {
-    color: '#FFFFFF',
-  },
-  documentCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 12,
-    marginBottom: 8,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  documentLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flex: 1,
-  },
-  documentIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
-  },
-  uploadedIcon: {
-    backgroundColor: '#10B981',
-  },
-  documentTitle: {
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
-    color: '#1F2937',
-  },
-  documentStatus: {
-    fontSize: 12,
-    fontFamily: 'Inter-Regular',
-    color: '#6B7280',
-    marginTop: 2,
   },
   inputGroup: {
     flexDirection: 'row',

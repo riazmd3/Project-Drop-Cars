@@ -15,12 +15,12 @@ import { useAuth } from '@/contexts/AuthContext';
 import { MapPin, Clock, IndianRupee, User, Phone, Car, UserPlus, X } from 'lucide-react-native';
 
 const dummyFutureRides = [
-  {
+  {    
     id: '1',
     booking_id: 'B125',
     pickup: 'Adyar',
     drop: 'Velachery',
-    customer_name: 'Lakshmi Devi',
+    customer_name: 'Lakshmi Devi', 
     customer_mobile: '9988776655',
     date: '2025-01-21',
     time: '10:00',
