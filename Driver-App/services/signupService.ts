@@ -27,103 +27,141 @@ export const signupAccount = async (personalData: any, documents: any): Promise<
   console.log('📤 Personal data received:', JSON.stringify(personalData, null, 2));
   console.log('📤 Documents received:', JSON.stringify(documents, null, 2));
   
-  try {
-    // Create FormData for multipart/form-data upload
-    const formData = new FormData();
-    
-    // Append the image file
-    if (documents.aadharFront) {
-      const imageUri = documents.aadharFront;
-      const imageName = imageUri.split('/').pop() || 'aadhar.jpg';
-      const imageType = imageUri.endsWith('.png') ? 'image/png' : 'image/jpeg';
+  const maxRetries = 3;
+  let lastError: any;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`🔄 Attempt ${attempt}/${maxRetries}...`);
       
-      formData.append('aadhar_front_img', {
-        uri: imageUri,
-        type: imageType,
-        name: imageName
-      } as any);
+      // Create FormData for multipart/form-data upload
+      const formData = new FormData();
       
-      console.log('🖼️ Image appended to FormData:', { uri: imageUri, type: imageType, name: imageName });
-    }
-    
-    // Helper function to format phone numbers for backend
-    const formatPhoneForBackend = (phone: string): string => {
-      if (!phone) return '';
-      // Remove +91 prefix if present and ensure it's properly formatted
-      const cleanPhone = phone.replace(/^\+91/, '');
-      // Add +91 prefix back
-      return `+91${cleanPhone}`;
-    };
-
-    // Append all other fields
-    formData.append('full_name', personalData.fullName || '');
-    formData.append('primary_number', formatPhoneForBackend(personalData.primaryMobile || ''));
-    formData.append('secondary_number', personalData.secondaryMobile ? formatPhoneForBackend(personalData.secondaryMobile) : '');
-    formData.append('password', personalData.password || '');
-    formData.append('address', personalData.address || '');
-    formData.append('aadhar_number', personalData.aadharNumber || '');
-    formData.append('organization_id', personalData.organizationId || 'org_001');
-    
-    console.log('📤 FormData created with fields:', {
-      full_name: personalData.fullName,
-      primary_number: personalData.primaryMobile,
-      secondary_number: personalData.secondaryMobile,
-      password: personalData.password,
-      address: personalData.address,
-      aadhar_number: personalData.aadharNumber,
-      organization_id: personalData.organizationId,
-      aadhar_front_img: documents.aadharFront ? 'File attached' : 'No file'
-    });
-    
-    // Make the API call with FormData
-    const response = await axiosInstance.post('/api/users/vehicleowner/signup', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    
-    console.log('✅ Signup API response received:', {
-      status: response.status,
-      data: response.data,
-      headers: response.headers
-    });
-    
-    return response.data;
-  } catch (error: any) {
-    console.error('❌ Signup failed with error:', {
-      message: error.message,
-      code: error.code,
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      data: error.response?.data,
-      config: {
-        url: error.config?.url,
-        method: error.config?.method,
-        baseURL: error.config?.baseURL,
-        timeout: error.config?.timeout
+      // Append the image file
+      if (documents.aadharFront) {
+        const imageUri = documents.aadharFront;
+        const imageName = imageUri.split('/').pop() || 'aadhar.jpg';
+        const imageType = imageUri.endsWith('.png') ? 'image/png' : 'image/jpeg';
+        
+        formData.append('aadhar_front_img', {
+          uri: imageUri,
+          type: imageType,
+          name: imageName
+        } as any);
+        
+        console.log('🖼️ Image appended to FormData:', { uri: imageUri, type: imageType, name: imageName });
       }
-    });
+      
+      // Helper function to format phone numbers for backend
+      const formatPhoneForBackend = (phone: string): string => {
+        if (!phone) return '';
+        // Remove +91 prefix if present and ensure it's properly formatted
+        const cleanPhone = phone.replace(/^\+91/, '');
+        // Add +91 prefix back
+        return `+91${cleanPhone}`;
+      };
 
-    // Provide specific error messages based on error type
-    if (error.code === 'ECONNABORTED') {
-      throw new Error('Request timeout - server is taking too long to respond. Please try again.');
-    } else if (error.code === 'ERR_NETWORK') {
-      throw new Error('Network error - please check your internet connection and try again.');
-    } else if (error.code === 'ENOTFOUND') {
-      throw new Error('Server not found - please check if the backend server is running.');
-    } else if (error.response?.status === 422) {
-      const errorDetails = error.response.data?.detail || error.response.data?.message || 'Invalid data provided';
-      console.error('🔍 422 Validation Error Details:', errorDetails);
-      throw new Error(`Validation error: ${errorDetails}. Check all required fields.`);
-    } else if (error.response?.status === 400) {
-      throw new Error(`Bad request: ${error.response.data?.message || 'Invalid data provided'}`);
-    } else if (error.response?.status === 500) {
-      throw new Error('Server error - please try again later or contact support.');
-    } else if (error.response?.data?.message) {
-      throw new Error(error.response.data.message);
-    } else {
-      throw new Error(`Signup failed: ${error.message || 'Unknown error occurred'}`);
+      // Append all other fields
+      formData.append('full_name', personalData.fullName || '');
+      formData.append('primary_number', formatPhoneForBackend(personalData.primaryMobile || ''));
+      formData.append('secondary_number', personalData.secondaryMobile ? formatPhoneForBackend(personalData.secondaryMobile) : '');
+      formData.append('password', personalData.password || '');
+      formData.append('address', personalData.address || '');
+      formData.append('aadhar_number', personalData.aadharNumber || '');
+      formData.append('organization_id', personalData.organizationId || 'org_001');
+      
+      console.log('📤 FormData created with fields:', {
+        full_name: personalData.fullName,
+        primary_number: personalData.primaryMobile,
+        secondary_number: personalData.secondaryMobile,
+        password: personalData.password,
+        address: personalData.address,
+        aadhar_number: personalData.aadharNumber,
+        organization_id: personalData.organizationId,
+        aadhar_front_img: documents.aadharFront ? 'File attached' : 'No file'
+      });
+      
+      // Make the API call with FormData
+      const response = await axiosInstance.post('/api/users/vehicleowner/signup', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        timeout: 120000, // 2 minutes timeout for file uploads
+      });
+      
+      console.log('✅ Signup API response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        data: response.data,
+        headers: response.headers
+      });
+      
+      // Validate response data
+      if (!response.data || response.data.status !== 'success') {
+        throw new Error('Invalid response from server - missing or invalid status');
+      }
+      
+      return response.data;
+      
+    } catch (error: any) {
+      lastError = error;
+      console.error(`❌ Signup attempt ${attempt} failed:`, {
+        message: error.message,
+        code: error.code,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          baseURL: error.config?.baseURL,
+          timeout: error.config?.timeout
+        }
+      });
+
+      // If we got a successful response but axios treated it as an error
+      if (error.response?.status >= 200 && error.response?.status < 300 && error.response?.data) {
+        console.log('🔄 Converting error response to success response');
+        return error.response.data;
+      }
+
+      // Don't retry on validation errors or client errors
+      if (error.response?.status >= 400 && error.response?.status < 500) {
+        console.log('🚫 Client error, not retrying');
+        break;
+      }
+
+      // Wait before retrying (exponential backoff)
+      if (attempt < maxRetries) {
+        const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+        console.log(`⏳ Waiting ${delay}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
     }
+  }
+  
+  // All retries failed, throw the last error
+  console.error('❌ All signup attempts failed');
+  
+  // Provide specific error messages based on error type
+  if (lastError.code === 'ECONNABORTED') {
+    throw new Error('Request timeout - server is taking too long to respond. Please try again.');
+  } else if (lastError.code === 'ERR_NETWORK') {
+    throw new Error('Network error - please check your internet connection and try again.');
+  } else if (lastError.code === 'ENOTFOUND') {
+    throw new Error('Server not found - please check if the backend server is running.');
+  } else if (lastError.response?.status === 422) {
+    const errorDetails = lastError.response.data?.detail || lastError.response.data?.message || 'Invalid data provided';
+    console.error('🔍 422 Validation Error Details:', errorDetails);
+    throw new Error(`Validation error: ${errorDetails}. Check all required fields.`);
+  } else if (lastError.response?.status === 400) {
+    throw new Error(`Bad request: ${lastError.response.data?.message || 'Invalid data provided'}`);
+  } else if (lastError.response?.status === 500) {
+    throw new Error('Server error - please try again later or contact support.');
+  } else if (lastError.response?.data?.message) {
+    throw new Error(lastError.response.data.message);
+  } else {
+    throw new Error(`Signup failed: ${lastError.message || 'Unknown error occurred'}`);
   }
 };
 
@@ -192,11 +230,25 @@ export const signupAndLogin = async (personalData: any, documents: any) => {
     throw new Error('Signup did not complete successfully');
   }
 
-  // Clean mobile number for login per API docs (expects 10 digits)
-  const cleanMobile = String(personalData.primaryMobile || '').replace(/^\+91/, '');
+  // Use the SAME phone number format for login as used in signup
+  // Apply the same formatting function to ensure consistency
+  const formatPhoneForBackend = (phone: string): string => {
+    if (!phone) return '';
+    // Remove +91 prefix if present and ensure it's properly formatted
+    const cleanPhone = phone.replace(/^\+91/, '');
+    // Add +91 prefix back
+    return `+91${cleanPhone}`;
+  };
+  
+  const mobileForLogin = formatPhoneForBackend(personalData.primaryMobile || '');
+  
+  console.log('🔐 Using consistent phone format for login:', {
+    original: personalData.primaryMobile,
+    formatted: mobileForLogin
+  });
 
   // Then, login to obtain JWT token
-  const loginResponse = await loginVehicleOwner(cleanMobile, personalData.password);
+  const loginResponse = await loginVehicleOwner(mobileForLogin, personalData.password);
 
   return { signup: signupResponse, login: loginResponse };
 };
