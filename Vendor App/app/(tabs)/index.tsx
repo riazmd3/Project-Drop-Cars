@@ -8,9 +8,11 @@ import {
   Dimensions,
   StatusBar,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useVendorAuth } from '../../hooks/useVendorAuth';
+import { getVendorOrdersUrl } from '../../config/api';
 import {
   Bell,
   Search,
@@ -21,22 +23,39 @@ import {
   DollarSign,
   ArrowRight,
   Eye,
+  CheckCircle,
 } from 'lucide-react-native';
 
 const { width, height } = Dimensions.get('window');
 
 interface Order {
-  id: string;
-  customerName: string;
-  pickupLocation: string;
-  dropLocation: string;
-  status: 'pending' | 'accepted' | 'in_progress' | 'completed' | 'cancelled';
-  amount: number;
-  distance: string;
-  time: string;
-  createdAt: string;
-  carType: string;
-  tripType: string;
+  order_id: number;
+  vendor_id: string;
+  trip_type: string;
+  car_type: string;
+  pickup_drop_location: {
+    [key: string]: string;
+  };
+  start_date_time: string;
+  customer_name: string;
+  customer_number: string;
+  cost_per_km: number;
+  extra_cost_per_km: number;
+  driver_allowance: number;
+  extra_driver_allowance: number;
+  permit_charges: number;
+  extra_permit_charges: number;
+  hill_charges: number;
+  toll_charges: number;
+  pickup_notes: string;
+  trip_status: string;
+  pick_near_city: string;
+  trip_distance: number;
+  trip_time: string;
+  estimated_price: number;
+  vendor_price: number;
+  platform_fees_percent: number;
+  created_at: string;
 }
 
 interface VendorData {
@@ -52,12 +71,23 @@ export default function DashboardScreen() {
   const [vendorData, setVendorData] = useState<VendorData | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date());
-  const { getStoredVendorData } = useVendorAuth();
+  const [newOrderNotification, setNewOrderNotification] = useState(false);
+  const [lastOrderCount, setLastOrderCount] = useState(0);
+  const { getStoredVendorData, getStoredToken } = useVendorAuth();
 
   useEffect(() => {
     loadVendorData();
     loadOrders();
   }, []);
+
+  // Check for new orders every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      checkForNewOrders();
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [orders, lastOrderCount]);
 
   const loadVendorData = async () => {
     try {
@@ -76,76 +106,235 @@ export default function DashboardScreen() {
     }
   };
 
-  const loadOrders = () => {
+  const loadOrders = async () => {
+    try {
+      const token = await getStoredToken();
+      if (!token) {
+        Alert.alert('Error', 'Authentication token not found. Please sign in again.');
+        return;
+      }
+
+      const response = await fetch(getVendorOrdersUrl(), {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const ordersData: Order[] = await response.json();
+      
+      // Sort orders by creation date (latest first)
+      const sortedOrders = ordersData.sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      
+      setOrders(sortedOrders);
+      
+      // Check if there are new orders
+      if (ordersData.length > lastOrderCount && lastOrderCount > 0) {
+        setNewOrderNotification(true);
+        setTimeout(() => setNewOrderNotification(false), 5000); // Hide after 5 seconds
+      }
+      
+      setLastOrderCount(ordersData.length);
+      
+      // Set the latest date as selected
+      if (ordersData.length > 0) {
+        const latestOrderDate = new Date(ordersData[0].start_date_time);
+        setSelectedDate(latestOrderDate);
+      }
+      
+    } catch (error) {
+      console.error('Error loading orders:', error);
+      // Fallback to mock data if API fails
+      loadMockOrders();
+    }
+  };
+
+  const loadMockOrders = () => {
     // Mock orders data for car booking
     const mockOrders: Order[] = [
       {
-        id: '1',
-        customerName: 'Rahul Sharma',
-        pickupLocation: 'Chennai Central Station',
-        dropLocation: 'Vellore, Tamil Nadu',
-        status: 'pending',
-        amount: 2500,
-        distance: '150 km',
-        time: '3 hours',
-        createdAt: '2024-01-15T10:30:00Z',
-        carType: 'Sedan',
-        tripType: 'Oneway'
+        order_id: 1,
+        vendor_id: '1',
+        trip_type: 'Oneway',
+        car_type: 'Sedan',
+        pickup_drop_location: { '0': 'Chennai Central Station', '1': 'Vellore, Tamil Nadu' },
+        start_date_time: '2024-01-15T10:30:00Z',
+        customer_name: 'Rahul Sharma',
+        customer_number: '9876543210',
+        cost_per_km: 10,
+        extra_cost_per_km: 0,
+        driver_allowance: 0,
+        extra_driver_allowance: 0,
+        permit_charges: 0,
+        extra_permit_charges: 0,
+        hill_charges: 0,
+        toll_charges: 0,
+        pickup_notes: '',
+        trip_status: 'PENDING',
+        pick_near_city: '',
+        trip_distance: 150,
+        trip_time: '3 hours',
+        estimated_price: 2500,
+        vendor_price: 2500,
+        platform_fees_percent: 0,
+        created_at: '2024-01-15T10:30:00Z',
       },
       {
-        id: '2',
-        customerName: 'Priya Patel',
-        pickupLocation: 'Bangalore Airport',
-        dropLocation: 'Mysore, Karnataka',
-        status: 'accepted',
-        amount: 3200,
-        distance: '180 km',
-        time: '4 hours',
-        createdAt: '2024-01-15T09:15:00Z',
-        carType: 'SUV',
-        tripType: 'Oneway'
+        order_id: 2,
+        vendor_id: '1',
+        trip_type: 'Oneway',
+        car_type: 'SUV',
+        pickup_drop_location: { '0': 'Bangalore Airport', '1': 'Mysore, Karnataka' },
+        start_date_time: '2024-01-15T09:15:00Z',
+        customer_name: 'Priya Patel',
+        customer_number: '9876543211',
+        cost_per_km: 10,
+        extra_cost_per_km: 0,
+        driver_allowance: 0,
+        extra_driver_allowance: 0,
+        permit_charges: 0,
+        extra_permit_charges: 0,
+        hill_charges: 0,
+        toll_charges: 0,
+        pickup_notes: '',
+        trip_status: 'ACCEPTED',
+        pick_near_city: '',
+        trip_distance: 180,
+        trip_time: '4 hours',
+        estimated_price: 3200,
+        vendor_price: 3200,
+        platform_fees_percent: 0,
+        created_at: '2024-01-15T09:15:00Z',
       },
       {
-        id: '3',
-        customerName: 'Amit Kumar',
-        pickupLocation: 'Mumbai Central',
-        dropLocation: 'Pune, Maharashtra',
-        status: 'in_progress',
-        amount: 1800,
-        distance: '150 km',
-        time: '3.5 hours',
-        createdAt: '2024-01-15T08:45:00Z',
-        carType: 'Innova',
-        tripType: 'Round Trip'
+        order_id: 3,
+        vendor_id: '1',
+        trip_type: 'Round Trip',
+        car_type: 'Innova',
+        pickup_drop_location: { '0': 'Mumbai Central', '1': 'Pune, Maharashtra' },
+        start_date_time: '2024-01-15T08:45:00Z',
+        customer_name: 'Amit Kumar',
+        customer_number: '9876543212',
+        cost_per_km: 10,
+        extra_cost_per_km: 0,
+        driver_allowance: 0,
+        extra_driver_allowance: 0,
+        permit_charges: 0,
+        extra_permit_charges: 0,
+        hill_charges: 0,
+        toll_charges: 0,
+        pickup_notes: '',
+        trip_status: 'IN_PROGRESS',
+        pick_near_city: '',
+        trip_distance: 150,
+        trip_time: '3.5 hours',
+        estimated_price: 1800,
+        vendor_price: 1800,
+        platform_fees_percent: 0,
+        created_at: '2024-01-15T08:45:00Z',
       },
       {
-        id: '4',
-        customerName: 'Sneha Reddy',
-        pickupLocation: 'Hyderabad Station',
-        dropLocation: 'Warangal, Telangana',
-        status: 'completed',
-        amount: 2200,
-        distance: '140 km',
-        time: '2.5 hours',
-        createdAt: '2024-01-14T16:20:00Z',
-        carType: 'Sedan',
-        tripType: 'Oneway'
+        order_id: 4,
+        vendor_id: '1',
+        trip_type: 'Oneway',
+        car_type: 'Sedan',
+        pickup_drop_location: { '0': 'Hyderabad Station', '1': 'Warangal, Telangana' },
+        start_date_time: '2024-01-14T16:20:00Z',
+        customer_name: 'Sneha Reddy',
+        customer_number: '9876543213',
+        cost_per_km: 10,
+        extra_cost_per_km: 0,
+        driver_allowance: 0,
+        extra_driver_allowance: 0,
+        permit_charges: 0,
+        extra_permit_charges: 0,
+        hill_charges: 0,
+        toll_charges: 0,
+        pickup_notes: '',
+        trip_status: 'COMPLETED',
+        pick_near_city: '',
+        trip_distance: 140,
+        trip_time: '2.5 hours',
+        estimated_price: 2200,
+        vendor_price: 2200,
+        platform_fees_percent: 0,
+        created_at: '2024-01-14T16:20:00Z',
       },
       {
-        id: '5',
-        customerName: 'Vikram Singh',
-        pickupLocation: 'Delhi Airport',
-        dropLocation: 'Agra, Uttar Pradesh',
-        status: 'pending',
-        amount: 2800,
-        distance: '200 km',
-        time: '4 hours',
-        createdAt: '2024-01-15T11:00:00Z',
-        carType: 'SUV',
-        tripType: 'Oneway'
-      }
+        order_id: 5,
+        vendor_id: '1',
+        trip_type: 'Oneway',
+        car_type: 'SUV',
+        pickup_drop_location: { '0': 'Delhi Airport', '1': 'Agra, Uttar Pradesh' },
+        start_date_time: '2024-01-15T11:00:00Z',
+        customer_name: 'Vikram Singh',
+        customer_number: '9876543214',
+        cost_per_km: 10,
+        extra_cost_per_km: 0,
+        driver_allowance: 0,
+        extra_driver_allowance: 0,
+        permit_charges: 0,
+        extra_permit_charges: 0,
+        hill_charges: 0,
+        toll_charges: 0,
+        pickup_notes: '',
+        trip_status: 'PENDING',
+        pick_near_city: '',
+        trip_distance: 200,
+        trip_time: '4 hours',
+        estimated_price: 2800,
+        vendor_price: 2800,
+        platform_fees_percent: 0,
+        created_at: '2024-01-15T11:00:00Z',
+      },
     ];
     setOrders(mockOrders);
+  };
+
+  const checkForNewOrders = async () => {
+    try {
+      const token = await getStoredToken();
+      if (!token) return;
+
+      const response = await fetch(getVendorOrdersUrl(), {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const ordersData: Order[] = await response.json();
+        if (ordersData.length > lastOrderCount) {
+          setNewOrderNotification(true);
+          setTimeout(() => setNewOrderNotification(false), 5000);
+          setLastOrderCount(ordersData.length);
+          // Refresh the orders list
+          loadOrders();
+        }
+      }
+    } catch (error) {
+      console.error('Error checking for new orders:', error);
+    }
+  };
+
+  const filterOrdersByDate = (orders: Order[], selectedDate: Date) => {
+    return orders.filter(order => {
+      const orderDate = new Date(order.start_date_time);
+      return orderDate.toDateString() === selectedDate.toDateString();
+    });
+  };
+
+  const getFilteredOrders = () => {
+    return filterOrdersByDate(orders, selectedDate);
   };
 
   const onRefresh = async () => {
@@ -156,33 +345,33 @@ export default function DashboardScreen() {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending': return '#F59E0B';
-      case 'accepted': return '#3B82F6';
-      case 'in_progress': return '#8B5CF6';
-      case 'completed': return '#10B981';
-      case 'cancelled': return '#EF4444';
+      case 'PENDING': return '#F59E0B';
+      case 'ACCEPTED': return '#3B82F6';
+      case 'IN_PROGRESS': return '#8B5CF6';
+      case 'COMPLETED': return '#10B981';
+      case 'CANCELLED': return '#EF4444';
       default: return '#6B7280';
     }
   };
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case 'pending': return 'Pending';
-      case 'accepted': return 'Accepted';
-      case 'in_progress': return 'In Progress';
-      case 'completed': return 'Completed';
-      case 'cancelled': return 'Cancelled';
+      case 'PENDING': return 'Pending';
+      case 'ACCEPTED': return 'Accepted';
+      case 'IN_PROGRESS': return 'In Progress';
+      case 'COMPLETED': return 'Completed';
+      case 'CANCELLED': return 'Cancelled';
       default: return 'Unknown';
     }
   };
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'pending': return <Clock size={16} color="#F59E0B" />;
-      case 'accepted': return <Calendar size={16} color="#3B82F6" />;
-      case 'in_progress': return <MapPin size={16} color="#8B5CF6" />;
-      case 'completed': return <DollarSign size={16} color="#10B981" />;
-      case 'cancelled': return <Eye size={16} color="#EF4444" />;
+      case 'PENDING': return <Clock size={16} color="#F59E0B" />;
+      case 'ACCEPTED': return <Calendar size={16} color="#3B82F6" />;
+      case 'IN_PROGRESS': return <MapPin size={16} color="#8B5CF6" />;
+      case 'COMPLETED': return <DollarSign size={16} color="#10B981" />;
+      case 'CANCELLED': return <Eye size={16} color="#EF4444" />;
       default: return <Clock size={16} color="#6B7280" />;
     }
   };
@@ -248,8 +437,16 @@ export default function DashboardScreen() {
         </View>
       </LinearGradient>
 
+      {/* New Order Notification */}
+      {newOrderNotification && (
+        <View style={styles.newOrderBanner}>
+          <CheckCircle size={20} color="#10B981" />
+          <Text style={styles.newOrderText}>New order received successfully!</Text>
+        </View>
+      )}
+
       <ScrollView 
-        style={styles.content}
+        style={[styles.content, { marginTop: newOrderNotification ? 0 : 10 }]}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
@@ -304,25 +501,39 @@ export default function DashboardScreen() {
             </View>
           </View>
 
-          {orders.map((order) => (
-            <TouchableOpacity key={order.id} style={styles.orderCard}>
+          {/* Summary Section */}
+          <View style={styles.summaryContainer}>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Total Orders</Text>
+              <Text style={styles.summaryValue}>{getFilteredOrders().length}</Text>
+            </View>
+            <View style={styles.summaryItem}>
+              <Text style={styles.summaryLabel}>Total Profit</Text>
+              <Text style={styles.summaryValue}>
+                ₹{getFilteredOrders().reduce((total, order) => total + (order.vendor_price - order.estimated_price), 0)}
+              </Text>
+            </View>
+          </View>
+
+          {getFilteredOrders().map((order) => (
+            <TouchableOpacity key={order.order_id} style={styles.orderCard}>
               <View style={styles.orderHeader}>
                 <View style={styles.customerInfo}>
                   <View style={styles.customerAvatar}>
                     <Text style={styles.customerInitial}>
-                      {order.customerName.charAt(0)}
+                      {order.customer_name.charAt(0)}
                     </Text>
                   </View>
                   <View>
-                    <Text style={styles.customerName}>{order.customerName}</Text>
-                    <Text style={styles.orderTime}>{formatTime(order.createdAt)}</Text>
+                    <Text style={styles.customerName}>{order.customer_name}</Text>
+                    <Text style={styles.orderTime}>{formatTime(order.start_date_time)}</Text>
                   </View>
                 </View>
                 <View style={styles.orderStatus}>
-                  <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(order.status)}20` }]}>
-                    {getStatusIcon(order.status)}
-                    <Text style={[styles.orderStatusText, { color: getStatusColor(order.status) }]}>
-                      {getStatusText(order.status)}
+                  <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(order.trip_status)}20` }]}>
+                    {getStatusIcon(order.trip_status)}
+                    <Text style={[styles.orderStatusText, { color: getStatusColor(order.trip_status) }]}>
+                      {getStatusText(order.trip_status)}
                     </Text>
                   </View>
                 </View>
@@ -333,13 +544,13 @@ export default function DashboardScreen() {
                   <View style={styles.locationItem}>
                     <View style={[styles.locationDot, { backgroundColor: '#3B82F6' }]} />
                     <Text style={styles.locationText} numberOfLines={1}>
-                      {order.pickupLocation}
+                      {order.pickup_drop_location['0']}
                     </Text>
                   </View>
                   <View style={styles.locationItem}>
                     <View style={[styles.locationDot, { backgroundColor: '#10B981' }]} />
                     <Text style={styles.locationText} numberOfLines={1}>
-                      {order.dropLocation}
+                      {order.pickup_drop_location['1']}
                     </Text>
                   </View>
                 </View>
@@ -347,21 +558,44 @@ export default function DashboardScreen() {
                 <View style={styles.orderMeta}>
                   <View style={styles.metaItem}>
                     <MapPin size={14} color="#6B7280" />
-                    <Text style={styles.metaText}>{order.distance}</Text>
+                    <Text style={styles.metaText}>{order.trip_distance} km</Text>
                   </View>
                   <View style={styles.metaItem}>
                     <Clock size={14} color="#6B7280" />
-                    <Text style={styles.metaText}>{order.time}</Text>
+                    <Text style={styles.metaText}>{order.trip_time}</Text>
                   </View>
                   <View style={styles.metaItem}>
                     <DollarSign size={14} color="#6B7280" />
-                    <Text style={styles.metaText}>₹{order.amount}</Text>
+                    <Text style={styles.metaText}>₹{order.vendor_price}</Text>
+                  </View>
+                </View>
+
+                {/* Price and Profit Information */}
+                <View style={styles.priceInfo}>
+                  <View style={styles.priceRow}>
+                    <Text style={styles.priceLabel}>Estimated Price:</Text>
+                    <Text style={styles.estimatedPrice}>₹{order.estimated_price}</Text>
+                  </View>
+                  <View style={styles.priceRow}>
+                    <Text style={styles.priceLabel}>Your Price:</Text>
+                    <Text style={styles.vendorPrice}>₹{order.vendor_price}</Text>
+                  </View>
+                  <View style={styles.priceRow}>
+                    <Text style={styles.priceLabel}>Profit:</Text>
+                    <Text style={styles.profitText}>₹{order.vendor_price - order.estimated_price}</Text>
                   </View>
                 </View>
 
                 <View style={styles.carInfo}>
-                  <Text style={styles.carTypeText}>{order.carType} • {order.tripType}</Text>
+                  <Text style={styles.carTypeText}>{order.car_type} • {order.trip_type}</Text>
                 </View>
+
+                {order.pickup_notes && (
+                  <View style={styles.notesContainer}>
+                    <Text style={styles.notesLabel}>Notes:</Text>
+                    <Text style={styles.notesText}>{order.pickup_notes}</Text>
+                  </View>
+                )}
 
                 <View style={styles.orderActions}>
                   <TouchableOpacity style={styles.viewButton}>
@@ -372,6 +606,13 @@ export default function DashboardScreen() {
               </View>
             </TouchableOpacity>
           ))}
+
+          {getFilteredOrders().length === 0 && (
+            <View style={styles.noOrdersContainer}>
+              <Text style={styles.noOrdersText}>No orders for {getDateLabel(selectedDate)}</Text>
+              <Text style={styles.noOrdersSubtext}>Orders will appear here when they are created</Text>
+            </View>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -426,6 +667,26 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: '#EF4444',
+  },
+  newOrderBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#EFF6FF',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginHorizontal: 20,
+    marginTop: 10,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#D1FAE5',
+    borderLeftWidth: 5,
+    borderLeftColor: '#10B981',
+  },
+  newOrderText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#065F46',
+    marginLeft: 8,
   },
   content: {
     flex: 1,
@@ -599,6 +860,36 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
   },
+  priceInfo: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  priceLabel: {
+    fontSize: 12,
+    color: '#6B7280',
+  },
+  estimatedPrice: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#3B82F6',
+  },
+  vendorPrice: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#10B981',
+  },
+  profitText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#10B981',
+  },
   carInfo: {
     paddingVertical: 8,
     paddingHorizontal: 12,
@@ -610,6 +901,22 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
     color: '#6B7280',
+  },
+  notesContainer: {
+    marginTop: 12,
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  notesLabel: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  notesText: {
+    fontSize: 14,
+    color: '#374151',
   },
   orderActions: {
     alignItems: 'flex-end',
@@ -627,5 +934,53 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#3B82F6',
+  },
+  summaryContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  summaryItem: {
+    alignItems: 'center',
+  },
+  summaryLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 4,
+  },
+  summaryValue: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#1F2937',
+  },
+  noOrdersContainer: {
+    alignItems: 'center',
+    paddingVertical: 30,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  noOrdersText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 8,
+  },
+  noOrdersSubtext: {
+    fontSize: 14,
+    color: '#6B7280',
   },
 });
