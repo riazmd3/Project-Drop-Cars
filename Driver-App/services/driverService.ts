@@ -132,6 +132,16 @@ export const addDriverDetails = async (driverData: DriverDetails): Promise<Drive
       data: response.data
     });
 
+    // Log detailed error information for debugging
+    if (response.status >= 400) {
+      console.log('❌ Backend error details:', {
+        status: response.status,
+        statusText: response.statusText,
+        data: response.data,
+        headers: response.headers
+      });
+    }
+
     // Check if response is successful
     if (response.status >= 200 && response.status < 300) {
       const responseData = response.data;

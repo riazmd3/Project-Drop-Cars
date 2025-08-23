@@ -127,6 +127,10 @@ export default function AddDriverScreen() {
         car_img: driverImages.car_img || ''
       };
 
+      // Debug user ID
+      console.log('🔍 Current user ID:', user?.id);
+      console.log('🔍 Using vehicle_owner_id:', payload.vehicle_owner_id);
+
       await addDriverDetails(payload);
 
       Alert.alert(

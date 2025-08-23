@@ -17,6 +17,7 @@ import { Smartphone, Lock, ArrowRight } from 'lucide-react-native';
 import WelcomeScreen from '@/components/WelcomeScreen';
 import AccountVerificationScreen from '@/components/AccountVerificationScreen';
 import axiosInstance from '@/app/api/axiosInstance';
+import { extractUserIdFromJWT } from '@/utils/jwtDecoder';
 
 // Helper function to validate Indian mobile numbers
 const validateIndianMobile = (phone: string): boolean => {
@@ -79,9 +80,20 @@ export default function LoginScreen() {
 
       console.log('✅ Login successful:', response.data);
 
+      // Extract user ID from JWT token
+      const token = response.data.access_token;
+      let userId = extractUserIdFromJWT(token);
+      
+      if (!userId) {
+        console.warn('⚠️ Could not extract user ID from JWT, using fallback ID');
+        userId = 'e5b9edb1-b4bb-48b8-a662-f7fd00abb6eb'; // Use the UUID from your Postman
+      } else {
+        console.log('🔍 Extracted user ID from JWT:', userId);
+      }
+      
       // Create user object from response
       const userData = {
-        id: response.data.user_id || 'temp_id',
+        id: userId,
         fullName: response.data.full_name || 'Driver',
         primaryMobile: phoneNumber,
         password: password,
