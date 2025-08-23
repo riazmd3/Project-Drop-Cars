@@ -138,26 +138,26 @@ export default function LoginScreen() {
         return;
       }
       
-      // Account is active, proceed with normal flow
-      if (accountStatus?.toLowerCase() === 'active') {
-        // Route based on counts from login response
-        const carCount = response.data.car_details_count ?? 0;
-        const driverCount = response.data.car_driver_count ?? 0;
-        
-        if (carCount === 0) {
-          router.replace('/add-car');
-          return;
+              // Account is active, proceed with normal flow
+        if (accountStatus?.toLowerCase() === 'active') {
+          // Route based on counts from login response
+          const carCount = response.data.car_details_count ?? 0;
+          const driverCount = response.data.car_driver_count ?? 0;
+          
+          if (carCount === 0) {
+            router.replace('/add-car');
+            return;
+          }
+          if (driverCount === 0) {
+            router.replace('/add-driver');
+            return;
+          }
+          setShowWelcome(true);
+        } else {
+          // Account is not active (inactive, pending, rejected, unknown), show verification screen
+          setAccountStatus(accountStatus || 'unknown');
+          setShowAccountVerification(true);
         }
-        if (driverCount === 0) {
-          router.replace('/add-driver');
-          return;
-        }
-        setShowWelcome(true);
-      } else {
-        // Unknown status, show verification screen
-        setAccountStatus(accountStatus || 'unknown');
-        setShowAccountVerification(true);
-      }
 
     } catch (error: any) {
       console.error('❌ Login failed:', error);

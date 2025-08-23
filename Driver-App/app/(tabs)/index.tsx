@@ -6,15 +6,17 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWallet } from '@/contexts/WalletContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useRouter } from 'expo-router';
-import { Menu, Wallet, MapPin, Clock, User, Phone, Car } from 'lucide-react-native';
+import { Menu, Wallet, MapPin, Clock, User, Phone, Car, RefreshCw } from 'lucide-react-native';
 import BookingCard from '@/components/BookingCard';
 import DrawerNavigation from '@/components/DrawerNavigation';
+import { fetchDashboardData, DashboardData } from '@/services/dashboardService';
 
 const dummyBookings = [
   {
@@ -49,8 +51,42 @@ export default function DashboardScreen() {
   const [showDrawer, setShowDrawer] = useState(false);
   const [bookings, setBookings] = useState(dummyBookings);
   const [currentTrip, setCurrentTrip] = useState(null);
+  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
 
   const canAcceptBookings = balance >= 1000;
+
+  // Fetch dashboard data on component mount
+  useEffect(() => {
+    fetchUserData();
+  }, []);
+
+  const fetchUserData = async () => {
+    try {
+      setLoading(true);
+      console.log('📊 Fetching user dashboard data...');
+      const data = await fetchDashboardData();
+      setDashboardData(data);
+      console.log('✅ Dashboard data loaded successfully');
+    } catch (error) {
+      console.error('❌ Failed to fetch dashboard data:', error);
+      Alert.alert('Error', 'Failed to load user data. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    try {
+      setRefreshing(true);
+      await fetchUserData();
+    } catch (error) {
+      console.error('❌ Refresh failed:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const dynamicStyles = StyleSheet.create({
     container: {
@@ -88,6 +124,14 @@ export default function DashboardScreen() {
       fontSize: 18,
       fontFamily: 'Inter-Bold',
       color: colors.text,
+    },
+    headerRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    refreshButton: {
+      padding: 8,
+      marginRight: 8,
     },
     walletButton: {
       padding: 8,
@@ -250,6 +294,17 @@ export default function DashboardScreen() {
       fontFamily: 'Inter-Regular',
       color: colors.textSecondary,
     },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: 60,
+    },
+    loadingText: {
+      fontSize: 16,
+      fontFamily: 'Inter-Medium',
+      color: colors.textSecondary,
+    },
   });
   const handleAcceptBooking = (booking) => {
     if (!canAcceptBookings) {
@@ -290,14 +345,21 @@ export default function DashboardScreen() {
         </TouchableOpacity>
         
         <View style={dynamicStyles.balanceContainer}>
-          <Text style={dynamicStyles.welcomeText}>Welcome back, {user?.name}!</Text>
+          <Text style={dynamicStyles.welcomeText}>
+            Welcome back, {dashboardData?.user_info?.full_name || user?.fullName || 'Driver'}!
+          </Text>
           <Text style={dynamicStyles.balanceLabel}>Available Balance</Text>
           <Text style={dynamicStyles.balanceAmount}>₹{balance}</Text>
         </View>
 
-        <TouchableOpacity onPress={() => router.push('/(tabs)/wallet')} style={dynamicStyles.walletButton}>
-          <Wallet color={colors.primary} size={24} />
-        </TouchableOpacity>
+        <View style={dynamicStyles.headerRight}>
+          <TouchableOpacity onPress={handleRefresh} style={dynamicStyles.refreshButton} disabled={refreshing}>
+            <RefreshCw color={colors.primary} size={20} style={refreshing ? { transform: [{ rotate: '180deg' }] } : {}} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/wallet')} style={dynamicStyles.walletButton}>
+            <Wallet color={colors.primary} size={24} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {!canAcceptBookings && (
@@ -308,14 +370,29 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      <ScrollView style={dynamicStyles.content} showsVerticalScrollIndicator={false}>
-        {/* Welcome Banner */}
-        <View style={dynamicStyles.welcomeBanner}>
+      <ScrollView 
+        style={dynamicStyles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
+      >
+        {loading ? (
+          <View style={dynamicStyles.loadingContainer}>
+            <Text style={dynamicStyles.loadingText}>Loading your dashboard...</Text>
+          </View>
+        ) : (
+          <>
+            {/* Welcome Banner */}
+            <View style={dynamicStyles.welcomeBanner}>
           <Text style={dynamicStyles.welcomeBannerTitle}>
-            🚗 Welcome to Drop Cars, {user?.name}!
+            🚗 Welcome to Drop Cars, {dashboardData?.user_info?.full_name || user?.fullName || 'Driver'}!
           </Text>
           <Text style={dynamicStyles.welcomeBannerSubtitle}>
-            Your {user?.cars?.[0]?.name} is ready for service. Start earning today!
+            {dashboardData?.cars && dashboardData.cars.length > 0 
+              ? `Your ${dashboardData.cars[0].car_name} (${dashboardData.cars[0].car_number}) is ready for service. Start earning today!`
+              : 'Complete your profile setup to start earning!'
+            }
           </Text>
         </View>
 
@@ -326,12 +403,12 @@ export default function DashboardScreen() {
             <Text style={dynamicStyles.statLabel}>Wallet Balance</Text>
           </View>
           <View style={dynamicStyles.statCard}>
-            <Text style={dynamicStyles.statNumber}>{user?.cars?.length || 0}</Text>
+            <Text style={dynamicStyles.statNumber}>{dashboardData?.cars?.length || 0}</Text>
             <Text style={dynamicStyles.statLabel}>Vehicles</Text>
           </View>
           <View style={dynamicStyles.statCard}>
-            <Text style={dynamicStyles.statNumber}>{user?.languages?.length || 0}</Text>
-            <Text style={dynamicStyles.statLabel}>Languages</Text>
+            <Text style={dynamicStyles.statNumber}>{dashboardData?.drivers?.length || 0}</Text>
+            <Text style={dynamicStyles.statLabel}>Drivers</Text>
           </View>
         </View>
 
@@ -390,6 +467,8 @@ export default function DashboardScreen() {
               </View>
             )}
           </View>
+        )}
+          </>
         )}
       </ScrollView>
 

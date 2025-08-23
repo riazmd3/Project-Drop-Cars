@@ -14,6 +14,7 @@ import { ArrowLeft, User, Save, Upload, CheckCircle, FileText, Image, Phone, Loc
 import { useAuth } from '@/contexts/AuthContext';
 import { addDriverDetails, DriverDetails } from '@/services/driverService';
 import * as ImagePicker from 'expo-image-picker';
+import { fetchDashboardData } from '@/services/dashboardService';
 
 export default function AddDriverScreen() {
   const [driverData, setDriverData] = useState({
@@ -133,16 +134,63 @@ export default function AddDriverScreen() {
 
       await addDriverDetails(payload);
 
-      Alert.alert(
-        'Success',
-        'Driver added successfully! You can now access the dashboard.',
-        [
-          {
-            text: 'OK',
-            onPress: () => router.replace('/(tabs)')
-          }
-        ]
-      );
+      // After successful driver addition, check account status and fetch updated data
+      try {
+        console.log('🔍 Checking account status after driver addition...');
+        
+        // Fetch updated dashboard data to check current status
+        const dashboardData = await fetchDashboardData();
+        
+        const accountStatus = dashboardData.user_info.account_status;
+        const carCount = dashboardData.user_info.car_details_count;
+        const driverCount = dashboardData.user_info.car_driver_count;
+        
+        console.log('🔍 Account status after driver addition:', accountStatus);
+        console.log('🔍 Car count:', carCount);
+        console.log('🔍 Driver count:', driverCount);
+        
+        if (accountStatus?.toLowerCase() === 'active') {
+          // Account is active, show success and go to dashboard
+          Alert.alert(
+            'Success',
+            'Driver added successfully! You can now access the dashboard.',
+            [
+              {
+                text: 'OK',
+                onPress: () => router.replace('/(tabs)')
+              }
+            ]
+          );
+        } else {
+          // Account is not active, show verification message
+          Alert.alert(
+            'Driver Added Successfully!',
+            'Your driver has been registered. However, your account is still under verification. Our team will review your documents and notify you once approved.',
+            [
+              {
+                text: 'OK',
+                onPress: () => {
+                  // Navigate to account verification screen
+                  router.replace('/login');
+                }
+              }
+            ]
+          );
+        }
+      } catch (error) {
+        console.error('❌ Failed to check account status:', error);
+        // If we can't check status, just show success and go to dashboard
+        Alert.alert(
+          'Success',
+          'Driver added successfully! You can now access the dashboard.',
+          [
+            {
+              text: 'OK',
+              onPress: () => router.replace('/(tabs)')
+            }
+          ]
+        );
+      }
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to add driver');
     }
