@@ -6,7 +6,6 @@ import {
   ScrollView,
   TouchableOpacity,
   Dimensions,
-  Image,
   StatusBar,
   RefreshControl,
 } from 'react-native';
@@ -16,16 +15,10 @@ import {
   Bell,
   Search,
   Filter,
-  Plus,
-  TrendingUp,
-  Package,
-  Clock,
-  MapPin,
-  Star,
-  MoreVertical,
   Calendar,
+  MapPin,
+  Clock,
   DollarSign,
-  Users,
   ArrowRight,
   Eye,
 } from 'lucide-react-native';
@@ -35,15 +28,15 @@ const { width, height } = Dimensions.get('window');
 interface Order {
   id: string;
   customerName: string;
-  customerImage?: string;
   pickupLocation: string;
   dropLocation: string;
   status: 'pending' | 'accepted' | 'in_progress' | 'completed' | 'cancelled';
   amount: number;
   distance: string;
   time: string;
-  rating?: number;
   createdAt: string;
+  carType: string;
+  tripType: string;
 }
 
 interface VendorData {
@@ -51,16 +44,14 @@ interface VendorData {
   full_name: string;
   primary_number: string;
   account_status: string;
-  wallet_balance: number;
-  total_orders: number;
-  completed_orders: number;
-  rating: number;
+  branch_name: string;
 }
 
 export default function DashboardScreen() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [vendorData, setVendorData] = useState<VendorData | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date());
   const { getStoredVendorData } = useVendorAuth();
 
   useEffect(() => {
@@ -77,10 +68,7 @@ export default function DashboardScreen() {
           full_name: storedData.full_name,
           primary_number: storedData.primary_number,
           account_status: storedData.account_status,
-          wallet_balance: storedData.wallet_balance || 0,
-          total_orders: 45, // Mock data
-          completed_orders: 38, // Mock data
-          rating: 4.8, // Mock data
+          branch_name: storedData.organization_id || 'Drop Cars',
         });
       }
     } catch (error) {
@@ -89,47 +77,73 @@ export default function DashboardScreen() {
   };
 
   const loadOrders = () => {
-    // Mock orders data
+    // Mock orders data for car booking
     const mockOrders: Order[] = [
       {
         id: '1',
         customerName: 'Rahul Sharma',
-        customerImage: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&h=150&fit=crop&crop=face',
-        pickupLocation: 'Mumbai Central Station',
-        dropLocation: 'Bandra West, Mumbai',
+        pickupLocation: 'Chennai Central Station',
+        dropLocation: 'Vellore, Tamil Nadu',
         status: 'pending',
-        amount: 450,
-        distance: '12.5 km',
-        time: '25 min',
-        rating: 4.5,
+        amount: 2500,
+        distance: '150 km',
+        time: '3 hours',
         createdAt: '2024-01-15T10:30:00Z',
+        carType: 'Sedan',
+        tripType: 'Oneway'
       },
       {
         id: '2',
         customerName: 'Priya Patel',
-        customerImage: 'https://images.unsplash.com/photo-1494790108755-2616b612b786?w=150&h=150&fit=crop&crop=face',
-        pickupLocation: 'Andheri Metro Station',
-        dropLocation: 'Juhu Beach, Mumbai',
+        pickupLocation: 'Bangalore Airport',
+        dropLocation: 'Mysore, Karnataka',
         status: 'accepted',
-        amount: 380,
-        distance: '8.2 km',
-        time: '18 min',
-        rating: 4.8,
+        amount: 3200,
+        distance: '180 km',
+        time: '4 hours',
         createdAt: '2024-01-15T09:15:00Z',
+        carType: 'SUV',
+        tripType: 'Oneway'
       },
       {
         id: '3',
         customerName: 'Amit Kumar',
-        customerImage: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&h=150&fit=crop&crop=face',
-        pickupLocation: 'Dadar Railway Station',
-        dropLocation: 'Worli, Mumbai',
+        pickupLocation: 'Mumbai Central',
+        dropLocation: 'Pune, Maharashtra',
         status: 'in_progress',
-        amount: 520,
-        distance: '15.3 km',
-        time: '32 min',
-        rating: 4.6,
+        amount: 1800,
+        distance: '150 km',
+        time: '3.5 hours',
         createdAt: '2024-01-15T08:45:00Z',
+        carType: 'Innova',
+        tripType: 'Round Trip'
       },
+      {
+        id: '4',
+        customerName: 'Sneha Reddy',
+        pickupLocation: 'Hyderabad Station',
+        dropLocation: 'Warangal, Telangana',
+        status: 'completed',
+        amount: 2200,
+        distance: '140 km',
+        time: '2.5 hours',
+        createdAt: '2024-01-14T16:20:00Z',
+        carType: 'Sedan',
+        tripType: 'Oneway'
+      },
+      {
+        id: '5',
+        customerName: 'Vikram Singh',
+        pickupLocation: 'Delhi Airport',
+        dropLocation: 'Agra, Uttar Pradesh',
+        status: 'pending',
+        amount: 2800,
+        distance: '200 km',
+        time: '4 hours',
+        createdAt: '2024-01-15T11:00:00Z',
+        carType: 'SUV',
+        tripType: 'Oneway'
+      }
     ];
     setOrders(mockOrders);
   };
@@ -165,10 +179,10 @@ export default function DashboardScreen() {
   const getStatusIcon = (status: string) => {
     switch (status) {
       case 'pending': return <Clock size={16} color="#F59E0B" />;
-      case 'accepted': return <Package size={16} color="#3B82F6" />;
+      case 'accepted': return <Calendar size={16} color="#3B82F6" />;
       case 'in_progress': return <MapPin size={16} color="#8B5CF6" />;
-      case 'completed': return <Star size={16} color="#10B981" />;
-      case 'cancelled': return <MoreVertical size={16} color="#EF4444" />;
+      case 'completed': return <DollarSign size={16} color="#10B981" />;
+      case 'cancelled': return <Eye size={16} color="#EF4444" />;
       default: return <Clock size={16} color="#6B7280" />;
     }
   };
@@ -183,6 +197,26 @@ export default function DashboardScreen() {
     return date.toLocaleDateString();
   };
 
+  const getDateLabel = (date: Date) => {
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    
+    if (date.toDateString() === today.toDateString()) return 'Today';
+    if (date.toDateString() === tomorrow.toDateString()) return 'Tomorrow';
+    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+  };
+
+  const generateDateOptions = () => {
+    const dates = [];
+    for (let i = -2; i <= 7; i++) {
+      const date = new Date();
+      date.setDate(date.getDate() + i);
+      dates.push(date);
+    }
+    return dates;
+  };
+
   if (!vendorData) {
     return (
       <View style={styles.loadingContainer}>
@@ -193,34 +227,24 @@ export default function DashboardScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1E293B" />
+      <StatusBar barStyle="light-content" backgroundColor="#1E40AF" />
       
       {/* Header */}
       <LinearGradient
-        colors={['#1E293B', '#334155']}
+        colors={['#1E40AF', '#3B82F6']}
         style={styles.header}
       >
         <View style={styles.headerTop}>
-          <View style={styles.welcomeSection}>
-            <Text style={styles.welcomeText}>Welcome back,</Text>
-            <Text style={styles.vendorName}>{vendorData.full_name}</Text>
+          <View style={styles.branchSection}>
+            <Text style={styles.branchName}>{vendorData.branch_name}</Text>
+            <Text style={styles.accountStatus}>
+              {vendorData.account_status === 'Active' ? '● Active' : '● Pending Verification'}
+            </Text>
           </View>
           <TouchableOpacity style={styles.notificationButton}>
             <Bell size={24} color="#FFFFFF" />
             <View style={styles.notificationBadge} />
           </TouchableOpacity>
-        </View>
-        
-        <View style={styles.accountStatus}>
-          <View style={styles.statusIndicator}>
-            <View style={[styles.statusDot, { backgroundColor: vendorData.account_status === 'Active' ? '#10B981' : '#F59E0B' }]} />
-            <Text style={styles.statusText}>
-              {vendorData.account_status === 'Active' ? 'Account Active' : 'Pending Verification'}
-            </Text>
-          </View>
-          <Text style={styles.ratingText}>
-            ⭐ {vendorData.rating} Rating
-          </Text>
         </View>
       </LinearGradient>
 
@@ -231,125 +255,40 @@ export default function DashboardScreen() {
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Stats Cards */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statsRow}>
-            <TouchableOpacity style={styles.statCard}>
-              <LinearGradient
-                colors={['#3B82F6', '#1D4ED8']}
-                style={styles.statGradient}
+        {/* Date Selection */}
+        <View style={styles.dateSelectionContainer}>
+          <Text style={styles.sectionTitle}>Select Date</Text>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            style={styles.dateScrollView}
+          >
+            {generateDateOptions().map((date, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[
+                  styles.dateOption,
+                  selectedDate.toDateString() === date.toDateString() && styles.selectedDateOption
+                ]}
+                onPress={() => setSelectedDate(date)}
               >
-                <View style={styles.statIcon}>
-                  <Package size={24} color="#FFFFFF" />
-                </View>
-                <View style={styles.statContent}>
-                  <Text style={styles.statValue}>{vendorData.total_orders}</Text>
-                  <Text style={styles.statLabel}>Total Orders</Text>
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.statCard}>
-              <LinearGradient
-                colors={['#10B981', '#059669']}
-                style={styles.statGradient}
-              >
-                <View style={styles.statIcon}>
-                  <Star size={24} color="#FFFFFF" />
-                </View>
-                <View style={styles.statContent}>
-                  <Text style={styles.statValue}>{vendorData.completed_orders}</Text>
-                  <Text style={styles.statLabel}>Completed</Text>
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-
-          <View style={styles.statsRow}>
-            <TouchableOpacity style={styles.statCard}>
-              <LinearGradient
-                colors={['#F59E0B', '#D97706']}
-                style={styles.statGradient}
-              >
-                <View style={styles.statIcon}>
-                  <DollarSign size={24} color="#FFFFFF" />
-                </View>
-                <View style={styles.statContent}>
-                  <Text style={styles.statValue}>₹{vendorData.wallet_balance}</Text>
-                  <Text style={styles.statLabel}>Balance</Text>
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.statCard}>
-              <LinearGradient
-                colors={['#8B5CF6', '#7C3AED']}
-                style={styles.statGradient}
-              >
-                <View style={styles.statIcon}>
-                  <TrendingUp size={24} color="#FFFFFF" />
-                </View>
-                <View style={styles.statContent}>
-                  <Text style={styles.statValue}>+12%</Text>
-                  <Text style={styles.statLabel}>Growth</Text>
-                </View>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
+                <Text style={[
+                  styles.dateText,
+                  selectedDate.toDateString() === date.toDateString() && styles.selectedDateText
+                ]}>
+                  {getDateLabel(date)}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
         </View>
 
-        {/* Quick Actions */}
-        <View style={styles.quickActionsContainer}>
-          <Text style={styles.sectionTitle}>Quick Actions</Text>
-          <View style={styles.quickActionsGrid}>
-            <TouchableOpacity style={styles.actionButton}>
-              <LinearGradient
-                colors={['#3B82F6', '#1D4ED8']}
-                style={styles.actionGradient}
-              >
-                <Plus size={24} color="#FFFFFF" />
-                <Text style={styles.actionText}>New Order</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionButton}>
-              <LinearGradient
-                colors={['#10B981', '#059669']}
-                style={styles.actionGradient}
-              >
-                <Calendar size={24} color="#FFFFFF" />
-                <Text style={styles.actionText}>Schedule</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionButton}>
-              <LinearGradient
-                colors={['#F59E0B', '#D97706']}
-                style={styles.actionGradient}
-              >
-                <TrendingUp size={24} color="#FFFFFF" />
-                <Text style={styles.actionText}>Analytics</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionButton}>
-              <LinearGradient
-                colors={['#8B5CF6', '#7C3AED']}
-                style={styles.actionGradient}
-              >
-                <Users size={24} color="#FFFFFF" />
-                <Text style={styles.actionText}>Profile</Text>
-              </LinearGradient>
-            </TouchableOpacity>
-          </View>
-        </View>
-
-        {/* Recent Orders */}
+        {/* Orders */}
         <View style={styles.ordersContainer}>
           <View style={styles.ordersHeader}>
             <View>
-              <Text style={styles.sectionTitle}>Recent Orders</Text>
-              <Text style={styles.sectionSubtitle}>Manage your active deliveries</Text>
+              <Text style={styles.sectionTitle}>Orders</Text>
+              <Text style={styles.sectionSubtitle}>Manage your car bookings</Text>
             </View>
             <View style={styles.ordersActions}>
               <TouchableOpacity style={styles.actionIcon}>
@@ -369,10 +308,11 @@ export default function DashboardScreen() {
             <TouchableOpacity key={order.id} style={styles.orderCard}>
               <View style={styles.orderHeader}>
                 <View style={styles.customerInfo}>
-                  <Image
-                    source={{ uri: order.customerImage }}
-                    style={styles.customerAvatar}
-                  />
+                  <View style={styles.customerAvatar}>
+                    <Text style={styles.customerInitial}>
+                      {order.customerName.charAt(0)}
+                    </Text>
+                  </View>
                   <View>
                     <Text style={styles.customerName}>{order.customerName}</Text>
                     <Text style={styles.orderTime}>{formatTime(order.createdAt)}</Text>
@@ -385,9 +325,6 @@ export default function DashboardScreen() {
                       {getStatusText(order.status)}
                     </Text>
                   </View>
-                  <TouchableOpacity style={styles.moreButton}>
-                    <MoreVertical size={16} color="#6B7280" />
-                  </TouchableOpacity>
                 </View>
               </View>
 
@@ -420,6 +357,10 @@ export default function DashboardScreen() {
                     <DollarSign size={14} color="#6B7280" />
                     <Text style={styles.metaText}>₹{order.amount}</Text>
                   </View>
+                </View>
+
+                <View style={styles.carInfo}>
+                  <Text style={styles.carTypeText}>{order.carType} • {order.tripType}</Text>
                 </View>
 
                 <View style={styles.orderActions}>
@@ -457,20 +398,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
   },
-  welcomeSection: {
+  branchSection: {
     flex: 1,
   },
-  welcomeText: {
-    fontSize: 16,
-    color: '#94A3B8',
-    marginBottom: 4,
-  },
-  vendorName: {
-    fontSize: 24,
+  branchName: {
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  accountStatus: {
+    fontSize: 14,
+    color: '#E2E8F0',
   },
   notificationButton: {
     padding: 8,
@@ -487,81 +427,12 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#EF4444',
   },
-  accountStatus: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-  },
-  statusIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 8,
-  },
-  statusText: {
-    fontSize: 14,
-    color: '#E2E8F0',
-  },
-  ratingText: {
-    fontSize: 14,
-    color: '#FCD34D',
-    fontWeight: '600',
-  },
   content: {
     flex: 1,
     paddingHorizontal: 20,
   },
-  statsContainer: {
-    marginTop: -20,
-    marginBottom: 30,
-  },
-  statsRow: {
-    flexDirection: 'row',
-    gap: 12,
-    marginBottom: 12,
-  },
-  statCard: {
-    flex: 1,
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  statGradient: {
-    padding: 20,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  statIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  statContent: {
-    flex: 1,
-  },
-  statValue: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  statLabel: {
-    fontSize: 14,
-    color: 'rgba(255,255,255,0.8)',
-  },
-  quickActionsContainer: {
+  dateSelectionContainer: {
+    marginTop: 24,
     marginBottom: 30,
   },
   sectionTitle: {
@@ -570,29 +441,33 @@ const styles = StyleSheet.create({
     color: '#1F2937',
     marginBottom: 16,
   },
-  quickActionsGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 12,
+  dateScrollView: {
+    flexGrow: 0,
   },
-  actionButton: {
-    width: (width - 52) / 2,
-    borderRadius: 16,
-    overflow: 'hidden',
+  dateOption: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    marginRight: 12,
+    borderRadius: 12,
+    backgroundColor: '#FFFFFF',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
     elevation: 2,
   },
-  actionGradient: {
-    padding: 20,
-    alignItems: 'center',
-    gap: 8,
+  selectedDateOption: {
+    backgroundColor: '#3B82F6',
+    borderColor: '#3B82F6',
   },
-  actionText: {
+  dateText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  selectedDateText: {
     color: '#FFFFFF',
   },
   ordersContainer: {
@@ -655,7 +530,15 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
+    backgroundColor: '#3B82F6',
+    justifyContent: 'center',
+    alignItems: 'center',
     marginRight: 12,
+  },
+  customerInitial: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
   },
   customerName: {
     fontSize: 16,
@@ -676,15 +559,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 12,
-    marginBottom: 8,
     gap: 4,
   },
   orderStatusText: {
     fontSize: 12,
     fontWeight: '600',
-  },
-  moreButton: {
-    padding: 4,
   },
   orderDetails: {
     gap: 16,
@@ -718,6 +597,18 @@ const styles = StyleSheet.create({
   },
   metaText: {
     fontSize: 12,
+    color: '#6B7280',
+  },
+  carInfo: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    alignSelf: 'flex-start',
+  },
+  carTypeText: {
+    fontSize: 12,
+    fontWeight: '500',
     color: '#6B7280',
   },
   orderActions: {
