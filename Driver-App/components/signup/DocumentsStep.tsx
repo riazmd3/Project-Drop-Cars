@@ -12,6 +12,7 @@ import { ArrowLeft, Upload, CheckCircle, FileText } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { signupAccount, testSignupDataStructure, signupAndLogin } from '@/services/signupService';
 import * as ImagePicker from 'expo-image-picker';
+import { handleValidationError } from '@/utils/validationErrorHandler';
 
 interface DocumentsStepProps {
   data: any;
@@ -114,24 +115,8 @@ export default function DocumentsStep({ data, onUpdate, onBack, formData, onSign
     } catch (error: any) {
       console.error('❌ Signup failed:', error);
       
-      // Provide specific error messages
-      let errorMessage = 'Signup failed. Please try again.';
-      
-      if (error.code === 'ECONNABORTED') {
-        errorMessage = 'Request timeout - server is taking too long to respond. Please try again.';
-      } else if (error.code === 'ERR_NETWORK') {
-        errorMessage = 'Network error - please check your internet connection and try again.';
-      } else if (error.code === 'ENOTFOUND') {
-        errorMessage = 'Server not found - please check if the backend server is running.';
-      } else if (error.response?.status === 400) {
-        errorMessage = `Bad request: ${error.response.data?.message || 'Invalid data provided'}`;
-      } else if (error.response?.status === 500) {
-        errorMessage = 'Server error - please try again later or contact support.';
-      } else if (error.response?.data?.message) {
-        errorMessage = error.response.data.message;
-      }
-      
-      Alert.alert('Signup Failed', errorMessage);
+      // Use the validation error handler for better error messages
+      handleValidationError(error);
     } finally {
       setLoading(false);
     }
