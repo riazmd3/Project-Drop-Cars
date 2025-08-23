@@ -12,10 +12,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWallet } from '@/contexts/WalletContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useDashboard } from '@/contexts/DashboardContext';
 import { useRouter } from 'expo-router';
 import { Menu, Wallet, MapPin, Clock, User, Phone, Car, RefreshCw } from 'lucide-react-native';
 import BookingCard from '@/components/BookingCard';
 import DrawerNavigation from '@/components/DrawerNavigation';
+import ConnectionTest from '@/components/ConnectionTest';
 import { fetchDashboardData, DashboardData } from '@/services/dashboardService';
 
 const dummyBookings = [
@@ -43,44 +45,60 @@ const dummyBookings = [
   },
 ];
 
+interface Booking {
+  booking_id: string;
+  pickup: string;
+  drop: string;
+  customer_name: string;
+  customer_mobile: string;
+  fare_per_km: number;
+  distance_km: number;
+  total_fare: number;
+  status?: string; // Make status optional to match both interfaces
+}
+
 export default function DashboardScreen() {
   const { user } = useAuth();
   const { balance } = useWallet();
   const { colors } = useTheme();
+  const { dashboardData, loading, error, fetchData, refreshData } = useDashboard();
   const router = useRouter();
   const [showDrawer, setShowDrawer] = useState(false);
-  const [bookings, setBookings] = useState(dummyBookings);
-  const [currentTrip, setCurrentTrip] = useState(null);
-  const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [bookings, setBookings] = useState<Booking[]>(dummyBookings);
+  const [currentTrip, setCurrentTrip] = useState<Booking | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const canAcceptBookings = balance >= 1000;
 
+  // Debug logging
+  useEffect(() => {
+    console.log('🔍 DashboardScreen mounted with:', {
+      user: user ? { id: user.id, fullName: user.fullName, primaryMobile: user.primaryMobile } : null,
+      dashboardData: dashboardData ? {
+        user_info: dashboardData.user_info,
+        carCount: dashboardData.cars?.length || 0,
+        driverCount: dashboardData.drivers?.length || 0
+      } : null,
+      loading,
+      error
+    });
+  }, [user, dashboardData, loading, error]);
+
   // Fetch dashboard data on component mount
   useEffect(() => {
-    fetchUserData();
-  }, []);
-
-  const fetchUserData = async () => {
-    try {
-      setLoading(true);
-      console.log('📊 Fetching user dashboard data...');
-      const data = await fetchDashboardData();
-      setDashboardData(data);
-      console.log('✅ Dashboard data loaded successfully');
-    } catch (error) {
-      console.error('❌ Failed to fetch dashboard data:', error);
-      Alert.alert('Error', 'Failed to load user data. Please try again.');
-    } finally {
-      setLoading(false);
+    console.log('📱 DashboardScreen: fetchData called');
+    if (user) {
+      console.log('👤 User is authenticated, fetching dashboard data...');
+      fetchData();
+    } else {
+      console.log('⚠️ No user found, skipping dashboard data fetch');
     }
-  };
+  }, [user]);
 
   const handleRefresh = async () => {
     try {
       setRefreshing(true);
-      await fetchUserData();
+      await refreshData();
     } catch (error) {
       console.error('❌ Refresh failed:', error);
     } finally {
@@ -306,7 +324,7 @@ export default function DashboardScreen() {
       color: colors.textSecondary,
     },
   });
-  const handleAcceptBooking = (booking) => {
+  const handleAcceptBooking = (booking: Booking) => {
     if (!canAcceptBookings) {
       Alert.alert(
         'Insufficient Balance',
@@ -326,14 +344,14 @@ export default function DashboardScreen() {
     );
   };
 
-  const acceptBooking = (booking) => {
+  const acceptBooking = (booking: Booking) => {
     setCurrentTrip({ ...booking, status: 'accepted' });
     setBookings(prev => prev.filter(b => b.booking_id !== booking.booking_id));
     
     // Simulate SMS sending
     Alert.alert(
       'Booking Accepted',
-      `SMS sent to customer: "DropCars: Your driver ${user?.name} (${user?.cars?.[0]?.name} - ${user?.cars?.[0]?.registration}) has accepted your booking."`
+      `SMS sent to customer: "DropCars: Your driver ${user?.fullName || 'Driver'} (${dashboardData?.cars?.[0]?.car_name || 'Vehicle'} - ${dashboardData?.cars?.[0]?.car_number || 'Number'}) has accepted your booking."`
     );
   };
 
@@ -381,93 +399,152 @@ export default function DashboardScreen() {
           <View style={dynamicStyles.loadingContainer}>
             <Text style={dynamicStyles.loadingText}>Loading your dashboard...</Text>
           </View>
+        ) : error ? (
+          <View style={dynamicStyles.loadingContainer}>
+            <Text style={dynamicStyles.loadingText}>Error: {error}</Text>
+            <TouchableOpacity 
+              style={[dynamicStyles.endTripButton, { marginTop: 16 }]}
+              onPress={fetchData}
+            >
+              <Text style={dynamicStyles.endTripButtonText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
         ) : (
           <>
-            {/* Welcome Banner */}
-            <View style={dynamicStyles.welcomeBanner}>
-          <Text style={dynamicStyles.welcomeBannerTitle}>
-            🚗 Welcome to Drop Cars, {dashboardData?.user_info?.full_name || user?.fullName || 'Driver'}!
-          </Text>
-          <Text style={dynamicStyles.welcomeBannerSubtitle}>
-            {dashboardData?.cars && dashboardData.cars.length > 0 
-              ? `Your ${dashboardData.cars[0].car_name} (${dashboardData.cars[0].car_number}) is ready for service. Start earning today!`
-              : 'Complete your profile setup to start earning!'
-            }
-          </Text>
-        </View>
-
-        {/* Quick Stats */}
-        <View style={dynamicStyles.statsContainer}>
-          <View style={dynamicStyles.statCard}>
-            <Text style={dynamicStyles.statNumber}>₹{balance}</Text>
-            <Text style={dynamicStyles.statLabel}>Wallet Balance</Text>
-          </View>
-          <View style={dynamicStyles.statCard}>
-            <Text style={dynamicStyles.statNumber}>{dashboardData?.cars?.length || 0}</Text>
-            <Text style={dynamicStyles.statLabel}>Vehicles</Text>
-          </View>
-          <View style={dynamicStyles.statCard}>
-            <Text style={dynamicStyles.statNumber}>{dashboardData?.drivers?.length || 0}</Text>
-            <Text style={dynamicStyles.statLabel}>Drivers</Text>
-          </View>
-        </View>
-
-        {currentTrip ? (
-          <View style={dynamicStyles.currentTripSection}>
-            <Text style={dynamicStyles.sectionTitle}>Current Trip</Text>
-            <View style={dynamicStyles.currentTripCard}>
-              <View style={dynamicStyles.tripHeader}>
-                <Text style={dynamicStyles.tripStatus}>Trip In Progress</Text>
-                <View style={dynamicStyles.statusDot} />
+            {/* Debug Component - Remove this after fixing the issue */}
+            <View style={{ marginBottom: 20 }}>
+              <Text style={[dynamicStyles.sectionTitle, { textAlign: 'center', marginBottom: 10 }]}>
+                🔍 Debug Info (Remove after fixing)
+              </Text>
+              
+              {/* Simple Debug Info */}
+              <View style={dynamicStyles.statCard}>
+                <Text style={dynamicStyles.statLabel}>Auth User:</Text>
+                <Text style={dynamicStyles.statNumber}>
+                  {user ? `${user.fullName} (${user.primaryMobile})` : 'Not loaded'}
+                </Text>
               </View>
               
-              <View style={dynamicStyles.tripDetails}>
-                <View style={dynamicStyles.tripRow}>
-                  <MapPin color={colors.success} size={16} />
-                  <Text style={dynamicStyles.tripText}>{currentTrip.pickup}</Text>
-                </View>
-                <View style={dynamicStyles.tripRow}>
-                  <MapPin color={colors.error} size={16} />
-                  <Text style={dynamicStyles.tripText}>{currentTrip.drop}</Text>
-                </View>
-                <View style={dynamicStyles.tripRow}>
-                  <User color={colors.textSecondary} size={16} />
-                  <Text style={dynamicStyles.tripText}>{currentTrip.customer_name}</Text>
-                </View>
-                <View style={dynamicStyles.tripRow}>
-                  <Phone color={colors.textSecondary} size={16} />
-                  <Text style={dynamicStyles.tripText}>{currentTrip.customer_mobile}</Text>
+              <View style={dynamicStyles.statCard}>
+                <Text style={dynamicStyles.statLabel}>Dashboard Data:</Text>
+                <Text style={dynamicStyles.statNumber}>
+                  {dashboardData ? 'Loaded' : 'Not loaded'}
+                </Text>
+              </View>
+              
+              <View style={dynamicStyles.statCard}>
+                <Text style={dynamicStyles.statLabel}>Loading State:</Text>
+                <Text style={dynamicStyles.statNumber}>
+                  {loading ? 'Loading...' : 'Idle'}
+                </Text>
+              </View>
+              
+              <View style={dynamicStyles.statCard}>
+                <Text style={dynamicStyles.statLabel}>Error:</Text>
+                <Text style={dynamicStyles.statNumber}>
+                  {error || 'None'}
+                </Text>
+              </View>
+              
+              {/* Manual Test Button */}
+              <TouchableOpacity 
+                style={[dynamicStyles.endTripButton, { marginTop: 16, marginBottom: 16 }]}
+                onPress={() => {
+                  console.log('🧪 Manual test: fetchData called');
+                  fetchData();
+                }}
+              >
+                <Text style={dynamicStyles.endTripButtonText}>🧪 Test Fetch Dashboard Data</Text>
+              </TouchableOpacity>
+              
+              <ConnectionTest />
+            </View>
+
+            {/* Welcome Banner */}
+            <View style={dynamicStyles.welcomeBanner}>
+              <Text style={dynamicStyles.welcomeBannerTitle}>
+                🚗 Welcome to Drop Cars, {dashboardData?.user_info?.full_name || user?.fullName || 'Driver'}!
+              </Text>
+              <Text style={dynamicStyles.welcomeBannerSubtitle}>
+                {dashboardData?.cars && dashboardData.cars.length > 0 
+                  ? `Your ${dashboardData.cars[0].car_name} (${dashboardData.cars[0].car_number}) is ready for service. Start earning today!`
+                  : 'Complete your profile setup to start earning!'
+                }
+              </Text>
+            </View>
+
+            {/* Quick Stats */}
+            <View style={dynamicStyles.statsContainer}>
+              <View style={dynamicStyles.statCard}>
+                <Text style={dynamicStyles.statNumber}>₹{balance}</Text>
+                <Text style={dynamicStyles.statLabel}>Wallet Balance</Text>
+              </View>
+              <View style={dynamicStyles.statCard}>
+                <Text style={dynamicStyles.statNumber}>{dashboardData?.cars?.length || 0}</Text>
+                <Text style={dynamicStyles.statLabel}>Vehicles</Text>
+              </View>
+              <View style={dynamicStyles.statCard}>
+                <Text style={dynamicStyles.statNumber}>{dashboardData?.drivers?.length || 0}</Text>
+                <Text style={dynamicStyles.statLabel}>Drivers</Text>
+              </View>
+            </View>
+
+            {currentTrip ? (
+              <View style={dynamicStyles.currentTripSection}>
+                <Text style={dynamicStyles.sectionTitle}>Current Trip</Text>
+                <View style={dynamicStyles.currentTripCard}>
+                  <View style={dynamicStyles.tripHeader}>
+                    <Text style={dynamicStyles.tripStatus}>Trip In Progress</Text>
+                    <View style={dynamicStyles.statusDot} />
+                  </View>
+                  
+                  <View style={dynamicStyles.tripDetails}>
+                    <View style={dynamicStyles.tripRow}>
+                      <MapPin color={colors.success} size={16} />
+                      <Text style={dynamicStyles.tripText}>{currentTrip.pickup}</Text>
+                    </View>
+                    <View style={dynamicStyles.tripRow}>
+                      <MapPin color={colors.error} size={16} />
+                      <Text style={dynamicStyles.tripText}>{currentTrip.drop}</Text>
+                    </View>
+                    <View style={dynamicStyles.tripRow}>
+                      <User color={colors.textSecondary} size={16} />
+                      <Text style={dynamicStyles.tripText}>{currentTrip.customer_name}</Text>
+                    </View>
+                    <View style={dynamicStyles.tripRow}>
+                      <Phone color={colors.textSecondary} size={16} />
+                      <Text style={dynamicStyles.tripText}>{currentTrip.customer_mobile}</Text>
+                    </View>
+                  </View>
+
+                  <TouchableOpacity 
+                    style={dynamicStyles.endTripButton}
+                    onPress={() => router.push('/trip/end')}
+                  >
+                    <Text style={dynamicStyles.endTripButtonText}>End Trip</Text>
+                  </TouchableOpacity>
                 </View>
               </View>
-
-              <TouchableOpacity 
-                style={dynamicStyles.endTripButton}
-                onPress={() => router.push('/trip/end')}
-              >
-                <Text style={dynamicStyles.endTripButtonText}>End Trip</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        ) : (
-          <View style={dynamicStyles.bookingsSection}>
-            <Text style={dynamicStyles.sectionTitle}>Available Bookings</Text>
-            {bookings.length > 0 ? (
-              bookings.map((booking) => (
-                <BookingCard
-                  key={booking.booking_id}
-                  booking={booking}
-                  onAccept={handleAcceptBooking}
-                  disabled={!canAcceptBookings}
-                />
-              ))
             ) : (
-              <View style={dynamicStyles.noBookings}>
-                <Text style={dynamicStyles.noBookingsText}>No bookings available</Text>
-                <Text style={dynamicStyles.noBookingsSubtext}>New bookings will appear here</Text>
+              <View style={dynamicStyles.bookingsSection}>
+                <Text style={dynamicStyles.sectionTitle}>Available Bookings</Text>
+                {bookings.length > 0 ? (
+                  bookings.map((booking) => (
+                    <BookingCard
+                      key={booking.booking_id}
+                      booking={booking}
+                      onAccept={handleAcceptBooking}
+                      disabled={!canAcceptBookings}
+                    />
+                  ))
+                ) : (
+                  <View style={dynamicStyles.noBookings}>
+                    <Text style={dynamicStyles.noBookingsText}>No bookings available</Text>
+                    <Text style={dynamicStyles.noBookingsSubtext}>New bookings will appear here</Text>
+                  </View>
+                )}
               </View>
             )}
-          </View>
-        )}
           </>
         )}
       </ScrollView>

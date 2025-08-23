@@ -1,5 +1,6 @@
 import axiosInstance from '@/app/api/axiosInstance';
 import { getAuthHeaders } from '@/services/authService';
+import { authService } from '@/services/authService';
 
 export interface CarDetail {
   id: string;
@@ -54,63 +55,93 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
   try {
     console.log('📊 Fetching dashboard data...');
     
-    const authHeaders = await getAuthHeaders();
-    console.log('🔐 Using JWT token:', authHeaders.Authorization?.substring(0, 20) + '...');
-
-    // Fetch user profile and counts
-    const profileResponse = await axiosInstance.get('/api/users/vehicleowner/profile', {
-      headers: authHeaders
-    });
-
-    console.log('✅ Profile data received:', profileResponse.data);
-
-    const userInfo = profileResponse.data;
+    // First, try to get user data from auth service
+    const userData = await authService.getUserData();
+    console.log('🔍 User data from auth service:', userData);
     
-    // Fetch car details
-    let cars: CarDetail[] = [];
-    if (userInfo.car_details_count > 0) {
+    if (!userData) {
+      throw new Error('No user data found. Please login again.');
+    }
+
+    // Try to get auth headers for additional API calls
+    let authHeaders;
+    try {
+      authHeaders = await getAuthHeaders();
+      console.log('🔐 Using JWT token:', authHeaders.Authorization?.substring(0, 20) + '...');
+    } catch (error) {
+      console.warn('⚠️ Could not get auth headers, using basic user data only');
+    }
+
+    // Create basic dashboard data from user data
+    const dashboardData: DashboardData = {
+      user_info: {
+        id: userData.id,
+        full_name: userData.fullName,
+        primary_mobile: userData.primaryMobile,
+        organization_id: userData.organizationId,
+        account_status: 'active', // Default to active
+        car_details_count: 0, // Will be updated if API calls succeed
+        car_driver_count: 0   // Will be updated if API calls succeed
+      },
+      cars: [],
+      drivers: []
+    };
+
+    // If we have auth headers, try to fetch additional data
+    if (authHeaders) {
+      try {
+        // Try to fetch user profile for additional info
+        const profileResponse = await axiosInstance.get('/api/users/vehicleowner/profile', {
+          headers: authHeaders
+        });
+        
+        if (profileResponse.data) {
+          console.log('✅ Profile data received:', profileResponse.data);
+          const profileData = profileResponse.data;
+          
+          // Update dashboard data with profile info
+          dashboardData.user_info = {
+            ...dashboardData.user_info,
+            full_name: profileData.full_name || userData.fullName,
+            primary_mobile: profileData.primary_mobile || profileData.mobile_number || userData.primaryMobile,
+            organization_id: profileData.organization_id || userData.organizationId,
+            account_status: profileData.account_status || 'active',
+            car_details_count: profileData.car_details_count || 0,
+            car_driver_count: profileData.car_driver_count || 0
+          };
+        }
+      } catch (error) {
+        console.warn('⚠️ Could not fetch profile data, using basic user data:', error);
+      }
+
+      // Try to fetch car details
       try {
         const carsResponse = await axiosInstance.get('/api/users/vehicleowner/cars', {
           headers: authHeaders
         });
-        cars = carsResponse.data || [];
-        console.log('✅ Car details fetched:', cars.length, 'cars');
+        if (carsResponse.data) {
+          dashboardData.cars = carsResponse.data;
+          console.log('✅ Car details fetched:', dashboardData.cars.length, 'cars');
+        }
       } catch (error) {
-        console.error('❌ Failed to fetch car details:', error);
-        cars = [];
+        console.warn('⚠️ Could not fetch car details, using empty array:', error);
       }
-    }
 
-    // Fetch driver details
-    let drivers: DriverDetail[] = [];
-    if (userInfo.car_driver_count > 0) {
+      // Try to fetch driver details
       try {
         const driversResponse = await axiosInstance.get('/api/users/vehicleowner/drivers', {
           headers: authHeaders
         });
-        drivers = driversResponse.data || [];
-        console.log('✅ Driver details fetched:', drivers.length, 'drivers');
+        if (driversResponse.data) {
+          dashboardData.drivers = driversResponse.data;
+          console.log('✅ Driver details fetched:', dashboardData.drivers.length, 'drivers');
+        }
       } catch (error) {
-        console.error('❌ Failed to fetch driver details:', error);
-        drivers = [];
+        console.warn('⚠️ Could not fetch driver details, using empty array:', error);
       }
     }
 
-    const dashboardData: DashboardData = {
-      user_info: {
-        id: userInfo.id || userInfo.user_id,
-        full_name: userInfo.full_name,
-        primary_mobile: userInfo.primary_mobile || userInfo.mobile_number,
-        organization_id: userInfo.organization_id,
-        account_status: userInfo.account_status,
-        car_details_count: userInfo.car_details_count || 0,
-        car_driver_count: userInfo.car_driver_count || 0
-      },
-      cars,
-      drivers
-    };
-
-    console.log('📊 Dashboard data assembled:', {
+    console.log('📊 Final dashboard data assembled:', {
       user: dashboardData.user_info,
       carCount: dashboardData.cars.length,
       driverCount: dashboardData.drivers.length
@@ -121,7 +152,9 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
   } catch (error: any) {
     console.error('❌ Failed to fetch dashboard data:', error);
     
-    if (error.response?.status === 401) {
+    if (error.message?.includes('No user data found')) {
+      throw new Error('Please login again to access dashboard data.');
+    } else if (error.response?.status === 401) {
       throw new Error('Authentication failed. Please login again.');
     } else if (error.response?.status === 500) {
       throw new Error('Server error. Please try again later.');

@@ -17,7 +17,7 @@ import { Smartphone, Lock, ArrowRight } from 'lucide-react-native';
 import WelcomeScreen from '@/components/WelcomeScreen';
 import AccountVerificationScreen from '@/components/AccountVerificationScreen';
 import axiosInstance from '@/app/api/axiosInstance';
-import { extractUserIdFromJWT } from '@/utils/jwtDecoder';
+import { extractUserIdFromJWT } from '@/utils/jwtDecoder'; 
 
 // Helper function to validate Indian mobile numbers
 const validateIndianMobile = (phone: string): boolean => {

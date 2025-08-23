@@ -12,6 +12,7 @@ import { BlurView } from 'expo-blur';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWallet } from '@/contexts/WalletContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useDashboard } from '@/contexts/DashboardContext';
 import { useRouter } from 'expo-router';
 import { 
   X, 
@@ -33,9 +34,10 @@ interface DrawerNavigationProps {
 }
 
 export default function DrawerNavigation({ visible, onClose }: DrawerNavigationProps) {
-  const { user, logout } = useAuth();
+  const { user, refreshUserData, logout } = useAuth();
   const { balance } = useWallet();
   const { colors } = useTheme();
+  const { dashboardData } = useDashboard();
   const router = useRouter();
 
   const handleLogout = () => {
@@ -55,6 +57,15 @@ export default function DrawerNavigation({ visible, onClose }: DrawerNavigationP
         }
       ]
     );
+  };
+
+  const handleRefreshUserData = async () => {
+    try {
+      await refreshUserData();
+      Alert.alert('Success', 'User data refreshed successfully');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to refresh user data');
+    }
   };
 
   const dynamicStyles = StyleSheet.create({
@@ -189,7 +200,14 @@ export default function DrawerNavigation({ visible, onClose }: DrawerNavigationP
       paddingTop: 20,
     },
   });
-  const MenuItem = ({ icon, title, subtitle, onPress, danger = false, rightComponent }) => (
+  const MenuItem = ({ icon, title, subtitle, onPress, danger = false, rightComponent }: {
+    icon: React.ReactElement;
+    title: string;
+    subtitle?: string;
+    onPress: () => void;
+    danger?: boolean;
+    rightComponent?: React.ReactElement;
+  }) => (
     <TouchableOpacity style={dynamicStyles.menuItem} onPress={onPress}>
       <View style={dynamicStyles.menuLeft}>
         <View style={[dynamicStyles.menuIcon, danger && dynamicStyles.dangerIcon]}>
@@ -232,19 +250,25 @@ export default function DrawerNavigation({ visible, onClose }: DrawerNavigationP
                   <User color="#FFFFFF" size={24} />
                 </View>
                 <View style={dynamicStyles.profileDetails}>
-                  <Text style={dynamicStyles.profileName}>{user?.name}</Text>
+                  <Text style={dynamicStyles.profileName}>
+                    {user?.fullName || 'Driver'}
+                  </Text>
                   <View style={dynamicStyles.profileRow}>
                     <Phone color={colors.textSecondary} size={14} />
-                    <Text style={dynamicStyles.profileText}>{user?.mobile}</Text>
+                    <Text style={dynamicStyles.profileText}>
+                      {user?.primaryMobile || 'No mobile number'}
+                    </Text>
                   </View>
                   <View style={dynamicStyles.profileRow}>
                     <MapPin color={colors.textSecondary} size={14} />
-                    <Text style={dynamicStyles.profileText}>{user?.address}</Text>
+                    <Text style={dynamicStyles.profileText}>
+                      {user?.address || 'No address'}
+                    </Text>
                   </View>
                   <View style={dynamicStyles.profileRow}>
                     <Languages color={colors.textSecondary} size={14} />
                     <Text style={dynamicStyles.profileText}>
-                      {user?.languages?.join(', ')}
+                      {user?.languages && user.languages.length > 0 ? user.languages.join(', ') : 'No languages'}
                     </Text>
                   </View>
                 </View>
@@ -253,26 +277,26 @@ export default function DrawerNavigation({ visible, onClose }: DrawerNavigationP
 
             {/* Menu Items */}
             <View style={dynamicStyles.menuSection}>
-
-
               <MenuItem
                 icon={<Car color={colors.textSecondary} size={20} />}
                 title="My Cars"
-                subtitle={`${user?.cars?.length || 0} vehicles registered`}
+                subtitle={`${dashboardData?.cars?.length || 0} vehicles registered`}
                 onPress={() => {
                   onClose();
                   router.push('/my-cars');
                 }}
+                rightComponent={<ChevronRight color={colors.textSecondary} size={20} />}
               />
 
               <MenuItem
                 icon={<Users color={colors.textSecondary} size={20} />}
                 title="My Drivers"
-                subtitle="Manage your drivers"
+                subtitle={`${dashboardData?.drivers?.length || 0} drivers registered`}
                 onPress={() => {
                   onClose();
                   router.push('/my-drivers');
                 }}
+                rightComponent={<ChevronRight color={colors.textSecondary} size={20} />}
               />
 
               <MenuItem
@@ -283,6 +307,7 @@ export default function DrawerNavigation({ visible, onClose }: DrawerNavigationP
                   onClose();
                   router.push('/(tabs)/rides');
                 }}
+                rightComponent={<ChevronRight color={colors.textSecondary} size={20} />}
               />
 
               <MenuItem
@@ -293,6 +318,15 @@ export default function DrawerNavigation({ visible, onClose }: DrawerNavigationP
                   onClose();
                   router.push('/(tabs)/settings');
                 }}
+                rightComponent={<ChevronRight color={colors.textSecondary} size={20} />}
+              />
+
+              <MenuItem
+                icon={<User color={colors.textSecondary} size={20} />}
+                title="Refresh Data"
+                subtitle="Update user information"
+                onPress={handleRefreshUserData}
+                rightComponent={<ChevronRight color={colors.textSecondary} size={20} />}
               />
             </View>
 
