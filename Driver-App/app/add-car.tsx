@@ -114,7 +114,7 @@ export default function AddCarScreen() {
         car_type: carData.type,
         car_number: carData.registration,
         organization_id: user?.organizationId || 'org_001',
-        vehicle_owner_id: user?.id || '',
+        vehicle_owner_id: user?.id || 'e5b9edb1-b4bb-48b8-a662-f7fd00abb6eb', // Use actual user ID from JWT
         rc_front_img: carImages.rcFront,
         rc_back_img: carImages.rcBack,
         insurance_img: carImages.insurance,

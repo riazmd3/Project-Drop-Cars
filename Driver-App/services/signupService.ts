@@ -1,6 +1,5 @@
 import axiosInstance from '@/app/api/axiosInstance';
 import { authService, getAuthHeaders } from './authService';
-import { handleValidationError } from '@/utils/validationErrorHandler';
 
 // Single API call interface matching your working Postman request
 export interface SignupData {
@@ -143,9 +142,6 @@ export const signupAccount = async (personalData: any, documents: any): Promise<
   
   // All retries failed, throw the last error
   console.error('❌ All signup attempts failed');
-  
-  // Use the validation error handler for better error messages
-  handleValidationError(lastError);
   
   // Provide specific error messages based on error type
   if (lastError.code === 'ECONNABORTED') {
@@ -331,9 +327,6 @@ export const loginVehicleOwner = async (mobileNumber: string, password: string):
   } catch (error: any) {
     console.error('❌ Login failed:', error);
     
-    // Use the validation error handler for better error messages
-    handleValidationError(error);
-    
     if (error.response?.status === 401) {
       throw new Error('Invalid mobile number or password');
     } else if (error.response?.status === 400) {
@@ -370,9 +363,6 @@ export const verifyJWTToken = async (token: string): Promise<JWTVerificationResp
     };
   } catch (error: any) {
     console.error('❌ JWT verification failed:', error);
-    
-    // Use the validation error handler for better error messages
-    handleValidationError(error);
     
     if (error.response?.status === 401) {
       throw new Error('JWT token is invalid or expired');
@@ -560,9 +550,6 @@ export const addCarDetails = async (carData: CarDetailsData): Promise<CarDetails
       }
     });
 
-    // Use the validation error handler for better error messages
-    handleValidationError(error);
-    
     // Provide specific error messages based on error type
     if (error.code === 'ECONNABORTED') {
       throw new Error('Request timeout - server is taking too long to respond. Please try again.');
@@ -659,10 +646,6 @@ export const addCarDetailsWithLogin = async (
     }
   } catch (error: any) {
     console.error('❌ Car details with login failed:', error);
-    
-    // Use the validation error handler for better error messages
-    handleValidationError(error);
-    
     throw error;
   }
 };

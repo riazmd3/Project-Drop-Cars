@@ -8,7 +8,7 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
-import { User, Phone, MapPin, ArrowRight, Lock, Hash, AlertCircle } from 'lucide-react-native';
+import { User, Phone, MapPin, ArrowRight, Lock, Hash } from 'lucide-react-native';
 
 interface PersonalDetailsStepProps {
   data: any;
@@ -55,84 +55,29 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
   const [address, setAddress] = useState(data.address || '');
   const [aadharNumber, setAadharNumber] = useState(data.aadharNumber || '');
   const [organizationId, setOrganizationId] = useState(data.organizationId || 'org_001');
-  
-  // Validation error states
-  const [primaryMobileError, setPrimaryMobileError] = useState<string | null>(null);
-  const [secondaryMobileError, setSecondaryMobileError] = useState<string | null>(null);
-  const [aadharNumberError, setAadharNumberError] = useState<string | null>(null);
 
 
 
-
-  // Function to validate mobile number and clear errors
-  const validateMobileNumber = (mobile: string, isPrimary: boolean = true) => {
-    if (!mobile) {
-      if (isPrimary) {
-        setPrimaryMobileError(null);
-      } else {
-        setSecondaryMobileError(null);
-      }
-      return true;
-    }
-
-    if (!validateIndianMobile(mobile)) {
-      const errorMessage = 'Must start with 6, 7, 8, or 9';
-      if (isPrimary) {
-        setPrimaryMobileError(errorMessage);
-      } else {
-        setSecondaryMobileError(errorMessage);
-      }
-      return false;
-    }
-
-    // Clear error if validation passes
-    if (isPrimary) {
-      setPrimaryMobileError(null);
-    } else {
-      setSecondaryMobileError(null);
-    }
-    return true;
-  };
-
-  // Function to validate Aadhar number
-  const validateAadharNumber = (aadhar: string) => {
-    if (!aadhar) {
-      setAadharNumberError(null);
-      return true;
-    }
-
-    if (aadhar.length !== 12) {
-      setAadharNumberError('Must be exactly 12 digits');
-      return false;
-    }
-
-    if (!/^\d{12}$/.test(aadhar)) {
-      setAadharNumberError('Must contain only digits');
-      return false;
-    }
-
-    setAadharNumberError(null);
-    return true;
-  };
 
   const handleNext = () => {
-    // Clear all errors first
-    setPrimaryMobileError(null);
-    setSecondaryMobileError(null);
-    setAadharNumberError(null);
-
     if (!fullName || !primaryMobile || !password || !address || !aadharNumber) {
       Alert.alert('Error', 'Please fill all required fields');
       return;
     }
 
-    // Validate all fields
-    const isPrimaryMobileValid = validateMobileNumber(primaryMobile, true);
-    const isSecondaryMobileValid = secondaryMobile ? validateMobileNumber(secondaryMobile, false) : true;
-    const isAadharValid = validateAadharNumber(aadharNumber);
+    if (!validateIndianMobile(primaryMobile)) {
+      Alert.alert('Error', 'Please enter a valid primary mobile number starting with 6, 7, 8, or 9');
+      return;
+    }
 
-    if (!isPrimaryMobileValid || !isSecondaryMobileValid || !isAadharValid) {
-      return; // Don't proceed if validation fails
+    if (secondaryMobile && !validateIndianMobile(secondaryMobile)) {
+      Alert.alert('Error', 'Please enter a valid secondary mobile number starting with 6, 7, 8, or 9');
+      return;
+    }
+
+    if (aadharNumber.length !== 12) {
+      Alert.alert('Error', 'Please enter a valid 12-digit Aadhar number');
+      return;
     }
 
     const personalData = {
@@ -171,7 +116,7 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
         <View style={styles.inputGroup}>
           <Phone color="#6B7280" size={20} />
           <TextInput
-            style={[styles.input, primaryMobileError && styles.inputError]}
+            style={styles.input}
             placeholder="Primary Mobile Number (10 digits)"
             value={primaryMobile}
             onChangeText={(text) => {
@@ -179,28 +124,22 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
               const cleanText = text.replace(/[^\d+]/g, '');
               if (cleanText.startsWith('+91') || cleanText.length <= 10) {
                 setPrimaryMobile(cleanText);
-                // Validate in real-time
-                validateMobileNumber(cleanText, true);
               }
             }}
-            onBlur={() => validateMobileNumber(primaryMobile, true)}
             keyboardType="phone-pad"
             maxLength={13}
           />
         </View>
         <Text style={styles.helperText}>Enter 10-digit mobile number starting with 6, 7, 8, or 9</Text>
-        {primaryMobileError && (
-          <View style={styles.errorContainer}>
-            <AlertCircle color="#EF4444" size={16} />
-            <Text style={styles.errorText}>{primaryMobileError}</Text>
-          </View>
+        {primaryMobile && !validateIndianMobile(primaryMobile) && (
+          <Text style={styles.errorText}>Must start with 6, 7, 8, or 9</Text>
         )}
 
         {/* Secondary Mobile */}
         <View style={styles.inputGroup}>
           <Phone color="#6B7280" size={20} />
           <TextInput
-            style={[styles.input, secondaryMobileError && styles.inputError]}
+            style={styles.input}
             placeholder="Secondary Mobile Number (Optional)"
             value={secondaryMobile}
             onChangeText={(text) => {
@@ -208,11 +147,8 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
               const cleanText = text.replace(/[^\d+]/g, '');
               if (cleanText.startsWith('+91') || cleanText.length <= 10) {
                 setSecondaryMobile(cleanText);
-                // Validate in real-time
-                validateMobileNumber(cleanText, false);
               }
             }}
-            onBlur={() => validateMobileNumber(secondaryMobile, false)}
             keyboardType="phone-pad"
             maxLength={13}
           />
@@ -220,11 +156,8 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
         {secondaryMobile && (
           <Text style={styles.helperText}>Enter 10-digit mobile number starting with 6, 7, 8, or 9</Text>
         )}
-        {secondaryMobileError && (
-          <View style={styles.errorContainer}>
-            <AlertCircle color="#EF4444" size={16} />
-            <Text style={styles.errorText}>{secondaryMobileError}</Text>
-          </View>
+        {secondaryMobile && !validateIndianMobile(secondaryMobile) && (
+          <Text style={styles.errorText}>Must start with 6, 7, 8, or 9</Text>
         )}
 
         {/* Password */}
@@ -256,25 +189,14 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
         <View style={styles.inputGroup}>
           <Hash color="#6B7280" size={20} />
           <TextInput
-            style={[styles.input, aadharNumberError && styles.inputError]}
+            style={styles.input}
             placeholder="Aadhar Number"
             value={aadharNumber}
-            onChangeText={(text) => {
-              setAadharNumber(text);
-              // Validate in real-time
-              validateAadharNumber(text);
-            }}
-            onBlur={() => validateAadharNumber(aadharNumber)}
+            onChangeText={setAadharNumber}
             keyboardType="numeric"
             maxLength={12}
           />
         </View>
-        {aadharNumberError && (
-          <View style={styles.errorContainer}>
-            <AlertCircle color="#EF4444" size={16} />
-            <Text style={styles.errorText}>{aadharNumberError}</Text>
-          </View>
-        )}
 
         {/* Organization ID */}
         <View style={styles.inputGroup}>
@@ -396,7 +318,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontFamily: 'Inter-Regular',
     marginTop: 4,
-    marginLeft: 8
+    marginLeft: 44
   },
   helperText: {
     color: '#6B7280',
@@ -405,14 +327,5 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginLeft: 44,
     marginBottom: 8
-  },
-  inputError: {
-    borderColor: '#EF4444',
-  },
-  errorContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-    marginLeft: 44,
   },
 });

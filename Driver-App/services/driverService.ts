@@ -1,299 +1,207 @@
 import axiosInstance from '@/app/api/axiosInstance';
-import authService from './authService';
+import { getAuthHeaders } from '@/services/authService';
 
-// Driver API interface matching your backend structure
-export interface DriverData {
-  driver_name: string;
-  mobile_number: string;
-  aadhar_number?: string;
-  rc_front_img?: any; // File object for FormData
-  rc_back_img?: any; // File object for FormData
-  spoken_languages: string[];
+export interface DriverDetails {
+  full_name: string;
+  primary_number: string;
+  secondary_number?: string;
+  password: string;
+  licence_number: string;
+  adress: string;
   organization_id: string;
   vehicle_owner_id: string;
-  driver_id?: string; // For editing existing drivers
+  licence_front_img?: string;
+  rc_front_img?: string;
+  rc_back_img?: string;
+  insurance_img?: string;
+  fc_img?: string;
+  car_img?: string;
 }
 
-// Driver response interface
 export interface DriverResponse {
   message: string;
   driver_id: string;
   status: string;
-  driver_details: {
-    driver_name: string;
-    mobile_number: string;
-    aadhar_number?: string;
-    rc_front_img_url?: string;
-    rc_back_img_url?: string;
-    spoken_languages: string[];
-    organization_id: string;
-    vehicle_owner_id: string;
-    status: string;
-  };
 }
 
-// Get all drivers for a vehicle owner
-export const getDrivers = async (): Promise<DriverResponse[]> => {
-  console.log('👥 Fetching drivers list...');
-  
+export const addDriverDetails = async (driverData: DriverDetails): Promise<DriverResponse> => {
   try {
-    const token = await authService.getToken();
-    if (!token) {
-      throw new Error('No authentication token found. Please login first.');
-    }
+    console.log('🚗 Starting driver details registration...');
+    console.log('📤 Driver data received:', driverData);
 
-    const response = await axiosInstance.get('/api/users/drivers/list', {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
-
-    console.log('✅ Drivers list fetched successfully:', response.data);
-    return response.data.drivers || [];
-  } catch (error: any) {
-    console.error('❌ Failed to fetch drivers:', error);
-    throw error;
-  }
-};
-
-// Add new driver
-export const addDriver = async (driverData: DriverData): Promise<DriverResponse> => {
-  console.log('👤 Starting driver registration...');
-  console.log('📤 Driver data received:', JSON.stringify(driverData, null, 2));
-  
-  try {
-    const token = await authService.getToken();
-    if (!token) {
-      throw new Error('No authentication token found. Please login first.');
-    }
-
-    // Create FormData for multipart/form-data upload
+    // Create FormData for file uploads
     const formData = new FormData();
-    
-    // Helper function to append image files
-    const appendImageFile = (fieldName: string, imageUri: string, defaultName: string) => {
-      if (imageUri) {
-        const imageName = imageUri.split('/').pop() || defaultName;
-        const imageType = imageUri.endsWith('.png') ? 'image/png' : 'image/jpeg';
-        
-        formData.append(fieldName, {
-          uri: imageUri,
-          type: imageType,
-          name: imageName
-        } as any);
-        
-        console.log(`🖼️ ${fieldName} appended to FormData:`, { uri: imageUri, type: imageType, name: imageName });
-      } else {
-        console.log(`⚠️ ${fieldName} not provided, skipping...`);
-      }
-    };
 
-    // Append image files if provided
+    // Add text fields
+    formData.append('full_name', driverData.full_name);
+    formData.append('primary_number', driverData.primary_number);
+    if (driverData.secondary_number) {
+      formData.append('secondary_number', driverData.secondary_number);
+    }
+    formData.append('password', driverData.password);
+    formData.append('licence_number', driverData.licence_number);
+    formData.append('adress', driverData.adress);
+    formData.append('organization_id', driverData.organization_id);
+    formData.append('vehicle_owner_id', driverData.vehicle_owner_id);
+
+    // Add image files if they exist
+    if (driverData.licence_front_img) {
+      formData.append('licence_front_img', {
+        uri: driverData.licence_front_img,
+        type: 'image/jpeg',
+        name: 'licence_front.jpg'
+      } as any);
+      console.log('🖼️ licence_front_img appended to FormData');
+    }
+
     if (driverData.rc_front_img) {
-      appendImageFile('rc_front_img', driverData.rc_front_img, 'rc_front.jpg');
-    }
-    if (driverData.rc_back_img) {
-      appendImageFile('rc_back_img', driverData.rc_back_img, 'rc_back.jpg');
+      formData.append('rc_front_img', {
+        uri: driverData.rc_front_img,
+        type: 'image/jpeg',
+        name: 'rc_front.jpg'
+      } as any);
+      console.log('🖼️ rc_front_img appended to FormData');
     }
 
-    // Append text fields
-    formData.append('driver_name', driverData.driver_name || '');
-    formData.append('mobile_number', driverData.mobile_number || '');
-    if (driverData.aadhar_number) {
-      formData.append('aadhar_number', driverData.aadhar_number);
+    if (driverData.rc_back_img) {
+      formData.append('rc_back_img', {
+        uri: driverData.rc_back_img,
+        type: 'image/jpeg',
+        name: 'rc_back.jpg'
+      } as any);
+      console.log('🖼️ rc_back_img appended to FormData');
     }
-    formData.append('spoken_languages', JSON.stringify(driverData.spoken_languages || []));
-    formData.append('organization_id', driverData.organization_id || '');
-    formData.append('vehicle_owner_id', driverData.vehicle_owner_id || '');
+
+    if (driverData.insurance_img) {
+      formData.append('insurance_img', {
+        uri: driverData.insurance_img,
+        type: 'image/jpeg',
+        name: 'insurance.jpg'
+      } as any);
+      console.log('🖼️ insurance_img appended to FormData');
+    }
+
+    if (driverData.fc_img) {
+      formData.append('fc_img', {
+        uri: driverData.fc_img,
+        type: 'image/jpeg',
+        name: 'fc.jpg'
+      } as any);
+      console.log('🖼️ fc_img appended to FormData');
+    }
+
+    if (driverData.car_img) {
+      formData.append('car_img', {
+        uri: driverData.car_img,
+        type: 'image/jpeg',
+        name: 'car.jpg'
+      } as any);
+      console.log('🖼️ car_img appended to FormData');
+    }
 
     console.log('📤 FormData created with fields:', {
-      driver_name: driverData.driver_name,
-      mobile_number: driverData.mobile_number,
-      aadhar_number: driverData.aadhar_number || 'Not provided',
-      rc_front_img: driverData.rc_front_img ? 'File attached' : 'No file',
-      rc_back_img: driverData.rc_back_img ? 'File attached' : 'No file',
-      spoken_languages: driverData.spoken_languages,
+      full_name: driverData.full_name,
+      primary_number: driverData.primary_number,
+      licence_number: driverData.licence_number,
+      adress: driverData.adress,
       organization_id: driverData.organization_id,
-      vehicle_owner_id: driverData.vehicle_owner_id
+      vehicle_owner_id: driverData.vehicle_owner_id,
+      licence_front_img: driverData.licence_front_img ? 'File attached' : 'Not provided',
+      rc_front_img: driverData.rc_front_img ? 'File attached' : 'Not provided',
+      rc_back_img: driverData.rc_back_img ? 'File attached' : 'Not provided',
+      insurance_img: driverData.insurance_img ? 'File attached' : 'Not provided',
+      fc_img: driverData.fc_img ? 'File attached' : 'Not provided',
+      car_img: driverData.car_img ? 'File attached' : 'Not provided'
     });
 
-    // Make the API call (matches provided endpoint)
+    // Get authentication headers
+    const authHeaders = await getAuthHeaders();
+    console.log('🔐 Using JWT token:', authHeaders.Authorization?.substring(0, 20) + '...');
+
+    // Make API call
     const response = await axiosInstance.post('/api/users/cardriver/signup', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
-        'Authorization': `Bearer ${token}`
-      }
+        ...authHeaders
+      },
     });
 
-    console.log('✅ Driver registration successful:', response.data);
-    return response.data;
-  } catch (error: any) {
-    console.error('❌ Driver registration failed:', error);
-    throw error;
-  }
-};
+    console.log('✅ Driver details API response received:', {
+      status: response.status,
+      statusText: response.statusText,
+      data: response.data
+    });
 
-// Edit existing driver
-export const editDriver = async (driverData: DriverData): Promise<DriverResponse> => {
-  console.log('✏️ Starting driver update...');
-  console.log('📤 Driver update data:', JSON.stringify(driverData, null, 2));
-  
-  try {
-    const token = await authService.getToken();
-    if (!token) {
-      throw new Error('No authentication token found. Please login first.');
-    }
+    // Check if response is successful
+    if (response.status >= 200 && response.status < 300) {
+      const responseData = response.data;
+      
+      if (!responseData) {
+        console.error('❌ Response data is null or undefined');
+        throw new Error('Invalid response from server');
+      }
 
-    if (!driverData.driver_id) {
-      throw new Error('Driver ID is required for editing');
-    }
-
-    // Create FormData for multipart/form-data upload
-    const formData = new FormData();
-    
-    // Helper function to append image files
-    const appendImageFile = (fieldName: string, imageUri: string, defaultName: string) => {
-      if (imageUri) {
-        const imageName = imageUri.split('/').pop() || defaultName;
-        const imageType = imageUri.endsWith('.png') ? 'image/png' : 'image/jpeg';
-        
-        formData.append(fieldName, {
-          uri: imageUri,
-          type: imageType,
-          name: imageName
-        } as any);
-        
-        console.log(`🖼️ ${fieldName} appended to FormData:`, { uri: imageUri, type: imageType, name: imageName });
+      // Validate response structure
+      if (responseData.status === 'success' || responseData.driver_id) {
+        console.log('✅ Driver details registration successful');
+        return responseData;
       } else {
-        console.log(`⚠️ ${fieldName} not provided, skipping...`);
+        console.log('⚠️ Response structure unexpected, but status is successful');
+        return responseData;
       }
-    };
-
-    // Append image files if provided
-    if (driverData.rc_front_img) {
-      appendImageFile('rc_front_img', driverData.rc_front_img, 'rc_front.jpg');
-    }
-    if (driverData.rc_back_img) {
-      appendImageFile('rc_back_img', driverData.rc_back_img, 'rc_back.jpg');
-    }
-
-    // Append text fields
-    formData.append('driver_id', driverData.driver_id);
-    formData.append('driver_name', driverData.driver_name || '');
-    formData.append('mobile_number', driverData.mobile_number || '');
-    if (driverData.aadhar_number) {
-      formData.append('aadhar_number', driverData.aadhar_number);
-    }
-    formData.append('spoken_languages', JSON.stringify(driverData.spoken_languages || []));
-    formData.append('organization_id', driverData.organization_id || '');
-    formData.append('vehicle_owner_id', driverData.vehicle_owner_id || '');
-
-    console.log('📤 FormData created for update with fields:', {
-      driver_id: driverData.driver_id,
-      driver_name: driverData.driver_name,
-      mobile_number: driverData.mobile_number,
-      aadhar_number: driverData.aadhar_number || 'Not provided',
-      rc_front_img: driverData.rc_front_img ? 'File attached' : 'No file',
-      rc_back_img: driverData.rc_back_img ? 'File attached' : 'No file',
-      spoken_languages: driverData.spoken_languages,
-      organization_id: driverData.organization_id,
-      vehicle_owner_id: driverData.vehicle_owner_id
-    });
-
-    // Make the API call
-    const response = await axiosInstance.put(`/api/users/drivers/${driverData.driver_id}`, formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-        'Authorization': `Bearer ${token}`
-      }
-    });
-
-    console.log('✅ Driver update successful:', response.data);
-    return response.data;
-  } catch (error: any) {
-    console.error('❌ Driver update failed:', error);
-    throw error;
-  }
-};
-
-// Delete driver
-export const deleteDriver = async (driverId: string): Promise<{ message: string }> => {
-  console.log('🗑️ Starting driver deletion...');
-  
-  try {
-    const token = await authService.getToken();
-    if (!token) {
-      throw new Error('No authentication token found. Please login first.');
-    }
-
-    const response = await axiosInstance.delete(`/api/users/drivers/${driverId}`, {
-      headers: {
-        'Authorization': `Bearer ${token}`
-      }
-    });
-
-    console.log('✅ Driver deleted successfully:', response.data);
-    return response.data;
-  } catch (error: any) {
-    console.error('❌ Driver deletion failed:', error);
-    throw error;
-  }
-};
-
-// Test function to validate driver data structure
-export const testDriverDataStructure = (driverData: DriverData) => {
-  console.log('🧪 Testing driver data structure...');
-  console.log('📋 Data structure validation:');
-  
-  // Check required text fields
-  const requiredTextFields = ['driver_name', 'mobile_number', 'organization_id', 'vehicle_owner_id'];
-  for (const field of requiredTextFields) {
-    const value = driverData[field as keyof DriverData];
-    if (!value || value.toString().trim().length === 0) {
-      console.log(`  ❌ ${field}: Missing or empty`);
-      return false;
-    }
-    console.log(`  ✅ ${field}: ${value}`);
-  }
-  
-  // Check optional fields
-  if (driverData.aadhar_number) {
-    console.log(`  ✅ aadhar_number: ${driverData.aadhar_number}`);
-  } else {
-    console.log(`  ⚠️ aadhar_number: Not provided (optional)`);
-  }
-  
-  // Check spoken languages
-  if (driverData.spoken_languages && driverData.spoken_languages.length > 0) {
-    console.log(`  ✅ spoken_languages: ${driverData.spoken_languages.join(', ')}`);
-  } else {
-    console.log(`  ⚠️ spoken_languages: Not provided (optional)`);
-  }
-  
-  // Check image fields
-  const imageFields = ['rc_front_img', 'rc_back_img'];
-  for (const field of imageFields) {
-    const imageUri = driverData[field as keyof DriverData];
-    if (imageUri) {
-      console.log(`  ✅ ${field}: File attached`);
     } else {
-      console.log(`  ⚠️ ${field}: No file (optional)`);
+      throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+    }
+
+  } catch (error: any) {
+    console.error('❌ Driver details registration failed with error:', error);
+    
+    if (error.response?.status === 400 || error.response?.status === 422) {
+      // Handle validation errors
+      const errorData = error.response.data;
+      if (errorData?.detail) {
+        throw new Error(`Validation Error: ${errorData.detail}`);
+      } else if (errorData?.message) {
+        throw new Error(`Validation Error: ${errorData.message}`);
+      } else {
+        throw new Error('Validation Error: Please check your input data');
+      }
+    } else if (error.response?.status === 401) {
+      throw new Error('Authentication failed. Please login again.');
+    } else if (error.response?.status === 500) {
+      throw new Error('Server error. Please try again later.');
+    } else if (error.code === 'ECONNABORTED') {
+      throw new Error('Request timeout. Please check your connection.');
+    } else if (error.code === 'ERR_NETWORK') {
+      throw new Error('Network error. Please check your internet connection.');
+    } else {
+      throw new Error(error.message || 'Failed to register driver details');
     }
   }
-  
-  console.log('✅ Driver data structure validation completed');
-  return true;
 };
 
-// Test function to check driver API connectivity
-export const testDriverConnection = async () => {
+export const getDriverDetails = async (driverId: string) => {
   try {
-    console.log('🧪 Testing driver endpoint connectivity...');
-    const response = await axiosInstance.get('/api/users/drivers/list');
-    console.log('✅ Driver endpoint accessible:', response.status);
-    return true;
+    const authHeaders = await getAuthHeaders();
+    const response = await axiosInstance.get(`/api/users/cardriver/${driverId}`, {
+      headers: authHeaders
+    });
+    return response.data;
   } catch (error: any) {
-    console.error('❌ Driver endpoint test failed:', error.message);
-    return false;
+    console.error('❌ Failed to get driver details:', error);
+    throw new Error('Failed to fetch driver details');
+  }
+};
+
+export const updateDriverDetails = async (driverId: string, driverData: Partial<DriverDetails>) => {
+  try {
+    const authHeaders = await getAuthHeaders();
+    const response = await axiosInstance.put(`/api/users/cardriver/${driverId}`, driverData, {
+      headers: authHeaders
+    });
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ Failed to update driver details:', error);
+    throw new Error('Failed to update driver details');
   }
 };

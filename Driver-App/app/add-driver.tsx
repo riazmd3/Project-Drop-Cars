@@ -10,33 +10,34 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, User, Phone, MapPin, Hash, Upload, Save } from 'lucide-react-native';
+import { ArrowLeft, User, Save, Upload, CheckCircle, FileText, Image, Phone, Lock, MapPin, CreditCard } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
-import { addDriver as addDriverApi, DriverData } from '@/services/driverService';
+import { addDriverDetails, DriverDetails } from '@/services/driverService';
 import * as ImagePicker from 'expo-image-picker';
-
-
 
 export default function AddDriverScreen() {
   const [driverData, setDriverData] = useState({
-    name: '',
-    mobile: '',
-    address: '',
-    aadharNumber: '',
-    licenseNumber: '',
-    experience: '',
+    full_name: '',
+    primary_number: '',
+    secondary_number: '',
+    password: '',
+    licence_number: '',
+    adress: '',
   });
-  const [documents, setDocuments] = useState({
-    aadharFront: '',
-    aadharBack: '',
-    licenseFront: '',
-    licenseBack: '',
-    profilePhoto: '',
+  
+  const [driverImages, setDriverImages] = useState({
+    licence_front_img: '',
+    rc_front_img: '',
+    rc_back_img: '',
+    insurance_img: '',
+    fc_img: '',
+    car_img: '',
   });
+  
   const router = useRouter();
   const { user } = useAuth();
 
-  const pickDocument = async (documentKey: string) => {
+  const pickImage = async (imageKey: string) => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -46,9 +47,9 @@ export default function AddDriverScreen() {
       });
 
       if (!result.canceled) {
-        setDocuments(prev => ({
+        setDriverImages(prev => ({
           ...prev,
-          [documentKey]: result.assets[0].uri
+          [imageKey]: result.assets[0].uri
         }));
       }
     } catch (error) {
@@ -56,77 +57,91 @@ export default function AddDriverScreen() {
     }
   };
 
+  const ImageUploadField = ({ 
+    title, 
+    description, 
+    imageKey, 
+    isRequired = true 
+  }: { 
+    title: string; 
+    description: string; 
+    imageKey: string; 
+    isRequired?: boolean;
+  }) => {
+    const imageUri = driverImages[imageKey as keyof typeof driverImages];
+    const isUploaded = !!imageUri;
+    
+    return (
+      <TouchableOpacity
+        style={[styles.imageUploadField, isUploaded && styles.uploadedField]}
+        onPress={() => pickImage(imageKey)}
+      >
+        <View style={styles.imageUploadLeft}>
+          <View style={[styles.imageUploadIcon, isUploaded && styles.uploadedIcon]}>
+            {isUploaded ? (
+              <CheckCircle color="#FFFFFF" size={20} />
+            ) : (
+              <Image color="#6B7280" size={20} />
+            )}
+          </View>
+          <View style={styles.imageUploadText}>
+            <Text style={styles.imageUploadTitle}>
+              {title} {isRequired && <Text style={styles.required}>*</Text>}
+            </Text>
+            <Text style={styles.imageUploadDescription}>{description}</Text>
+          </View>
+        </View>
+        <Upload color={isUploaded ? "#10B981" : "#6B7280"} size={20} />
+      </TouchableOpacity>
+    );
+  };
+
   const handleSave = async () => {
-    if (!driverData.name || !driverData.mobile || !driverData.address || !driverData.aadharNumber) {
-      Alert.alert('Error', 'Please fill all required fields');
+    // Check required text fields
+    if (!driverData.full_name || !driverData.primary_number || !driverData.password || !driverData.licence_number || !driverData.adress) {
+      Alert.alert('Error', 'Please fill all required driver details');
       return;
     }
 
-
-
-    if (!documents.aadharFront || !documents.licenseFront) {
-      Alert.alert('Error', 'Please upload required documents');
+    // Check required images
+    if (!driverImages.licence_front_img) {
+      Alert.alert('Error', 'Please upload the driving licence front image');
       return;
     }
 
     try {
-      const payload: DriverData = {
-        driver_name: driverData.name,
-        mobile_number: driverData.mobile,
-        aadhar_number: driverData.aadharNumber,
-        rc_front_img: documents.aadharFront || undefined,
-        rc_back_img: documents.aadharBack || undefined,
-        spoken_languages: [],
+      const payload: DriverDetails = {
+        full_name: driverData.full_name,
+        primary_number: driverData.primary_number,
+        secondary_number: driverData.secondary_number || '',
+        password: driverData.password,
+        licence_number: driverData.licence_number,
+        adress: driverData.adress,
         organization_id: user?.organizationId || 'org_001',
-        vehicle_owner_id: user?.id || ''
+        vehicle_owner_id: user?.id || 'e5b9edb1-b4bb-48b8-a662-f7fd00abb6eb', // Use actual user ID
+        licence_front_img: driverImages.licence_front_img,
+        rc_front_img: driverImages.rc_front_img || '',
+        rc_back_img: driverImages.rc_back_img || '',
+        insurance_img: driverImages.insurance_img || '',
+        fc_img: driverImages.fc_img || '',
+        car_img: driverImages.car_img || ''
       };
 
-      await addDriverApi(payload);
+      await addDriverDetails(payload);
 
       Alert.alert(
         'Success',
-        'Driver added successfully! Your documents are now under review.',
+        'Driver added successfully! You can now access the dashboard.',
         [
           {
             text: 'OK',
-            onPress: () => router.push('/documents-review')
+            onPress: () => router.replace('/(tabs)')
           }
         ]
       );
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to add driver');
     }
-  };
-
-  const DocumentUpload = ({ docType, required = false }: { 
-    docType: { key: keyof typeof documents; label: string }; 
-    required?: boolean; 
-  }) => {
-    const isUploaded = documents[docType.key];
-    
-    return (
-      <TouchableOpacity
-        style={[styles.documentCard, isUploaded && styles.uploadedCard]}
-        onPress={() => pickDocument(docType.key)}
-      >
-        <View style={styles.documentLeft}>
-          <View style={[styles.documentIcon, isUploaded && styles.uploadedIcon]}>
-            {isUploaded ? (
-              <Upload color="#FFFFFF" size={20} />
-            ) : (
-              <Upload color="#6B7280" size={20} />
-            )}
-          </View>
-          <View>
-            <Text style={styles.documentTitle}>{docType.label}</Text>
-            <Text style={styles.documentStatus}>
-              {isUploaded ? 'Uploaded' : required ? 'Required' : 'Optional'}
-            </Text>
-          </View>
-        </View>
-        <Upload color={isUploaded ? "#10B981" : "#6B7280"} size={20} />
-      </TouchableOpacity>
-    );
   };
 
   return (
@@ -143,22 +158,22 @@ export default function AddDriverScreen() {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.welcomeSection}>
-          <Text style={styles.welcomeTitle}>Driver Profile Setup</Text>
+          <Text style={styles.welcomeTitle}>Driver Registration</Text>
           <Text style={styles.welcomeSubtitle}>
-            Now let's add your first driver. This person will be driving your car.
+            Hi {user?.fullName}, let's add your first driver to complete the setup.
           </Text>
         </View>
 
         <View style={styles.form}>
-          <Text style={styles.sectionTitle}>Driver Personal Details</Text>
+          <Text style={styles.sectionTitle}>Driver Details</Text>
           
           <View style={styles.inputGroup}>
             <User color="#6B7280" size={20} />
             <TextInput
               style={styles.input}
-              placeholder="Driver Full Name"
-              value={driverData.name}
-              onChangeText={(text) => setDriverData(prev => ({ ...prev, name: text }))}
+              placeholder="Full Name (e.g., John Doe)"
+              value={driverData.full_name}
+              onChangeText={(text) => setDriverData(prev => ({ ...prev, full_name: text }))}
             />
           </View>
 
@@ -166,11 +181,43 @@ export default function AddDriverScreen() {
             <Phone color="#6B7280" size={20} />
             <TextInput
               style={styles.input}
-              placeholder="Driver Mobile Number"
-              value={driverData.mobile}
-              onChangeText={(text) => setDriverData(prev => ({ ...prev, mobile: text }))}
+              placeholder="Primary Mobile Number (+91XXXXXXXXXX)"
+              value={driverData.primary_number}
+              onChangeText={(text) => setDriverData(prev => ({ ...prev, primary_number: text }))}
               keyboardType="phone-pad"
-              maxLength={10}
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Phone color="#6B7280" size={20} />
+            <TextInput
+              style={styles.input}
+              placeholder="Secondary Mobile Number (Optional)"
+              value={driverData.secondary_number}
+              onChangeText={(text) => setDriverData(prev => ({ ...prev, secondary_number: text }))}
+              keyboardType="phone-pad"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Lock color="#6B7280" size={20} />
+            <TextInput
+              style={styles.input}
+              placeholder="Password"
+              value={driverData.password}
+              onChangeText={(text) => setDriverData(prev => ({ ...prev, password: text }))}
+              secureTextEntry
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <CreditCard color="#6B7280" size={20} />
+            <TextInput
+              style={styles.input}
+              placeholder="Driving Licence Number (e.g., DL-0123456789)"
+              value={driverData.licence_number}
+              onChangeText={(text) => setDriverData(prev => ({ ...prev, licence_number: text.toUpperCase() }))}
+              autoCapitalize="characters"
             />
           </View>
 
@@ -178,71 +225,59 @@ export default function AddDriverScreen() {
             <MapPin color="#6B7280" size={20} />
             <TextInput
               style={styles.input}
-              placeholder="Driver Address"
-              value={driverData.address}
-              onChangeText={(text) => setDriverData(prev => ({ ...prev, address: text }))}
+              placeholder="Address (e.g., 123 Main Street, Mumbai, Maharashtra)"
+              value={driverData.adress}
+              onChangeText={(text) => setDriverData(prev => ({ ...prev, adress: text }))}
               multiline
               numberOfLines={3}
             />
           </View>
 
-          <View style={styles.inputGroup}>
-            <Hash color="#6B7280" size={20} />
-            <TextInput
-              style={styles.input}
-              placeholder="Driver Aadhar Number"
-              value={driverData.aadharNumber}
-              onChangeText={(text) => setDriverData(prev => ({ ...prev, aadharNumber: text }))}
-              keyboardType="numeric"
-              maxLength={12}
-            />
-          </View>
+          <Text style={styles.sectionTitle}>Required Documents & Images</Text>
+          <Text style={styles.sectionSubtitle}>
+            Please upload clear images of all required documents
+          </Text>
 
-          <View style={styles.inputGroup}>
-            <Hash color="#6B7280" size={20} />
-            <TextInput
-              style={styles.input}
-              placeholder="Driver License Number"
-              value={driverData.licenseNumber}
-              onChangeText={(text) => setDriverData(prev => ({ ...prev, licenseNumber: text }))}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <User color="#6B7280" size={20} />
-            <TextInput
-              style={styles.input}
-              placeholder="Years of Driving Experience"
-              value={driverData.experience}
-              onChangeText={(text) => setDriverData(prev => ({ ...prev, experience: text }))}
-              keyboardType="numeric"
-              maxLength={2}
-            />
-          </View>
-
-
-
-          <Text style={styles.sectionTitle}>Required Documents</Text>
-          
-          <DocumentUpload 
-            docType={{ key: 'aadharFront', label: 'Aadhar Front Image' }} 
-            required={true} 
+          <ImageUploadField
+            title="Driving Licence Front Image"
+            description="Front side of driving licence"
+            imageKey="licence_front_img"
+            isRequired={true}
           />
-          <DocumentUpload 
-            docType={{ key: 'aadharBack', label: 'Aadhar Back Image' }} 
-            required={true} 
+
+          <ImageUploadField
+            title="RC Front Image"
+            description="Registration Certificate front side (Optional)"
+            imageKey="rc_front_img"
+            isRequired={false}
           />
-          <DocumentUpload 
-            docType={{ key: 'licenseFront', label: 'Driving License Front' }} 
-            required={true} 
+
+          <ImageUploadField
+            title="RC Back Image"
+            description="Registration Certificate back side (Optional)"
+            imageKey="rc_back_img"
+            isRequired={false}
           />
-          <DocumentUpload 
-            docType={{ key: 'licenseBack', label: 'Driving License Back' }} 
-            required={false} 
+
+          <ImageUploadField
+            title="Insurance Image"
+            description="Valid insurance certificate (Optional)"
+            imageKey="insurance_img"
+            isRequired={false}
           />
-          <DocumentUpload 
-            docType={{ key: 'profilePhoto', label: 'Driver Profile Photo' }} 
-            required={false} 
+
+          <ImageUploadField
+            title="FC Image"
+            description="Fitness Certificate (Optional)"
+            imageKey="fc_img"
+            isRequired={false}
+          />
+
+          <ImageUploadField
+            title="Car Image"
+            description="Clear photo of your car (Optional)"
+            imageKey="car_img"
+            isRequired={false}
           />
 
           <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
@@ -321,7 +356,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-SemiBold',
     color: '#1F2937',
     marginBottom: 20,
-    marginTop: 24,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: '#6B7280',
+    marginBottom: 16,
   },
   inputGroup: {
     flexDirection: 'row',
@@ -346,14 +386,15 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Medium',
     color: '#1F2937',
   },
-  documentCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+  imageUploadField: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     shadowColor: '#000',
@@ -362,37 +403,38 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  uploadedCard: {
+  uploadedField: {
     borderColor: '#10B981',
-    backgroundColor: '#F0FDF4',
+    borderWidth: 2,
   },
-  documentLeft: {
+  imageUploadLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
   },
-  documentIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
+  imageUploadIcon: {
+    backgroundColor: '#E5E7EB',
+    borderRadius: 10,
+    padding: 8,
   },
   uploadedIcon: {
     backgroundColor: '#10B981',
   },
-  documentTitle: {
+  imageUploadText: {
+    marginLeft: 12,
+  },
+  imageUploadTitle: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Inter-Medium',
     color: '#1F2937',
   },
-  documentStatus: {
+  required: {
+    color: '#EF4444',
+  },
+  imageUploadDescription: {
     fontSize: 12,
     fontFamily: 'Inter-Regular',
     color: '#6B7280',
-    marginTop: 2,
+    marginTop: 4,
   },
   saveButton: {
     backgroundColor: '#10B981',
@@ -410,7 +452,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-SemiBold',
     marginLeft: 8,
   },
-
 });
 
 

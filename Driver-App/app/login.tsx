@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Smartphone, Lock, ArrowRight } from 'lucide-react-native';
 import WelcomeScreen from '@/components/WelcomeScreen';
+import AccountVerificationScreen from '@/components/AccountVerificationScreen';
 import axiosInstance from '@/app/api/axiosInstance';
 
 // Helper function to validate Indian mobile numbers
@@ -41,6 +42,8 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [showAccountVerification, setShowAccountVerification] = useState(false);
+  const [accountStatus, setAccountStatus] = useState<string>('');
   const router = useRouter();
   const { login } = useAuth();
   const { colors } = useTheme();
@@ -92,18 +95,57 @@ export default function LoginScreen() {
       // Login with the user data and token
       await login(userData, response.data.access_token);
 
-      // Route based on counts from login response
+      // Check account status first
+      const accountStatus = response.data.account_status;
       const carCount = response.data.car_details_count ?? 0;
       const driverCount = response.data.car_driver_count ?? 0;
-      if (carCount === 0) {
-        router.replace('/add-car');
+      
+      console.log('🔍 Account status:', accountStatus);
+      console.log('🔍 Car count:', carCount);
+      console.log('🔍 Driver count:', driverCount);
+      console.log('🔍 Full response data:', response.data);
+      
+      if (accountStatus?.toLowerCase() === 'inactive') {
+        // Account is under verification
+        setAccountStatus(accountStatus);
+        setShowAccountVerification(true);
         return;
       }
-      if (driverCount === 0) {
-        router.replace('/add-driver');
+      
+      if (accountStatus?.toLowerCase() === 'rejected') {
+        // Account verification failed
+        setAccountStatus(accountStatus);
+        setShowAccountVerification(true);
         return;
       }
-      setShowWelcome(true);
+      
+      if (accountStatus?.toLowerCase() === 'pending') {
+        // Account is pending documents
+        setAccountStatus(accountStatus);
+        setShowAccountVerification(true);
+        return;
+      }
+      
+      // Account is active, proceed with normal flow
+      if (accountStatus?.toLowerCase() === 'active') {
+        // Route based on counts from login response
+        const carCount = response.data.car_details_count ?? 0;
+        const driverCount = response.data.car_driver_count ?? 0;
+        
+        if (carCount === 0) {
+          router.replace('/add-car');
+          return;
+        }
+        if (driverCount === 0) {
+          router.replace('/add-driver');
+          return;
+        }
+        setShowWelcome(true);
+      } else {
+        // Unknown status, show verification screen
+        setAccountStatus(accountStatus || 'unknown');
+        setShowAccountVerification(true);
+      }
 
     } catch (error: any) {
       console.error('❌ Login failed:', error);
@@ -137,6 +179,64 @@ export default function LoginScreen() {
     setShowWelcome(false);
     router.replace('/(tabs)');
   };
+
+  const handleRefreshStatus = async () => {
+    try {
+      setLoading(true);
+      // Make a request to check current account status
+      const response = await axiosInstance.post('/api/users/vehicleowner/login', {
+        mobile_number: formatPhoneForBackend(phoneNumber),
+        password: password
+      });
+      
+      const newStatus = response.data.account_status;
+      setAccountStatus(newStatus);
+      
+      if (newStatus?.toLowerCase() === 'active') {
+        // Status changed to active, proceed with normal flow
+        setShowAccountVerification(false);
+        const carCount = response.data.car_details_count ?? 0;
+        const driverCount = response.data.car_driver_count ?? 0;
+        
+        if (carCount === 0) {
+          router.replace('/add-car');
+          return;
+        }
+        if (driverCount === 0) {
+          router.replace('/add-driver');
+          return;
+        }
+        setShowWelcome(true);
+      }
+    } catch (error) {
+      console.error('❌ Failed to refresh status:', error);
+      Alert.alert('Error', 'Failed to refresh account status. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      // Clear any stored data
+      setShowAccountVerification(false);
+      setAccountStatus('');
+      // You can add more logout logic here if needed
+    } catch (error) {
+      console.error('❌ Logout error:', error);
+    }
+  };
+
+  if (showAccountVerification) {
+    return (
+      <AccountVerificationScreen
+        accountStatus={accountStatus}
+        onRefresh={handleRefreshStatus}
+        onLogout={handleLogout}
+        isLoading={loading}
+      />
+    );
+  }
 
   if (showWelcome) {
     return <WelcomeScreen onComplete={handleWelcomeComplete} />;
