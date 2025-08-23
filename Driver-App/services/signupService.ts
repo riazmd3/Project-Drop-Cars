@@ -460,6 +460,17 @@ export const addCarDetails = async (carData: CarDetailsData): Promise<CarDetails
     // Make the API call with FormData and JWT authentication
     // Endpoint: /api/users/cardetails/signup (matches Postman exactly)
     const authHeaders = await getAuthHeaders();
+    
+    console.log('🔍 Request details:', {
+      url: '/api/users/cardetails/signup',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        ...authHeaders
+      },
+      formDataKeys: ['car_name', 'car_type', 'car_number', 'organization_id', 'vehicle_owner_id', 'rc_front_img', 'rc_back_img', 'insurance_img', 'fc_img', 'car_img']
+    });
+    
     const response = await axiosInstance.post('/api/users/cardetails/signup', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -473,51 +484,55 @@ export const addCarDetails = async (carData: CarDetailsData): Promise<CarDetails
       headers: response.headers
     });
     
+    // Check if the response is successful before validating
+    if (response.status !== 200 && response.status !== 201) {
+      const errorDetails = response.data?.detail || response.data?.message || 'Backend validation failed';
+      console.error('🔍 Backend validation error:', {
+        status: response.status,
+        details: errorDetails,
+        fullResponse: response.data
+      });
+      throw new Error(`Backend validation failed: ${errorDetails}`);
+    }
+    
     // Validate response data - ensure values are meaningful
     const responseData = response.data;
     
-    // Validate car_id (should be a positive number or valid string)
-    if (!responseData.car_id || responseData.car_id <= 0) {
+    // Check if response has success status
+    if (responseData.status !== 'success') {
+      throw new Error(`Backend returned non-success status: ${responseData.status}`);
+    }
+    
+    // Validate car_id (should be a valid string)
+    if (!responseData.car_id || typeof responseData.car_id !== 'string' || responseData.car_id.trim().length === 0) {
       throw new Error('Invalid car ID received from server');
     }
     
-    // Validate car details exist and have valid values
-    if (!responseData.car_details) {
-      throw new Error('Car details not received from server');
+    // Validate image_urls object exists
+    if (!responseData.image_urls || typeof responseData.image_urls !== 'object') {
+      throw new Error('Image URLs not received from server');
     }
     
-    const carDetails = responseData.car_details;
+    const imageUrls = responseData.image_urls;
     
-    // Validate required fields have meaningful values
-    if (!carDetails.car_name || carDetails.car_name.trim().length === 0) {
-      throw new Error('Car name not received from server');
-    }
+    // Validate all required image URLs exist and are valid
+    const requiredImageFields = [
+      'rc_front_img_url', 
+      'rc_back_img_url', 
+      'insurance_img_url', 
+      'fc_img_url', 
+      'car_img_url'
+    ];
     
-    if (!carDetails.car_type || carDetails.car_type.trim().length === 0) {
-      throw new Error('Car type not received from server');
-    }
-    
-    if (!carDetails.car_number || carDetails.car_number.trim().length === 0) {
-      throw new Error('Car number not received from server');
-    }
-    
-    if (!carDetails.organization_id || carDetails.organization_id.trim().length === 0) {
-      throw new Error('Organization ID not received from server');
-    }
-    
-    if (!carDetails.vehicle_owner_id || carDetails.vehicle_owner_id.trim().length === 0) {
-      throw new Error('Vehicle owner ID not received from server');
-    }
-    
-    // Validate image URLs exist (they should be non-empty strings)
-    const imageFields = ['rc_front_img_url', 'rc_back_img_url', 'insurance_img_url', 'fc_img_url', 'car_img_url'];
-    for (const field of imageFields) {
-      if (!carDetails[field] || carDetails[field].trim().length === 0) {
-        throw new Error(`${field.replace('_', ' ')} URL not received from server`);
+    for (const field of requiredImageFields) {
+      if (!imageUrls[field] || typeof imageUrls[field] !== 'string' || imageUrls[field].trim().length === 0) {
+        throw new Error(`${field.replace(/_/g, ' ')} not received from server`);
       }
     }
     
     console.log('✅ All response values validated successfully');
+    console.log('✅ Car ID:', responseData.car_id);
+    console.log('✅ Image URLs received:', Object.keys(imageUrls));
     
     return responseData;
   } catch (error: any) {

@@ -10,9 +10,10 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Car, Save } from 'lucide-react-native';
+import { ArrowLeft, Car, Save, Upload, CheckCircle, FileText, Image } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { addCarDetails, testCarDetailsDataStructure } from '@/services/signupService';
+import * as ImagePicker from 'expo-image-picker';
 
 export default function AddCarScreen() {
   const [carData, setCarData] = useState({
@@ -23,29 +24,103 @@ export default function AddCarScreen() {
     year: '',
     color: '',
   });
+  
+  const [carImages, setCarImages] = useState({
+    rcFront: '',
+    rcBack: '',
+    insurance: '',
+    fc: '',
+    carImage: '',
+  });
+  
   const router = useRouter();
   const { user } = useAuth();
 
+  const pickImage = async (imageKey: string) => {
+    try {
+      const result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        allowsEditing: true,
+        aspect: [4, 3],
+        quality: 1,
+      });
+
+      if (!result.canceled) {
+        setCarImages(prev => ({
+          ...prev,
+          [imageKey]: result.assets[0].uri
+        }));
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to pick image');
+    }
+  };
+
+  const ImageUploadField = ({ 
+    title, 
+    description, 
+    imageKey, 
+    isRequired = true 
+  }: { 
+    title: string; 
+    description: string; 
+    imageKey: string; 
+    isRequired?: boolean;
+  }) => {
+    const imageUri = carImages[imageKey as keyof typeof carImages];
+    const isUploaded = !!imageUri;
+    
+    return (
+      <TouchableOpacity
+        style={[styles.imageUploadField, isUploaded && styles.uploadedField]}
+        onPress={() => pickImage(imageKey)}
+      >
+        <View style={styles.imageUploadLeft}>
+          <View style={[styles.imageUploadIcon, isUploaded && styles.uploadedIcon]}>
+            {isUploaded ? (
+              <CheckCircle color="#FFFFFF" size={20} />
+            ) : (
+              <Image color="#6B7280" size={20} />
+            )}
+          </View>
+          <View style={styles.imageUploadText}>
+            <Text style={styles.imageUploadTitle}>
+              {title} {isRequired && <Text style={styles.required}>*</Text>}
+            </Text>
+            <Text style={styles.imageUploadDescription}>{description}</Text>
+          </View>
+        </View>
+        <Upload color={isUploaded ? "#10B981" : "#6B7280"} size={20} />
+      </TouchableOpacity>
+    );
+  };
+
   const handleSave = async () => {
+    // Check required text fields
     if (!carData.name || !carData.type || !carData.registration) {
-      Alert.alert('Error', 'Please fill all required fields');
+      Alert.alert('Error', 'Please fill all required car details');
+      return;
+    }
+
+    // Check required images
+    if (!carImages.rcFront || !carImages.rcBack || !carImages.insurance || !carImages.fc || !carImages.carImage) {
+      Alert.alert('Error', 'Please upload all required images (RC Front, RC Back, Insurance, FC, Car Image)');
       return;
     }
 
     try {
-      // Basic mapping to API schema; images can be added later in edit
       const payload = {
         car_name: carData.name,
         car_type: carData.type,
         car_number: carData.registration,
         organization_id: user?.organizationId || 'org_001',
         vehicle_owner_id: user?.id || '',
-        rc_front_img: '',
-        rc_back_img: '',
-        insurance_img: '',
-        fc_img: '',
-        car_img: ''
-      } as any;
+        rc_front_img: carImages.rcFront,
+        rc_back_img: carImages.rcBack,
+        insurance_img: carImages.insurance,
+        fc_img: carImages.fc,
+        car_img: carImages.carImage
+      };
 
       testCarDetailsDataStructure(payload);
       await addCarDetails(payload);
@@ -141,6 +216,46 @@ export default function AddCarScreen() {
             />
           </View>
 
+          <Text style={styles.sectionTitle}>Required Documents & Images</Text>
+          <Text style={styles.sectionSubtitle}>
+            Please upload clear images of all required documents
+          </Text>
+
+          <ImageUploadField
+            title="RC Front Image"
+            description="Registration Certificate front side"
+            imageKey="rcFront"
+            isRequired={true}
+          />
+
+          <ImageUploadField
+            title="RC Back Image"
+            description="Registration Certificate back side"
+            imageKey="rcBack"
+            isRequired={true}
+          />
+
+          <ImageUploadField
+            title="Insurance Image"
+            description="Valid insurance certificate"
+            imageKey="insurance"
+            isRequired={true}
+          />
+
+          <ImageUploadField
+            title="FC Image"
+            description="Fitness Certificate"
+            imageKey="fc"
+            isRequired={true}
+          />
+
+          <ImageUploadField
+            title="Car Image"
+            description="Clear photo of your car"
+            imageKey="carImage"
+            isRequired={true}
+          />
+
           <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
             <Save color="#FFFFFF" size={20} />
             <Text style={styles.saveButtonText}>Save Car & Continue</Text>
@@ -218,6 +333,12 @@ const styles = StyleSheet.create({
     color: '#1F2937',
     marginBottom: 20,
   },
+  sectionSubtitle: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: '#6B7280',
+    marginBottom: 16,
+  },
   inputGroup: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -240,6 +361,56 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-Medium',
     color: '#1F2937',
+  },
+  imageUploadField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  uploadedField: {
+    borderColor: '#10B981',
+    borderWidth: 2,
+  },
+  imageUploadLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  imageUploadIcon: {
+    backgroundColor: '#E5E7EB',
+    borderRadius: 10,
+    padding: 8,
+  },
+  uploadedIcon: {
+    backgroundColor: '#10B981',
+  },
+  imageUploadText: {
+    marginLeft: 12,
+  },
+  imageUploadTitle: {
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    color: '#1F2937',
+  },
+  required: {
+    color: '#EF4444',
+  },
+  imageUploadDescription: {
+    fontSize: 12,
+    fontFamily: 'Inter-Regular',
+    color: '#6B7280',
+    marginTop: 4,
   },
   saveButton: {
     backgroundColor: '#10B981',
