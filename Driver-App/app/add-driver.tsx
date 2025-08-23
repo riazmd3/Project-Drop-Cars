@@ -187,8 +187,16 @@ export default function AddDriverScreen() {
               style={styles.input}
               placeholder="Primary Mobile Number (+91XXXXXXXXXX)"
               value={driverData.primary_number}
-              onChangeText={(text) => setDriverData(prev => ({ ...prev, primary_number: text }))}
+              onChangeText={(text) => {
+                // Format phone number to match backend expectation
+                let formattedText = text.replace(/[^\d]/g, ''); // Remove non-digits
+                if (formattedText.length > 0 && !formattedText.startsWith('+91')) {
+                  formattedText = '+91' + formattedText;
+                }
+                setDriverData(prev => ({ ...prev, primary_number: formattedText }));
+              }}
               keyboardType="phone-pad"
+              maxLength={13}
             />
           </View>
 
@@ -198,8 +206,16 @@ export default function AddDriverScreen() {
               style={styles.input}
               placeholder="Secondary Mobile Number (Optional)"
               value={driverData.secondary_number}
-              onChangeText={(text) => setDriverData(prev => ({ ...prev, secondary_number: text }))}
+              onChangeText={(text) => {
+                // Format phone number to match backend expectation
+                let formattedText = text.replace(/[^\d]/g, ''); // Remove non-digits
+                if (formattedText.length > 0 && !formattedText.startsWith('+91')) {
+                  formattedText = '+91' + formattedText;
+                }
+                setDriverData(prev => ({ ...prev, secondary_number: formattedText }));
+              }}
               keyboardType="phone-pad"
+              maxLength={13}
             />
           </View>
 

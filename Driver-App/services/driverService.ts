@@ -118,6 +118,34 @@ export const addDriverDetails = async (driverData: DriverDetails): Promise<Drive
     const authHeaders = await getAuthHeaders();
     console.log('🔐 Using JWT token:', authHeaders.Authorization?.substring(0, 20) + '...');
 
+    // Log the exact request being sent
+    console.log('📤 Sending request to backend:', {
+      url: '/api/users/cardriver/signup',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        Authorization: authHeaders.Authorization?.substring(0, 20) + '...'
+      },
+      formDataSummary: {
+        textFields: {
+          full_name: driverData.full_name,
+          primary_number: driverData.primary_number,
+          licence_number: driverData.licence_number,
+          adress: driverData.adress,
+          organization_id: driverData.organization_id,
+          vehicle_owner_id: driverData.vehicle_owner_id
+        },
+        imageFiles: {
+          licence_front_img: !!driverData.licence_front_img,
+          rc_front_img: !!driverData.rc_front_img,
+          rc_back_img: !!driverData.rc_back_img,
+          insurance_img: !!driverData.insurance_img,
+          fc_img: !!driverData.fc_img,
+          car_img: !!driverData.car_img
+        }
+      }
+    });
+
     // Make API call
     const response = await axiosInstance.post('/api/users/cardriver/signup', formData, {
       headers: {
@@ -140,6 +168,11 @@ export const addDriverDetails = async (driverData: DriverDetails): Promise<Drive
         data: response.data,
         headers: response.headers
       });
+      
+      // Log the actual error detail content
+      if (response.data?.detail) {
+        console.log('❌ Error detail content:', JSON.stringify(response.data.detail, null, 2));
+      }
     }
 
     // Check if response is successful
@@ -169,8 +202,24 @@ export const addDriverDetails = async (driverData: DriverDetails): Promise<Drive
     if (error.response?.status === 400 || error.response?.status === 422) {
       // Handle validation errors
       const errorData = error.response.data;
+      console.log('🔍 Processing validation error:', JSON.stringify(errorData, null, 2));
+      
       if (errorData?.detail) {
-        throw new Error(`Validation Error: ${errorData.detail}`);
+        // Handle different detail formats
+        if (Array.isArray(errorData.detail)) {
+          // Extract field-specific errors
+          const fieldErrors = errorData.detail.map((err: any) => {
+            if (err.loc && err.msg) {
+              return `${err.loc.join('.')}: ${err.msg}`;
+            }
+            return err.msg || err;
+          }).join(', ');
+          throw new Error(`Validation Error: ${fieldErrors}`);
+        } else if (typeof errorData.detail === 'string') {
+          throw new Error(`Validation Error: ${errorData.detail}`);
+        } else {
+          throw new Error(`Validation Error: ${JSON.stringify(errorData.detail)}`);
+        }
       } else if (errorData?.message) {
         throw new Error(`Validation Error: ${errorData.message}`);
       } else {
