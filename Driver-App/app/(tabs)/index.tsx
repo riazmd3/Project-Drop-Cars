@@ -17,8 +17,8 @@ import { useRouter } from 'expo-router';
 import { Menu, Wallet, MapPin, Clock, User, Phone, Car, RefreshCw } from 'lucide-react-native';
 import BookingCard from '@/components/BookingCard';
 import DrawerNavigation from '@/components/DrawerNavigation';
-import ConnectionTest from '@/components/ConnectionTest';
 import { fetchDashboardData, DashboardData } from '@/services/dashboardService';
+import ConnectionTest from '@/components/ConnectionTest';
 
 const dummyBookings = [
   {
@@ -87,13 +87,8 @@ export default function DashboardScreen() {
   // Fetch dashboard data on component mount
   useEffect(() => {
     console.log('📱 DashboardScreen: fetchData called');
-    if (user) {
-      console.log('👤 User is authenticated, fetching dashboard data...');
-      fetchData();
-    } else {
-      console.log('⚠️ No user found, skipping dashboard data fetch');
-    }
-  }, [user]);
+    fetchData();
+  }, []);
 
   const handleRefresh = async () => {
     try {
@@ -351,7 +346,7 @@ export default function DashboardScreen() {
     // Simulate SMS sending
     Alert.alert(
       'Booking Accepted',
-      `SMS sent to customer: "DropCars: Your driver ${user?.fullName || 'Driver'} (${dashboardData?.cars?.[0]?.car_name || 'Vehicle'} - ${dashboardData?.cars?.[0]?.car_number || 'Number'}) has accepted your booking."`
+      `SMS sent to customer: "DropCars: Your driver ${user?.fullName || 'Driver'} (${dashboardData?.cars?.[0]?.car_brand || 'Vehicle'} ${dashboardData?.cars?.[0]?.car_model || ''} - ${dashboardData?.cars?.[0]?.car_number || 'Number'}) has accepted your booking."`
     );
   };
 
@@ -367,7 +362,7 @@ export default function DashboardScreen() {
             Welcome back, {dashboardData?.user_info?.full_name || user?.fullName || 'Driver'}!
           </Text>
           <Text style={dynamicStyles.balanceLabel}>Available Balance</Text>
-          <Text style={dynamicStyles.balanceAmount}>₹{balance}</Text>
+          <Text style={dynamicStyles.balanceAmount}>₹{dashboardData?.user_info?.wallet_balance || balance || 0}</Text>
         </View>
 
         <View style={dynamicStyles.headerRight}>
@@ -411,55 +406,6 @@ export default function DashboardScreen() {
           </View>
         ) : (
           <>
-            {/* Debug Component - Remove this after fixing the issue */}
-            <View style={{ marginBottom: 20 }}>
-              <Text style={[dynamicStyles.sectionTitle, { textAlign: 'center', marginBottom: 10 }]}>
-                🔍 Debug Info (Remove after fixing)
-              </Text>
-              
-              {/* Simple Debug Info */}
-              <View style={dynamicStyles.statCard}>
-                <Text style={dynamicStyles.statLabel}>Auth User:</Text>
-                <Text style={dynamicStyles.statNumber}>
-                  {user ? `${user.fullName} (${user.primaryMobile})` : 'Not loaded'}
-                </Text>
-              </View>
-              
-              <View style={dynamicStyles.statCard}>
-                <Text style={dynamicStyles.statLabel}>Dashboard Data:</Text>
-                <Text style={dynamicStyles.statNumber}>
-                  {dashboardData ? 'Loaded' : 'Not loaded'}
-                </Text>
-              </View>
-              
-              <View style={dynamicStyles.statCard}>
-                <Text style={dynamicStyles.statLabel}>Loading State:</Text>
-                <Text style={dynamicStyles.statNumber}>
-                  {loading ? 'Loading...' : 'Idle'}
-                </Text>
-              </View>
-              
-              <View style={dynamicStyles.statCard}>
-                <Text style={dynamicStyles.statLabel}>Error:</Text>
-                <Text style={dynamicStyles.statNumber}>
-                  {error || 'None'}
-                </Text>
-              </View>
-              
-              {/* Manual Test Button */}
-              <TouchableOpacity 
-                style={[dynamicStyles.endTripButton, { marginTop: 16, marginBottom: 16 }]}
-                onPress={() => {
-                  console.log('🧪 Manual test: fetchData called');
-                  fetchData();
-                }}
-              >
-                <Text style={dynamicStyles.endTripButtonText}>🧪 Test Fetch Dashboard Data</Text>
-              </TouchableOpacity>
-              
-              <ConnectionTest />
-            </View>
-
             {/* Welcome Banner */}
             <View style={dynamicStyles.welcomeBanner}>
               <Text style={dynamicStyles.welcomeBannerTitle}>
@@ -467,7 +413,7 @@ export default function DashboardScreen() {
               </Text>
               <Text style={dynamicStyles.welcomeBannerSubtitle}>
                 {dashboardData?.cars && dashboardData.cars.length > 0 
-                  ? `Your ${dashboardData.cars[0].car_name} (${dashboardData.cars[0].car_number}) is ready for service. Start earning today!`
+                  ? `Your ${dashboardData.cars[0].car_brand} ${dashboardData.cars[0].car_model} (${dashboardData.cars[0].car_number}) is ready for service. Start earning today!`
                   : 'Complete your profile setup to start earning!'
                 }
               </Text>
@@ -476,7 +422,7 @@ export default function DashboardScreen() {
             {/* Quick Stats */}
             <View style={dynamicStyles.statsContainer}>
               <View style={dynamicStyles.statCard}>
-                <Text style={dynamicStyles.statNumber}>₹{balance}</Text>
+                <Text style={dynamicStyles.statNumber}>₹{dashboardData?.user_info?.wallet_balance || balance || 0}</Text>
                 <Text style={dynamicStyles.statLabel}>Wallet Balance</Text>
               </View>
               <View style={dynamicStyles.statCard}>
@@ -545,6 +491,83 @@ export default function DashboardScreen() {
                 )}
               </View>
             )}
+
+            {/* Debug Component - Remove this after fixing the issue */}
+            <View style={{ marginBottom: 20 }}>
+              <Text style={[dynamicStyles.sectionTitle, { textAlign: 'center', marginBottom: 10 }]}>
+                🔍 Debug Info (Remove after fixing)
+              </Text>
+              
+              {/* Simple Debug Info */}
+              <View style={dynamicStyles.statCard}>
+                <Text style={dynamicStyles.statLabel}>Auth User:</Text>
+                <Text style={dynamicStyles.statNumber}>
+                  {user ? `${user.fullName} (${user.primaryMobile})` : 'Not loaded'}
+                </Text>
+              </View>
+              
+              <View style={dynamicStyles.statCard}>
+                <Text style={dynamicStyles.statLabel}>Dashboard Data:</Text>
+                <Text style={dynamicStyles.statNumber}>
+                  {dashboardData ? 'Loaded' : 'Not loaded'}
+                </Text>
+              </View>
+              
+              <View style={dynamicStyles.statCard}>
+                <Text style={dynamicStyles.statLabel}>Owner Name:</Text>
+                <Text style={dynamicStyles.statNumber}>
+                  {dashboardData?.user_info?.full_name || 'Not loaded'}
+                </Text>
+              </View>
+              
+              <View style={dynamicStyles.statCard}>
+                <Text style={dynamicStyles.statLabel}>Wallet Balance:</Text>
+                <Text style={dynamicStyles.statNumber}>
+                  ₹{dashboardData?.user_info?.wallet_balance || 0}
+                </Text>
+              </View>
+              
+              <View style={dynamicStyles.statCard}>
+                <Text style={dynamicStyles.statLabel}>Cars Count:</Text>
+                <Text style={dynamicStyles.statNumber}>
+                  {dashboardData?.cars?.length || 0}
+                </Text>
+              </View>
+              
+              <View style={dynamicStyles.statCard}>
+                <Text style={dynamicStyles.statLabel}>Drivers Count:</Text>
+                <Text style={dynamicStyles.statNumber}>
+                  {dashboardData?.drivers?.length || 0}
+                </Text>
+              </View>
+              
+              <View style={dynamicStyles.statCard}>
+                <Text style={dynamicStyles.statLabel}>Loading State:</Text>
+                <Text style={dynamicStyles.statNumber}>
+                  {loading ? 'Loading...' : 'Idle'}
+                </Text>
+              </View>
+              
+              <View style={dynamicStyles.statCard}>
+                <Text style={dynamicStyles.statLabel}>Error:</Text>
+                <Text style={dynamicStyles.statNumber}>
+                  {error || 'None'}
+                </Text>
+              </View>
+              
+              {/* Manual Test Button */}
+              <TouchableOpacity 
+                style={[dynamicStyles.endTripButton, { marginTop: 16, marginBottom: 16 }]}
+                onPress={() => {
+                  console.log('🧪 Manual test: fetchData called');
+                  fetchData();
+                }}
+              >
+                <Text style={dynamicStyles.endTripButtonText}>🧪 Test Fetch Dashboard Data</Text>
+              </TouchableOpacity>
+              
+              <ConnectionTest />
+            </View>
           </>
         )}
       </ScrollView>

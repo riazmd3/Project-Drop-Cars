@@ -32,9 +32,16 @@ export default function ConnectionTest() {
           <>
             <Text style={styles.label}>User ID: {dashboardData.user_info?.id || 'null'}</Text>
             <Text style={styles.label}>Full Name: {dashboardData.user_info?.full_name || 'null'}</Text>
-            <Text style={styles.label}>Mobile: {dashboardData.user_info?.primary_mobile || 'null'}</Text>
-            <Text style={styles.label}>Cars Count: {dashboardData.cars?.length || 0}</Text>
-            <Text style={styles.label}>Drivers Count: {dashboardData.drivers?.length || 0}</Text>
+            <Text style={styles.label}>Mobile: {dashboardData.user_info?.primary_number || 'null'}</Text>
+            <Text style={styles.label}>Address: {dashboardData.user_info?.address || 'null'}</Text>
+            <Text style={styles.label}>Wallet Balance: ₹{dashboardData.user_info?.wallet_balance || 0}</Text>
+            <Text style={styles.label}>Aadhar: {dashboardData.user_info?.aadhar_number || 'null'}</Text>
+            <Text style={styles.label}>Organization ID: {dashboardData.user_info?.organization_id || 'null'}</Text>
+            <Text style={styles.label}>Actual Cars: {dashboardData.cars?.length || 0}</Text>
+            <Text style={styles.label}>Actual Drivers: {dashboardData.drivers?.length || 0}</Text>
+            <Text style={styles.label}>Summary - Total Cars: {dashboardData.summary?.total_cars || 0}</Text>
+            <Text style={styles.label}>Summary - Total Drivers: {dashboardData.summary?.total_drivers || 0}</Text>
+            <Text style={styles.label}>Summary - Wallet: ₹{dashboardData.summary?.wallet_balance || 0}</Text>
           </>
         )}
       </View>

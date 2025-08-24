@@ -32,22 +32,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Load user data on app start
   useEffect(() => {
-    console.log('🚀 AuthContext: Starting to load user data...');
     loadUserDataOnStart();
   }, []);
 
   const loadUserDataOnStart = async () => {
     try {
       setIsLoading(true);
-      console.log('🔍 AuthContext: Checking authentication...');
       const isAuth = await authService.isAuthenticated();
-      console.log('🔐 AuthContext: Is authenticated:', isAuth);
-      
       if (isAuth) {
-        console.log('👤 AuthContext: User is authenticated, fetching user data...');
         const userData = await getCompleteUserData();
-        console.log('📊 AuthContext: User data received:', userData);
-        
         if (userData) {
           // Convert auth service user data to context user format
           const contextUser: User = {
@@ -63,18 +56,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             documents: {}
           };
           setUser(contextUser);
-          console.log('✅ AuthContext: User data loaded from auth service:', contextUser);
-        } else {
-          console.log('⚠️ AuthContext: No user data received from auth service');
+          console.log('✅ User data loaded from auth service:', contextUser);
         }
-      } else {
-        console.log('⚠️ AuthContext: User is not authenticated');
       }
     } catch (error) {
-      console.error('❌ AuthContext: Failed to load user data on start:', error);
+      console.error('❌ Failed to load user data on start:', error);
     } finally {
       setIsLoading(false);
-      console.log('🏁 AuthContext: Finished loading user data');
     }
   };
 

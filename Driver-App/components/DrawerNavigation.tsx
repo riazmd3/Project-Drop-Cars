@@ -25,7 +25,8 @@ import {
   Phone,
   MapPin,
   Languages,
-  Users
+  Users,
+  Wallet
 } from 'lucide-react-native';
 
 interface DrawerNavigationProps {
@@ -251,24 +252,30 @@ export default function DrawerNavigation({ visible, onClose }: DrawerNavigationP
                 </View>
                 <View style={dynamicStyles.profileDetails}>
                   <Text style={dynamicStyles.profileName}>
-                    {user?.fullName || 'Driver'}
+                    {dashboardData?.user_info?.full_name || user?.fullName || 'Driver'}
                   </Text>
                   <View style={dynamicStyles.profileRow}>
                     <Phone color={colors.textSecondary} size={14} />
                     <Text style={dynamicStyles.profileText}>
-                      {user?.primaryMobile || 'No mobile number'}
+                      {dashboardData?.user_info?.primary_number || user?.primaryMobile || 'No mobile number'}
                     </Text>
                   </View>
                   <View style={dynamicStyles.profileRow}>
                     <MapPin color={colors.textSecondary} size={14} />
                     <Text style={dynamicStyles.profileText}>
-                      {user?.address || 'No address'}
+                      {dashboardData?.user_info?.address || user?.address || 'No address'}
                     </Text>
                   </View>
                   <View style={dynamicStyles.profileRow}>
                     <Languages color={colors.textSecondary} size={14} />
                     <Text style={dynamicStyles.profileText}>
                       {user?.languages && user.languages.length > 0 ? user.languages.join(', ') : 'No languages'}
+                    </Text>
+                  </View>
+                  <View style={dynamicStyles.profileRow}>
+                    <Wallet color={colors.textSecondary} size={14} />
+                    <Text style={dynamicStyles.profileText}>
+                      ₹{dashboardData?.user_info?.wallet_balance || 0}
                     </Text>
                   </View>
                 </View>

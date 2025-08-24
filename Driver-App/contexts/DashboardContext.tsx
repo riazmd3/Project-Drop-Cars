@@ -20,8 +20,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   // Auto-fetch data when context is created
   useEffect(() => {
     console.log('🚀 DashboardContext created, auto-fetching data...');
-    // Don't auto-fetch immediately, wait for user to be authenticated
-    // fetchData();
+    fetchData();
   }, []);
 
   const fetchData = async () => {
@@ -30,7 +29,6 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       setError(null);
       console.log('📊 Fetching dashboard data from context...');
       const data = await fetchDashboardData();
-      console.log('✅ Raw dashboard data received:', data);
       setDashboardData(data);
       console.log('✅ Dashboard data loaded in context:', {
         user: data.user_info,
