@@ -10,7 +10,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Car, Save, Upload, CheckCircle, FileText, Image } from 'lucide-react-native';
+import { ArrowLeft, Car, Save, Upload, CheckCircle, FileText, Image, ChevronDown } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { addCarDetails, testCarDetailsDataStructure } from '@/services/signupService';
 import * as ImagePicker from 'expo-image-picker';
@@ -32,9 +32,68 @@ export default function AddCarScreen() {
     fc: '',
     carImage: '',
   });
+
+  const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [showTypeDropdown, setShowTypeDropdown] = useState(false);
   
   const router = useRouter();
   const { user } = useAuth();
+
+  const carTypes = ['SEDAN', 'SUV', 'INNOVA'];
+
+  // Validation functions
+  const validateCarName = (name: string): string => {
+    if (!name.trim()) return 'Car name is required';
+    if (name.length < 2) return 'Car name must be at least 2 characters';
+    if (name.length > 100) return 'Car name must be less than 100 characters';
+    return '';
+  };
+
+  const validateCarType = (type: string): string => {
+    if (!type) return 'Car type is required';
+    if (!carTypes.includes(type)) return 'Please select a valid car type';
+    return '';
+  };
+
+  const validateCarNumber = (number: string): string => {
+    if (!number.trim()) return 'Car registration number is required';
+    
+    // Format: SS NN LL NNNN (State Code + District + Letters + Numbers)
+    const carNumberRegex = /^[A-Z]{2}\s*\d{2}\s*[A-Z]{2}\s*\d{4}$/;
+    
+    if (!carNumberRegex.test(number.replace(/\s/g, ''))) {
+      return 'Invalid format. Use: SS NN LL NNNN (e.g., MH 12 AB 1234)';
+    }
+    
+    if (number.length < 5 || number.length > 20) {
+      return 'Car number must be between 5-20 characters';
+    }
+    
+    return '';
+  };
+
+  const validateYear = (year: string): string => {
+    if (!year.trim()) return 'Model year is required';
+    const yearNum = parseInt(year);
+    if (isNaN(yearNum)) return 'Please enter a valid year';
+    if (yearNum < 1900 || yearNum > new Date().getFullYear() + 1) {
+      return `Year must be between 1900 and ${new Date().getFullYear() + 1}`;
+    }
+    return '';
+  };
+
+  const validateAllFields = (): boolean => {
+    const newErrors: {[key: string]: string} = {};
+    
+    newErrors.name = validateCarName(carData.name);
+    newErrors.type = validateCarType(carData.type);
+    newErrors.registration = validateCarNumber(carData.registration);
+    newErrors.year = validateYear(carData.year);
+    
+    setErrors(newErrors);
+    
+    return !Object.values(newErrors).some(error => error !== '');
+  };
 
   const pickImage = async (imageKey: string) => {
     try {
@@ -96,9 +155,12 @@ export default function AddCarScreen() {
   };
 
   const handleSave = async () => {
-    // Check required text fields
-    if (!carData.name || !carData.type || !carData.registration) {
-      Alert.alert('Error', 'Please fill all required car details');
+    // Clear previous errors
+    setErrors({});
+
+    // Validate all fields
+    if (!validateAllFields()) {
+      Alert.alert('Validation Error', 'Please fix the errors before continuing');
       return;
     }
 
@@ -110,11 +172,11 @@ export default function AddCarScreen() {
 
     try {
       const payload = {
-        car_name: carData.name,
+        car_name: carData.name.trim(),
         car_type: carData.type,
-        car_number: carData.registration,
+        car_number: carData.registration.replace(/\s/g, ''), // Remove spaces for backend
         organization_id: user?.organizationId || 'org_001',
-        vehicle_owner_id: user?.id || 'e5b9edb1-b4bb-48b8-a662-f7fd00abb6eb', // Use actual user ID from JWT
+        vehicle_owner_id: user?.id || 'e5b9edb1-b4bb-48b8-a662-f7fd00abb6eb',
         rc_front_img: carImages.rcFront,
         rc_back_img: carImages.rcBack,
         insurance_img: carImages.insurance,
@@ -138,6 +200,19 @@ export default function AddCarScreen() {
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to add car');
     }
+  };
+
+  const formatCarNumber = (text: string) => {
+    // Remove all non-alphanumeric characters
+    let cleaned = text.replace(/[^A-Za-z0-9]/g, '');
+    
+    // Format as SS NN LL NNNN
+    if (cleaned.length <= 2) return cleaned.toUpperCase();
+    if (cleaned.length <= 4) return `${cleaned.slice(0, 2).toUpperCase()} ${cleaned.slice(2).toUpperCase()}`;
+    if (cleaned.length <= 6) return `${cleaned.slice(0, 2).toUpperCase()} ${cleaned.slice(2, 4).toUpperCase()} ${cleaned.slice(4).toUpperCase()}`;
+    if (cleaned.length <= 10) return `${cleaned.slice(0, 2).toUpperCase()} ${cleaned.slice(2, 4).toUpperCase()} ${cleaned.slice(4, 6).toUpperCase()} ${cleaned.slice(6)}`;
+    
+    return `${cleaned.slice(0, 2).toUpperCase()} ${cleaned.slice(2, 4).toUpperCase()} ${cleaned.slice(4, 6).toUpperCase()} ${cleaned.slice(6, 10)}`;
   };
 
   return (
@@ -166,45 +241,83 @@ export default function AddCarScreen() {
           <View style={styles.inputGroup}>
             <Car color="#6B7280" size={20} />
             <TextInput
-              style={styles.input}
-              placeholder="Car Name (e.g., Tata Nexon)"
+              style={[styles.input, errors.name && styles.inputError]}
+              placeholder="Car Name (e.g., Toyota Camry)"
               value={carData.name}
-              onChangeText={(text) => setCarData(prev => ({ ...prev, name: text }))}
+              onChangeText={(text) => {
+                setCarData(prev => ({ ...prev, name: text }));
+                if (errors.name) setErrors(prev => ({ ...prev, name: '' }));
+              }}
             />
           </View>
+          {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
+
+          <View style={styles.inputGroup}>
+            <Car color="#6B7280" size={20} />
+            <TouchableOpacity 
+              style={[styles.dropdownButton, errors.type && styles.inputError]}
+              onPress={() => setShowTypeDropdown(!showTypeDropdown)}
+            >
+              <Text style={[styles.dropdownText, !carData.type && styles.placeholderText]}>
+                {carData.type || 'Select Car Type'}
+              </Text>
+              <ChevronDown color="#6B7280" size={20} />
+            </TouchableOpacity>
+          </View>
+          {showTypeDropdown && (
+            <View style={styles.dropdown}>
+              {carTypes.map((type) => (
+                <TouchableOpacity
+                  key={type}
+                  style={styles.dropdownItem}
+                  onPress={() => {
+                    setCarData(prev => ({ ...prev, type }));
+                    setShowTypeDropdown(false);
+                    if (errors.type) setErrors(prev => ({ ...prev, type: '' }));
+                  }}
+                >
+                  <Text style={styles.dropdownItemText}>{type}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+          {errors.type && <Text style={styles.errorText}>{errors.type}</Text>}
 
           <View style={styles.inputGroup}>
             <Car color="#6B7280" size={20} />
             <TextInput
-              style={styles.input}
-              placeholder="Car Type (e.g., SUV, Sedan, Hatchback)"
-              value={carData.type}
-              onChangeText={(text) => setCarData(prev => ({ ...prev, type: text }))}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <Car color="#6B7280" size={20} />
-            <TextInput
-              style={styles.input}
-              placeholder="Registration Number (e.g., TN10BZ1234)"
+              style={[styles.input, errors.registration && styles.inputError]}
+              placeholder="Registration Number (e.g., MH 12 AB 1234)"
               value={carData.registration}
-              onChangeText={(text) => setCarData(prev => ({ ...prev, registration: text.toUpperCase() }))}
+              onChangeText={(text) => {
+                const formatted = formatCarNumber(text);
+                setCarData(prev => ({ ...prev, registration: formatted }));
+                if (errors.registration) setErrors(prev => ({ ...prev, registration: '' }));
+              }}
               autoCapitalize="characters"
+              maxLength={13}
             />
           </View>
+          {errors.registration && <Text style={styles.errorText}>{errors.registration}</Text>}
+          <Text style={styles.helpText}>
+            Format: SS NN LL NNNN (State Code + District + Letters + Numbers)
+          </Text>
 
           <View style={styles.inputGroup}>
             <Car color="#6B7280" size={20} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, errors.year && styles.inputError]}
               placeholder="Model Year (e.g., 2023)"
               value={carData.year}
-              onChangeText={(text) => setCarData(prev => ({ ...prev, year: text }))}
+              onChangeText={(text) => {
+                setCarData(prev => ({ ...prev, year: text }));
+                if (errors.year) setErrors(prev => ({ ...prev, year: '' }));
+              }}
               keyboardType="numeric"
               maxLength={4}
             />
           </View>
+          {errors.year && <Text style={styles.errorText}>{errors.year}</Text>}
 
           <View style={styles.inputGroup}>
             <Car color="#6B7280" size={20} />
@@ -361,6 +474,68 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-Medium',
     color: '#1F2937',
+  },
+  inputError: {
+    borderColor: '#EF4444',
+    borderWidth: 1,
+  },
+  errorText: {
+    color: '#EF4444',
+    fontSize: 12,
+    marginTop: 4,
+    fontFamily: 'Inter-Regular',
+  },
+  dropdownButton: {
+    flex: 1,
+    marginLeft: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  dropdownText: {
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    color: '#1F2937',
+  },
+  placeholderText: {
+    color: '#9CA3AF',
+  },
+  dropdown: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  dropdownItem: {
+    paddingVertical: 16,
+    paddingHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F3F4F6',
+  },
+  dropdownItemText: {
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    color: '#1F2937',
+  },
+  helpText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Regular',
+    color: '#6B7280',
+    marginTop: 4,
+    marginBottom: 16,
+    fontStyle: 'italic',
   },
   imageUploadField: {
     flexDirection: 'row',

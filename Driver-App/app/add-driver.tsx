@@ -34,9 +34,71 @@ export default function AddDriverScreen() {
     fc_img: '',
     car_img: '',
   });
+
+  const [errors, setErrors] = useState<{[key: string]: string}>({});
   
   const router = useRouter();
   const { user } = useAuth();
+
+  // Validation functions
+  const validateFullName = (name: string): string => {
+    if (!name.trim()) return 'Full name is required';
+    if (name.length < 2) return 'Full name must be at least 2 characters';
+    if (name.length > 100) return 'Full name must be less than 100 characters';
+    return '';
+  };
+
+  const validatePhoneNumber = (number: string): string => {
+    if (!number.trim()) return 'Phone number is required';
+    
+    // Format: +91XXXXXXXXXX
+    const phoneRegex = /^\+91\d{10}$/;
+    if (!phoneRegex.test(number)) {
+      return 'Invalid format. Use: +91XXXXXXXXXX (10 digits after +91)';
+    }
+    
+    return '';
+  };
+
+  const validatePassword = (password: string): string => {
+    if (!password.trim()) return 'Password is required';
+    if (password.length < 6) return 'Password must be at least 6 characters';
+    if (password.length > 50) return 'Password must be less than 50 characters';
+    return '';
+  };
+
+  const validateLicenceNumber = (licence: string): string => {
+    if (!licence.trim()) return 'Driving licence number is required';
+    
+    // Format: SS-NN-YYYY-NNNNNNN (State Code + RTO + Year + Serial)
+    const licenceRegex = /^[A-Z]{2}-\d{2}-\d{4}-\d{7}$/;
+    if (!licenceRegex.test(licence)) {
+      return 'Invalid format. Use: SS-NN-YYYY-NNNNNNN (e.g., MH-12-1990-1234567)';
+    }
+    
+    return '';
+  };
+
+  const validateAddress = (address: string): string => {
+    if (!address.trim()) return 'Address is required';
+    if (address.length < 10) return 'Address must be at least 10 characters';
+    if (address.length > 200) return 'Address must be less than 200 characters';
+    return '';
+  };
+
+  const validateAllFields = (): boolean => {
+    const newErrors: {[key: string]: string} = {};
+    
+    newErrors.full_name = validateFullName(driverData.full_name);
+    newErrors.primary_number = validatePhoneNumber(driverData.primary_number);
+    newErrors.password = validatePassword(driverData.password);
+    newErrors.licence_number = validateLicenceNumber(driverData.licence_number);
+    newErrors.adress = validateAddress(driverData.adress);
+    
+    setErrors(newErrors);
+    
+    return !Object.values(newErrors).some(error => error !== '');
+  };
 
   const pickImage = async (imageKey: string) => {
     try {
@@ -98,9 +160,12 @@ export default function AddDriverScreen() {
   };
 
   const handleSave = async () => {
-    // Check required text fields
-    if (!driverData.full_name || !driverData.primary_number || !driverData.password || !driverData.licence_number || !driverData.adress) {
-      Alert.alert('Error', 'Please fill all required driver details');
+    // Clear previous errors
+    setErrors({});
+
+    // Validate all fields
+    if (!validateAllFields()) {
+      Alert.alert('Validation Error', 'Please fix the errors before continuing');
       return;
     }
 
@@ -112,14 +177,14 @@ export default function AddDriverScreen() {
 
     try {
       const payload: DriverDetails = {
-        full_name: driverData.full_name,
+        full_name: driverData.full_name.trim(),
         primary_number: driverData.primary_number,
         secondary_number: driverData.secondary_number || '',
         password: driverData.password,
         licence_number: driverData.licence_number,
-        adress: driverData.adress,
+        adress: driverData.adress.trim(),
         organization_id: user?.organizationId || 'org_001',
-        vehicle_owner_id: user?.id || 'e5b9edb1-b4bb-48b8-a662-f7fd00abb6eb', // Use actual user ID
+        vehicle_owner_id: user?.id || 'e5b9edb1-b4bb-48b8-a662-f7fd00abb6eb',
         licence_front_img: driverImages.licence_front_img,
         rc_front_img: driverImages.rc_front_img || '',
         rc_back_img: driverImages.rc_back_img || '',
@@ -134,66 +199,46 @@ export default function AddDriverScreen() {
 
       await addDriverDetails(payload);
 
-      // After successful driver addition, check account status and fetch updated data
-      try {
-        console.log('🔍 Checking account status after driver addition...');
-        
-        // Fetch updated dashboard data to check current status
-        const dashboardData = await fetchDashboardData();
-        
-        const accountStatus = dashboardData.user_info.account_status;
-        const carCount = dashboardData.user_info.car_details_count;
-        const driverCount = dashboardData.user_info.car_driver_count;
-        
-        console.log('🔍 Account status after driver addition:', accountStatus);
-        console.log('🔍 Car count:', carCount);
-        console.log('🔍 Driver count:', driverCount);
-        
-        if (accountStatus?.toLowerCase() === 'active') {
-          // Account is active, show success and go to dashboard
-          Alert.alert(
-            'Success',
-            'Driver added successfully! You can now access the dashboard.',
-            [
-              {
-                text: 'OK',
-                onPress: () => router.replace('/(tabs)')
-              }
-            ]
-          );
-        } else {
-          // Account is not active, show verification message
-          Alert.alert(
-            'Driver Added Successfully!',
-            'Your driver has been registered. However, your account is still under verification. Our team will review your documents and notify you once approved.',
-            [
-              {
-                text: 'OK',
-                onPress: () => {
-                  // Navigate to account verification screen
-                  router.replace('/login');
-                }
-              }
-            ]
-          );
-        }
-      } catch (error) {
-        console.error('❌ Failed to check account status:', error);
-        // If we can't check status, just show success and go to dashboard
-        Alert.alert(
-          'Success',
-          'Driver added successfully! You can now access the dashboard.',
-          [
-            {
-              text: 'OK',
-              onPress: () => router.replace('/(tabs)')
-            }
-          ]
-        );
-      }
+      // Show success message and redirect to dashboard
+      Alert.alert(
+        'Success',
+        'Driver added successfully! You can now access the dashboard.',
+        [
+          {
+            text: 'OK',
+            onPress: () => router.replace('/(tabs)')
+          }
+        ]
+      );
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to add driver');
     }
+  };
+
+  const formatPhoneNumber = (text: string) => {
+    // Remove all non-digits
+    let cleaned = text.replace(/\D/g, '');
+    
+    // Limit to 10 digits
+    if (cleaned.length > 10) {
+      cleaned = cleaned.slice(0, 10);
+    }
+    
+    // Add +91 prefix
+    return cleaned.length > 0 ? `+91${cleaned}` : '';
+  };
+
+  const formatLicenceNumber = (text: string) => {
+    // Remove all non-alphanumeric characters
+    let cleaned = text.replace(/[^A-Za-z0-9]/g, '');
+    
+    // Format as SS-NN-YYYY-NNNNNNN
+    if (cleaned.length <= 2) return cleaned.toUpperCase();
+    if (cleaned.length <= 4) return `${cleaned.slice(0, 2).toUpperCase()}-${cleaned.slice(2)}`;
+    if (cleaned.length <= 8) return `${cleaned.slice(0, 2).toUpperCase()}-${cleaned.slice(2, 4)}-${cleaned.slice(4)}`;
+    if (cleaned.length <= 15) return `${cleaned.slice(0, 2).toUpperCase()}-${cleaned.slice(2, 4)}-${cleaned.slice(4, 8)}-${cleaned.slice(8)}`;
+    
+    return `${cleaned.slice(0, 2).toUpperCase()}-${cleaned.slice(2, 4)}-${cleaned.slice(4, 8)}-${cleaned.slice(8, 15)}`;
   };
 
   return (
@@ -222,31 +267,36 @@ export default function AddDriverScreen() {
           <View style={styles.inputGroup}>
             <User color="#6B7280" size={20} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, errors.full_name && styles.inputError]}
               placeholder="Full Name (e.g., John Doe)"
               value={driverData.full_name}
-              onChangeText={(text) => setDriverData(prev => ({ ...prev, full_name: text }))}
+              onChangeText={(text) => {
+                setDriverData(prev => ({ ...prev, full_name: text }));
+                if (errors.full_name) setErrors(prev => ({ ...prev, full_name: '' }));
+              }}
             />
           </View>
+          {errors.full_name && <Text style={styles.errorText}>{errors.full_name}</Text>}
 
           <View style={styles.inputGroup}>
             <Phone color="#6B7280" size={20} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, errors.primary_number && styles.inputError]}
               placeholder="Primary Mobile Number (+91XXXXXXXXXX)"
               value={driverData.primary_number}
               onChangeText={(text) => {
-                // Format phone number to match backend expectation
-                let formattedText = text.replace(/[^\d]/g, ''); // Remove non-digits
-                if (formattedText.length > 0 && !formattedText.startsWith('+91')) {
-                  formattedText = '+91' + formattedText;
-                }
-                setDriverData(prev => ({ ...prev, primary_number: formattedText }));
+                const formatted = formatPhoneNumber(text);
+                setDriverData(prev => ({ ...prev, primary_number: formatted }));
+                if (errors.primary_number) setErrors(prev => ({ ...prev, primary_number: '' }));
               }}
               keyboardType="phone-pad"
               maxLength={13}
             />
           </View>
+          {errors.primary_number && <Text style={styles.errorText}>{errors.primary_number}</Text>}
+          <Text style={styles.helpText}>
+            Format: +91XXXXXXXXXX (10 digits after +91)
+          </Text>
 
           <View style={styles.inputGroup}>
             <Phone color="#6B7280" size={20} />
@@ -255,12 +305,8 @@ export default function AddDriverScreen() {
               placeholder="Secondary Mobile Number (Optional)"
               value={driverData.secondary_number}
               onChangeText={(text) => {
-                // Format phone number to match backend expectation
-                let formattedText = text.replace(/[^\d]/g, ''); // Remove non-digits
-                if (formattedText.length > 0 && !formattedText.startsWith('+91')) {
-                  formattedText = '+91' + formattedText;
-                }
-                setDriverData(prev => ({ ...prev, secondary_number: formattedText }));
+                const formatted = formatPhoneNumber(text);
+                setDriverData(prev => ({ ...prev, secondary_number: formatted }));
               }}
               keyboardType="phone-pad"
               maxLength={13}
@@ -270,36 +316,53 @@ export default function AddDriverScreen() {
           <View style={styles.inputGroup}>
             <Lock color="#6B7280" size={20} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, errors.password && styles.inputError]}
               placeholder="Password"
               value={driverData.password}
-              onChangeText={(text) => setDriverData(prev => ({ ...prev, password: text }))}
+              onChangeText={(text) => {
+                setDriverData(prev => ({ ...prev, password: text }));
+                if (errors.password) setErrors(prev => ({ ...prev, password: '' }));
+              }}
               secureTextEntry
             />
           </View>
+          {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
 
           <View style={styles.inputGroup}>
             <CreditCard color="#6B7280" size={20} />
             <TextInput
-              style={styles.input}
-              placeholder="Driving Licence Number (e.g., DL-0123456789)"
+              style={[styles.input, errors.licence_number && styles.inputError]}
+              placeholder="Driving Licence Number (e.g., MH-12-1990-1234567)"
               value={driverData.licence_number}
-              onChangeText={(text) => setDriverData(prev => ({ ...prev, licence_number: text.toUpperCase() }))}
+              onChangeText={(text) => {
+                const formatted = formatLicenceNumber(text);
+                setDriverData(prev => ({ ...prev, licence_number: formatted }));
+                if (errors.licence_number) setErrors(prev => ({ ...prev, licence_number: '' }));
+              }}
               autoCapitalize="characters"
+              maxLength={19}
             />
           </View>
+          {errors.licence_number && <Text style={styles.errorText}>{errors.licence_number}</Text>}
+          <Text style={styles.helpText}>
+            Format: SS-NN-YYYY-NNNNNNN (State Code + RTO + Year + Serial)
+          </Text>
 
           <View style={styles.inputGroup}>
             <MapPin color="#6B7280" size={20} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, errors.adress && styles.inputError]}
               placeholder="Address (e.g., 123 Main Street, Mumbai, Maharashtra)"
               value={driverData.adress}
-              onChangeText={(text) => setDriverData(prev => ({ ...prev, adress: text }))}
+              onChangeText={(text) => {
+                setDriverData(prev => ({ ...prev, adress: text }));
+                if (errors.adress) setErrors(prev => ({ ...prev, adress: '' }));
+              }}
               multiline
               numberOfLines={3}
             />
           </View>
+          {errors.adress && <Text style={styles.errorText}>{errors.adress}</Text>}
 
           <Text style={styles.sectionTitle}>Required Documents & Images</Text>
           <Text style={styles.sectionSubtitle}>
@@ -453,6 +516,22 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-Medium',
     color: '#1F2937',
+  },
+  inputError: {
+    borderColor: '#EF4444',
+    borderWidth: 1,
+  },
+  errorText: {
+    color: '#EF4444',
+    fontSize: 12,
+    marginTop: 4,
+    fontFamily: 'Inter-Regular',
+  },
+  helpText: {
+    color: '#6B7280',
+    fontSize: 12,
+    marginTop: 4,
+    fontFamily: 'Inter-Regular',
   },
   imageUploadField: {
     flexDirection: 'row',
