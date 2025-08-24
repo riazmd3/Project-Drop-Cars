@@ -38,25 +38,36 @@ export default function LocationPicker({
   placeholder,
   initialValue = ''
 }: LocationPickerProps) {
-  const [searchQuery, setSearchQuery] = useState(initialValue);
+  const [searchQuery, setSearchQuery] = useState('');
   const [predictions, setPredictions] = useState<PlacePrediction[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [recentSearches, setRecentSearches] = useState<string[]>([
-    'Chennai, Tamil Nadu',
-    'Bangalore, Karnataka',
-    'Mumbai, Maharashtra',
+    'Chennai, Tamil Nadu, India',
+    'Bangalore, Karnataka, India',
+    'Mumbai, Maharashtra, India',
     'Delhi, India',
-    'Hyderabad, Telangana'
+    'Hyderabad, Telangana, India',
+    'Pune, Maharashtra, India',
+    'Kolkata, West Bengal, India',
+    'Ahmedabad, Gujarat, India',
+    'Jaipur, Rajasthan, India',
+    'Surat, Gujarat, India',
+    'Vellore, Tamil Nadu, India',
+    'Salem, Tamil Nadu, India',
+    'Coimbatore, Tamil Nadu, India',
+    'Madurai, Tamil Nadu, India',
+    'Trichy, Tamil Nadu, India',
+    'Polur, Tamil Nadu, India',
+    'Tiruvannamalai, Tamil Nadu, India'
   ]);
 
   useEffect(() => {
-    if (visible && initialValue) {
-      setSearchQuery(initialValue);
-      if (initialValue.length > 2) {
-        searchLocations(initialValue);
-      }
+    if (visible) {
+      // Clear search query when opening to show recent searches
+      setSearchQuery('');
+      setPredictions([]);
     }
-  }, [visible, initialValue]);
+  }, [visible]);
 
   const searchLocations = async (query: string) => {
     if (query.length < 2) {
@@ -105,7 +116,7 @@ export default function LocationPicker({
       style={styles.locationItem}
       onPress={() => handleLocationSelect(item.description)}
     >
-      <MapPin size={20} color="#4285F4" style={styles.locationIcon} />
+      <MapPin size={20} color="#1E40AF" style={styles.locationIcon} />
       <View style={styles.locationTextContainer}>
         <Text style={styles.locationMainText}>
           {item.structured_formatting?.main_text || item.description.split(',')[0]}
@@ -114,7 +125,7 @@ export default function LocationPicker({
           {item.structured_formatting?.secondary_text || item.description.split(',').slice(1).join(',').trim()}
         </Text>
       </View>
-      <Navigation size={16} color="#9AA0A6" />
+      <Navigation size={16} color="#9CA3AF" />
     </TouchableOpacity>
   );
 
@@ -139,7 +150,7 @@ export default function LocationPicker({
         
         {/* Header */}
         <LinearGradient
-          colors={['#4285F4', '#34A853']}
+          colors={['#1E40AF', '#3B82F6']}
           style={styles.header}
         >
           <View style={styles.headerContent}>
@@ -156,17 +167,17 @@ export default function LocationPicker({
         {/* Search Input */}
         <View style={styles.searchContainer}>
           <View style={styles.searchInputContainer}>
-            <Search size={20} color="#5F6368" style={styles.searchIcon} />
+            <Search size={20} color="#6B7280" style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
               placeholder={placeholder}
               value={searchQuery}
               onChangeText={handleSearch}
-              placeholderTextColor="#9AA0A6"
+              placeholderTextColor="#9CA3AF"
               autoFocus={true}
             />
             {isLoading && (
-              <ActivityIndicator size="small" color="#4285F4" style={styles.loadingIndicator} />
+              <ActivityIndicator size="small" color="#1E40AF" style={styles.loadingIndicator} />
             )}
           </View>
         </View>

@@ -14,6 +14,7 @@ export interface OrderQuoteRequest {
   driver_allowance: number;
   extra_driver_allowance: number;
   permit_charges: number;
+  extra_permit_charges: number;
   hill_charges: number;
   toll_charges: number;
   pickup_notes: string;
