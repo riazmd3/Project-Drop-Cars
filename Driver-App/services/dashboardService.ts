@@ -174,3 +174,67 @@ export const refreshDashboardData = async (): Promise<DashboardData> => {
   console.log('🔄 Refreshing dashboard data...');
   return fetchDashboardData();
 };
+
+// New function to fetch pending orders
+export interface PendingOrder {
+  order_id: number;
+  vendor_id: string;
+  trip_type: string;
+  car_type: string;
+  pickup_drop_location: {
+    pickup: string;
+    drop: string;
+  };
+  start_date_time: string;
+  customer_name: string;
+  customer_number: string;
+  cost_per_km: number;
+  extra_cost_per_km: number;
+  driver_allowance: number;
+  extra_driver_allowance: number;
+  permit_charges: number;
+  extra_permit_charges: number;
+  hill_charges: number;
+  toll_charges: number;
+  pickup_notes?: string;
+  trip_status: string;
+  pick_near_city: string;
+  trip_distance: number;
+  trip_time: string;
+  platform_fees_percent: number;
+  created_at: string;
+}
+
+export const fetchPendingOrders = async (): Promise<PendingOrder[]> => {
+  try {
+    console.log('📋 Fetching pending orders...');
+    
+    const authHeaders = await getAuthHeaders();
+    console.log('🔐 Using JWT token for pending orders:', authHeaders.Authorization?.substring(0, 20) + '...');
+
+    const response = await axiosInstance.get('/api/orders/pending-all', {
+      headers: authHeaders
+    });
+
+    if (response.data) {
+      console.log('✅ Pending orders fetched:', response.data.length, 'orders');
+      return response.data;
+    }
+
+    return [];
+  } catch (error: any) {
+    console.error('❌ Failed to fetch pending orders:', error);
+    
+    if (error.response?.status === 401) {
+      throw new Error('Authentication failed. Please login again.');
+    } else if (error.response?.status === 500) {
+      throw new Error('Server error. Please try again later.');
+    } else if (error.code === 'ECONNABORTED') {
+      throw new Error('Request timeout. Please check your connection.');
+    } else if (error.code === 'ERR_NETWORK') {
+      throw new Error('Network error. Please check your internet connection.');
+    } else {
+      throw new Error(error.message || 'Failed to fetch pending orders');
+    }
+  }
+};

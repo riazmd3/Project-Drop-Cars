@@ -1,13 +1,30 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet } from 'react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { useWallet } from '@/contexts/WalletContext';
+import { fetchPendingOrders, PendingOrder } from '@/services/dashboardService';
 
 export default function ConnectionTest() {
   const { user, isLoading: authLoading } = useAuth();
   const { dashboardData, loading: dashboardLoading, error: dashboardError } = useDashboard();
   const { balance } = useWallet();
+  const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([]);
+
+  useEffect(() => {
+    if (dashboardData && !dashboardLoading) {
+      fetchPendingOrdersData();
+    }
+  }, [dashboardData, dashboardLoading]);
+
+  const fetchPendingOrdersData = async () => {
+    try {
+      const orders = await fetchPendingOrders();
+      setPendingOrders(orders);
+    } catch (error) {
+      console.error('❌ Failed to fetch pending orders in ConnectionTest:', error);
+    }
+  };
 
   return (
     <ScrollView style={styles.container}>
@@ -42,6 +59,19 @@ export default function ConnectionTest() {
             <Text style={styles.label}>Summary - Total Cars: {dashboardData.summary?.total_cars || 0}</Text>
             <Text style={styles.label}>Summary - Total Drivers: {dashboardData.summary?.total_drivers || 0}</Text>
             <Text style={styles.label}>Summary - Wallet: ₹{dashboardData.summary?.wallet_balance || 0}</Text>
+          </>
+        )}
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>📋 Pending Orders</Text>
+        <Text style={styles.label}>Orders Count: {pendingOrders?.length || 0}</Text>
+        {pendingOrders && pendingOrders.length > 0 && (
+          <>
+            <Text style={styles.label}>First Order ID: {pendingOrders[0]?.order_id || 'null'}</Text>
+            <Text style={styles.label}>First Order Pickup: {pendingOrders[0]?.pickup_drop_location?.pickup || 'null'}</Text>
+            <Text style={styles.label}>First Order Drop: {pendingOrders[0]?.pickup_drop_location?.drop || 'null'}</Text>
+            <Text style={styles.label}>First Order Customer: {pendingOrders[0]?.customer_name || 'null'}</Text>
           </>
         )}
       </View>

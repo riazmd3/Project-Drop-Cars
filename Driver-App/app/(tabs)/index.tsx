@@ -17,7 +17,7 @@ import { useRouter } from 'expo-router';
 import { Menu, Wallet, MapPin, Clock, User, Phone, Car, RefreshCw } from 'lucide-react-native';
 import BookingCard from '@/components/BookingCard';
 import DrawerNavigation from '@/components/DrawerNavigation';
-import { fetchDashboardData, DashboardData } from '@/services/dashboardService';
+import { fetchDashboardData, DashboardData, fetchPendingOrders, PendingOrder } from '@/services/dashboardService';
 import ConnectionTest from '@/components/ConnectionTest';
 
 const dummyBookings = [
@@ -64,8 +64,9 @@ export default function DashboardScreen() {
   const { dashboardData, loading, error, fetchData, refreshData } = useDashboard();
   const router = useRouter();
   const [showDrawer, setShowDrawer] = useState(false);
-  const [bookings, setBookings] = useState<Booking[]>(dummyBookings);
-  const [currentTrip, setCurrentTrip] = useState<Booking | null>(null);
+  const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [currentTrip, setCurrentTrip] = useState<PendingOrder | null>(null);
   const [refreshing, setRefreshing] = useState(false);
 
   const canAcceptBookings = balance >= 1000;
@@ -80,9 +81,10 @@ export default function DashboardScreen() {
         driverCount: dashboardData.drivers?.length || 0
       } : null,
       loading,
-      error
+      error,
+      pendingOrders: pendingOrders.length
     });
-  }, [user, dashboardData, loading, error]);
+  }, [user, dashboardData, loading, error, pendingOrders]);
 
   // Fetch dashboard data on component mount
   useEffect(() => {
@@ -90,10 +92,33 @@ export default function DashboardScreen() {
     fetchData();
   }, []);
 
+  // Fetch pending orders when dashboard data is loaded
+  useEffect(() => {
+    if (dashboardData && !loading) {
+      fetchPendingOrdersData();
+    }
+  }, [dashboardData, loading]);
+
+  const fetchPendingOrdersData = async () => {
+    try {
+      setOrdersLoading(true);
+      console.log('📋 Fetching pending orders for dashboard...');
+      const orders = await fetchPendingOrders();
+      setPendingOrders(orders);
+      console.log('✅ Pending orders loaded:', orders.length);
+    } catch (error) {
+      console.error('❌ Failed to fetch pending orders:', error);
+      // Don't show error alert, just log it
+    } finally {
+      setOrdersLoading(false);
+    }
+  };
+
   const handleRefresh = async () => {
     try {
       setRefreshing(true);
       await refreshData();
+      await fetchPendingOrdersData(); // Also refresh orders
     } catch (error) {
       console.error('❌ Refresh failed:', error);
     } finally {
@@ -319,7 +344,7 @@ export default function DashboardScreen() {
       color: colors.textSecondary,
     },
   });
-  const handleAcceptBooking = (booking: Booking) => {
+  const handleAcceptBooking = (order: PendingOrder) => {
     if (!canAcceptBookings) {
       Alert.alert(
         'Insufficient Balance',
@@ -331,17 +356,17 @@ export default function DashboardScreen() {
 
     Alert.alert(
       'Accept Booking',
-      `Accept trip from ${booking.pickup} to ${booking.drop}?`,
+      `Accept trip from ${order.pickup_drop_location.pickup} to ${order.pickup_drop_location.drop}?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Accept', onPress: () => acceptBooking(booking) }
+        { text: 'Accept', onPress: () => acceptBooking(order) }
       ]
     );
   };
 
-  const acceptBooking = (booking: Booking) => {
-    setCurrentTrip({ ...booking, status: 'accepted' });
-    setBookings(prev => prev.filter(b => b.booking_id !== booking.booking_id));
+  const acceptBooking = (order: PendingOrder) => {
+    setCurrentTrip({ ...order });
+    setPendingOrders(prev => prev.filter(o => o.order_id !== order.order_id));
     
     // Simulate SMS sending
     Alert.alert(
@@ -447,11 +472,11 @@ export default function DashboardScreen() {
                   <View style={dynamicStyles.tripDetails}>
                     <View style={dynamicStyles.tripRow}>
                       <MapPin color={colors.success} size={16} />
-                      <Text style={dynamicStyles.tripText}>{currentTrip.pickup}</Text>
+                      <Text style={dynamicStyles.tripText}>{currentTrip.pickup_drop_location.pickup}</Text>
                     </View>
                     <View style={dynamicStyles.tripRow}>
                       <MapPin color={colors.error} size={16} />
-                      <Text style={dynamicStyles.tripText}>{currentTrip.drop}</Text>
+                      <Text style={dynamicStyles.tripText}>{currentTrip.pickup_drop_location.drop}</Text>
                     </View>
                     <View style={dynamicStyles.tripRow}>
                       <User color={colors.textSecondary} size={16} />
@@ -459,7 +484,7 @@ export default function DashboardScreen() {
                     </View>
                     <View style={dynamicStyles.tripRow}>
                       <Phone color={colors.textSecondary} size={16} />
-                      <Text style={dynamicStyles.tripText}>{currentTrip.customer_mobile}</Text>
+                      <Text style={dynamicStyles.tripText}>{currentTrip.customer_number}</Text>
                     </View>
                   </View>
 
@@ -474,18 +499,31 @@ export default function DashboardScreen() {
             ) : (
               <View style={dynamicStyles.bookingsSection}>
                 <Text style={dynamicStyles.sectionTitle}>Available Bookings</Text>
-                {bookings.length > 0 ? (
-                  bookings.map((booking) => (
+                {ordersLoading ? (
+                  <View style={dynamicStyles.loadingContainer}>
+                    <Text style={dynamicStyles.loadingText}>Loading pending orders...</Text>
+                  </View>
+                ) : pendingOrders.length > 0 ? (
+                  pendingOrders.map((order) => (
                     <BookingCard
-                      key={booking.booking_id}
-                      booking={booking}
-                      onAccept={handleAcceptBooking}
+                      key={order.order_id}
+                      booking={{
+                        booking_id: order.order_id.toString(),
+                        pickup: order.pickup_drop_location.pickup,
+                        drop: order.pickup_drop_location.drop,
+                        customer_name: order.customer_name,
+                        customer_mobile: order.customer_number,
+                        fare_per_km: order.cost_per_km,
+                        distance_km: order.trip_distance,
+                        total_fare: (order.cost_per_km * order.trip_distance) + order.driver_allowance + order.permit_charges + order.hill_charges + order.toll_charges
+                      }}
+                      onAccept={() => handleAcceptBooking(order)}
                       disabled={!canAcceptBookings}
                     />
                   ))
                 ) : (
                   <View style={dynamicStyles.noBookings}>
-                    <Text style={dynamicStyles.noBookingsText}>No bookings available</Text>
+                    <Text style={dynamicStyles.noBookingsText}>No pending bookings available</Text>
                     <Text style={dynamicStyles.noBookingsSubtext}>New bookings will appear here</Text>
                   </View>
                 )}
@@ -538,6 +576,13 @@ export default function DashboardScreen() {
                 <Text style={dynamicStyles.statLabel}>Drivers Count:</Text>
                 <Text style={dynamicStyles.statNumber}>
                   {dashboardData?.drivers?.length || 0}
+                </Text>
+              </View>
+              
+              <View style={dynamicStyles.statCard}>
+                <Text style={dynamicStyles.statLabel}>Pending Orders:</Text>
+                <Text style={dynamicStyles.statNumber}>
+                  {pendingOrders.length}
                 </Text>
               </View>
               
