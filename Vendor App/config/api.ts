@@ -12,6 +12,8 @@ export const API_CONFIG = {
     // New Order endpoints
     CREATE_QUOTE: '/api/orders/oneway/quote',
     CONFIRM_ORDER: '/api/orders/oneway/confirm',
+    // Vendor Orders endpoint
+    VENDOR_ORDERS: '/api/orders/vendor',
   },
   
   // Request timeout in milliseconds
@@ -47,6 +49,11 @@ export const getCreateQuoteUrl = (): string => {
 // Helper function to get confirm order URL
 export const getConfirmOrderUrl = (): string => {
   return getApiUrl(API_CONFIG.ENDPOINTS.CONFIRM_ORDER);
+};
+
+// Helper function to get vendor orders URL
+export const getVendorOrdersUrl = (): string => {
+  return getApiUrl(API_CONFIG.ENDPOINTS.VENDOR_ORDERS);
 };
 
 // Helper function to get current API base URL
