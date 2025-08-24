@@ -118,13 +118,7 @@ export default function LoginScreen() {
       console.log('🔍 Full response data:', response.data);
       
       // FIRST: Check if user has uploaded any documents
-      if (carCount === 0 && driverCount === 0) {
-        // No documents uploaded yet - redirect to add documents
-        console.log('📝 No documents uploaded, redirecting to add car page');
-        router.replace('/add-car');
-        return;
-      }
-      
+      // Priority: Car first, then Driver
       if (carCount === 0) {
         // No cars uploaded - redirect to add car
         console.log('🚗 No cars uploaded, redirecting to add car page');
@@ -140,40 +134,17 @@ export default function LoginScreen() {
       }
       
       // SECOND: Now check account status (only if documents are uploaded)
-      if (accountStatus?.toLowerCase() === 'inactive') {
-        // Documents uploaded but account is under verification
-        console.log('⏳ Documents uploaded, account under verification');
-        setAccountStatus(accountStatus);
-        setShowAccountVerification(true);
-        return;
-      }
-      
-      if (accountStatus?.toLowerCase() === 'rejected') {
-        // Documents uploaded but account verification failed
-        console.log('❌ Documents uploaded, account verification failed');
-        setAccountStatus(accountStatus);
-        setShowAccountVerification(true);
-        return;
-      }
-      
-      if (accountStatus?.toLowerCase() === 'pending') {
-        // Documents uploaded but account is pending
-        console.log('⏳ Documents uploaded, account pending');
+      if (accountStatus?.toLowerCase() !== 'active') {
+        // Documents uploaded but account is not active
+        console.log('⏳ Documents uploaded, but account status is:', accountStatus);
         setAccountStatus(accountStatus);
         setShowAccountVerification(true);
         return;
       }
       
       // THIRD: If documents are uploaded and account is active, proceed to dashboard
-      if (accountStatus?.toLowerCase() === 'active') {
-        console.log('✅ Documents uploaded and account active, proceeding to dashboard');
-        setShowWelcome(true);
-      } else {
-        // Unknown account status - show verification screen
-        console.log('❓ Unknown account status, showing verification screen');
-        setAccountStatus(accountStatus || 'unknown');
-        setShowAccountVerification(true);
-      }
+      console.log('✅ Documents uploaded and account active, proceeding to dashboard');
+      setShowWelcome(true);
 
     } catch (error: any) {
       console.error('❌ Login failed:', error);
@@ -225,14 +196,7 @@ export default function LoginScreen() {
       
       // Use the same logic as login
       // FIRST: Check if user has uploaded any documents
-      if (carCount === 0 && driverCount === 0) {
-        // No documents uploaded yet - redirect to add documents
-        console.log('📝 No documents uploaded, redirecting to add car page');
-        setShowAccountVerification(false);
-        router.replace('/add-car');
-        return;
-      }
-      
+      // Priority: Car first, then Driver
       if (carCount === 0) {
         // No cars uploaded - redirect to add car
         console.log('🚗 No cars uploaded, redirecting to add car page');
@@ -250,16 +214,17 @@ export default function LoginScreen() {
       }
       
       // SECOND: Now check account status (only if documents are uploaded)
-      if (newStatus?.toLowerCase() === 'active') {
-        // Documents uploaded and account is active, proceed to dashboard
-        console.log('✅ Documents uploaded and account active, proceeding to dashboard');
-        setShowAccountVerification(false);
-        setShowWelcome(true);
-      } else {
-        // Documents uploaded but account is not active, keep showing verification
-        console.log('⏳ Documents uploaded but account not active, keeping verification screen');
+      if (newStatus?.toLowerCase() !== 'active') {
+        // Documents uploaded but account is not active
+        console.log('⏳ Documents uploaded, but account status is:', newStatus);
         setAccountStatus(newStatus);
+        return;
       }
+      
+      // THIRD: If documents are uploaded and account is active, proceed to dashboard
+      console.log('✅ Documents uploaded and account active, proceeding to dashboard');
+      setShowAccountVerification(false);
+      setShowWelcome(true);
     } catch (error) {
       console.error('❌ Failed to refresh status:', error);
       Alert.alert('Error', 'Failed to refresh account status. Please try again.');

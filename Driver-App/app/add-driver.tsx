@@ -14,7 +14,7 @@ import { ArrowLeft, User, Save, Upload, CheckCircle, FileText, Image, Phone, Loc
 import { useAuth } from '@/contexts/AuthContext';
 import { addDriverDetails, DriverDetails } from '@/services/driverService';
 import * as ImagePicker from 'expo-image-picker';
-import { fetchDashboardData } from '@/services/dashboardService';
+import axiosInstance from '@/app/api/axiosInstance';
 
 export default function AddDriverScreen() {
   const [driverData, setDriverData] = useState({
@@ -40,64 +40,78 @@ export default function AddDriverScreen() {
   const router = useRouter();
   const { user } = useAuth();
 
-  // Validation functions
-  const validateFullName = (name: string): string => {
-    if (!name.trim()) return 'Full name is required';
-    if (name.length < 2) return 'Full name must be at least 2 characters';
-    if (name.length > 100) return 'Full name must be less than 100 characters';
-    return '';
+  // Function to check account status and redirect accordingly
+  const checkAccountStatusAndRedirect = async () => {
+    try {
+      // Get current user data to check account status
+      const response = await axiosInstance.post('/api/users/vehicleowner/login', {
+        mobile_number: user?.primaryMobile || '',
+        password: user?.password || ''
+      });
+
+      const accountStatus = response.data.account_status;
+      const carCount = response.data.car_details_count ?? 0;
+      const driverCount = response.data.car_driver_count ?? 0;
+
+      console.log('🔍 After driver addition - Account status:', accountStatus);
+      console.log('🔍 After driver addition - Car count:', carCount);
+      console.log('🔍 After driver addition - Driver count:', driverCount);
+
+      // Check if user needs to add more documents
+      if (carCount === 0) {
+        // No cars - redirect to add car
+        console.log('🚗 No cars, redirecting to add car page');
+        router.replace('/add-car');
+        return;
+      }
+
+      if (driverCount === 0) {
+        // Still no drivers (shouldn't happen, but just in case)
+        console.log('👤 Still no drivers, staying on add driver page');
+        return;
+      }
+
+      // Both cars and drivers are added, check account status
+      if (accountStatus?.toLowerCase() !== 'active') {
+        // Documents uploaded but account is not active - show verification page
+        console.log('⏳ Documents uploaded but account not active, redirecting to verification');
+        router.replace('/login');
+        return;
+      }
+
+      // Everything is ready - go to dashboard
+      console.log('✅ Everything ready, proceeding to dashboard');
+      router.replace('/(tabs)');
+    } catch (error) {
+      console.error('❌ Error checking account status:', error);
+      // Fallback to dashboard if check fails
+      router.replace('/(tabs)');
+    }
   };
 
-  const validatePhoneNumber = (number: string): string => {
-    if (!number.trim()) return 'Phone number is required';
-    
-    // Format: +91XXXXXXXXXX
-    const phoneRegex = /^\+91\d{10}$/;
-    if (!phoneRegex.test(number)) {
-      return 'Invalid format. Use: +91XXXXXXXXXX (10 digits after +91)';
+  // Simple input handlers
+  const handleInputChange = (field: string, value: string) => {
+    // Clear error if exists
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
     }
     
-    return '';
+    setDriverData(prev => ({ ...prev, [field]: value }));
   };
 
-  const validatePassword = (password: string): string => {
-    if (!password.trim()) return 'Password is required';
-    if (password.length < 6) return 'Password must be at least 6 characters';
-    if (password.length > 50) return 'Password must be less than 50 characters';
-    return '';
-  };
-
-  const validateLicenceNumber = (licence: string): string => {
-    if (!licence.trim()) return 'Driving licence number is required';
-    
-    // Format: SS-NN-YYYY-NNNNNNN (State Code + RTO + Year + Serial)
-    const licenceRegex = /^[A-Z]{2}-\d{2}-\d{4}-\d{7}$/;
-    if (!licenceRegex.test(licence)) {
-      return 'Invalid format. Use: SS-NN-YYYY-NNNNNNN (e.g., MH-12-1990-1234567)';
-    }
-    
-    return '';
-  };
-
-  const validateAddress = (address: string): string => {
-    if (!address.trim()) return 'Address is required';
-    if (address.length < 10) return 'Address must be at least 10 characters';
-    if (address.length > 200) return 'Address must be less than 200 characters';
-    return '';
-  };
-
+  // Simple validation - just check if fields are not empty
   const validateAllFields = (): boolean => {
     const newErrors: {[key: string]: string} = {};
     
-    newErrors.full_name = validateFullName(driverData.full_name);
-    newErrors.primary_number = validatePhoneNumber(driverData.primary_number);
-    newErrors.password = validatePassword(driverData.password);
-    newErrors.licence_number = validateLicenceNumber(driverData.licence_number);
-    newErrors.adress = validateAddress(driverData.adress);
+    if (!driverData.full_name.trim()) newErrors.full_name = 'Full name is required';
+    if (!driverData.primary_number.trim()) newErrors.primary_number = 'Primary phone number is required';
+    if (!driverData.password.trim()) newErrors.password = 'Password is required';
+    if (!driverData.licence_number.trim()) newErrors.licence_number = 'Driving licence number is required';
+    if (!driverData.adress.trim()) newErrors.adress = 'Address is required';
     
     setErrors(newErrors);
     
-    return !Object.values(newErrors).some(error => error !== '');
+    return Object.keys(newErrors).length === 0;
   };
 
   const pickImage = async (imageKey: string) => {
@@ -163,102 +177,52 @@ export default function AddDriverScreen() {
     // Clear previous errors
     setErrors({});
 
-    // Auto-format phone number before validation
-    let formattedPhoneNumber = driverData.primary_number;
-    if (formattedPhoneNumber && !formattedPhoneNumber.startsWith('+91')) {
-      // Remove all non-digits
-      const cleaned = formattedPhoneNumber.replace(/\D/g, '');
-      if (cleaned.length === 10) {
-        // Add +91 prefix
-        formattedPhoneNumber = `+91${cleaned}`;
-        // Update the state with formatted number
-        setDriverData(prev => ({ ...prev, primary_number: formattedPhoneNumber }));
-      }
-    }
-
-    // Auto-format licence number before validation
-    let formattedLicenceNumber = driverData.licence_number;
-    if (formattedLicenceNumber && !formattedLicenceNumber.includes('-')) {
-      // Remove all non-alphanumeric characters
-      const cleaned = formattedLicenceNumber.replace(/[^A-Za-z0-9]/g, '');
-      if (cleaned.length === 15) {
-        // Format as SS-NN-YYYY-NNNNNNN
-        formattedLicenceNumber = `${cleaned.slice(0, 2).toUpperCase()}-${cleaned.slice(2, 4)}-${cleaned.slice(4, 8)}-${cleaned.slice(8, 15)}`;
-        // Update the state with formatted number
-        setDriverData(prev => ({ ...prev, licence_number: formattedLicenceNumber }));
-      }
-    }
-
-    // Validate all fields
+    // Simple validation - just check if fields are not empty
     if (!validateAllFields()) {
-      Alert.alert('Validation Error', 'Please fix the errors before continuing');
+      Alert.alert('Validation Error', 'Please fill all required fields');
       return;
     }
 
     // Check required images
-    if (!driverImages.licence_front_img) {
-      Alert.alert('Error', 'Please upload the driving licence front image');
+    if (!driverImages.licence_front_img || !driverImages.rc_front_img || !driverImages.rc_back_img || !driverImages.insurance_img || !driverImages.fc_img || !driverImages.car_img) {
+      Alert.alert('Error', 'Please upload all required images (Licence Front, RC Front, RC Back, Insurance, FC, Car Image)');
       return;
     }
 
     try {
       const payload: DriverDetails = {
         full_name: driverData.full_name.trim(),
-        primary_number: formattedPhoneNumber,
-        secondary_number: driverData.secondary_number || '',
-        password: driverData.password,
-        licence_number: formattedLicenceNumber,
+        primary_number: driverData.primary_number.trim(), // Send as entered
+        secondary_number: driverData.secondary_number.trim(),
+        password: driverData.password.trim(),
+        licence_number: driverData.licence_number.trim(), // Send as entered
         adress: driverData.adress.trim(),
         organization_id: user?.organizationId || 'org_001',
         vehicle_owner_id: user?.id || 'e5b9edb1-b4bb-48b8-a662-f7fd00abb6eb',
         licence_front_img: driverImages.licence_front_img,
-        rc_front_img: driverImages.rc_front_img || '',
-        rc_back_img: driverImages.rc_back_img || '',
-        insurance_img: driverImages.insurance_img || '',
-        fc_img: driverImages.fc_img || '',
-        car_img: driverImages.car_img || ''
+        rc_front_img: driverImages.rc_front_img,
+        rc_back_img: driverImages.rc_back_img,
+        insurance_img: driverImages.insurance_img,
+        fc_img: driverImages.fc_img,
+        car_img: driverImages.car_img
       };
-
-      // Debug user ID
-      console.log('🔍 Current user ID:', user?.id);
-      console.log('🔍 Using vehicle_owner_id:', payload.vehicle_owner_id);
 
       await addDriverDetails(payload);
 
-      // Show success message and redirect to dashboard
       Alert.alert(
         'Success',
-        'Driver added successfully! You can now access the dashboard.',
+        'Driver details added successfully!',
         [
           {
             text: 'OK',
-            onPress: () => router.replace('/(tabs)')
+            onPress: () => checkAccountStatusAndRedirect()
           }
         ]
       );
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to add driver');
+      console.error('Error adding driver:', error);
+      Alert.alert('Error', error.message || 'Failed to add driver details');
     }
-  };
-
-  const handlePhoneNumberChange = (text: string, field: 'primary_number' | 'secondary_number') => {
-    // Clear error if exists
-    if (errors[field]) {
-      setErrors(prev => ({ ...prev, [field]: '' }));
-    }
-    
-    // Just store the text as-is, no formatting
-    setDriverData(prev => ({ ...prev, [field]: text }));
-  };
-
-  const handleLicenceNumberChange = (text: string) => {
-    // Clear error if exists
-    if (errors.licence_number) {
-      setErrors(prev => ({ ...prev, licence_number: '' }));
-    }
-    
-    // Just store the text as-is, no formatting
-    setDriverData(prev => ({ ...prev, licence_number: text.toUpperCase() }));
   };
 
   return (
@@ -290,10 +254,7 @@ export default function AddDriverScreen() {
               style={[styles.input, errors.full_name && styles.inputError]}
               placeholder="Full Name (e.g., John Doe)"
               value={driverData.full_name}
-              onChangeText={(text) => {
-                setDriverData(prev => ({ ...prev, full_name: text }));
-                if (errors.full_name) setErrors(prev => ({ ...prev, full_name: '' }));
-              }}
+              onChangeText={(text) => handleInputChange('full_name', text)}
             />
           </View>
           {errors.full_name && <Text style={styles.errorText}>{errors.full_name}</Text>}
@@ -304,28 +265,23 @@ export default function AddDriverScreen() {
               style={[styles.input, errors.primary_number && styles.inputError]}
               placeholder="Primary Mobile Number (+91XXXXXXXXXX)"
               value={driverData.primary_number}
-              onChangeText={(text) => handlePhoneNumberChange(text, 'primary_number')}
+              onChangeText={(text) => handleInputChange('primary_number', text)}
               keyboardType="phone-pad"
-              maxLength={13}
             />
           </View>
           {errors.primary_number && <Text style={styles.errorText}>{errors.primary_number}</Text>}
           <Text style={styles.helpText}>
-            Format: +91XXXXXXXXXX (10 digits after +91)
-          </Text>
-          <Text style={styles.helpText}>
-            💡 Tip: Type your number (e.g., 9876543210) and it will auto-add +91 when submitted
+            Enter your mobile number exactly as you want it stored
           </Text>
 
           <View style={styles.inputGroup}>
             <Phone color="#6B7280" size={20} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, errors.secondary_number && styles.inputError]}
               placeholder="Secondary Mobile Number (Optional)"
               value={driverData.secondary_number}
-              onChangeText={(text) => handlePhoneNumberChange(text, 'secondary_number')}
+              onChangeText={(text) => handleInputChange('secondary_number', text)}
               keyboardType="phone-pad"
-              maxLength={13}
             />
           </View>
 
@@ -335,10 +291,7 @@ export default function AddDriverScreen() {
               style={[styles.input, errors.password && styles.inputError]}
               placeholder="Password"
               value={driverData.password}
-              onChangeText={(text) => {
-                setDriverData(prev => ({ ...prev, password: text }));
-                if (errors.password) setErrors(prev => ({ ...prev, password: '' }));
-              }}
+              onChangeText={(text) => handleInputChange('password', text)}
               secureTextEntry
             />
           </View>
@@ -350,17 +303,13 @@ export default function AddDriverScreen() {
               style={[styles.input, errors.licence_number && styles.inputError]}
               placeholder="Driving Licence Number (e.g., MH-12-1990-1234567)"
               value={driverData.licence_number}
-              onChangeText={handleLicenceNumberChange}
+              onChangeText={(text) => handleInputChange('licence_number', text)}
               autoCapitalize="characters"
-              maxLength={19}
             />
           </View>
           {errors.licence_number && <Text style={styles.errorText}>{errors.licence_number}</Text>}
           <Text style={styles.helpText}>
-            Format: SS-NN-YYYY-NNNNNNN (State Code + RTO + Year + Serial)
-          </Text>
-          <Text style={styles.helpText}>
-            💡 Tip: Type your licence number (e.g., MH1219901234567) and it will auto-add hyphens when submitted
+            Enter your driving licence number exactly as it appears on your licence
           </Text>
 
           <View style={styles.inputGroup}>
@@ -369,10 +318,7 @@ export default function AddDriverScreen() {
               style={[styles.input, errors.adress && styles.inputError]}
               placeholder="Address (e.g., 123 Main Street, Mumbai, Maharashtra)"
               value={driverData.adress}
-              onChangeText={(text) => {
-                setDriverData(prev => ({ ...prev, adress: text }));
-                if (errors.adress) setErrors(prev => ({ ...prev, adress: '' }));
-              }}
+              onChangeText={(text) => handleInputChange('adress', text)}
               multiline
               numberOfLines={3}
             />

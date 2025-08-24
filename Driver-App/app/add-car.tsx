@@ -14,6 +14,7 @@ import { ArrowLeft, Car, Save, Upload, CheckCircle, FileText, Image, ChevronDown
 import { useAuth } from '@/contexts/AuthContext';
 import { addCarDetails, testCarDetailsDataStructure } from '@/services/signupService';
 import * as ImagePicker from 'expo-image-picker';
+import axiosInstance from '@/app/api/axiosInstance';
 
 export default function AddCarScreen() {
   const [carData, setCarData] = useState({
@@ -41,54 +42,63 @@ export default function AddCarScreen() {
 
   const carTypes = ['SEDAN', 'SUV', 'INNOVA'];
 
-  // Validation functions
-  const validateCarName = (name: string): string => {
-    if (!name.trim()) return 'Car name is required';
-    if (name.length < 2) return 'Car name must be at least 2 characters';
-    if (name.length > 100) return 'Car name must be less than 100 characters';
-    return '';
+  // Function to check account status and redirect accordingly
+  const checkAccountStatusAndRedirect = async () => {
+    try {
+      // Get current user data to check account status
+      const response = await axiosInstance.post('/api/users/vehicleowner/login', {
+        mobile_number: user?.primaryMobile || '',
+        password: user?.password || ''
+      });
+
+      const accountStatus = response.data.account_status;
+      const carCount = response.data.car_details_count ?? 0;
+      const driverCount = response.data.car_driver_count ?? 0;
+
+      console.log('🔍 After car addition - Account status:', accountStatus);
+      console.log('🔍 After car addition - Car count:', carCount);
+      console.log('🔍 After car addition - Driver count:', driverCount);
+
+      // Check if user needs to add more documents
+      if (carCount === 0) {
+        // Still no cars (shouldn't happen, but just in case)
+        console.log('🚗 Still no cars, staying on add car page');
+        return;
+      }
+
+      if (driverCount === 0) {
+        // Cars added but no drivers - redirect to add driver
+        console.log('👤 Cars added but no drivers, redirecting to add driver page');
+        router.replace('/add-driver');
+        return;
+      }
+
+      // Both cars and drivers are added, check account status
+      if (accountStatus?.toLowerCase() !== 'active') {
+        // Documents uploaded but account is not active - show verification page
+        console.log('⏳ Documents uploaded but account not active, redirecting to verification');
+        router.replace('/login');
+        return;
+      }
+
+      // Everything is ready - go to dashboard
+      console.log('✅ Everything ready, proceeding to dashboard');
+      router.replace('/(tabs)');
+    } catch (error) {
+      console.error('❌ Error checking account status:', error);
+      // Fallback to dashboard if check fails
+      router.replace('/(tabs)');
+    }
   };
 
-  const validateCarType = (type: string): string => {
-    if (!type) return 'Car type is required';
-    if (!carTypes.includes(type)) return 'Please select a valid car type';
-    return '';
-  };
-
-  const validateCarNumber = (number: string): string => {
-    if (!number.trim()) return 'Car registration number is required';
-    
-    // Format: SS NN LL NNNN (State Code + District + Letters + Numbers)
-    const carNumberRegex = /^[A-Z]{2}\s+\d{2}\s+[A-Z]{2}\s+\d{4}$/;
-    
-    if (!carNumberRegex.test(number)) {
-      return 'Invalid format. Use: SS NN LL NNNN (e.g., MH 12 AB 1234)';
+  // Simple input handlers
+  const handleInputChange = (field: string, value: string) => {
+    // Clear error if exists
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
     }
     
-    return '';
-  };
-
-  const validateYear = (year: string): string => {
-    if (!year.trim()) return 'Model year is required';
-    const yearNum = parseInt(year);
-    if (isNaN(yearNum)) return 'Please enter a valid year';
-    if (yearNum < 1900 || yearNum > new Date().getFullYear() + 1) {
-      return `Year must be between 1900 and ${new Date().getFullYear() + 1}`;
-    }
-    return '';
-  };
-
-  const validateAllFields = (): boolean => {
-    const newErrors: {[key: string]: string} = {};
-    
-    newErrors.name = validateCarName(carData.name);
-    newErrors.type = validateCarType(carData.type);
-    newErrors.registration = validateCarNumber(carData.registration);
-    newErrors.year = validateYear(carData.year);
-    
-    setErrors(newErrors);
-    
-    return !Object.values(newErrors).some(error => error !== '');
+    setCarData(prev => ({ ...prev, [field]: value }));
   };
 
   const pickImage = async (imageKey: string) => {
@@ -154,22 +164,9 @@ export default function AddCarScreen() {
     // Clear previous errors
     setErrors({});
 
-    // Auto-format car number before validation
-    let formattedCarNumber = carData.registration;
-    if (formattedCarNumber && formattedCarNumber.length >= 10) {
-      // Remove all non-alphanumeric characters first
-      const cleaned = formattedCarNumber.replace(/[^A-Za-z0-9]/g, '');
-      if (cleaned.length === 10) {
-        // Format as SS NN LL NNNN
-        formattedCarNumber = `${cleaned.slice(0, 2).toUpperCase()} ${cleaned.slice(2, 4)} ${cleaned.slice(4, 6).toUpperCase()} ${cleaned.slice(6, 10)}`;
-        // Update the state with formatted number
-        setCarData(prev => ({ ...prev, registration: formattedCarNumber }));
-      }
-    }
-
-    // Validate all fields
-    if (!validateAllFields()) {
-      Alert.alert('Validation Error', 'Please fix the errors before continuing');
+    // Simple validation - just check if fields are not empty
+    if (!carData.name || !carData.type || !carData.registration || !carData.year) {
+      Alert.alert('Validation Error', 'Please fill all required fields');
       return;
     }
 
@@ -183,7 +180,7 @@ export default function AddCarScreen() {
       const payload = {
         car_name: carData.name.trim(),
         car_type: carData.type,
-        car_number: formattedCarNumber.replace(/\s/g, ''), // Remove spaces for backend
+        car_number: carData.registration.trim(), // Send as entered
         organization_id: user?.organizationId || 'org_001',
         vehicle_owner_id: user?.id || 'e5b9edb1-b4bb-48b8-a662-f7fd00abb6eb',
         rc_front_img: carImages.rcFront,
@@ -198,27 +195,18 @@ export default function AddCarScreen() {
 
       Alert.alert(
         'Success',
-        'Car added successfully! Now add your first driver.',
+        'Car details added successfully!',
         [
           {
             text: 'OK',
-            onPress: () => router.push('/add-driver')
+            onPress: () => checkAccountStatusAndRedirect()
           }
         ]
       );
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to add car');
+      console.error('Error adding car:', error);
+      Alert.alert('Error', error.message || 'Failed to add car details');
     }
-  };
-
-  const handleCarNumberChange = (text: string) => {
-    // Clear error if exists
-    if (errors.registration) {
-      setErrors(prev => ({ ...prev, registration: '' }));
-    }
-    
-    // Just store the text as-is, no formatting
-    setCarData(prev => ({ ...prev, registration: text.toUpperCase() }));
   };
 
   return (
@@ -250,10 +238,7 @@ export default function AddCarScreen() {
               style={[styles.input, errors.name && styles.inputError]}
               placeholder="Car Name (e.g., Toyota Camry)"
               value={carData.name}
-              onChangeText={(text) => {
-                setCarData(prev => ({ ...prev, name: text }));
-                if (errors.name) setErrors(prev => ({ ...prev, name: '' }));
-              }}
+              onChangeText={(text) => handleInputChange('name', text)}
             />
           </View>
           {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
@@ -295,17 +280,13 @@ export default function AddCarScreen() {
               style={[styles.input, errors.registration && styles.inputError]}
               placeholder="Registration Number (e.g., MH 12 AB 1234)"
               value={carData.registration}
-              onChangeText={handleCarNumberChange}
+              onChangeText={(text) => handleInputChange('registration', text)}
               autoCapitalize="characters"
-              maxLength={13}
             />
           </View>
           {errors.registration && <Text style={styles.errorText}>{errors.registration}</Text>}
           <Text style={styles.helpText}>
-            Format: SS NN LL NNNN (State Code + District + Letters + Numbers)
-          </Text>
-          <Text style={styles.helpText}>
-            💡 Tip: Type your number (e.g., MH12AB1234) and it will auto-format to MH 12 AB 1234 when submitted
+            Enter your car registration number exactly as it appears on your RC
           </Text>
 
           <View style={styles.inputGroup}>
@@ -314,10 +295,7 @@ export default function AddCarScreen() {
               style={[styles.input, errors.year && styles.inputError]}
               placeholder="Model Year (e.g., 2023)"
               value={carData.year}
-              onChangeText={(text) => {
-                setCarData(prev => ({ ...prev, year: text }));
-                if (errors.year) setErrors(prev => ({ ...prev, year: '' }));
-              }}
+              onChangeText={(text) => handleInputChange('year', text)}
               keyboardType="numeric"
               maxLength={4}
             />
@@ -330,7 +308,7 @@ export default function AddCarScreen() {
               style={styles.input}
               placeholder="Color (e.g., White, Black, Red)"
               value={carData.color}
-              onChangeText={(text) => setCarData(prev => ({ ...prev, color: text }))}
+              onChangeText={(text) => handleInputChange('color', text)}
             />
           </View>
 
