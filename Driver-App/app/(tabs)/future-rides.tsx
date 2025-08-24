@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,14 +7,32 @@ import {
   TouchableOpacity,
   Alert,
   Modal,
-  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { MapPin, Clock, IndianRupee, User, Phone, Car, UserPlus, X } from 'lucide-react-native';
+import { useDashboard } from '@/contexts/DashboardContext';
+import { MapPin, Clock, IndianRupee, User, Phone, Car, X } from 'lucide-react-native';
 
-const dummyFutureRides = [
+// Type definitions
+interface FutureRide {
+  id: string;
+  booking_id: string;
+  pickup: string;
+  drop: string;
+  customer_name: string;
+  customer_mobile: string;
+  date: string;
+  time: string;
+  distance: number;
+  fare_per_km: number;
+  total_fare: number;
+  status: string;
+  assigned_driver: any | null;
+}
+
+// Sample future rides data - replace with real API data later
+const sampleFutureRides: FutureRide[] = [
   {    
     id: '1',
     booking_id: 'B125',
@@ -47,27 +65,22 @@ const dummyFutureRides = [
   },
 ];
 
-const dummyDrivers = [
-  { id: '1', name: 'Kumar', mobile: '9876543211' },
-  { id: '2', name: 'Suresh', mobile: '9876543212' },
-  { id: '3', name: 'Raj', mobile: '9876543213' },
-];
-
 export default function FutureRidesScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
-  const [rides, setRides] = useState(dummyFutureRides);
+  const { dashboardData, loading, error } = useDashboard();
+  const [rides, setRides] = useState<FutureRide[]>(sampleFutureRides);
   const [showAssignModal, setShowAssignModal] = useState(false);
-  const [selectedRide, setSelectedRide] = useState(null);
-  const [drivers, setDrivers] = useState(dummyDrivers);
-  const [newDriverName, setNewDriverName] = useState('');
-  const [newDriverMobile, setNewDriverMobile] = useState('');
+  const [selectedRide, setSelectedRide] = useState<FutureRide | null>(null);
+
+  // Get available drivers from dashboard data
+  const availableDrivers = dashboardData?.drivers || [];
 
   const generateQuickId = () => {
     return Math.floor(1000 + Math.random() * 9000).toString();
   };
 
-  const assignDriver = (ride, driver) => {
+  const assignDriver = (ride: FutureRide, driver: any) => {
     const quickId = generateQuickId();
     
     const updatedRides = rides.map(r => 
@@ -82,32 +95,8 @@ export default function FutureRidesScreen() {
     
     Alert.alert(
       'Driver Assigned',
-      `${driver.name} has been assigned to trip ${ride.booking_id}\n\nQuick ID: ${quickId}\nMobile: ${driver.mobile}\n\nThe driver can now login using Quick Driver mode.`
+      `${driver.full_name} has been assigned to trip ${ride.booking_id}\n\nQuick ID: ${quickId}\nMobile: ${driver.primary_number}\n\nThe driver can now login using Quick Driver mode.`
     );
-  };
-
-  const addNewDriver = () => {
-    if (!newDriverName || !newDriverMobile) {
-      Alert.alert('Error', 'Please enter driver name and mobile number');
-      return;
-    }
-
-    if (newDriverMobile.length !== 10) {
-      Alert.alert('Error', 'Please enter a valid 10-digit mobile number');
-      return;
-    }
-
-    const newDriver = {
-      id: Date.now().toString(),
-      name: newDriverName,
-      mobile: newDriverMobile,
-    };
-
-    setDrivers([...drivers, newDriver]);
-    setNewDriverName('');
-    setNewDriverMobile('');
-    
-    Alert.alert('Success', 'Driver added successfully');
   };
 
   const dynamicStyles = StyleSheet.create({
@@ -303,53 +292,87 @@ export default function FutureRidesScreen() {
       fontSize: 12,
       fontFamily: 'Inter-SemiBold',
     },
-    addDriverSection: {
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-      paddingTop: 16,
-      marginTop: 16,
-    },
-    addDriverTitle: {
-      fontSize: 16,
-      fontFamily: 'Inter-SemiBold',
-      color: colors.text,
-      marginBottom: 12,
-    },
-    inputGroup: {
-      flexDirection: 'row',
-      alignItems: 'center',
+    noDriversContainer: {
       backgroundColor: colors.background,
       borderRadius: 12,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
+      padding: 20,
+      alignItems: 'center',
       marginBottom: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
     },
-    input: {
-      flex: 1,
-      marginLeft: 12,
+    noDriversText: {
       fontSize: 14,
       fontFamily: 'Inter-Medium',
-      color: colors.text,
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginBottom: 8,
     },
-    addButton: {
-      backgroundColor: colors.success,
-      borderRadius: 12,
-      paddingVertical: 12,
-      flexDirection: 'row',
-      alignItems: 'center',
+    noDriversSubtext: {
+      fontSize: 12,
+      fontFamily: 'Inter-Regular',
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    loadingContainer: {
+      flex: 1,
       justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: 60,
     },
-    addButtonText: {
+    loadingText: {
+      fontSize: 16,
+      fontFamily: 'Inter-Medium',
+      color: colors.textSecondary,
+    },
+    errorContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: 60,
+    },
+    errorText: {
+      fontSize: 16,
+      fontFamily: 'Inter-Medium',
+      color: colors.error,
+      textAlign: 'center',
+      marginBottom: 16,
+    },
+    retryButton: {
+      backgroundColor: colors.primary,
+      borderRadius: 8,
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+    },
+    retryButtonText: {
       color: '#FFFFFF',
-      fontSize: 14,
+      fontSize: 16,
       fontFamily: 'Inter-SemiBold',
-      marginLeft: 8,
     },
   });
 
-  const RideCard = ({ ride }) => (
+  if (loading) {
+    return (
+      <SafeAreaView style={dynamicStyles.container}>
+        <View style={dynamicStyles.loadingContainer}>
+          <Text style={dynamicStyles.loadingText}>Loading future rides...</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={dynamicStyles.container}>
+        <View style={dynamicStyles.errorContainer}>
+          <Text style={dynamicStyles.errorText}>Error: {error}</Text>
+          <TouchableOpacity style={dynamicStyles.retryButton}>
+            <Text style={dynamicStyles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  const RideCard = ({ ride }: { ride: FutureRide }) => (
     <View style={dynamicStyles.rideCard}>
       <View style={dynamicStyles.rideHeader}>
         <Text style={dynamicStyles.bookingId}>#{ride.booking_id}</Text>
@@ -397,7 +420,7 @@ export default function FutureRidesScreen() {
       {ride.assigned_driver ? (
         <View style={dynamicStyles.assignedInfo}>
           <Text style={dynamicStyles.assignedText}>
-            Assigned to: {ride.assigned_driver.name} ({ride.assigned_driver.mobile})
+            Assigned to: {ride.assigned_driver.full_name || ride.assigned_driver.name} ({ride.assigned_driver.primary_number || ride.assigned_driver.mobile})
           </Text>
           <Text style={dynamicStyles.assignedText}>
             Quick ID: {ride.assigned_driver.quickId}
@@ -421,7 +444,9 @@ export default function FutureRidesScreen() {
     <SafeAreaView style={dynamicStyles.container}>
       <View style={dynamicStyles.header}>
         <Text style={dynamicStyles.headerTitle}>Future Rides</Text>
-        <Text style={dynamicStyles.headerSubtitle}>Welcome back, {user?.name}! • Upcoming bookings</Text>
+        <Text style={dynamicStyles.headerSubtitle}>
+          Welcome back, {dashboardData?.user_info?.full_name || user?.fullName || 'Driver'}! • Upcoming bookings
+        </Text>
       </View>
 
       <ScrollView style={dynamicStyles.content} showsVerticalScrollIndicator={false}>
@@ -449,53 +474,30 @@ export default function FutureRidesScreen() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              {drivers.map((driver) => (
-                <View key={driver.id} style={dynamicStyles.driverCard}>
-                  <View style={dynamicStyles.driverInfo}>
-                    <Text style={dynamicStyles.driverName}>{driver.name}</Text>
-                    <Text style={dynamicStyles.driverMobile}>{driver.mobile}</Text>
+              {availableDrivers.length > 0 ? (
+                availableDrivers.map((driver) => (
+                  <View key={driver.id} style={dynamicStyles.driverCard}>
+                    <View style={dynamicStyles.driverInfo}>
+                      <Text style={dynamicStyles.driverName}>{driver.full_name}</Text>
+                      <Text style={dynamicStyles.driverMobile}>{driver.primary_number}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={dynamicStyles.selectButton}
+                      onPress={() => selectedRide && assignDriver(selectedRide, driver)}
+                    >
+                      <Text style={dynamicStyles.selectButtonText}>Select</Text>
+                    </TouchableOpacity>
                   </View>
-                  <TouchableOpacity
-                    style={dynamicStyles.selectButton}
-                    onPress={() => assignDriver(selectedRide, driver)}
-                  >
-                    <Text style={dynamicStyles.selectButtonText}>Select</Text>
-                  </TouchableOpacity>
+                ))
+              ) : (
+                <View style={dynamicStyles.noDriversContainer}>
+                  <User color={colors.textSecondary} size={32} />
+                  <Text style={dynamicStyles.noDriversText}>No Drivers Available</Text>
+                  <Text style={dynamicStyles.noDriversSubtext}>
+                    Add drivers to your account first to assign them to rides
+                  </Text>
                 </View>
-              ))}
-
-              <View style={dynamicStyles.addDriverSection}>
-                <Text style={dynamicStyles.addDriverTitle}>Add New Driver</Text>
-                
-                <View style={dynamicStyles.inputGroup}>
-                  <User color={colors.textSecondary} size={16} />
-                  <TextInput
-                    style={dynamicStyles.input}
-                    placeholder="Driver Name"
-                    value={newDriverName}
-                    onChangeText={setNewDriverName}
-                    placeholderTextColor={colors.textSecondary}
-                  />
-                </View>
-
-                <View style={dynamicStyles.inputGroup}>
-                  <Phone color={colors.textSecondary} size={16} />
-                  <TextInput
-                    style={dynamicStyles.input}
-                    placeholder="Mobile Number"
-                    value={newDriverMobile}
-                    onChangeText={setNewDriverMobile}
-                    keyboardType="phone-pad"
-                    maxLength={10}
-                    placeholderTextColor={colors.textSecondary}
-                  />
-                </View>
-
-                <TouchableOpacity style={dynamicStyles.addButton} onPress={addNewDriver}>
-                  <UserPlus color="#FFFFFF" size={16} />
-                  <Text style={dynamicStyles.addButtonText}>Add Driver</Text>
-                </TouchableOpacity>
-              </View>
+              )}
             </ScrollView>
           </View>
         </View>
