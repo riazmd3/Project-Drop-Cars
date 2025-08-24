@@ -27,7 +27,7 @@ import {
   ChevronDown
 } from 'lucide-react-native';
 
-const { width } = Dimensions.get('window');
+const { width, height } = Dimensions.get('window');
 
 const cities = [
   'Chennai',
@@ -37,7 +37,14 @@ const cities = [
   'Hyderabad',
   'Pune',
   'Kolkata',
-  'Ahmedabad'
+  'Ahmedabad',
+  'Vellore',
+  'Salem',
+  'Coimbatore',
+  'Madurai',
+  'Trichy',
+  'Polur',
+  'Tiruvannamalai'
 ];
 
 interface QuoteReviewProps {
@@ -61,6 +68,7 @@ export default function QuoteReview({
   const [nearCity, setNearCity] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
   const [successScale] = useState(new Animated.Value(0));
+  const [successOpacity] = useState(new Animated.Value(0));
 
   const handleConfirmOrder = async () => {
     if (sendTo === 'NEAR_CITY' && !nearCity) {
@@ -73,18 +81,26 @@ export default function QuoteReview({
       
       // Show success animation
       setShowSuccess(true);
-      Animated.spring(successScale, {
-        toValue: 1,
-        useNativeDriver: true,
-        tension: 100,
-        friction: 8
-      }).start();
+      Animated.parallel([
+        Animated.spring(successScale, {
+          toValue: 1,
+          useNativeDriver: true,
+          tension: 100,
+          friction: 8
+        }),
+        Animated.timing(successOpacity, {
+          toValue: 1,
+          duration: 300,
+          useNativeDriver: true
+        })
+      ]).start();
 
       // Auto close after 3 seconds
       setTimeout(() => {
         setShowSuccess(false);
         onClose();
         successScale.setValue(0);
+        successOpacity.setValue(0);
       }, 3000);
       
     } catch (error) {
@@ -101,6 +117,23 @@ export default function QuoteReview({
   };
 
   if (!quoteData) return null;
+
+  // Calculate estimated prices
+  const estimatedDistance = quoteData.fare.total_km;
+  const estimatedTime = quoteData.fare.trip_time;
+  const estimatedDriverBeta = quoteData.echo.driver_allowance;
+  const estimatedHillCharges = quoteData.echo.hill_charges;
+  const estimatedPermitCharges = quoteData.echo.permit_charges;
+  const estimatedTotal = (quoteData.echo.cost_per_km * estimatedDistance) + estimatedDriverBeta + estimatedHillCharges + estimatedPermitCharges;
+
+  // Calculate vendor prices
+  const vendorDistance = quoteData.fare.total_km;
+  const vendorTime = quoteData.fare.trip_time;
+  const vendorDriverBeta = quoteData.echo.driver_allowance + quoteData.echo.extra_driver_allowance;
+  const vendorHillCharges = quoteData.echo.hill_charges;
+  const vendorPermitCharges = quoteData.echo.permit_charges + quoteData.echo.extra_permit_charges;
+  const vendorExtraPerKm = quoteData.echo.extra_cost_per_km;
+  const vendorTotal = (quoteData.echo.cost_per_km + quoteData.echo.extra_cost_per_km) * vendorDistance + vendorDriverBeta + vendorHillCharges + vendorPermitCharges;
 
   return (
     <Modal
@@ -121,50 +154,12 @@ export default function QuoteReview({
         </View>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-          {/* Quote Summary */}
-          <View style={styles.quoteSummary}>
-            <View style={styles.quoteHeader}>
-              <Text style={styles.quoteTitle}>Trip Quote</Text>
-              <View style={styles.quoteBadge}>
-                <Text style={styles.quoteBadgeText}>Generated</Text>
-              </View>
-            </View>
-            
-            <View style={styles.fareBreakdown}>
-              <View style={styles.fareRow}>
-                <Text style={styles.fareLabel}>Distance:</Text>
-                <Text style={styles.fareValue}>{quoteData.fare.total_km} km</Text>
-              </View>
-              
-              <View style={styles.fareRow}>
-                <Text style={styles.fareLabel}>Base Fare:</Text>
-                <Text style={styles.fareValue}>₹{quoteData.fare.base_km_amount.toFixed(2)}</Text>
-              </View>
-              
-              <View style={styles.fareRow}>
-                <Text style={styles.fareLabel}>Driver Allowance:</Text>
-                <Text style={styles.fareValue}>₹{quoteData.fare.driver_allowance.toFixed(2)}</Text>
-              </View>
-              
-              <View style={styles.fareRow}>
-                <Text style={styles.fareLabel}>Extra Charges:</Text>
-                <Text style={styles.fareValue}>₹{(quoteData.fare.permit_charges + quoteData.fare.hill_charges + quoteData.fare.toll_charges).toFixed(2)}</Text>
-              </View>
-              
-              <View style={[styles.fareRow, styles.totalRow]}>
-                <Text style={styles.totalLabel}>Total Amount:</Text>
-                <Text style={styles.totalValue}>₹{quoteData.fare.total_amount.toFixed(2)}</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Order Details */}
+          {/* Customer Details Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Order Details</Text>
+            <Text style={styles.sectionTitle}>Customer Details</Text>
             
-            {/* Customer Info */}
             <View style={styles.detailRow}>
-              <User size={20} color="#4285F4" style={styles.detailIcon} />
+              <User size={20} color="#1E40AF" style={styles.detailIcon} />
               <View style={styles.detailContent}>
                 <Text style={styles.detailLabel}>Customer Name</Text>
                 <Text style={styles.detailValue}>{quoteData.echo.customer_name}</Text>
@@ -172,16 +167,20 @@ export default function QuoteReview({
             </View>
 
             <View style={styles.detailRow}>
-              <Phone size={20} color="#34A853" style={styles.detailIcon} />
+              <Phone size={20} color="#1E40AF" style={styles.detailIcon} />
               <View style={styles.detailContent}>
                 <Text style={styles.detailLabel}>Phone Number</Text>
                 <Text style={styles.detailValue}>{quoteData.echo.customer_number}</Text>
               </View>
             </View>
+          </View>
 
-            {/* Trip Info */}
+          {/* Travel Details Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Travel Details</Text>
+            
             <View style={styles.detailRow}>
-              <Car size={20} color="#FBBC04" style={styles.detailIcon} />
+              <Car size={20} color="#1E40AF" style={styles.detailIcon} />
               <View style={styles.detailContent}>
                 <Text style={styles.detailLabel}>Car Type</Text>
                 <Text style={styles.detailValue}>{quoteData.echo.car_type}</Text>
@@ -189,7 +188,7 @@ export default function QuoteReview({
             </View>
 
             <View style={styles.detailRow}>
-              <Calendar size={20} color="#EA4335" style={styles.detailIcon} />
+              <Calendar size={20} color="#1E40AF" style={styles.detailIcon} />
               <View style={styles.detailContent}>
                 <Text style={styles.detailLabel}>Date</Text>
                 <Text style={styles.detailValue}>{formatDateTime(quoteData.echo.start_date_time).date}</Text>
@@ -197,16 +196,15 @@ export default function QuoteReview({
             </View>
 
             <View style={styles.detailRow}>
-              <Clock size={20} color="#EA4335" style={styles.detailIcon} />
+              <Clock size={20} color="#1E40AF" style={styles.detailIcon} />
               <View style={styles.detailContent}>
                 <Text style={styles.detailLabel}>Time</Text>
                 <Text style={styles.detailValue}>{formatDateTime(quoteData.echo.start_date_time).time}</Text>
               </View>
             </View>
 
-            {/* Locations */}
             <View style={styles.detailRow}>
-              <MapPin size={20} color="#34A853" style={styles.detailIcon} />
+              <MapPin size={20} color="#1E40AF" style={styles.detailIcon} />
               <View style={styles.detailContent}>
                 <Text style={styles.detailLabel}>Pickup Location</Text>
                 <Text style={styles.detailValue}>{quoteData.echo.pickup_drop_location['0']}</Text>
@@ -214,59 +212,12 @@ export default function QuoteReview({
             </View>
 
             <View style={styles.detailRow}>
-              <MapPin size={20} color="#EA4335" style={styles.detailIcon} />
+              <MapPin size={20} color="#1E40AF" style={styles.detailIcon} />
               <View style={styles.detailContent}>
                 <Text style={styles.detailLabel}>Drop Location</Text>
                 <Text style={styles.detailValue}>{quoteData.echo.pickup_drop_location['1']}</Text>
               </View>
             </View>
-
-            {/* Pricing Details */}
-            <View style={styles.detailRow}>
-              <IndianRupee size={20} color="#4285F4" style={styles.detailIcon} />
-              <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>Cost per KM</Text>
-                <Text style={styles.detailValue}>₹{quoteData.echo.cost_per_km}</Text>
-              </View>
-            </View>
-
-            <View style={styles.detailRow}>
-              <Car size={20} color="#34A853" style={styles.detailIcon} />
-              <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>Driver Allowance</Text>
-                <Text style={styles.detailValue}>₹{quoteData.echo.driver_allowance}</Text>
-              </View>
-            </View>
-
-            {quoteData.echo.permit_charges > 0 && (
-              <View style={styles.detailRow}>
-                <FileText size={20} color="#FBBC04" style={styles.detailIcon} />
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>Permit Charges</Text>
-                  <Text style={styles.detailValue}>₹{quoteData.echo.permit_charges}</Text>
-                </View>
-              </View>
-            )}
-
-            {quoteData.echo.hill_charges > 0 && (
-              <View style={styles.detailRow}>
-                <Mountain size={20} color="#FBBC04" style={styles.detailIcon} />
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>Hill Charges</Text>
-                  <Text style={styles.detailValue}>₹{quoteData.echo.hill_charges}</Text>
-                </View>
-              </View>
-            )}
-
-            {quoteData.echo.toll_charges > 0 && (
-              <View style={styles.detailRow}>
-                <IndianRupee size={20} color="#FBBC04" style={styles.detailIcon} />
-                <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>Toll Charges</Text>
-                  <Text style={styles.detailValue}>₹{quoteData.echo.toll_charges}</Text>
-                </View>
-              </View>
-            )}
 
             {quoteData.echo.pickup_notes && (
               <View style={styles.detailRow}>
@@ -279,6 +230,95 @@ export default function QuoteReview({
             )}
           </View>
 
+          {/* Estimated Prices Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Estimated Prices</Text>
+            
+            <View style={styles.priceCard}>
+              <View style={styles.priceRow}>
+                <Text style={styles.priceLabel}>Estimated Distance:</Text>
+                <Text style={styles.priceValue}>{estimatedDistance} km</Text>
+              </View>
+              
+              <View style={styles.priceRow}>
+                <Text style={styles.priceLabel}>Estimated Time:</Text>
+                <Text style={styles.priceValue}>{estimatedTime}</Text>
+              </View>
+              
+              <View style={styles.priceRow}>
+                <Text style={styles.priceLabel}>Driver Beta:</Text>
+                <Text style={styles.priceValue}>₹{estimatedDriverBeta}</Text>
+              </View>
+              
+              <View style={styles.priceRow}>
+                <Text style={styles.priceLabel}>Hill Charges:</Text>
+                <Text style={styles.priceValue}>₹{estimatedHillCharges}</Text>
+              </View>
+              
+              <View style={styles.priceRow}>
+                <Text style={styles.priceLabel}>Permit Charges:</Text>
+                <Text style={styles.priceValue}>₹{estimatedPermitCharges}</Text>
+              </View>
+              
+              <View style={styles.priceRow}>
+                <Text style={styles.priceLabel}>Cost per KM:</Text>
+                <Text style={styles.priceValue}>₹{quoteData.echo.cost_per_km}</Text>
+              </View>
+              
+              <View style={[styles.priceRow, styles.totalRow]}>
+                <Text style={styles.totalLabel}>Total Estimated Price:</Text>
+                <Text style={styles.totalValue}>₹{estimatedTotal.toFixed(2)}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Vendor Prices Section */}
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Vendor Prices</Text>
+            
+            <View style={styles.priceCard}>
+              <View style={styles.priceRow}>
+                <Text style={styles.priceLabel}>Estimated Distance:</Text>
+                <Text style={styles.priceValue}>{vendorDistance} km</Text>
+              </View>
+              
+              <View style={styles.priceRow}>
+                <Text style={styles.priceLabel}>Estimated Time:</Text>
+                <Text style={styles.priceValue}>{vendorTime}</Text>
+              </View>
+              
+              <View style={styles.priceRow}>
+                <Text style={styles.priceLabel}>Driver Beta:</Text>
+                <Text style={styles.priceValue}>₹{vendorDriverBeta} (₹{quoteData.echo.driver_allowance} + ₹{quoteData.echo.extra_driver_allowance})</Text>
+              </View>
+              
+              <View style={styles.priceRow}>
+                <Text style={styles.priceLabel}>Hill Charges:</Text>
+                <Text style={styles.priceValue}>₹{vendorHillCharges}</Text>
+              </View>
+              
+              <View style={styles.priceRow}>
+                <Text style={styles.priceLabel}>Permit Charges:</Text>
+                <Text style={styles.priceValue}>₹{vendorPermitCharges} (₹{quoteData.echo.permit_charges} + ₹{quoteData.echo.extra_permit_charges})</Text>
+              </View>
+              
+              <View style={styles.priceRow}>
+                <Text style={styles.priceLabel}>Extra per KM:</Text>
+                <Text style={styles.priceValue}>₹{vendorExtraPerKm}</Text>
+              </View>
+              
+              <View style={styles.priceRow}>
+                <Text style={styles.priceLabel}>Total Price:</Text>
+                <Text style={styles.priceValue}>₹{(quoteData.echo.cost_per_km + quoteData.echo.extra_cost_per_km)} × {vendorDistance} km</Text>
+              </View>
+              
+              <View style={[styles.priceRow, styles.totalRow]}>
+                <Text style={styles.totalLabel}>Total Vendor Price:</Text>
+                <Text style={styles.totalValue}>₹{vendorTotal.toFixed(2)}</Text>
+              </View>
+            </View>
+          </View>
+
           {/* Driver Assignment */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Driver Assignment</Text>
@@ -287,11 +327,11 @@ export default function QuoteReview({
               style={styles.pickerButton}
               onPress={() => setShowSendToPicker(true)}
             >
-              <Send size={20} color="#5F6368" style={styles.pickerIcon} />
+              <Send size={20} color="#1E40AF" style={styles.pickerIcon} />
               <Text style={styles.pickerText}>
                 {sendTo === 'NEAR_CITY' ? `NEAR_CITY - ${nearCity}` : sendTo}
               </Text>
-              <ChevronDown size={20} color="#5F6368" />
+              <ChevronDown size={20} color="#1E40AF" />
             </TouchableOpacity>
 
             {sendTo === 'NEAR_CITY' && (
@@ -299,11 +339,11 @@ export default function QuoteReview({
                 style={styles.pickerButton}
                 onPress={() => setShowNearCityPicker(true)}
               >
-                <MapPin size={20} color="#5F6368" style={styles.pickerIcon} />
+                <MapPin size={20} color="#1E40AF" style={styles.pickerIcon} />
                 <Text style={styles.pickerText}>
                   {nearCity || 'Select Near City'}
                 </Text>
-                <ChevronDown size={20} color="#5F6368" />
+                <ChevronDown size={20} color="#1E40AF" />
               </TouchableOpacity>
             )}
           </View>
@@ -315,7 +355,7 @@ export default function QuoteReview({
             disabled={isLoading}
           >
             <LinearGradient
-              colors={['#34A853', '#2E7D32']}
+              colors={['#4285F4', '#34A853']}
               style={styles.gradientButton}
             >
               <Send size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
@@ -399,7 +439,7 @@ export default function QuoteReview({
           </View>
         </Modal>
 
-        {/* Success Animation */}
+        {/* Full Screen Success Animation */}
         {showSuccess && (
           <Modal
             visible={showSuccess}
@@ -410,11 +450,14 @@ export default function QuoteReview({
               <Animated.View 
                 style={[
                   styles.successContainer,
-                  { transform: [{ scale: successScale }] }
+                  { 
+                    transform: [{ scale: successScale }],
+                    opacity: successOpacity
+                  }
                 ]}
               >
-                <CheckCircle size={80} color="#34A853" />
-                <Text style={styles.successTitle}>Order Created!</Text>
+                <CheckCircle size={100} color="#34A853" />
+                <Text style={styles.successTitle}>Order Created Successfully!</Text>
                 <Text style={styles.successSubtitle}>Your order has been successfully created and sent to drivers.</Text>
               </Animated.View>
             </View>
@@ -458,78 +501,6 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 20,
   },
-  quoteSummary: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 20,
-    padding: 24,
-    marginVertical: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 12,
-    elevation: 6,
-    borderWidth: 1,
-    borderColor: '#E8EAED',
-  },
-  quoteHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 20,
-  },
-  quoteTitle: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#202124',
-  },
-  quoteBadge: {
-    backgroundColor: '#E8F5E8',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 20,
-  },
-  quoteBadgeText: {
-    color: '#34A853',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  fareBreakdown: {
-    marginBottom: 20,
-  },
-  fareRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F3F4',
-  },
-  totalRow: {
-    borderBottomWidth: 0,
-    paddingTop: 16,
-    borderTopWidth: 2,
-    borderTopColor: '#E8EAED',
-  },
-  fareLabel: {
-    fontSize: 16,
-    color: '#5F6368',
-    fontWeight: '500',
-  },
-  fareValue: {
-    fontSize: 16,
-    color: '#202124',
-    fontWeight: '600',
-  },
-  totalLabel: {
-    fontSize: 18,
-    color: '#202124',
-    fontWeight: '600',
-  },
-  totalValue: {
-    fontSize: 20,
-    color: '#34A853',
-    fontWeight: 'bold',
-  },
   section: {
     marginTop: 24,
   },
@@ -569,6 +540,55 @@ const styles = StyleSheet.create({
     color: '#202124',
     fontWeight: '500',
   },
+  priceCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 6,
+    borderWidth: 1,
+    borderColor: '#E8EAED',
+  },
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F3F4',
+  },
+  totalRow: {
+    borderBottomWidth: 0,
+    paddingTop: 16,
+    borderTopWidth: 2,
+    borderTopColor: '#E8EAED',
+  },
+  priceLabel: {
+    fontSize: 16,
+    color: '#5F6368',
+    fontWeight: '500',
+    flex: 1,
+  },
+  priceValue: {
+    fontSize: 16,
+    color: '#202124',
+    fontWeight: '600',
+    textAlign: 'right',
+    flex: 1,
+  },
+  totalLabel: {
+    fontSize: 18,
+    color: '#202124',
+    fontWeight: '600',
+  },
+  totalValue: {
+    fontSize: 20,
+    color: '#34A853',
+    fontWeight: 'bold',
+  },
   pickerButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -581,6 +601,8 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.05,
     shadowRadius: 4,
     elevation: 2,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
   pickerIcon: {
     marginRight: 12,
@@ -645,7 +667,7 @@ const styles = StyleSheet.create({
   },
   successOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    backgroundColor: 'rgba(0, 0, 0, 0.8)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -659,18 +681,20 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 16,
     elevation: 8,
+    minWidth: width * 0.8,
   },
   successTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
     color: '#202124',
-    marginTop: 20,
-    marginBottom: 8,
+    marginTop: 24,
+    marginBottom: 12,
+    textAlign: 'center',
   },
   successSubtitle: {
-    fontSize: 16,
+    fontSize: 18,
     color: '#5F6368',
     textAlign: 'center',
-    lineHeight: 22,
+    lineHeight: 24,
   },
 });

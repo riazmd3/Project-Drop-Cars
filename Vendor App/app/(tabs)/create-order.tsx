@@ -50,6 +50,7 @@ interface FormData {
   driver_allowance: string;
   extra_driver_allowance: string;
   permit_charges: string;
+  extra_permit_charges: string;
   hill_charges: string;
   toll_charges: string;
   pickup_notes: string;
@@ -84,6 +85,7 @@ export default function CreateOrderScreen() {
     driver_allowance: '',
     extra_driver_allowance: '',
     permit_charges: '',
+    extra_permit_charges: '',
     hill_charges: '',
     toll_charges: '',
     pickup_notes: '',
@@ -180,6 +182,7 @@ export default function CreateOrderScreen() {
         driver_allowance: parseFloat(formData.driver_allowance) || 0,
         extra_driver_allowance: parseFloat(formData.extra_driver_allowance) || 0,
         permit_charges: parseFloat(formData.permit_charges) || 0,
+        extra_permit_charges: parseFloat(formData.extra_permit_charges) || 0,
         hill_charges: parseFloat(formData.hill_charges) || 0,
         toll_charges: parseFloat(formData.toll_charges) || 0,
         pickup_notes: formData.pickup_notes
@@ -226,6 +229,7 @@ export default function CreateOrderScreen() {
         driver_allowance: parseFloat(formData.driver_allowance) || 0,
         extra_driver_allowance: parseFloat(formData.extra_driver_allowance) || 0,
         permit_charges: parseFloat(formData.permit_charges) || 0,
+        extra_permit_charges: parseFloat(formData.extra_permit_charges) || 0,
         hill_charges: parseFloat(formData.hill_charges) || 0,
         toll_charges: parseFloat(formData.toll_charges) || 0,
         pickup_notes: formData.pickup_notes,
@@ -251,6 +255,7 @@ export default function CreateOrderScreen() {
         driver_allowance: '',
         extra_driver_allowance: '',
         permit_charges: '',
+        extra_permit_charges: '',
         hill_charges: '',
         toll_charges: '',
         pickup_notes: '',
@@ -277,9 +282,9 @@ export default function CreateOrderScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Modern Google-inspired Header */}
+      {/* Modern Blue Header */}
       <LinearGradient
-        colors={['#4285F4', '#34A853', '#FBBC04', '#EA4335']}
+        colors={['#1E40AF', '#3B82F6', '#60A5FA']}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}
         style={styles.header}
@@ -299,30 +304,30 @@ export default function CreateOrderScreen() {
         {/* Customer Details Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <User size={24} color="#4285F4" />
+            <User size={24} color="#1E40AF" />
             <Text style={styles.sectionTitle}>Customer Details</Text>
           </View>
           
           <View style={styles.inputContainer}>
-            <User size={20} color="#5F6368" style={styles.inputIcon} />
+            <User size={20} color="#6B7280" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
               placeholder="Customer Name"
               value={formData.customer_name}
               onChangeText={(value) => handleInputChange('customer_name', value)}
-              placeholderTextColor="#9AA0A6"
+              placeholderTextColor="#9CA3AF"
             />
           </View>
 
           <View style={styles.inputContainer}>
-            <Phone size={20} color="#5F6368" style={styles.inputIcon} />
+            <Phone size={20} color="#6B7280" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
               placeholder="Customer Mobile Number"
               value={formData.customer_number}
               onChangeText={(value) => handleInputChange('customer_number', value)}
               keyboardType="phone-pad"
-              placeholderTextColor="#9AA0A6"
+              placeholderTextColor="#9CA3AF"
             />
           </View>
         </View>
@@ -330,12 +335,12 @@ export default function CreateOrderScreen() {
         {/* Trip Details Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Car size={24} color="#34A853" />
+            <Car size={24} color="#1E40AF" />
             <Text style={styles.sectionTitle}>Trip Details</Text>
           </View>
           
           <View style={styles.inputContainer}>
-            <Car size={20} color="#5F6368" style={styles.inputIcon} />
+            <Car size={20} color="#6B7280" style={styles.inputIcon} />
             <TouchableOpacity
               style={styles.pickerButton}
               onPress={() => setShowCarTypePicker(true)}
@@ -343,13 +348,13 @@ export default function CreateOrderScreen() {
               <Text style={[styles.pickerButtonText, formData.car_type ? styles.pickerButtonTextActive : styles.pickerButtonTextPlaceholder]}>
                 {formData.car_type || 'Select Car Type'}
               </Text>
-              <ChevronDown size={20} color="#5F6368" />
+              <ChevronDown size={20} color="#6B7280" />
             </TouchableOpacity>
           </View>
 
           <View style={styles.row}>
             <View style={[styles.inputContainer, styles.halfWidth]}>
-              <Calendar size={20} color="#5F6368" style={styles.inputIcon} />
+              <Calendar size={20} color="#6B7280" style={styles.inputIcon} />
               <TouchableOpacity
                 style={styles.pickerButton}
                 onPress={() => setShowDatePicker(true)}
@@ -361,7 +366,7 @@ export default function CreateOrderScreen() {
             </View>
 
             <View style={[styles.inputContainer, styles.halfWidth]}>
-              <Clock size={20} color="#5F6368" style={styles.inputIcon} />
+              <Clock size={20} color="#6B7280" style={styles.inputIcon} />
               <TouchableOpacity
                 style={styles.pickerButton}
                 onPress={() => setShowTimePicker(true)}
@@ -377,12 +382,12 @@ export default function CreateOrderScreen() {
         {/* Locations Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <MapPin size={24} color="#FBBC04" />
+            <MapPin size={24} color="#1E40AF" />
             <Text style={styles.sectionTitle}>Locations</Text>
           </View>
           
           <View style={styles.inputContainer}>
-            <MapPin size={20} color="#34A853" style={styles.inputIcon} />
+            <MapPin size={20} color="#1E40AF" style={styles.inputIcon} />
             <TouchableOpacity
               style={styles.locationInputButton}
               onPress={() => openLocationPicker('0')}
@@ -390,12 +395,12 @@ export default function CreateOrderScreen() {
               <Text style={[styles.locationInputText, formData.pickup_drop_location['0'] ? styles.locationInputTextActive : styles.locationInputTextPlaceholder]}>
                 {formData.pickup_drop_location['0'] || 'Pickup Location (Source)'}
               </Text>
-              <MapPin size={20} color="#34A853" />
+              <MapPin size={20} color="#1E40AF" />
             </TouchableOpacity>
           </View>
 
           <View style={styles.inputContainer}>
-            <MapPin size={20} color="#EA4335" style={styles.inputIcon} />
+            <MapPin size={20} color="#1E40AF" style={styles.inputIcon} />
             <TouchableOpacity
               style={styles.locationInputButton}
               onPress={() => openLocationPicker('1')}
@@ -403,7 +408,7 @@ export default function CreateOrderScreen() {
               <Text style={[styles.locationInputText, formData.pickup_drop_location['1'] ? styles.locationInputTextActive : styles.locationInputTextPlaceholder]}>
                 {formData.pickup_drop_location['1'] || 'Drop Location (Destination)'}
               </Text>
-              <MapPin size={20} color="#EA4335" />
+              <MapPin size={20} color="#1E40AF" />
             </TouchableOpacity>
           </View>
         </View>
@@ -411,97 +416,109 @@ export default function CreateOrderScreen() {
         {/* Pricing Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <IndianRupee size={24} color="#EA4335" />
+            <IndianRupee size={24} color="#1E40AF" />
             <Text style={styles.sectionTitle}>Pricing Details</Text>
           </View>
           
           <View style={styles.row}>
             <View style={[styles.inputContainer, styles.halfWidth]}>
-              <IndianRupee size={20} color="#5F6368" style={styles.inputIcon} />
+              <IndianRupee size={20} color="#6B7280" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Cost per KM"
                 value={formData.cost_per_km}
                 onChangeText={(value) => handleInputChange('cost_per_km', value)}
                 keyboardType="numeric"
-                placeholderTextColor="#9AA0A6"
+                placeholderTextColor="#9CA3AF"
               />
             </View>
 
             <View style={[styles.inputContainer, styles.halfWidth]}>
-              <IndianRupee size={20} color="#5F6368" style={styles.inputIcon} />
+              <IndianRupee size={20} color="#6B7280" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Extra Cost per KM"
                 value={formData.extra_cost_per_km}
                 onChangeText={(value) => handleInputChange('extra_cost_per_km', value)}
                 keyboardType="numeric"
-                placeholderTextColor="#9AA0A6"
+                placeholderTextColor="#9CA3AF"
               />
             </View>
           </View>
 
           <View style={styles.row}>
             <View style={[styles.inputContainer, styles.halfWidth]}>
-              <Car size={20} color="#5F6368" style={styles.inputIcon} />
+              <Car size={20} color="#6B7280" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Driver Allowance"
                 value={formData.driver_allowance}
                 onChangeText={(value) => handleInputChange('driver_allowance', value)}
                 keyboardType="numeric"
-                placeholderTextColor="#9AA0A6"
+                placeholderTextColor="#9CA3AF"
               />
             </View>
 
             <View style={[styles.inputContainer, styles.halfWidth]}>
-              <Car size={20} color="#5F6368" style={styles.inputIcon} />
+              <Car size={20} color="#6B7280" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Extra Driver Allowance"
                 value={formData.extra_driver_allowance}
                 onChangeText={(value) => handleInputChange('extra_driver_allowance', value)}
                 keyboardType="numeric"
-                placeholderTextColor="#9AA0A6"
+                placeholderTextColor="#9CA3AF"
               />
             </View>
           </View>
 
           <View style={styles.row}>
             <View style={[styles.inputContainer, styles.halfWidth]}>
-              <FileText size={20} color="#5F6368" style={styles.inputIcon} />
+              <FileText size={20} color="#6B7280" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Permit Charges"
                 value={formData.permit_charges}
                 onChangeText={(value) => handleInputChange('permit_charges', value)}
                 keyboardType="numeric"
-                placeholderTextColor="#9AA0A6"
+                placeholderTextColor="#9CA3AF"
               />
             </View>
 
             <View style={[styles.inputContainer, styles.halfWidth]}>
-              <Mountain size={20} color="#5F6368" style={styles.inputIcon} />
+              <FileText size={20} color="#6B7280" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Extra Permit Charges"
+                value={formData.extra_permit_charges}
+                onChangeText={(value) => handleInputChange('extra_permit_charges', value)}
+                keyboardType="numeric"
+                placeholderTextColor="#9CA3AF"
+              />
+            </View>
+          </View>
+
+            <View style={styles.inputContainer}>
+              <Mountain size={20} color="#6B7280" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Hill Charges"
                 value={formData.hill_charges}
                 onChangeText={(value) => handleInputChange('hill_charges', value)}
                 keyboardType="numeric"
-                placeholderTextColor="#9AA0A6"
+                placeholderTextColor="#9CA3AF"
               />
             </View>
-          </View>
 
           <View style={styles.inputContainer}>
-            <IndianRupee size={20} color="#5F6368" style={styles.inputIcon} />
+            <IndianRupee size={20} color="#6B7280" style={styles.inputIcon} />
             <TextInput
               style={styles.input}
               placeholder="Toll Charges"
               value={formData.toll_charges}
               onChangeText={(value) => handleInputChange('toll_charges', value)}
               keyboardType="numeric"
-              placeholderTextColor="#9AA0A6"
+              placeholderTextColor="#9CA3AF"
             />
           </View>
         </View>
@@ -509,12 +526,12 @@ export default function CreateOrderScreen() {
         {/* Driver Assignment Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Send size={24} color="#4285F4" />
+            <Send size={24} color="#1E40AF" />
             <Text style={styles.sectionTitle}>Driver Assignment</Text>
           </View>
           
           <View style={styles.inputContainer}>
-            <Send size={20} color="#5F6368" style={styles.inputIcon} />
+            <Send size={20} color="#6B7280" style={styles.inputIcon} />
             <TouchableOpacity
               style={styles.pickerButton}
               onPress={() => setShowSendToPicker(true)}
@@ -522,13 +539,13 @@ export default function CreateOrderScreen() {
               <Text style={styles.pickerButtonText}>
                 {formData.send_to === 'NEAR_CITY' ? `NEAR_CITY - ${formData.near_city}` : formData.send_to}
               </Text>
-              <ChevronDown size={20} color="#5F6368" />
+              <ChevronDown size={20} color="#6B7280" />
             </TouchableOpacity>
           </View>
 
           {formData.send_to === 'NEAR_CITY' && (
             <View style={styles.inputContainer}>
-              <MapPin size={20} color="#5F6368" style={styles.inputIcon} />
+              <MapPin size={20} color="#6B7280" style={styles.inputIcon} />
               <TouchableOpacity
                 style={styles.pickerButton}
                 onPress={() => setShowSendToPicker(true)}
@@ -536,7 +553,7 @@ export default function CreateOrderScreen() {
                 <Text style={styles.pickerButtonText}>
                   {formData.near_city || 'Select Near City'}
                 </Text>
-                <ChevronDown size={20} color="#5F6368" />
+                <ChevronDown size={20} color="#6B7280" />
               </TouchableOpacity>
             </View>
           )}
@@ -545,18 +562,18 @@ export default function CreateOrderScreen() {
         {/* Additional Notes Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <FileText size={24} color="#34A853" />
+            <FileText size={24} color="#1E40AF" />
             <Text style={styles.sectionTitle}>Additional Notes</Text>
           </View>
           
           <View style={styles.inputContainer}>
-            <FileText size={20} color="#5F6368" style={styles.inputIcon} />
+            <FileText size={20} color="#6B7280" style={styles.inputIcon} />
             <TextInput
               style={[styles.input, styles.textArea]}
               placeholder="Pickup Notes (Optional)"
               value={formData.pickup_notes}
               onChangeText={(value) => handleInputChange('pickup_notes', value)}
-              placeholderTextColor="#9AA0A6"
+              placeholderTextColor="#9CA3AF"
               multiline
               numberOfLines={3}
             />
@@ -570,7 +587,7 @@ export default function CreateOrderScreen() {
           disabled={isLoading}
         >
           <LinearGradient
-            colors={['#4285F4', '#34A853']}
+            colors={['#1E40AF', '#3B82F6']}
             style={styles.gradientButton}
           >
             <Calculator size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
@@ -788,7 +805,7 @@ const styles = StyleSheet.create({
   textArea: {
     height: 100,
     textAlignVertical: 'top',
-    paddingTop: 20,
+    paddingTop: 40,
   },
   row: {
     flexDirection: 'row',
