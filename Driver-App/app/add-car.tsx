@@ -59,14 +59,10 @@ export default function AddCarScreen() {
     if (!number.trim()) return 'Car registration number is required';
     
     // Format: SS NN LL NNNN (State Code + District + Letters + Numbers)
-    const carNumberRegex = /^[A-Z]{2}\s*\d{2}\s*[A-Z]{2}\s*\d{4}$/;
+    const carNumberRegex = /^[A-Z]{2}\s+\d{2}\s+[A-Z]{2}\s+\d{4}$/;
     
-    if (!carNumberRegex.test(number.replace(/\s/g, ''))) {
+    if (!carNumberRegex.test(number)) {
       return 'Invalid format. Use: SS NN LL NNNN (e.g., MH 12 AB 1234)';
-    }
-    
-    if (number.length < 5 || number.length > 20) {
-      return 'Car number must be between 5-20 characters';
     }
     
     return '';
@@ -158,6 +154,19 @@ export default function AddCarScreen() {
     // Clear previous errors
     setErrors({});
 
+    // Auto-format car number before validation
+    let formattedCarNumber = carData.registration;
+    if (formattedCarNumber && formattedCarNumber.length >= 10) {
+      // Remove all non-alphanumeric characters first
+      const cleaned = formattedCarNumber.replace(/[^A-Za-z0-9]/g, '');
+      if (cleaned.length === 10) {
+        // Format as SS NN LL NNNN
+        formattedCarNumber = `${cleaned.slice(0, 2).toUpperCase()} ${cleaned.slice(2, 4)} ${cleaned.slice(4, 6).toUpperCase()} ${cleaned.slice(6, 10)}`;
+        // Update the state with formatted number
+        setCarData(prev => ({ ...prev, registration: formattedCarNumber }));
+      }
+    }
+
     // Validate all fields
     if (!validateAllFields()) {
       Alert.alert('Validation Error', 'Please fix the errors before continuing');
@@ -174,7 +183,7 @@ export default function AddCarScreen() {
       const payload = {
         car_name: carData.name.trim(),
         car_type: carData.type,
-        car_number: carData.registration.replace(/\s/g, ''), // Remove spaces for backend
+        car_number: formattedCarNumber.replace(/\s/g, ''), // Remove spaces for backend
         organization_id: user?.organizationId || 'org_001',
         vehicle_owner_id: user?.id || 'e5b9edb1-b4bb-48b8-a662-f7fd00abb6eb',
         rc_front_img: carImages.rcFront,
@@ -202,17 +211,14 @@ export default function AddCarScreen() {
     }
   };
 
-  const formatCarNumber = (text: string) => {
-    // Remove all non-alphanumeric characters
-    let cleaned = text.replace(/[^A-Za-z0-9]/g, '');
+  const handleCarNumberChange = (text: string) => {
+    // Clear error if exists
+    if (errors.registration) {
+      setErrors(prev => ({ ...prev, registration: '' }));
+    }
     
-    // Format as SS NN LL NNNN
-    if (cleaned.length <= 2) return cleaned.toUpperCase();
-    if (cleaned.length <= 4) return `${cleaned.slice(0, 2).toUpperCase()} ${cleaned.slice(2).toUpperCase()}`;
-    if (cleaned.length <= 6) return `${cleaned.slice(0, 2).toUpperCase()} ${cleaned.slice(2, 4).toUpperCase()} ${cleaned.slice(4).toUpperCase()}`;
-    if (cleaned.length <= 10) return `${cleaned.slice(0, 2).toUpperCase()} ${cleaned.slice(2, 4).toUpperCase()} ${cleaned.slice(4, 6).toUpperCase()} ${cleaned.slice(6)}`;
-    
-    return `${cleaned.slice(0, 2).toUpperCase()} ${cleaned.slice(2, 4).toUpperCase()} ${cleaned.slice(4, 6).toUpperCase()} ${cleaned.slice(6, 10)}`;
+    // Just store the text as-is, no formatting
+    setCarData(prev => ({ ...prev, registration: text.toUpperCase() }));
   };
 
   return (
@@ -289,11 +295,7 @@ export default function AddCarScreen() {
               style={[styles.input, errors.registration && styles.inputError]}
               placeholder="Registration Number (e.g., MH 12 AB 1234)"
               value={carData.registration}
-              onChangeText={(text) => {
-                const formatted = formatCarNumber(text);
-                setCarData(prev => ({ ...prev, registration: formatted }));
-                if (errors.registration) setErrors(prev => ({ ...prev, registration: '' }));
-              }}
+              onChangeText={handleCarNumberChange}
               autoCapitalize="characters"
               maxLength={13}
             />
@@ -301,6 +303,9 @@ export default function AddCarScreen() {
           {errors.registration && <Text style={styles.errorText}>{errors.registration}</Text>}
           <Text style={styles.helpText}>
             Format: SS NN LL NNNN (State Code + District + Letters + Numbers)
+          </Text>
+          <Text style={styles.helpText}>
+            💡 Tip: Type your number (e.g., MH12AB1234) and it will auto-format to MH 12 AB 1234 when submitted
           </Text>
 
           <View style={styles.inputGroup}>

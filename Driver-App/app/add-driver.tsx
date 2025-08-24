@@ -163,6 +163,32 @@ export default function AddDriverScreen() {
     // Clear previous errors
     setErrors({});
 
+    // Auto-format phone number before validation
+    let formattedPhoneNumber = driverData.primary_number;
+    if (formattedPhoneNumber && !formattedPhoneNumber.startsWith('+91')) {
+      // Remove all non-digits
+      const cleaned = formattedPhoneNumber.replace(/\D/g, '');
+      if (cleaned.length === 10) {
+        // Add +91 prefix
+        formattedPhoneNumber = `+91${cleaned}`;
+        // Update the state with formatted number
+        setDriverData(prev => ({ ...prev, primary_number: formattedPhoneNumber }));
+      }
+    }
+
+    // Auto-format licence number before validation
+    let formattedLicenceNumber = driverData.licence_number;
+    if (formattedLicenceNumber && !formattedLicenceNumber.includes('-')) {
+      // Remove all non-alphanumeric characters
+      const cleaned = formattedLicenceNumber.replace(/[^A-Za-z0-9]/g, '');
+      if (cleaned.length === 15) {
+        // Format as SS-NN-YYYY-NNNNNNN
+        formattedLicenceNumber = `${cleaned.slice(0, 2).toUpperCase()}-${cleaned.slice(2, 4)}-${cleaned.slice(4, 8)}-${cleaned.slice(8, 15)}`;
+        // Update the state with formatted number
+        setDriverData(prev => ({ ...prev, licence_number: formattedLicenceNumber }));
+      }
+    }
+
     // Validate all fields
     if (!validateAllFields()) {
       Alert.alert('Validation Error', 'Please fix the errors before continuing');
@@ -178,10 +204,10 @@ export default function AddDriverScreen() {
     try {
       const payload: DriverDetails = {
         full_name: driverData.full_name.trim(),
-        primary_number: driverData.primary_number,
+        primary_number: formattedPhoneNumber,
         secondary_number: driverData.secondary_number || '',
         password: driverData.password,
-        licence_number: driverData.licence_number,
+        licence_number: formattedLicenceNumber,
         adress: driverData.adress.trim(),
         organization_id: user?.organizationId || 'org_001',
         vehicle_owner_id: user?.id || 'e5b9edb1-b4bb-48b8-a662-f7fd00abb6eb',
@@ -215,30 +241,24 @@ export default function AddDriverScreen() {
     }
   };
 
-  const formatPhoneNumber = (text: string) => {
-    // Remove all non-digits
-    let cleaned = text.replace(/\D/g, '');
-    
-    // Limit to 10 digits
-    if (cleaned.length > 10) {
-      cleaned = cleaned.slice(0, 10);
+  const handlePhoneNumberChange = (text: string, field: 'primary_number' | 'secondary_number') => {
+    // Clear error if exists
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
     }
     
-    // Add +91 prefix
-    return cleaned.length > 0 ? `+91${cleaned}` : '';
+    // Just store the text as-is, no formatting
+    setDriverData(prev => ({ ...prev, [field]: text }));
   };
 
-  const formatLicenceNumber = (text: string) => {
-    // Remove all non-alphanumeric characters
-    let cleaned = text.replace(/[^A-Za-z0-9]/g, '');
+  const handleLicenceNumberChange = (text: string) => {
+    // Clear error if exists
+    if (errors.licence_number) {
+      setErrors(prev => ({ ...prev, licence_number: '' }));
+    }
     
-    // Format as SS-NN-YYYY-NNNNNNN
-    if (cleaned.length <= 2) return cleaned.toUpperCase();
-    if (cleaned.length <= 4) return `${cleaned.slice(0, 2).toUpperCase()}-${cleaned.slice(2)}`;
-    if (cleaned.length <= 8) return `${cleaned.slice(0, 2).toUpperCase()}-${cleaned.slice(2, 4)}-${cleaned.slice(4)}`;
-    if (cleaned.length <= 15) return `${cleaned.slice(0, 2).toUpperCase()}-${cleaned.slice(2, 4)}-${cleaned.slice(4, 8)}-${cleaned.slice(8)}`;
-    
-    return `${cleaned.slice(0, 2).toUpperCase()}-${cleaned.slice(2, 4)}-${cleaned.slice(4, 8)}-${cleaned.slice(8, 15)}`;
+    // Just store the text as-is, no formatting
+    setDriverData(prev => ({ ...prev, licence_number: text.toUpperCase() }));
   };
 
   return (
@@ -284,11 +304,7 @@ export default function AddDriverScreen() {
               style={[styles.input, errors.primary_number && styles.inputError]}
               placeholder="Primary Mobile Number (+91XXXXXXXXXX)"
               value={driverData.primary_number}
-              onChangeText={(text) => {
-                const formatted = formatPhoneNumber(text);
-                setDriverData(prev => ({ ...prev, primary_number: formatted }));
-                if (errors.primary_number) setErrors(prev => ({ ...prev, primary_number: '' }));
-              }}
+              onChangeText={(text) => handlePhoneNumberChange(text, 'primary_number')}
               keyboardType="phone-pad"
               maxLength={13}
             />
@@ -297,6 +313,9 @@ export default function AddDriverScreen() {
           <Text style={styles.helpText}>
             Format: +91XXXXXXXXXX (10 digits after +91)
           </Text>
+          <Text style={styles.helpText}>
+            💡 Tip: Type your number (e.g., 9876543210) and it will auto-add +91 when submitted
+          </Text>
 
           <View style={styles.inputGroup}>
             <Phone color="#6B7280" size={20} />
@@ -304,10 +323,7 @@ export default function AddDriverScreen() {
               style={styles.input}
               placeholder="Secondary Mobile Number (Optional)"
               value={driverData.secondary_number}
-              onChangeText={(text) => {
-                const formatted = formatPhoneNumber(text);
-                setDriverData(prev => ({ ...prev, secondary_number: formatted }));
-              }}
+              onChangeText={(text) => handlePhoneNumberChange(text, 'secondary_number')}
               keyboardType="phone-pad"
               maxLength={13}
             />
@@ -334,11 +350,7 @@ export default function AddDriverScreen() {
               style={[styles.input, errors.licence_number && styles.inputError]}
               placeholder="Driving Licence Number (e.g., MH-12-1990-1234567)"
               value={driverData.licence_number}
-              onChangeText={(text) => {
-                const formatted = formatLicenceNumber(text);
-                setDriverData(prev => ({ ...prev, licence_number: formatted }));
-                if (errors.licence_number) setErrors(prev => ({ ...prev, licence_number: '' }));
-              }}
+              onChangeText={handleLicenceNumberChange}
               autoCapitalize="characters"
               maxLength={19}
             />
@@ -346,6 +358,9 @@ export default function AddDriverScreen() {
           {errors.licence_number && <Text style={styles.errorText}>{errors.licence_number}</Text>}
           <Text style={styles.helpText}>
             Format: SS-NN-YYYY-NNNNNNN (State Code + RTO + Year + Serial)
+          </Text>
+          <Text style={styles.helpText}>
+            💡 Tip: Type your licence number (e.g., MH1219901234567) and it will auto-add hyphens when submitted
           </Text>
 
           <View style={styles.inputGroup}>
