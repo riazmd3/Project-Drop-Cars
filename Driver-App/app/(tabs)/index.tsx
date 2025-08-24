@@ -18,32 +18,6 @@ import { Menu, Wallet, MapPin, Clock, User, Phone, Car, RefreshCw } from 'lucide
 import BookingCard from '@/components/BookingCard';
 import DrawerNavigation from '@/components/DrawerNavigation';
 import { fetchDashboardData, DashboardData, fetchPendingOrders, PendingOrder } from '@/services/dashboardService';
-import ConnectionTest from '@/components/ConnectionTest';
-
-const dummyBookings = [
-  {
-    booking_id: 'B123',
-    pickup: 'Chennai Central',
-    drop: 'Tiruvannamalai',
-    customer_name: 'Arun Kumar',
-    customer_mobile: '9876567890',
-    fare_per_km: 10,
-    distance_km: 150,
-    total_fare: 1500,
-    status: 'available'
-  },
-  {
-    booking_id: 'B124',
-    pickup: 'Guindy',
-    drop: 'Pondicherry',
-    customer_name: 'Priya Sharma',
-    customer_mobile: '9887766554',
-    fare_per_km: 12,
-    distance_km: 120,
-    total_fare: 1440,
-    status: 'available'
-  },
-];
 
 interface Booking {
   booking_id: string;
@@ -529,90 +503,6 @@ export default function DashboardScreen() {
                 )}
               </View>
             )}
-
-            {/* Debug Component - Remove this after fixing the issue */}
-            <View style={{ marginBottom: 20 }}>
-              <Text style={[dynamicStyles.sectionTitle, { textAlign: 'center', marginBottom: 10 }]}>
-                🔍 Debug Info (Remove after fixing)
-              </Text>
-              
-              {/* Simple Debug Info */}
-              <View style={dynamicStyles.statCard}>
-                <Text style={dynamicStyles.statLabel}>Auth User:</Text>
-                <Text style={dynamicStyles.statNumber}>
-                  {user ? `${user.fullName} (${user.primaryMobile})` : 'Not loaded'}
-                </Text>
-              </View>
-              
-              <View style={dynamicStyles.statCard}>
-                <Text style={dynamicStyles.statLabel}>Dashboard Data:</Text>
-                <Text style={dynamicStyles.statNumber}>
-                  {dashboardData ? 'Loaded' : 'Not loaded'}
-                </Text>
-              </View>
-              
-              <View style={dynamicStyles.statCard}>
-                <Text style={dynamicStyles.statLabel}>Owner Name:</Text>
-                <Text style={dynamicStyles.statNumber}>
-                  {dashboardData?.user_info?.full_name || 'Not loaded'}
-                </Text>
-              </View>
-              
-              <View style={dynamicStyles.statCard}>
-                <Text style={dynamicStyles.statLabel}>Wallet Balance:</Text>
-                <Text style={dynamicStyles.statNumber}>
-                  ₹{dashboardData?.user_info?.wallet_balance || 0}
-                </Text>
-              </View>
-              
-              <View style={dynamicStyles.statCard}>
-                <Text style={dynamicStyles.statLabel}>Cars Count:</Text>
-                <Text style={dynamicStyles.statNumber}>
-                  {dashboardData?.cars?.length || 0}
-                </Text>
-              </View>
-              
-              <View style={dynamicStyles.statCard}>
-                <Text style={dynamicStyles.statLabel}>Drivers Count:</Text>
-                <Text style={dynamicStyles.statNumber}>
-                  {dashboardData?.drivers?.length || 0}
-                </Text>
-              </View>
-              
-              <View style={dynamicStyles.statCard}>
-                <Text style={dynamicStyles.statLabel}>Pending Orders:</Text>
-                <Text style={dynamicStyles.statNumber}>
-                  {pendingOrders.length}
-                </Text>
-              </View>
-              
-              <View style={dynamicStyles.statCard}>
-                <Text style={dynamicStyles.statLabel}>Loading State:</Text>
-                <Text style={dynamicStyles.statNumber}>
-                  {loading ? 'Loading...' : 'Idle'}
-                </Text>
-              </View>
-              
-              <View style={dynamicStyles.statCard}>
-                <Text style={dynamicStyles.statLabel}>Error:</Text>
-                <Text style={dynamicStyles.statNumber}>
-                  {error || 'None'}
-                </Text>
-              </View>
-              
-              {/* Manual Test Button */}
-              <TouchableOpacity 
-                style={[dynamicStyles.endTripButton, { marginTop: 16, marginBottom: 16 }]}
-                onPress={() => {
-                  console.log('🧪 Manual test: fetchData called');
-                  fetchData();
-                }}
-              >
-                <Text style={dynamicStyles.endTripButtonText}>🧪 Test Fetch Dashboard Data</Text>
-              </TouchableOpacity>
-              
-              <ConnectionTest />
-            </View>
           </>
         )}
       </ScrollView>

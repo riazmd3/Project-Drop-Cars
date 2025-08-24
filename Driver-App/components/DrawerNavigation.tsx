@@ -287,10 +287,14 @@ export default function DrawerNavigation({ visible, onClose }: DrawerNavigationP
               <MenuItem
                 icon={<Car color={colors.textSecondary} size={20} />}
                 title="My Cars"
-                subtitle={`${dashboardData?.cars?.length || 0} vehicles registered`}
+                subtitle={`${dashboardData?.cars?.length || 0} vehicles`}
                 onPress={() => {
                   onClose();
-                  router.push('/my-cars');
+                  if (dashboardData?.cars && dashboardData.cars.length > 0) {
+                    router.push('/my-cars');
+                  } else {
+                    router.push('/add-car');
+                  }
                 }}
                 rightComponent={<ChevronRight color={colors.textSecondary} size={20} />}
               />
@@ -298,18 +302,22 @@ export default function DrawerNavigation({ visible, onClose }: DrawerNavigationP
               <MenuItem
                 icon={<Users color={colors.textSecondary} size={20} />}
                 title="My Drivers"
-                subtitle={`${dashboardData?.drivers?.length || 0} drivers registered`}
+                subtitle={`${dashboardData?.drivers?.length || 0} drivers`}
                 onPress={() => {
                   onClose();
-                  router.push('/my-drivers');
+                  if (dashboardData?.drivers && dashboardData.drivers.length > 0) {
+                    router.push('/my-drivers');
+                  } else {
+                    router.push('/add-driver');
+                  }
                 }}
                 rightComponent={<ChevronRight color={colors.textSecondary} size={20} />}
               />
 
               <MenuItem
                 icon={<History color={colors.textSecondary} size={20} />}
-                title="My Rides"
-                subtitle="View trip history"
+                title="Trip History"
+                subtitle="View completed trips"
                 onPress={() => {
                   onClose();
                   router.push('/(tabs)/rides');
