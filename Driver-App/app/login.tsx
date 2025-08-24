@@ -117,47 +117,63 @@ export default function LoginScreen() {
       console.log('🔍 Driver count:', driverCount);
       console.log('🔍 Full response data:', response.data);
       
+      // FIRST: Check if user has uploaded any documents
+      if (carCount === 0 && driverCount === 0) {
+        // No documents uploaded yet - redirect to add documents
+        console.log('📝 No documents uploaded, redirecting to add car page');
+        router.replace('/add-car');
+        return;
+      }
+      
+      if (carCount === 0) {
+        // No cars uploaded - redirect to add car
+        console.log('🚗 No cars uploaded, redirecting to add car page');
+        router.replace('/add-car');
+        return;
+      }
+      
+      if (driverCount === 0) {
+        // No drivers uploaded - redirect to add driver
+        console.log('👤 No drivers uploaded, redirecting to add driver page');
+        router.replace('/add-driver');
+        return;
+      }
+      
+      // SECOND: Now check account status (only if documents are uploaded)
       if (accountStatus?.toLowerCase() === 'inactive') {
-        // Account is under verification
+        // Documents uploaded but account is under verification
+        console.log('⏳ Documents uploaded, account under verification');
         setAccountStatus(accountStatus);
         setShowAccountVerification(true);
         return;
       }
       
       if (accountStatus?.toLowerCase() === 'rejected') {
-        // Account verification failed
+        // Documents uploaded but account verification failed
+        console.log('❌ Documents uploaded, account verification failed');
         setAccountStatus(accountStatus);
         setShowAccountVerification(true);
         return;
       }
       
       if (accountStatus?.toLowerCase() === 'pending') {
-        // Account is pending documents
+        // Documents uploaded but account is pending
+        console.log('⏳ Documents uploaded, account pending');
         setAccountStatus(accountStatus);
         setShowAccountVerification(true);
         return;
       }
       
-              // Account is active, proceed with normal flow
-        if (accountStatus?.toLowerCase() === 'active') {
-          // Route based on counts from login response
-          const carCount = response.data.car_details_count ?? 0;
-          const driverCount = response.data.car_driver_count ?? 0;
-          
-          if (carCount === 0) {
-            router.replace('/add-car');
-            return;
-          }
-          if (driverCount === 0) {
-            router.replace('/add-driver');
-            return;
-          }
-          setShowWelcome(true);
-        } else {
-          // Account is not active (inactive, pending, rejected, unknown), show verification screen
-          setAccountStatus(accountStatus || 'unknown');
-          setShowAccountVerification(true);
-        }
+      // THIRD: If documents are uploaded and account is active, proceed to dashboard
+      if (accountStatus?.toLowerCase() === 'active') {
+        console.log('✅ Documents uploaded and account active, proceeding to dashboard');
+        setShowWelcome(true);
+      } else {
+        // Unknown account status - show verification screen
+        console.log('❓ Unknown account status, showing verification screen');
+        setAccountStatus(accountStatus || 'unknown');
+        setShowAccountVerification(true);
+      }
 
     } catch (error: any) {
       console.error('❌ Login failed:', error);
@@ -202,23 +218,47 @@ export default function LoginScreen() {
       });
       
       const newStatus = response.data.account_status;
+      const carCount = response.data.car_details_count ?? 0;
+      const driverCount = response.data.car_driver_count ?? 0;
+      
       setAccountStatus(newStatus);
       
-      if (newStatus?.toLowerCase() === 'active') {
-        // Status changed to active, proceed with normal flow
+      // Use the same logic as login
+      // FIRST: Check if user has uploaded any documents
+      if (carCount === 0 && driverCount === 0) {
+        // No documents uploaded yet - redirect to add documents
+        console.log('📝 No documents uploaded, redirecting to add car page');
         setShowAccountVerification(false);
-        const carCount = response.data.car_details_count ?? 0;
-        const driverCount = response.data.car_driver_count ?? 0;
-        
-        if (carCount === 0) {
-          router.replace('/add-car');
-          return;
-        }
-        if (driverCount === 0) {
-          router.replace('/add-driver');
-          return;
-        }
+        router.replace('/add-car');
+        return;
+      }
+      
+      if (carCount === 0) {
+        // No cars uploaded - redirect to add car
+        console.log('🚗 No cars uploaded, redirecting to add car page');
+        setShowAccountVerification(false);
+        router.replace('/add-car');
+        return;
+      }
+      
+      if (driverCount === 0) {
+        // No drivers uploaded - redirect to add driver
+        console.log('👤 No drivers uploaded, redirecting to add driver page');
+        setShowAccountVerification(false);
+        router.replace('/add-driver');
+        return;
+      }
+      
+      // SECOND: Now check account status (only if documents are uploaded)
+      if (newStatus?.toLowerCase() === 'active') {
+        // Documents uploaded and account is active, proceed to dashboard
+        console.log('✅ Documents uploaded and account active, proceeding to dashboard');
+        setShowAccountVerification(false);
         setShowWelcome(true);
+      } else {
+        // Documents uploaded but account is not active, keep showing verification
+        console.log('⏳ Documents uploaded but account not active, keeping verification screen');
+        setAccountStatus(newStatus);
       }
     } catch (error) {
       console.error('❌ Failed to refresh status:', error);
