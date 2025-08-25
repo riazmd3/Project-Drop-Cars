@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
@@ -72,6 +72,18 @@ export default function FutureRidesScreen() {
   const [rides, setRides] = useState<FutureRide[]>(sampleFutureRides);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedRide, setSelectedRide] = useState<FutureRide | null>(null);
+
+  // Dedupe rides by id (fallback to booking_id) to avoid duplicate entries
+  const uniqueRides = useMemo(() => {
+    const rideMap = new Map<string, FutureRide>();
+    for (const ride of rides) {
+      const key = ride.id || ride.booking_id;
+      if (!rideMap.has(key)) {
+        rideMap.set(key, ride);
+      }
+    }
+    return Array.from(rideMap.values());
+  }, [rides]);
 
   // Get available drivers from dashboard data
   const availableDrivers = dashboardData?.drivers || [];
@@ -450,8 +462,8 @@ export default function FutureRidesScreen() {
       </View>
 
       <ScrollView style={dynamicStyles.content} showsVerticalScrollIndicator={false}>
-        {rides.map((ride) => (
-          <RideCard key={ride.id} ride={ride} />
+        {uniqueRides.map((ride) => (
+          <RideCard key={ride.id || ride.booking_id} ride={ride} />
         ))}
       </ScrollView>
 
