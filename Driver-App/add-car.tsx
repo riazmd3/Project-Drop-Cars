@@ -17,7 +17,7 @@ import { authService, getCompleteUserData } from '@/services/authService';
 import { useAuth } from '@/contexts/AuthContext';
 import * as SecureStore from 'expo-secure-store';
 
-const carTypes = ['SEDAN', 'HATCHBACK', 'SUV', 'INNOVA', 'INNOVA CRYSTA', 'OTHER'];
+const carTypes = ['HATCHBACK', 'SEDAN', 'NEW SEDAN', 'SUV', 'INNOVA', 'INNOVA CRYSTA', 'OTHER'];
 
 export default function AddCarPage() {
   const router = useRouter();

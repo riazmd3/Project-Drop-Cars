@@ -40,7 +40,7 @@ export default function AddCarScreen() {
   const router = useRouter();
   const { user } = useAuth();
 
-  const carTypes = ['SEDAN', 'SUV', 'INNOVA'];
+  const carTypes = ['HATCHBACK', 'SEDAN', 'NEW SEDAN', 'SUV', 'INNOVA', 'INNOVA CRYSTA'];
 
   // Function to check account status and redirect accordingly
   const checkAccountStatusAndRedirect = async () => {

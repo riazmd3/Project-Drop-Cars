@@ -12,7 +12,7 @@ import { Car, Plus, ArrowRight, ArrowLeft, X, Upload, CheckCircle, FileText } fr
 import * as ImagePicker from 'expo-image-picker';
 import { addCarDetails, testCarDetailsDataStructure, CarDetailsData } from '@/services/signupService';
 
-const carTypes = ['SEDAN', 'HATCHBACK', 'SUV', 'INNOVA', 'INNOVA CRYSTA', 'OTHER'];
+const carTypes = ['HATCHBACK', 'SEDAN', 'NEW SEDAN', 'SUV', 'INNOVA', 'INNOVA CRYSTA'];
 
 interface CarDetailsStepProps {
   data: any[];
