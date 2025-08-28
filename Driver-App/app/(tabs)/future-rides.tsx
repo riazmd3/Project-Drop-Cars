@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { useDashboard } from '@/contexts/DashboardContext';
+import { useDashboard, FutureRide } from '@/contexts/DashboardContext';
 import { MapPin, Clock, IndianRupee, User, Phone, Car, X } from 'lucide-react-native';
 
 // Type definitions
@@ -31,59 +31,26 @@ interface FutureRide {
   assigned_driver: any | null;
 }
 
-// Sample future rides data - replace with real API data later
-const sampleFutureRides: FutureRide[] = [
-  {    
-    id: '1',
-    booking_id: 'B125',
-    pickup: 'Adyar',
-    drop: 'Velachery',
-    customer_name: 'Lakshmi Devi', 
-    customer_mobile: '9988776655',
-    date: '2025-01-21',
-    time: '10:00',
-    distance: 25,
-    fare_per_km: 12,
-    total_fare: 300,
-    status: 'confirmed',
-    assigned_driver: null
-  },
-  {
-    id: '2',
-    booking_id: 'B126',
-    pickup: 'T Nagar',
-    drop: 'Tambaram',
-    customer_name: 'Ravi Shankar',
-    customer_mobile: '9876543210',
-    date: '2025-01-22',
-    time: '14:30',
-    distance: 35,
-    fare_per_km: 10,
-    total_fare: 350,
-    status: 'confirmed',
-    assigned_driver: null
-  },
-];
+// Removed sample data; now reads from shared context
 
 export default function FutureRidesScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
-  const { dashboardData, loading, error } = useDashboard();
-  const [rides, setRides] = useState<FutureRide[]>(sampleFutureRides);
+  const { dashboardData, loading, error, futureRides, updateFutureRide } = useDashboard();
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [selectedRide, setSelectedRide] = useState<FutureRide | null>(null);
 
   // Dedupe rides by id (fallback to booking_id) to avoid duplicate entries
   const uniqueRides = useMemo(() => {
     const rideMap = new Map<string, FutureRide>();
-    for (const ride of rides) {
+    for (const ride of futureRides) {
       const key = ride.id || ride.booking_id;
       if (!rideMap.has(key)) {
         rideMap.set(key, ride);
       }
     }
     return Array.from(rideMap.values());
-  }, [rides]);
+  }, [futureRides]);
 
   // Get available drivers from dashboard data
   const availableDrivers = dashboardData?.drivers || [];
@@ -95,13 +62,13 @@ export default function FutureRidesScreen() {
   const assignDriver = (ride: FutureRide, driver: any) => {
     const quickId = generateQuickId();
     
-    const updatedRides = rides.map(r => 
-      r.id === ride.id 
-        ? { ...r, assigned_driver: { ...driver, quickId }, status: 'assigned' }
-        : r
-    );
-    
-    setRides(updatedRides);
+    const updatedRide: FutureRide = {
+      ...ride,
+      assigned_driver: { ...driver, quickId },
+      status: 'assigned',
+    };
+
+    updateFutureRide(updatedRide);
     setShowAssignModal(false);
     setSelectedRide(null);
     

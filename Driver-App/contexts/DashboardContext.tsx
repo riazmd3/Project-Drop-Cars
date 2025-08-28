@@ -1,6 +1,22 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { DashboardData, fetchDashboardData } from '@/services/dashboardService';
 
+export interface FutureRide {
+  id: string;
+  booking_id: string;
+  pickup: string;
+  drop: string;
+  customer_name: string;
+  customer_mobile: string;
+  date: string;
+  time: string;
+  distance: number;
+  fare_per_km: number;
+  total_fare: number;
+  status: string;
+  assigned_driver: any | null;
+}
+
 interface DashboardContextType {
   dashboardData: DashboardData | null;
   loading: boolean;
@@ -8,6 +24,9 @@ interface DashboardContextType {
   fetchData: () => Promise<void>;
   refreshData: () => Promise<void>;
   clearError: () => void;
+  futureRides: FutureRide[];
+  addFutureRide: (ride: FutureRide) => void;
+  updateFutureRide: (ride: FutureRide) => void;
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
@@ -16,6 +35,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [futureRides, setFutureRides] = useState<FutureRide[]>([]);
 
   // Auto-fetch data when context is created
   useEffect(() => {
@@ -57,6 +77,20 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     setError(null);
   };
 
+  const addFutureRide = (ride: FutureRide) => {
+    setFutureRides(prev => {
+      const exists = prev.find(r => (r.id || r.booking_id) === (ride.id || ride.booking_id));
+      if (exists) {
+        return prev;
+      }
+      return [ride, ...prev];
+    });
+  };
+
+  const updateFutureRide = (ride: FutureRide) => {
+    setFutureRides(prev => prev.map(r => (r.id === ride.id ? ride : r)));
+  };
+
   return (
     <DashboardContext.Provider value={{
       dashboardData,
@@ -64,7 +98,10 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       error,
       fetchData,
       refreshData,
-      clearError
+      clearError,
+      futureRides,
+      addFutureRide,
+      updateFutureRide
     }}>
       {children}
     </DashboardContext.Provider>

@@ -12,7 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWallet } from '@/contexts/WalletContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useDashboard } from '@/contexts/DashboardContext';
+import { useDashboard, FutureRide } from '@/contexts/DashboardContext';
 import { useRouter } from 'expo-router';
 import { Menu, Wallet, MapPin, Clock, User, Phone, Car, RefreshCw } from 'lucide-react-native';
 import BookingCard from '@/components/BookingCard';
@@ -40,7 +40,7 @@ export default function DashboardScreen() {
   const [showDrawer, setShowDrawer] = useState(false);
   const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
-  const [currentTrip, setCurrentTrip] = useState<PendingOrder | null>(null);
+  // Remove currentTrip concept from owner dashboard
   const [refreshing, setRefreshing] = useState(false);
 
   const canAcceptBookings = balance >= 1000;
@@ -338,11 +338,29 @@ export default function DashboardScreen() {
     );
   };
 
+  const { addFutureRide } = useDashboard();
+
   const acceptBooking = (order: PendingOrder) => {
-    setCurrentTrip({ ...order });
     setPendingOrders(prev => prev.filter(o => o.order_id !== order.order_id));
-    
-    // Simulate SMS sending
+
+    const ride: FutureRide = {
+      id: order.order_id.toString(),
+      booking_id: `B${order.order_id}`,
+      pickup: order.pickup_drop_location.pickup,
+      drop: order.pickup_drop_location.drop,
+      customer_name: order.customer_name,
+      customer_mobile: order.customer_number,
+      date: new Date().toISOString().slice(0, 10),
+      time: new Date().toTimeString().slice(0,5),
+      distance: order.trip_distance,
+      fare_per_km: order.cost_per_km,
+      total_fare: (order.cost_per_km * order.trip_distance) + order.driver_allowance + order.permit_charges + order.hill_charges + order.toll_charges,
+      status: 'confirmed',
+      assigned_driver: null,
+    };
+
+    addFutureRide(ride);
+
     Alert.alert(
       'Booking Accepted',
       `SMS sent to customer: "DropCars: Your driver ${user?.fullName || 'Driver'} (${dashboardData?.cars?.[0]?.car_brand || 'Vehicle'} ${dashboardData?.cars?.[0]?.car_model || ''} - ${dashboardData?.cars?.[0]?.car_number || 'Number'}) has accepted your booking."`
@@ -434,43 +452,7 @@ export default function DashboardScreen() {
               </View>
             </View>
 
-            {currentTrip ? (
-              <View style={dynamicStyles.currentTripSection}>
-                <Text style={dynamicStyles.sectionTitle}>Current Trip</Text>
-                <View style={dynamicStyles.currentTripCard}>
-                  <View style={dynamicStyles.tripHeader}>
-                    <Text style={dynamicStyles.tripStatus}>Trip In Progress</Text>
-                    <View style={dynamicStyles.statusDot} />
-                  </View>
-                  
-                  <View style={dynamicStyles.tripDetails}>
-                    <View style={dynamicStyles.tripRow}>
-                      <MapPin color={colors.success} size={16} />
-                      <Text style={dynamicStyles.tripText}>{currentTrip.pickup_drop_location.pickup}</Text>
-                    </View>
-                    <View style={dynamicStyles.tripRow}>
-                      <MapPin color={colors.error} size={16} />
-                      <Text style={dynamicStyles.tripText}>{currentTrip.pickup_drop_location.drop}</Text>
-                    </View>
-                    <View style={dynamicStyles.tripRow}>
-                      <User color={colors.textSecondary} size={16} />
-                      <Text style={dynamicStyles.tripText}>{currentTrip.customer_name}</Text>
-                    </View>
-                    <View style={dynamicStyles.tripRow}>
-                      <Phone color={colors.textSecondary} size={16} />
-                      <Text style={dynamicStyles.tripText}>{currentTrip.customer_number}</Text>
-                    </View>
-                  </View>
-
-                  <TouchableOpacity 
-                    style={dynamicStyles.endTripButton}
-                    onPress={() => router.push('/trip/end')}
-                  >
-                    <Text style={dynamicStyles.endTripButtonText}>End Trip</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            ) : (
+            {
               <View style={dynamicStyles.bookingsSection}>
                 <Text style={dynamicStyles.sectionTitle}>Available Bookings</Text>
                 {ordersLoading ? (
@@ -502,7 +484,7 @@ export default function DashboardScreen() {
                   </View>
                 )}
               </View>
-            )}
+            }
           </>
         )}
       </ScrollView>
