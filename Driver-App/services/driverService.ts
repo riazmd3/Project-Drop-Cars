@@ -269,3 +269,64 @@ export const updateDriverDetails = async (driverId: string, driverData: Partial<
     throw new Error('Failed to update driver details');
   }
 };
+
+// Driver login interface
+export interface DriverLoginRequest {
+  mobile_number: string;
+  password: string;
+}
+
+export interface DriverLoginResponse {
+  access_token: string;
+  token_type: string;
+  driver_id: string;
+  full_name: string;
+  primary_number: string;
+  status: string;
+  message: string;
+}
+
+// Driver login function
+export const loginDriver = async (mobileNumber: string, password: string): Promise<DriverLoginResponse> => {
+  try {
+    console.log('🚗 Starting driver login...');
+    console.log('📱 Mobile:', mobileNumber);
+    
+    // Format phone number for backend (add +91 prefix if not present)
+    const formatPhoneForBackend = (phone: string): string => {
+      if (!phone) return '';
+      // Remove +91 prefix if present and ensure it's properly formatted
+      const cleanPhone = phone.replace(/^\+91/, '');
+      // Add +91 prefix back
+      return `+91${cleanPhone}`;
+    };
+    
+    const formattedPhone = formatPhoneForBackend(mobileNumber);
+    
+    console.log('🔐 Attempting driver login with:', {
+      mobile_number: formattedPhone,
+      password: password
+    });
+
+    // Make API call to driver login endpoint
+    const response = await axiosInstance.post('/api/users/cardriver/login', {
+      mobile_number: formattedPhone,
+      password: password
+    });
+
+    console.log('✅ Driver login successful:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ Driver login failed:', error);
+    
+    if (error.response?.status === 401) {
+      throw new Error('Invalid mobile number or password');
+    } else if (error.response?.status === 400) {
+      throw new Error(error.response.data?.detail || 'Login failed');
+    } else if (error.response?.status === 404) {
+      throw new Error('Driver not found. Please check your mobile number.');
+    } else {
+      throw new Error(`Login failed: ${error.message || 'Unknown error occurred'}`);
+    }
+  }
+};

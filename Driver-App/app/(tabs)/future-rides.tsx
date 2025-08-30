@@ -43,9 +43,7 @@ export default function FutureRidesScreen() {
   const availableDrivers = dashboardData?.drivers || [];
   const availableCars = dashboardData?.cars || [];
 
-  const generateQuickId = () => {
-    return Math.floor(1000 + Math.random() * 9000).toString();
-  };
+  // Removed quick ID generation - drivers use their passwords instead
 
   const selectDriver = (driver: any) => {
     setSelectedDriver(driver);
@@ -56,11 +54,9 @@ export default function FutureRidesScreen() {
   const assignVehicle = (vehicle: any) => {
     if (!selectedRide || !selectedDriver) return;
     
-    const quickId = generateQuickId();
-    
     const updatedRide: FutureRide = {
       ...selectedRide,
-      assigned_driver: { ...selectedDriver, quickId },
+      assigned_driver: { ...selectedDriver },
       assigned_vehicle: vehicle,
       status: 'assigned',
     };
@@ -73,7 +69,7 @@ export default function FutureRidesScreen() {
     
     Alert.alert(
       'Assignment Complete',
-      `Driver: ${selectedDriver.full_name}\nVehicle: ${vehicle.car_name} (${vehicle.car_number})\nTrip: ${selectedRide.booking_id}\n\nQuick ID: ${quickId}\nMobile: ${selectedDriver.primary_number}\n\nThe driver can now login using Quick Driver mode.`
+      `Driver: ${selectedDriver.full_name}\nVehicle: ${vehicle.car_name} (${vehicle.car_number})\nTrip: ${selectedRide.booking_id}\n\nMobile: ${selectedDriver.primary_number}\n\nThe driver can now login using their registered password.`
     );
   };
 
@@ -417,9 +413,6 @@ export default function FutureRidesScreen() {
               Vehicle: {ride.assigned_vehicle.car_name} ({ride.assigned_vehicle.car_number})
             </Text>
           )}
-          <Text style={dynamicStyles.assignedText}>
-            Quick ID: {ride.assigned_driver.quickId}
-          </Text>
         </View>
       ) : (
         <TouchableOpacity 
