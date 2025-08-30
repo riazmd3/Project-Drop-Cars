@@ -12,6 +12,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDashboard, FutureRide } from '@/contexts/DashboardContext';
+import { useNotifications } from '@/contexts/NotificationContext';
 import { MapPin, Clock, IndianRupee, User, Phone, Car, X } from 'lucide-react-native';
 
 // Removed local interface - using imported FutureRide from DashboardContext
@@ -22,6 +23,7 @@ export default function FutureRidesScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
   const { dashboardData, loading, error, futureRides, updateFutureRide } = useDashboard();
+  const { sendOrderAssignedNotification } = useNotifications();
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showVehicleModal, setShowVehicleModal] = useState(false);
   const [selectedRide, setSelectedRide] = useState<FutureRide | null>(null);
@@ -66,6 +68,18 @@ export default function FutureRidesScreen() {
     setShowVehicleModal(false);
     setSelectedRide(null);
     setSelectedDriver(null);
+    
+    // Send notification for order assignment
+    sendOrderAssignedNotification({
+      orderId: selectedRide.booking_id,
+      pickup: selectedRide.pickup,
+      drop: selectedRide.drop,
+      customerName: selectedRide.customer_name,
+      customerMobile: selectedRide.customer_mobile,
+      distance: selectedRide.distance,
+      fare: selectedRide.total_fare,
+      orderType: 'assigned'
+    });
     
     Alert.alert(
       'Assignment Complete',

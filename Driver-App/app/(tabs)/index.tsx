@@ -13,6 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useWallet } from '@/contexts/WalletContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useDashboard, FutureRide } from '@/contexts/DashboardContext';
+import { useNotifications } from '@/contexts/NotificationContext';
 import { useRouter } from 'expo-router';
 import { Menu, Wallet, MapPin, Clock, User, Phone, Car, RefreshCw } from 'lucide-react-native';
 import BookingCard from '@/components/BookingCard';
@@ -36,12 +37,14 @@ export default function DashboardScreen() {
   const { balance } = useWallet();
   const { colors } = useTheme();
   const { dashboardData, loading, error, fetchData, refreshData } = useDashboard();
+  const { sendNewOrderNotification, sendOrderAssignedNotification } = useNotifications();
   const router = useRouter();
   const [showDrawer, setShowDrawer] = useState(false);
   const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   // Remove currentTrip concept from owner dashboard
   const [refreshing, setRefreshing] = useState(false);
+  const [previousOrderCount, setPreviousOrderCount] = useState(0);
 
   const canAcceptBookings = balance >= 1000;
 
@@ -72,6 +75,33 @@ export default function DashboardScreen() {
       fetchPendingOrdersData();
     }
   }, [dashboardData, loading]);
+
+  // Check for new orders and send notifications
+  useEffect(() => {
+    if (pendingOrders.length > 0 && previousOrderCount === 0) {
+      // First time loading orders, just update count
+      setPreviousOrderCount(pendingOrders.length);
+    } else if (pendingOrders.length > previousOrderCount && previousOrderCount > 0) {
+      // New orders received
+      const newOrders = pendingOrders.slice(previousOrderCount);
+      newOrders.forEach(order => {
+        sendNewOrderNotification({
+          orderId: order.order_id.toString(),
+          pickup: order.pickup_drop_location.pickup,
+          drop: order.pickup_drop_location.drop,
+          customerName: order.customer_name,
+          customerMobile: order.customer_number,
+          distance: order.trip_distance,
+          fare: (order.cost_per_km * order.trip_distance) + order.driver_allowance + order.permit_charges + order.hill_charges + order.toll_charges,
+          orderType: 'new'
+        });
+      });
+      setPreviousOrderCount(pendingOrders.length);
+    } else if (pendingOrders.length !== previousOrderCount) {
+      // Update count if it changed
+      setPreviousOrderCount(pendingOrders.length);
+    }
+  }, [pendingOrders, previousOrderCount, sendNewOrderNotification]);
 
   const fetchPendingOrdersData = async () => {
     try {
@@ -361,6 +391,18 @@ export default function DashboardScreen() {
     };
 
     addFutureRide(ride);
+
+    // Send notification for accepted order
+    sendOrderAssignedNotification({
+      orderId: order.order_id.toString(),
+      pickup: order.pickup_drop_location.pickup,
+      drop: order.pickup_drop_location.drop,
+      customerName: order.customer_name,
+      customerMobile: order.customer_number,
+      distance: order.trip_distance,
+      fare: (order.cost_per_km * order.trip_distance) + order.driver_allowance + order.permit_charges + order.hill_charges + order.toll_charges,
+      orderType: 'assigned'
+    });
 
     Alert.alert(
       'Booking Accepted',

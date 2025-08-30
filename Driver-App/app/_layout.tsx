@@ -6,8 +6,9 @@ import { AuthProvider } from '@/contexts/AuthContext';
 import { WalletProvider } from '@/contexts/WalletContext';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { DashboardProvider } from '@/contexts/DashboardContext';
+import { NotificationProvider } from '@/contexts/NotificationContext';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
-import { SplashScreen } from 'expo-router';
+import * as SplashScreen from 'expo-splash-screen';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -36,15 +37,17 @@ export default function RootLayout() {
       <AuthProvider>
         <WalletProvider>
           <DashboardProvider>
-            <Stack screenOptions={{ headerShown: false }}>
-              <Stack.Screen name="index" />
-              <Stack.Screen name="login" />
-              <Stack.Screen name="signup" />
-              <Stack.Screen name="quick-login" />
-              <Stack.Screen name="(tabs)" />
-              <Stack.Screen name="+not-found" />
-            </Stack>
-            <StatusBar style="auto" />
+            <NotificationProvider>
+              <Stack screenOptions={{ headerShown: false }}>
+                <Stack.Screen name="index" />
+                <Stack.Screen name="login" />
+                <Stack.Screen name="signup" />
+                <Stack.Screen name="quick-login" />
+                <Stack.Screen name="(tabs)" />
+                <Stack.Screen name="+not-found" />
+              </Stack>
+              <StatusBar style="auto" />
+            </NotificationProvider>
           </DashboardProvider>
         </WalletProvider>
       </AuthProvider>
