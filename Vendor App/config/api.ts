@@ -14,6 +14,11 @@ export const API_CONFIG = {
     CONFIRM_ORDER: '/api/orders/oneway/confirm',
     // Vendor Orders endpoint
     VENDOR_ORDERS: '/api/orders/vendor',
+    // Transfer endpoints
+    REQUEST_TRANSFER: '/api/transfer/request',
+    CHECK_BALANCE: '/api/transfer/balance',
+    TRANSFER_HISTORY: '/api/transfer/history',
+    TRANSFER_STATISTICS: '/api/transfer/statistics',
   },
   
   // Request timeout in milliseconds
@@ -54,6 +59,26 @@ export const getConfirmOrderUrl = (): string => {
 // Helper function to get vendor orders URL
 export const getVendorOrdersUrl = (): string => {
   return getApiUrl(API_CONFIG.ENDPOINTS.VENDOR_ORDERS);
+};
+
+// Helper function to get request transfer URL
+export const getRequestTransferUrl = (): string => {
+  return getApiUrl(API_CONFIG.ENDPOINTS.REQUEST_TRANSFER);
+};
+
+// Helper function to get check balance URL
+export const getCheckBalanceUrl = (): string => {
+  return getApiUrl(API_CONFIG.ENDPOINTS.CHECK_BALANCE);
+};
+
+// Helper function to get transfer history URL
+export const getTransferHistoryUrl = (): string => {
+  return getApiUrl(API_CONFIG.ENDPOINTS.TRANSFER_HISTORY);
+};
+
+// Helper function to get transfer statistics URL
+export const getTransferStatisticsUrl = (): string => {
+  return getApiUrl(API_CONFIG.ENDPOINTS.TRANSFER_STATISTICS);
 };
 
 // Helper function to get current API base URL

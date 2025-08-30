@@ -7,7 +7,6 @@ import {
   TouchableOpacity,
   Dimensions,
   StatusBar,
-  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useVendorAuth } from '../../hooks/useVendorAuth';
@@ -42,10 +41,6 @@ interface VendorData {
   full_name: string;
   primary_number: string;
   account_status: string;
-  wallet_balance: number;
-  total_orders: number;
-  completed_orders: number;
-  rating: number;
 }
 
 export default function MenuScreen() {
@@ -65,10 +60,6 @@ export default function MenuScreen() {
           full_name: storedData.full_name,
           primary_number: storedData.primary_number,
           account_status: storedData.account_status,
-          wallet_balance: storedData.wallet_balance || 0,
-          total_orders: 45, // Mock data
-          completed_orders: 38, // Mock data
-          rating: 4.8, // Mock data
         });
       }
     } catch (error) {
@@ -77,7 +68,6 @@ export default function MenuScreen() {
   };
 
   const handleLogout = () => {
-    // Here you would implement logout functionality
     signOut();
   };
 
@@ -168,7 +158,7 @@ export default function MenuScreen() {
         <View style={styles.headerContent}>
           <View style={styles.profileSection}>
             <View style={styles.profileImage}>
-              <User size={40} color="#FFFFFF" />
+              <Shield size={40} color="#FFFFFF" />
             </View>
             
             <View style={styles.profileInfo}>
@@ -187,39 +177,6 @@ export default function MenuScreen() {
             <Bell size={24} color="#FFFFFF" />
             <View style={styles.notificationBadge} />
           </TouchableOpacity>
-        </View>
-
-        {/* Quick Stats */}
-        <View style={styles.quickStats}>
-          <View style={styles.statItem}>
-            <View style={styles.statIcon}>
-              <Package size={20} color="#3B82F6" />
-            </View>
-            <View>
-              <Text style={styles.statValue}>{vendorData.total_orders}</Text>
-              <Text style={styles.statLabel}>Orders</Text>
-            </View>
-          </View>
-          
-          <View style={styles.statItem}>
-            <View style={styles.statIcon}>
-              <Star size={20} color="#FCD34D" />
-            </View>
-            <View>
-              <Text style={styles.statValue}>{vendorData.rating}</Text>
-              <Text style={styles.statLabel}>Rating</Text>
-            </View>
-          </View>
-          
-          <View style={styles.statItem}>
-            <View style={styles.statIcon}>
-              <DollarSign size={20} color="#10B981" />
-            </View>
-            <View>
-              <Text style={styles.statValue}>₹{vendorData.wallet_balance}</Text>
-              <Text style={styles.statLabel}>Balance</Text>
-            </View>
-          </View>
         </View>
       </LinearGradient>
 
@@ -246,45 +203,6 @@ export default function MenuScreen() {
               <ChevronRight size={20} color="#9CA3AF" />
             </TouchableOpacity>
           ))}
-        </View>
-
-        {/* Account Information */}
-        <View style={styles.accountSection}>
-          <Text style={styles.sectionTitle}>Account Information</Text>
-          
-          <View style={styles.infoCard}>
-            <View style={styles.infoRow}>
-              <View style={styles.infoIcon}>
-                <Shield size={20} color="#10B981" />
-              </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Account Status</Text>
-                <Text style={styles.infoValue}>
-                  {vendorData.account_status === 'Active' ? 'Active' : 'Pending Verification'}
-                </Text>
-              </View>
-            </View>
-            
-            <View style={styles.infoRow}>
-              <View style={styles.infoIcon}>
-                <Clock size={20} color="#F59E0B" />
-              </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Member Since</Text>
-                <Text style={styles.infoValue}>January 2024</Text>
-              </View>
-            </View>
-            
-            <View style={styles.infoRow}>
-              <View style={styles.infoIcon}>
-                <Award size={20} color="#8B5CF6" />
-              </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Performance</Text>
-                <Text style={styles.infoValue}>Excellent</Text>
-              </View>
-            </View>
-          </View>
         </View>
 
         {/* Contact Information */}
@@ -431,36 +349,6 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#EF4444',
   },
-  quickStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 16,
-    padding: 20,
-  },
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  statIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 2,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#E2E8F0',
-  },
   content: {
     flex: 1,
     paddingHorizontal: 20,
@@ -514,46 +402,6 @@ const styles = StyleSheet.create({
   menuSubtitle: {
     fontSize: 14,
     color: '#6B7280',
-  },
-  accountSection: {
-    marginBottom: 32,
-  },
-  infoCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  infoIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  infoContent: {
-    flex: 1,
-  },
-  infoLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 2,
-  },
-  infoValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
   },
   contactSection: {
     marginBottom: 32,
