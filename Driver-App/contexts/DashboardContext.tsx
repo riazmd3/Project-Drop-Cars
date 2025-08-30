@@ -15,6 +15,7 @@ export interface FutureRide {
   total_fare: number;
   status: string;
   assigned_driver: any | null;
+  assigned_vehicle: any | null;
 }
 
 interface DashboardContextType {

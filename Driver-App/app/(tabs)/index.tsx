@@ -357,6 +357,7 @@ export default function DashboardScreen() {
       total_fare: (order.cost_per_km * order.trip_distance) + order.driver_allowance + order.permit_charges + order.hill_charges + order.toll_charges,
       status: 'confirmed',
       assigned_driver: null,
+      assigned_vehicle: null,
     };
 
     addFutureRide(ride);

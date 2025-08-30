@@ -14,22 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDashboard, FutureRide } from '@/contexts/DashboardContext';
 import { MapPin, Clock, IndianRupee, User, Phone, Car, X } from 'lucide-react-native';
 
-// Type definitions
-interface FutureRide {
-  id: string;
-  booking_id: string;
-  pickup: string;
-  drop: string;
-  customer_name: string;
-  customer_mobile: string;
-  date: string;
-  time: string;
-  distance: number;
-  fare_per_km: number;
-  total_fare: number;
-  status: string;
-  assigned_driver: any | null;
-}
+// Removed local interface - using imported FutureRide from DashboardContext
 
 // Removed sample data; now reads from shared context
 
@@ -38,7 +23,9 @@ export default function FutureRidesScreen() {
   const { user } = useAuth();
   const { dashboardData, loading, error, futureRides, updateFutureRide } = useDashboard();
   const [showAssignModal, setShowAssignModal] = useState(false);
+  const [showVehicleModal, setShowVehicleModal] = useState(false);
   const [selectedRide, setSelectedRide] = useState<FutureRide | null>(null);
+  const [selectedDriver, setSelectedDriver] = useState<any | null>(null);
 
   // Dedupe rides by id (fallback to booking_id) to avoid duplicate entries
   const uniqueRides = useMemo(() => {
@@ -52,30 +39,54 @@ export default function FutureRidesScreen() {
     return Array.from(rideMap.values());
   }, [futureRides]);
 
-  // Get available drivers from dashboard data
+  // Get available drivers and cars from dashboard data
   const availableDrivers = dashboardData?.drivers || [];
+  const availableCars = dashboardData?.cars || [];
 
   const generateQuickId = () => {
     return Math.floor(1000 + Math.random() * 9000).toString();
   };
 
-  const assignDriver = (ride: FutureRide, driver: any) => {
+  const selectDriver = (driver: any) => {
+    setSelectedDriver(driver);
+    setShowAssignModal(false);
+    setShowVehicleModal(true);
+  };
+
+  const assignVehicle = (vehicle: any) => {
+    if (!selectedRide || !selectedDriver) return;
+    
     const quickId = generateQuickId();
     
     const updatedRide: FutureRide = {
-      ...ride,
-      assigned_driver: { ...driver, quickId },
+      ...selectedRide,
+      assigned_driver: { ...selectedDriver, quickId },
+      assigned_vehicle: vehicle,
       status: 'assigned',
     };
 
     updateFutureRide(updatedRide);
     setShowAssignModal(false);
+    setShowVehicleModal(false);
     setSelectedRide(null);
+    setSelectedDriver(null);
     
     Alert.alert(
-      'Driver Assigned',
-      `${driver.full_name} has been assigned to trip ${ride.booking_id}\n\nQuick ID: ${quickId}\nMobile: ${driver.primary_number}\n\nThe driver can now login using Quick Driver mode.`
+      'Assignment Complete',
+      `Driver: ${selectedDriver.full_name}\nVehicle: ${vehicle.car_name} (${vehicle.car_number})\nTrip: ${selectedRide.booking_id}\n\nQuick ID: ${quickId}\nMobile: ${selectedDriver.primary_number}\n\nThe driver can now login using Quick Driver mode.`
     );
+  };
+
+  const handleCloseModal = () => {
+    setShowAssignModal(false);
+    setShowVehicleModal(false);
+    setSelectedRide(null);
+    setSelectedDriver(null);
+  };
+
+  const openAssignmentModal = (ride: FutureRide) => {
+    setSelectedRide(ride);
+    setShowAssignModal(true);
   };
 
   const dynamicStyles = StyleSheet.create({
@@ -399,8 +410,13 @@ export default function FutureRidesScreen() {
       {ride.assigned_driver ? (
         <View style={dynamicStyles.assignedInfo}>
           <Text style={dynamicStyles.assignedText}>
-            Assigned to: {ride.assigned_driver.full_name || ride.assigned_driver.name} ({ride.assigned_driver.primary_number || ride.assigned_driver.mobile})
+            Driver: {ride.assigned_driver.full_name || ride.assigned_driver.name} ({ride.assigned_driver.primary_number || ride.assigned_driver.mobile})
           </Text>
+          {ride.assigned_vehicle && (
+            <Text style={dynamicStyles.assignedText}>
+              Vehicle: {ride.assigned_vehicle.car_name} ({ride.assigned_vehicle.car_number})
+            </Text>
+          )}
           <Text style={dynamicStyles.assignedText}>
             Quick ID: {ride.assigned_driver.quickId}
           </Text>
@@ -408,12 +424,9 @@ export default function FutureRidesScreen() {
       ) : (
         <TouchableOpacity 
           style={dynamicStyles.assignButton}
-          onPress={() => {
-            setSelectedRide(ride);
-            setShowAssignModal(true);
-          }}
+          onPress={() => openAssignmentModal(ride)}
         >
-          <Text style={dynamicStyles.assignButtonText}>Assign Driver</Text>
+          <Text style={dynamicStyles.assignButtonText}>Assign Driver & Vehicle</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -438,14 +451,14 @@ export default function FutureRidesScreen() {
         visible={showAssignModal}
         transparent={true}
         animationType="slide"
-        onRequestClose={() => setShowAssignModal(false)}
+        onRequestClose={handleCloseModal}
       >
         <View style={dynamicStyles.modalOverlay}>
           <View style={dynamicStyles.modalContent}>
             <View style={dynamicStyles.modalHeader}>
               <Text style={dynamicStyles.modalTitle}>Assign Driver</Text>
               <TouchableOpacity 
-                onPress={() => setShowAssignModal(false)}
+                onPress={handleCloseModal}
                 style={dynamicStyles.closeButton}
               >
                 <X color={colors.textSecondary} size={24} />
@@ -462,7 +475,7 @@ export default function FutureRidesScreen() {
                     </View>
                     <TouchableOpacity
                       style={dynamicStyles.selectButton}
-                      onPress={() => selectedRide && assignDriver(selectedRide, driver)}
+                      onPress={() => selectDriver(driver)}
                     >
                       <Text style={dynamicStyles.selectButtonText}>Select</Text>
                     </TouchableOpacity>
@@ -474,6 +487,54 @@ export default function FutureRidesScreen() {
                   <Text style={dynamicStyles.noDriversText}>No Drivers Available</Text>
                   <Text style={dynamicStyles.noDriversSubtext}>
                     Add drivers to your account first to assign them to rides
+                  </Text>
+                </View>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      <Modal
+        visible={showVehicleModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={handleCloseModal}
+      >
+        <View style={dynamicStyles.modalOverlay}>
+          <View style={dynamicStyles.modalContent}>
+            <View style={dynamicStyles.modalHeader}>
+              <Text style={dynamicStyles.modalTitle}>Select Vehicle</Text>
+              <TouchableOpacity 
+                onPress={handleCloseModal}
+                style={dynamicStyles.closeButton}
+              >
+                <X color={colors.textSecondary} size={24} />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false}>
+              {availableCars.length > 0 ? (
+                availableCars.map((car) => (
+                  <View key={car.id} style={dynamicStyles.driverCard}>
+                    <View style={dynamicStyles.driverInfo}>
+                      <Text style={dynamicStyles.driverName}>{car.car_name}</Text>
+                      <Text style={dynamicStyles.driverMobile}>{car.car_number}</Text>
+                    </View>
+                    <TouchableOpacity
+                      style={dynamicStyles.selectButton}
+                      onPress={() => assignVehicle(car)}
+                    >
+                      <Text style={dynamicStyles.selectButtonText}>Select</Text>
+                    </TouchableOpacity>
+                  </View>
+                ))
+              ) : (
+                <View style={dynamicStyles.noDriversContainer}>
+                  <Car color={colors.textSecondary} size={32} />
+                  <Text style={dynamicStyles.noDriversText}>No Vehicles Available</Text>
+                  <Text style={dynamicStyles.noDriversSubtext}>
+                    Add vehicles to your account first to assign them to rides
                   </Text>
                 </View>
               )}
