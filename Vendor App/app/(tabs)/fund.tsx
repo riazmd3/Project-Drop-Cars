@@ -151,184 +151,217 @@ export default function FundScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1E293B" />
+      <StatusBar barStyle="light-content" backgroundColor="#6366F1" />
       
-      {/* Header */}
-      <LinearGradient
-        colors={['#1E293B', '#334155']}
-        style={styles.header}
-      >
-        <View style={styles.headerContent}>
-          <View style={styles.profileSection}>
-            <View style={styles.profileImage}>
-              <Wallet size={40} color="#FFFFFF" />
-            </View>
-            
-            <View style={styles.profileInfo}>
-              <Text style={styles.profileName}>Fund Management</Text>
-              <Text style={styles.profilePhone}>Manage your wallet and transfers</Text>
-            </View>
-          </View>
-          
-          <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
-            <RefreshCw size={24} color="#FFFFFF" />
-          </TouchableOpacity>
-        </View>
-
-        {/* Balance Cards */}
-        <View style={styles.balanceContainer}>
-          <View style={styles.balanceCard}>
-            <View style={styles.balanceHeader}>
-              <View style={styles.balanceIcon}>
-                <Wallet size={24} color="#3B82F6" />
-              </View>
-              <Text style={styles.balanceLabel}>Wallet Balance</Text>
-            </View>
-            <Text style={styles.balanceAmount}>
-              ₹{balanceData?.wallet_balance?.toLocaleString() || '0'}
-            </Text>
-          </View>
-          
-          <View style={styles.balanceCard}>
-            <View style={styles.balanceHeader}>
-              <View style={styles.balanceIcon}>
-                <CreditCard size={24} color="#10B981" />
-              </View>
-              <Text style={styles.balanceLabel}>Bank Balance</Text>
-            </View>
-            <Text style={styles.balanceAmount}>
-              ₹{balanceData?.bank_balance?.toLocaleString() || '0'}
-            </Text>
-          </View>
-        </View>
-
-        {/* Total Balance */}
-        <View style={styles.totalBalanceCard}>
-          <Text style={styles.totalBalanceLabel}>Total Available Balance</Text>
-          <Text style={styles.totalBalanceAmount}>
-            ₹{balanceData?.total_balance?.toLocaleString() || '0'}
-          </Text>
-        </View>
-      </LinearGradient>
-
       <ScrollView 
-        style={styles.content} 
+        style={styles.scrollView} 
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Quick Actions */}
-        <View style={styles.quickActions}>
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => setShowTransferModal(true)}
-          >
-            <View style={styles.actionIcon}>
-              <ArrowRight size={24} color="#3B82F6" />
+        {/* Header Section */}
+        <LinearGradient
+          colors={['#6366F1', '#8B5CF6', '#A855F7']}
+          style={styles.headerSection}
+        >
+          <View style={styles.headerContent}>
+            <View style={styles.profileSection}>
+              <View style={styles.profileImage}>
+                <Wallet size={40} color="#FFFFFF" />
+              </View>
+              
+              <View style={styles.profileInfo}>
+                <Text style={styles.profileName}>Fund Management</Text>
+                <Text style={styles.profilePhone}>Manage your wallet and transfers</Text>
+              </View>
             </View>
-            <Text style={styles.actionText}>Request Transfer</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity 
-            style={styles.actionButton}
-            onPress={() => setShowHistory(!showHistory)}
-          >
-            <View style={styles.actionIcon}>
-              <History size={24} color="#10B981" />
-            </View>
-            <Text style={styles.actionText}>
-              {showHistory ? 'Hide History' : 'Show History'}
-            </Text>
-          </TouchableOpacity>
-        </View>
+            
+            <TouchableOpacity style={styles.refreshButton} onPress={onRefresh}>
+              <RefreshCw size={24} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
 
-        {/* Transfer Statistics */}
-        {transferStats && (
-          <View style={styles.statsContainer}>
-            <Text style={styles.sectionTitle}>Transfer Statistics</Text>
-            <View style={styles.statsGrid}>
-              <View style={styles.statCard}>
-                <View style={styles.statIcon}>
-                  <TrendingUp size={20} color="#10B981" />
+          {/* Balance Cards */}
+          <View style={styles.balanceContainer}>
+            <View style={styles.balanceCard}>
+              <View style={styles.balanceHeader}>
+                <View style={styles.balanceIcon}>
+                  <Wallet size={24} color="#3B82F6" />
                 </View>
-                <Text style={styles.statValue}>{transferStats.total_approved}</Text>
-                <Text style={styles.statLabel}>Approved</Text>
+                <Text style={styles.balanceLabel}>Wallet Balance</Text>
               </View>
-              
-              <View style={styles.statCard}>
-                <View style={styles.statIcon}>
-                  <Clock size={20} color="#F59E0B" />
+              <Text style={styles.balanceAmount}>
+                ₹{balanceData?.wallet_balance?.toLocaleString() || '0'}
+              </Text>
+            </View>
+            
+            <View style={styles.balanceCard}>
+              <View style={styles.balanceHeader}>
+                <View style={styles.balanceIcon}>
+                  <CreditCard size={24} color="#10B981" />
                 </View>
-                <Text style={styles.statValue}>{transferStats.total_pending}</Text>
-                <Text style={styles.statLabel}>Pending</Text>
+                <Text style={styles.balanceLabel}>Bank Balance</Text>
               </View>
-              
-              <View style={styles.statCard}>
-                <View style={styles.statIcon}>
-                  <FileText size={20} color="#EF4444" />
-                </View>
-                <Text style={styles.statValue}>{transferStats.total_rejected}</Text>
-                <Text style={styles.statLabel}>Rejected</Text>
-              </View>
-              
-              <View style={styles.statCard}>
-                <View style={styles.statIcon}>
-                  <DollarSign size={20} color="#8B5CF6" />
-                </View>
-                <Text style={styles.statValue}>₹{transferStats.total_transferred?.toLocaleString()}</Text>
-                <Text style={styles.statLabel}>Total Transferred</Text>
-              </View>
+              <Text style={styles.balanceAmount}>
+                ₹{balanceData?.bank_balance?.toLocaleString() || '0'}
+              </Text>
             </View>
           </View>
-        )}
 
-        {/* Transfer History */}
-        {showHistory && transferHistory.length > 0 && (
-          <View style={styles.historyContainer}>
-            <Text style={styles.sectionTitle}>Recent Transfer History</Text>
-            {transferHistory.map((transaction) => (
-              <View key={transaction.id} style={styles.historyCard}>
-                <View style={styles.historyHeader}>
-                  <View style={styles.historyAmount}>
-                    <Text style={styles.amountText}>₹{transaction.requested_amount.toLocaleString()}</Text>
-                    <Text style={styles.amountLabel}>Requested Amount</Text>
-                  </View>
-                  <View style={styles.historyStatus}>
-                    {getStatusIcon(transaction.status)}
-                    <Text style={[styles.statusText, { color: getStatusColor(transaction.status) }]}>
-                      {transaction.status}
-                    </Text>
-                  </View>
+          {/* Total Balance */}
+          <View style={styles.totalBalanceCard}>
+            <Text style={styles.totalBalanceLabel}>Total Available Balance</Text>
+            <Text style={styles.totalBalanceAmount}>
+              ₹{balanceData?.total_balance?.toLocaleString() || '0'}
+            </Text>
+          </View>
+        </LinearGradient>
+
+        {/* Content Section */}
+        <View style={styles.contentSection}>
+          {/* Quick Actions */}
+          <View style={styles.quickActions}>
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => setShowTransferModal(true)}
+            >
+              <LinearGradient
+                colors={['#3B82F6', '#1D4ED8']}
+                style={styles.actionButtonGradient}
+              >
+                <View style={styles.actionIcon}>
+                  <ArrowRight size={24} color="#FFFFFF" />
+                </View>
+                <Text style={styles.actionText}>Request Transfer</Text>
+              </LinearGradient>
+            </TouchableOpacity>
+            
+            <TouchableOpacity 
+              style={styles.actionButton}
+              onPress={() => setShowHistory(!showHistory)}
+            >
+              <LinearGradient
+                colors={['#10B981', '#059669']}
+                style={styles.actionButtonGradient}
+              >
+                <View style={styles.actionIcon}>
+                  <History size={24} color="#FFFFFF" />
+                </View>
+                <Text style={styles.actionText}>
+                  {showHistory ? 'Hide History' : 'Show History'}
+                </Text>
+              </LinearGradient>
+            </TouchableOpacity>
+          </View>
+
+          {/* Transfer Statistics */}
+          {transferStats && (
+            <View style={styles.statsContainer}>
+              <Text style={styles.sectionTitle}>Transfer Statistics</Text>
+              <View style={styles.statsGrid}>
+                <View style={styles.statCard}>
+                  <LinearGradient
+                    colors={['#10B981', '#059669']}
+                    style={styles.statCardGradient}
+                  >
+                    <View style={styles.statIcon}>
+                      <TrendingUp size={20} color="#FFFFFF" />
+                    </View>
+                    <Text style={styles.statValue}>{transferStats.total_approved}</Text>
+                    <Text style={styles.statLabel}>Approved</Text>
+                  </LinearGradient>
                 </View>
                 
-                <View style={styles.historyDetails}>
-                  <View style={styles.detailRow}>
-                    <Text style={styles.detailLabel}>Date:</Text>
-                    <Text style={styles.detailValue}>
-                      {new Date(transaction.created_at).toLocaleDateString()}
-                    </Text>
-                  </View>
-                  
-                  {transaction.admin_notes && (
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Notes:</Text>
-                      <Text style={styles.detailValue}>{transaction.admin_notes}</Text>
+                <View style={styles.statCard}>
+                  <LinearGradient
+                    colors={['#F59E0B', '#D97706']}
+                    style={styles.statCardGradient}
+                  >
+                    <View style={styles.statIcon}>
+                      <Clock size={20} color="#FFFFFF" />
                     </View>
-                  )}
+                    <Text style={styles.statValue}>{transferStats.total_pending}</Text>
+                    <Text style={styles.statLabel}>Pending</Text>
+                  </LinearGradient>
+                </View>
+                
+                <View style={styles.statCard}>
+                  <LinearGradient
+                    colors={['#EF4444', '#DC2626']}
+                    style={styles.statCardGradient}
+                  >
+                    <View style={styles.statIcon}>
+                      <FileText size={20} color="#FFFFFF" />
+                    </View>
+                    <Text style={styles.statValue}>{transferStats.total_rejected}</Text>
+                    <Text style={styles.statLabel}>Rejected</Text>
+                  </LinearGradient>
+                </View>
+                
+                <View style={styles.statCard}>
+                  <LinearGradient
+                    colors={['#8B5CF6', '#7C3AED']}
+                    style={styles.statCardGradient}
+                  >
+                    <View style={styles.statIcon}>
+                      <DollarSign size={20} color="#FFFFFF" />
+                    </View>
+                    <Text style={styles.statValue}>₹{transferStats.total_transferred?.toLocaleString()}</Text>
+                    <Text style={styles.statLabel}>Total Transferred</Text>
+                  </LinearGradient>
                 </View>
               </View>
-            ))}
-          </View>
-        )}
+            </View>
+          )}
 
-        {/* No History Message */}
-        {showHistory && transferHistory.length === 0 && (
-          <View style={styles.noHistoryContainer}>
-            <Text style={styles.noHistoryText}>No transfer history available</Text>
-            <Text style={styles.noHistorySubtext}>Your transfer requests will appear here</Text>
-          </View>
-        )}
+          {/* Transfer History */}
+          {showHistory && transferHistory.length > 0 && (
+            <View style={styles.historyContainer}>
+              <Text style={styles.sectionTitle}>Recent Transfer History</Text>
+              {transferHistory.map((transaction) => (
+                <View key={transaction.id} style={styles.historyCard}>
+                  <View style={styles.historyHeader}>
+                    <View style={styles.historyAmount}>
+                      <Text style={styles.amountText}>₹{transaction.requested_amount.toLocaleString()}</Text>
+                      <Text style={styles.amountLabel}>Requested Amount</Text>
+                    </View>
+                    <View style={styles.historyStatus}>
+                      {getStatusIcon(transaction.status)}
+                      <Text style={[styles.statusText, { color: getStatusColor(transaction.status) }]}>
+                        {transaction.status}
+                      </Text>
+                    </View>
+                  </View>
+                  
+                  <View style={styles.historyDetails}>
+                    <View style={styles.detailRow}>
+                      <Text style={styles.detailLabel}>Date:</Text>
+                      <Text style={styles.detailValue}>
+                        {new Date(transaction.created_at).toLocaleDateString()}
+                      </Text>
+                    </View>
+                    
+                    {transaction.admin_notes && (
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Notes:</Text>
+                        <Text style={styles.detailValue}>{transaction.admin_notes}</Text>
+                      </View>
+                    )}
+                  </View>
+                </View>
+              ))}
+            </View>
+          )}
+
+          {/* No History Message */}
+          {showHistory && transferHistory.length === 0 && (
+            <View style={styles.noHistoryContainer}>
+              <Text style={styles.noHistoryText}>No transfer history available</Text>
+              <Text style={styles.noHistorySubtext}>Your transfer requests will appear here</Text>
+            </View>
+          )}
+        </View>
       </ScrollView>
 
       {/* Transfer Request Modal */}
@@ -387,7 +420,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  header: {
+  scrollView: {
+    flex: 1,
+  },
+  headerSection: {
     paddingTop: 60,
     paddingHorizontal: 20,
     paddingBottom: 30,
@@ -438,10 +474,12 @@ const styles = StyleSheet.create({
   },
   balanceCard: {
     flex: 1,
-    backgroundColor: 'rgba(255,255,255,0.1)',
+    backgroundColor: 'rgba(255,255,255,0.15)',
     borderRadius: 16,
     padding: 20,
     marginHorizontal: 4,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.2)',
   },
   balanceHeader: {
     flexDirection: 'row',
@@ -468,10 +506,12 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
   totalBalanceCard: {
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(255,255,255,0.2)',
     borderRadius: 16,
     padding: 20,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
   },
   totalBalanceLabel: {
     fontSize: 14,
@@ -483,34 +523,35 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: '#FFFFFF',
   },
-  content: {
-    flex: 1,
+  contentSection: {
     paddingHorizontal: 20,
+    paddingTop: 20,
   },
   quickActions: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginTop: 24,
     marginBottom: 24,
   },
   actionButton: {
     flex: 1,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
     marginHorizontal: 4,
-    alignItems: 'center',
+    borderRadius: 16,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
     shadowRadius: 8,
-    elevation: 2,
+    elevation: 8,
+  },
+  actionButtonGradient: {
+    padding: 20,
+    alignItems: 'center',
   },
   actionIcon: {
     width: 48,
     height: 48,
     borderRadius: 24,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: 'rgba(255,255,255,0.2)',
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 12,
@@ -518,14 +559,14 @@ const styles = StyleSheet.create({
   actionText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1F2937',
+    color: '#FFFFFF',
     textAlign: 'center',
   },
   statsContainer: {
     marginBottom: 32,
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#1F2937',
     marginBottom: 16,
@@ -537,22 +578,24 @@ const styles = StyleSheet.create({
   },
   statCard: {
     width: '48%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
     marginBottom: 12,
-    alignItems: 'center',
+    borderRadius: 16,
+    overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
     shadowRadius: 8,
-    elevation: 2,
+    elevation: 8,
+  },
+  statCardGradient: {
+    padding: 20,
+    alignItems: 'center',
   },
   statIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
@@ -560,13 +603,14 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 20,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#FFFFFF',
     marginBottom: 4,
   },
   statLabel: {
     fontSize: 12,
-    color: '#6B7280',
+    color: '#FFFFFF',
     textAlign: 'center',
+    opacity: 0.9,
   },
   historyContainer: {
     marginBottom: 32,
@@ -578,9 +622,11 @@ const styles = StyleSheet.create({
     marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
+    shadowOpacity: 0.08,
     shadowRadius: 8,
-    elevation: 2,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
   historyHeader: {
     flexDirection: 'row',
@@ -638,6 +684,8 @@ const styles = StyleSheet.create({
     padding: 40,
     alignItems: 'center',
     marginBottom: 32,
+    borderWidth: 1,
+    borderColor: '#F1F5F9',
   },
   noHistoryText: {
     fontSize: 16,

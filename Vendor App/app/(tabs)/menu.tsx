@@ -5,7 +5,6 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
   StatusBar,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -33,8 +32,6 @@ import {
   Award,
   ChevronRight,
 } from 'lucide-react-native';
-
-const { width, height } = Dimensions.get('window');
 
 interface VendorData {
   id: string;
@@ -148,39 +145,41 @@ export default function MenuScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1E293B" />
+      <StatusBar barStyle="light-content" backgroundColor="#6366F1" />
       
-      {/* Header */}
-      <LinearGradient
-        colors={['#1E293B', '#334155']}
-        style={styles.header}
-      >
-        <View style={styles.headerContent}>
-          <View style={styles.profileSection}>
-            <View style={styles.profileImage}>
-              <Shield size={40} color="#FFFFFF" />
-            </View>
-            
-            <View style={styles.profileInfo}>
-              <Text style={styles.profileName}>{vendorData.full_name}</Text>
-              <Text style={styles.profilePhone}>{vendorData.primary_number}</Text>
-              <View style={styles.statusContainer}>
-                <View style={[styles.statusDot, { backgroundColor: vendorData.account_status === 'Active' ? '#10B981' : '#F59E0B' }]} />
-                <Text style={styles.statusText}>
-                  {vendorData.account_status === 'Active' ? 'Account Active' : 'Pending Verification'}
-                </Text>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Header Section */}
+        <LinearGradient
+          colors={['#6366F1', '#8B5CF6', '#A855F7']}
+          style={styles.headerSection}
+        >
+          <View style={styles.headerContent}>
+            <View style={styles.profileSection}>
+              <View style={styles.profileImage}>
+                <Shield size={40} color="#FFFFFF" />
+              </View>
+              
+              <View style={styles.profileInfo}>
+                <Text style={styles.profileName}>{vendorData.full_name}</Text>
+                <Text style={styles.profilePhone}>{vendorData.primary_number}</Text>
+                <View style={styles.statusContainer}>
+                  <View style={[styles.statusDot, { backgroundColor: vendorData.account_status === 'Active' ? '#10B981' : '#F59E0B' }]} />
+                  <Text style={styles.statusText}>
+                    {vendorData.account_status === 'Active' ? 'Account Active' : 'Pending Verification'}
+                  </Text>
+                </View>
               </View>
             </View>
+            
+            <TouchableOpacity style={styles.notificationButton}>
+              <Bell size={24} color="#FFFFFF" />
+              <View style={styles.notificationBadge} />
+            </TouchableOpacity>
           </View>
-          
-          <TouchableOpacity style={styles.notificationButton}>
-            <Bell size={24} color="#FFFFFF" />
-            <View style={styles.notificationBadge} />
-          </TouchableOpacity>
-        </View>
-      </LinearGradient>
+        </LinearGradient>
 
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Content Section */}
+        <View style={styles.contentSection}>
         {/* Menu Items */}
         <View style={styles.menuContainer}>
           <Text style={styles.sectionTitle}>Main Menu</Text>
@@ -265,6 +264,7 @@ export default function MenuScreen() {
           <LogOut size={20} color="#EF4444" />
           <Text style={styles.logoutButtonText}>Logout</Text>
         </TouchableOpacity>
+        </View>
       </ScrollView>
     </View>
   );
@@ -281,7 +281,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#F8FAFC',
   },
-  header: {
+  scrollView: {
+    flex: 1,
+  },
+  headerSection: {
     paddingTop: 60,
     paddingHorizontal: 20,
     paddingBottom: 30,
@@ -349,9 +352,9 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#EF4444',
   },
-  content: {
-    flex: 1,
+  contentSection: {
     paddingHorizontal: 20,
+    paddingTop: 20,
   },
   menuContainer: {
     marginTop: 24,
