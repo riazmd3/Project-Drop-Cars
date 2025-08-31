@@ -13,7 +13,8 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useDashboard, FutureRide } from '@/contexts/DashboardContext';
 import { useNotifications } from '@/contexts/NotificationContext';
-import { MapPin, Clock, IndianRupee, User, Phone, Car, X } from 'lucide-react-native';
+import { MapPin, Clock, IndianRupee, User, Phone, Car, X, CheckCircle, AlertCircle } from 'lucide-react-native';
+import { fetchAvailableDrivers, fetchAvailableCars, assignDriverAndCar, AvailableDriver, AvailableCar } from '@/services/assignmentService';
 
 // Removed local interface - using imported FutureRide from DashboardContext
 
@@ -27,7 +28,10 @@ export default function FutureRidesScreen() {
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showVehicleModal, setShowVehicleModal] = useState(false);
   const [selectedRide, setSelectedRide] = useState<FutureRide | null>(null);
-  const [selectedDriver, setSelectedDriver] = useState<any | null>(null);
+  const [selectedDriver, setSelectedDriver] = useState<AvailableDriver | null>(null);
+  const [availableDrivers, setAvailableDrivers] = useState<AvailableDriver[]>([]);
+  const [availableCars, setAvailableCars] = useState<AvailableCar[]>([]);
+  const [assignmentsLoading, setAssignmentsLoading] = useState(false);
 
   // Dedupe rides by id (fallback to booking_id) to avoid duplicate entries
   const uniqueRides = useMemo(() => {
@@ -41,50 +45,120 @@ export default function FutureRidesScreen() {
     return Array.from(rideMap.values());
   }, [futureRides]);
 
-  // Get available drivers and cars from dashboard data
-  const availableDrivers = dashboardData?.drivers || [];
-  const availableCars = dashboardData?.cars || [];
+  // Fetch available drivers and cars from assignment endpoints
+  useEffect(() => {
+    if (!loading && dashboardData) {
+      fetchAvailableAssignments();
+    }
+  }, [loading, dashboardData]);
+
+  const fetchAvailableAssignments = async () => {
+    try {
+      setAssignmentsLoading(true);
+      console.log('🔍 Fetching available drivers and cars for assignments...');
+      
+      // Fetch both drivers and cars in parallel
+      const [drivers, cars] = await Promise.all([
+        fetchAvailableDrivers(),
+        fetchAvailableCars()
+      ]);
+      
+      setAvailableDrivers(drivers);
+      setAvailableCars(cars);
+      
+      console.log('✅ Available assignments loaded:', {
+        drivers: drivers.length,
+        cars: cars.length
+      });
+    } catch (error) {
+      console.error('❌ Failed to fetch available assignments:', error);
+      // Fallback to dashboard data if assignment endpoints fail
+      // Convert dashboard data to assignment format
+      const fallbackDrivers: AvailableDriver[] = (dashboardData?.drivers || []).map(driver => ({
+        ...driver,
+        is_available: true, // Assume available as fallback
+        current_assignment: undefined
+      }));
+      
+      const fallbackCars: AvailableCar[] = (dashboardData?.cars || []).map(car => ({
+        ...car,
+        is_available: true, // Assume available as fallback
+        current_assignment: undefined
+      }));
+      
+      setAvailableDrivers(fallbackDrivers);
+      setAvailableCars(fallbackCars);
+    } finally {
+      setAssignmentsLoading(false);
+    }
+  };
 
   // Removed quick ID generation - drivers use their passwords instead
 
-  const selectDriver = (driver: any) => {
+  const selectDriver = (driver: AvailableDriver) => {
     setSelectedDriver(driver);
     setShowAssignModal(false);
     setShowVehicleModal(true);
   };
 
-  const assignVehicle = (vehicle: any) => {
+  const assignVehicle = async (vehicle: AvailableCar) => {
     if (!selectedRide || !selectedDriver) return;
     
-    const updatedRide: FutureRide = {
-      ...selectedRide,
-      assigned_driver: { ...selectedDriver },
-      assigned_vehicle: vehicle,
-      status: 'assigned',
-    };
+    try {
+      console.log('🔗 Creating assignment for order:', selectedRide.booking_id);
+      
+      // Create assignment using the new service
+      const assignment = await assignDriverAndCar({
+        order_id: selectedRide.booking_id,
+        driver_id: selectedDriver.id,
+        car_id: vehicle.id,
+        assigned_by: user?.id || 'unknown',
+        assignment_notes: `Assigned by ${user?.fullName || 'Vehicle Owner'}`
+      });
+      
+      console.log('✅ Assignment created successfully:', assignment);
+      
+      // Update the ride with assignment details
+      const updatedRide: FutureRide = {
+        ...selectedRide,
+        assigned_driver: { ...selectedDriver },
+        assigned_vehicle: vehicle,
+        status: 'assigned',
+      };
 
-    updateFutureRide(updatedRide);
-    setShowAssignModal(false);
-    setShowVehicleModal(false);
-    setSelectedRide(null);
-    setSelectedDriver(null);
-    
-    // Send notification for order assignment
-    sendOrderAssignedNotification({
-      orderId: selectedRide.booking_id,
-      pickup: selectedRide.pickup,
-      drop: selectedRide.drop,
-      customerName: selectedRide.customer_name,
-      customerMobile: selectedRide.customer_mobile,
-      distance: selectedRide.distance,
-      fare: selectedRide.total_fare,
-      orderType: 'assigned'
-    });
-    
-    Alert.alert(
-      'Assignment Complete',
-      `Driver: ${selectedDriver.full_name}\nVehicle: ${vehicle.car_name} (${vehicle.car_number})\nTrip: ${selectedRide.booking_id}\n\nMobile: ${selectedDriver.primary_number}\n\nThe driver can now login using their registered password.`
-    );
+      updateFutureRide(updatedRide);
+      setShowAssignModal(false);
+      setShowVehicleModal(false);
+      setSelectedRide(null);
+      setSelectedDriver(null);
+      
+      // Send notification for order assignment
+      sendOrderAssignedNotification({
+        orderId: selectedRide.booking_id,
+        pickup: selectedRide.pickup,
+        drop: selectedRide.drop,
+        customerName: selectedRide.customer_name,
+        customerMobile: selectedRide.customer_mobile,
+        distance: selectedRide.distance,
+        fare: selectedRide.total_fare,
+        orderType: 'assigned'
+      });
+      
+      Alert.alert(
+        'Assignment Complete',
+        `Driver: ${selectedDriver.full_name}\nVehicle: ${vehicle.car_name} (${vehicle.car_number})\nTrip: ${selectedRide.booking_id}\n\nMobile: ${selectedDriver.primary_number}\n\nThe driver can now login using their registered password.`
+      );
+      
+      // Refresh available assignments
+      await fetchAvailableAssignments();
+      
+    } catch (error: any) {
+      console.error('❌ Assignment failed:', error);
+      Alert.alert(
+        'Assignment Failed',
+        error.message || 'Failed to assign driver and vehicle. Please try again.'
+      );
+    }
   };
 
   const handleCloseModal = () => {
@@ -97,6 +171,20 @@ export default function FutureRidesScreen() {
   const openAssignmentModal = (ride: FutureRide) => {
     setSelectedRide(ride);
     setShowAssignModal(true);
+  };
+
+  const getAvailabilityStatus = (isAvailable: boolean) => {
+    return isAvailable ? (
+      <View style={[dynamicStyles.availabilityBadge, { backgroundColor: '#10B981' }]}>
+        <CheckCircle color="#FFFFFF" size={12} />
+        <Text style={dynamicStyles.availabilityText}>Available</Text>
+      </View>
+    ) : (
+      <View style={[dynamicStyles.availabilityBadge, { backgroundColor: '#EF4444' }]}>
+        <AlertCircle color="#FFFFFF" size={12} />
+        <Text style={dynamicStyles.availabilityText}>Busy</Text>
+      </View>
+    );
   };
 
   const dynamicStyles = StyleSheet.create({
@@ -347,6 +435,36 @@ export default function FutureRidesScreen() {
       fontSize: 16,
       fontFamily: 'Inter-SemiBold',
     },
+    availabilityBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 8,
+      marginTop: 4,
+    },
+    availabilityText: {
+      marginLeft: 4,
+      fontSize: 12,
+      fontFamily: 'Inter-Medium',
+      color: '#FFFFFF',
+    },
+    loadingContainer: {
+      padding: 20,
+      alignItems: 'center',
+    },
+    loadingText: {
+      fontSize: 16,
+      fontFamily: 'Inter-Medium',
+      color: colors.textSecondary,
+    },
+    selectButtonDisabled: {
+      backgroundColor: colors.border,
+      opacity: 0.6,
+    },
+    selectButtonTextDisabled: {
+      color: colors.textSecondary,
+    },
   });
 
   if (loading) {
@@ -473,18 +591,32 @@ export default function FutureRidesScreen() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              {availableDrivers.length > 0 ? (
+              {assignmentsLoading ? (
+                <View style={dynamicStyles.loadingContainer}>
+                  <Text style={dynamicStyles.loadingText}>Loading available drivers...</Text>
+                </View>
+              ) : availableDrivers.length > 0 ? (
                 availableDrivers.map((driver) => (
                   <View key={driver.id} style={dynamicStyles.driverCard}>
                     <View style={dynamicStyles.driverInfo}>
                       <Text style={dynamicStyles.driverName}>{driver.full_name}</Text>
                       <Text style={dynamicStyles.driverMobile}>{driver.primary_number}</Text>
+                      {getAvailabilityStatus(driver.is_available)}
                     </View>
                     <TouchableOpacity
-                      style={dynamicStyles.selectButton}
+                      style={[
+                        dynamicStyles.selectButton,
+                        !driver.is_available && dynamicStyles.selectButtonDisabled
+                      ]}
                       onPress={() => selectDriver(driver)}
+                      disabled={!driver.is_available}
                     >
-                      <Text style={dynamicStyles.selectButtonText}>Select</Text>
+                      <Text style={[
+                        dynamicStyles.selectButtonText,
+                        !driver.is_available && dynamicStyles.selectButtonTextDisabled
+                      ]}>
+                        {driver.is_available ? 'Select' : 'Busy'}
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 ))
@@ -521,18 +653,32 @@ export default function FutureRidesScreen() {
             </View>
 
             <ScrollView showsVerticalScrollIndicator={false}>
-              {availableCars.length > 0 ? (
+              {assignmentsLoading ? (
+                <View style={dynamicStyles.loadingContainer}>
+                  <Text style={dynamicStyles.loadingText}>Loading available vehicles...</Text>
+                </View>
+              ) : availableCars.length > 0 ? (
                 availableCars.map((car) => (
                   <View key={car.id} style={dynamicStyles.driverCard}>
                     <View style={dynamicStyles.driverInfo}>
                       <Text style={dynamicStyles.driverName}>{car.car_name}</Text>
                       <Text style={dynamicStyles.driverMobile}>{car.car_number}</Text>
+                      {getAvailabilityStatus(car.is_available)}
                     </View>
                     <TouchableOpacity
-                      style={dynamicStyles.selectButton}
+                      style={[
+                        dynamicStyles.selectButton,
+                        !car.is_available && dynamicStyles.selectButtonDisabled
+                      ]}
                       onPress={() => assignVehicle(car)}
+                      disabled={!car.is_available}
                     >
-                      <Text style={dynamicStyles.selectButtonText}>Select</Text>
+                      <Text style={[
+                        dynamicStyles.selectButtonText,
+                        !car.is_available && dynamicStyles.selectButtonTextDisabled
+                      ]}>
+                        {car.is_available ? 'Select' : 'Busy'}
+                      </Text>
                     </TouchableOpacity>
                   </View>
                 ))

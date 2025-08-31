@@ -25,27 +25,24 @@ export interface DriverDetail {
   full_name: string;
   primary_number: string;
   secondary_number?: string;
-  licence_number: string;
   address: string;
+  aadhar_number: string;
   organization_id: string;
-  vehicle_owner_id: string;
-  license_img_url?: string;
+  status: string;
   created_at: string;
   updated_at: string;
 }
 
 export interface VehicleOwnerDetails {
   id: string;
-  vehicle_owner_id: string;
-  organization_id?: string;
   full_name: string;
-  primary_number: string;
-  secondary_number?: string;
+  primary_mobile: string;
+  secondary_mobile?: string;
   wallet_balance: number;
-  aadhar_number: string;
-  aadhar_front_img?: string;
+  organization_id: string;
   address: string;
   created_at: string;
+  updated_at: string;
 }
 
 export interface DashboardData {
@@ -66,7 +63,7 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
     const authHeaders = await getAuthHeaders();
     console.log('🔐 Using JWT token:', authHeaders.Authorization?.substring(0, 20) + '...');
 
-    // 1. Fetch vehicle owner details (NEW ENDPOINT!)
+    // 1. Fetch vehicle owner details
     console.log('👤 Fetching vehicle owner details...');
     const ownerResponse = await axiosInstance.get('/api/users/vehicle-owner/me', {
       headers: authHeaders
@@ -79,56 +76,80 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
     const ownerDetails: VehicleOwnerDetails = ownerResponse.data;
     console.log('✅ Vehicle owner details received:', ownerDetails);
 
-    // 2. Fetch car details using organization endpoint
+    // 2. Fetch available cars using new assignment endpoint
     let cars: CarDetail[] = [];
-    if (ownerDetails.organization_id) {
-      try {
-        console.log('🚗 Fetching car details...');
-        const carsResponse = await axiosInstance.get(`/api/users/cardetails/organization/${ownerDetails.organization_id}`, {
-          headers: authHeaders
-        });
-        cars = carsResponse.data || [];
-        console.log('✅ Car details fetched:', cars.length, 'cars');
-      } catch (error) {
-        console.warn('⚠️ Could not fetch car details, using empty array:', error);
-        // Try alternative endpoint
+    try {
+      console.log('🚗 Fetching available cars from assignment endpoint...');
+      const carsResponse = await axiosInstance.get('/api/assignments/available-cars', {
+        headers: authHeaders
+      });
+      cars = carsResponse.data || [];
+      console.log('✅ Available cars fetched from assignment endpoint:', cars.length, 'cars');
+    } catch (error) {
+      console.warn('⚠️ Assignment cars endpoint failed, trying fallback endpoints...');
+      
+      // Fallback to organization endpoint
+      if (ownerDetails.organization_id) {
         try {
-          const altCarsResponse = await axiosInstance.get('/api/users/vehicleowner/cars', {
+          const carsResponse = await axiosInstance.get(`/api/users/cardetails/organization/${ownerDetails.organization_id}`, {
             headers: authHeaders
           });
-          if (altCarsResponse.data) {
-            cars = altCarsResponse.data;
-            console.log('✅ Car details fetched from alternative endpoint:', cars.length, 'cars');
+          cars = carsResponse.data || [];
+          console.log('✅ Car details fetched from organization endpoint:', cars.length, 'cars');
+        } catch (orgError) {
+          console.warn('⚠️ Organization cars endpoint failed, trying alternative...');
+          
+          // Try alternative endpoint
+          try {
+            const altCarsResponse = await axiosInstance.get('/api/users/vehicleowner/cars', {
+              headers: authHeaders
+            });
+            if (altCarsResponse.data) {
+              cars = altCarsResponse.data;
+              console.log('✅ Car details fetched from alternative endpoint:', cars.length, 'cars');
+            }
+          } catch (altError) {
+            console.warn('⚠️ Alternative car endpoint also failed:', altError);
           }
-        } catch (altError) {
-          console.warn('⚠️ Alternative car endpoint also failed:', altError);
         }
       }
     }
 
-    // 3. Fetch driver details using organization endpoint
+    // 3. Fetch available drivers using new assignment endpoint
     let drivers: DriverDetail[] = [];
-    if (ownerDetails.organization_id) {
-      try {
-        console.log('👤 Fetching driver details...');
-        const driversResponse = await axiosInstance.get(`/api/users/cardriver/organization/${ownerDetails.organization_id}`, {
-          headers: authHeaders
-        });
-        drivers = driversResponse.data || [];
-        console.log('✅ Driver details fetched:', drivers.length, 'drivers');
-      } catch (error) {
-        console.warn('⚠️ Could not fetch driver details, using empty array:', error);
-        // Try alternative endpoint
+    try {
+      console.log('👤 Fetching available drivers from assignment endpoint...');
+      const driversResponse = await axiosInstance.get('/api/assignments/available-drivers', {
+        headers: authHeaders
+      });
+      drivers = driversResponse.data || [];
+      console.log('✅ Available drivers fetched from assignment endpoint:', drivers.length, 'drivers');
+    } catch (error) {
+      console.warn('⚠️ Assignment drivers endpoint failed, trying fallback endpoints...');
+      
+      // Fallback to organization endpoint
+      if (ownerDetails.organization_id) {
         try {
-          const altDriversResponse = await axiosInstance.get('/api/users/vehicleowner/drivers', {
+          const driversResponse = await axiosInstance.get(`/api/users/cardriver/organization/${ownerDetails.organization_id}`, {
             headers: authHeaders
           });
-          if (altDriversResponse.data) {
-            drivers = altDriversResponse.data;
-            console.log('✅ Driver details fetched from alternative endpoint:', drivers.length, 'drivers');
+          drivers = driversResponse.data || [];
+          console.log('✅ Driver details fetched from organization endpoint:', drivers.length, 'drivers');
+        } catch (orgError) {
+          console.warn('⚠️ Organization drivers endpoint failed, trying alternative...');
+          
+          // Try alternative endpoint
+          try {
+            const altDriversResponse = await axiosInstance.get('/api/users/vehicleowner/drivers', {
+              headers: authHeaders
+            });
+            if (altDriversResponse.data) {
+              drivers = altDriversResponse.data;
+              console.log('✅ Driver details fetched from alternative endpoint:', drivers.length, 'drivers');
+            }
+          } catch (altError) {
+            console.warn('⚠️ Alternative driver endpoint also failed:', altError);
           }
-        } catch (altError) {
-          console.warn('⚠️ Alternative driver endpoint also failed:', altError);
         }
       }
     }

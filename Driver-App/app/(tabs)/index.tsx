@@ -19,6 +19,7 @@ import { Menu, Wallet, MapPin, Clock, User, Phone, Car, RefreshCw } from 'lucide
 import BookingCard from '@/components/BookingCard';
 import DrawerNavigation from '@/components/DrawerNavigation';
 import { fetchDashboardData, DashboardData, fetchPendingOrders, PendingOrder } from '@/services/dashboardService';
+import { acceptOrder, testOrderAcceptanceAPI } from '@/services/assignmentService';
 
 interface Booking {
   booking_id: string;
@@ -42,9 +43,11 @@ export default function DashboardScreen() {
   const [showDrawer, setShowDrawer] = useState(false);
   const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
+  const [processingOrderId, setProcessingOrderId] = useState<string | null>(null);
   // Remove currentTrip concept from owner dashboard
   const [refreshing, setRefreshing] = useState(false);
   const [previousOrderCount, setPreviousOrderCount] = useState(0);
+  const [debugMode, setDebugMode] = useState(false);
 
   const canAcceptBookings = balance >= 1000;
 
@@ -127,6 +130,23 @@ export default function DashboardScreen() {
       console.error('❌ Refresh failed:', error);
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  const handleDebugAPI = async () => {
+    try {
+      console.log('🧪 Starting API debug test...');
+      const result = await testOrderAcceptanceAPI();
+      console.log('📊 Debug test result:', result);
+      
+      Alert.alert(
+        'API Debug Test',
+        `Test completed!\n\nResults logged to console.\n\nSuccess: ${result.success}\n${result.error ? `Error: ${result.error}` : ''}`,
+        [{ text: 'OK' }]
+      );
+    } catch (error: any) {
+      console.error('❌ Debug test failed:', error);
+      Alert.alert('Debug Test Failed', error.message);
     }
   };
 
@@ -347,6 +367,18 @@ export default function DashboardScreen() {
       fontFamily: 'Inter-Medium',
       color: colors.textSecondary,
     },
+    debugButton: {
+      backgroundColor: colors.error,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 6,
+      marginLeft: 8,
+    },
+    debugButtonText: {
+      color: '#FFFFFF',
+      fontSize: 12,
+      fontWeight: 'bold',
+    },
   });
   const handleAcceptBooking = (order: PendingOrder) => {
     if (!canAcceptBookings) {
@@ -370,44 +402,69 @@ export default function DashboardScreen() {
 
   const { addFutureRide } = useDashboard();
 
-  const acceptBooking = (order: PendingOrder) => {
-    setPendingOrders(prev => prev.filter(o => o.order_id !== order.order_id));
+  const acceptBooking = async (order: PendingOrder) => {
+    try {
+      // Show loading state for this specific order
+      setProcessingOrderId(order.order_id.toString());
+      
+      // Call the new API to accept the order
+      const acceptResponse = await acceptOrder({
+        order_id: order.order_id.toString(),
+        vehicle_owner_id: user?.id || '',
+        acceptance_notes: `Order accepted by vehicle owner ${user?.fullName || 'Driver'}`
+      });
 
-    const ride: FutureRide = {
-      id: order.order_id.toString(),
-      booking_id: `B${order.order_id}`,
-      pickup: order.pickup_drop_location.pickup,
-      drop: order.pickup_drop_location.drop,
-      customer_name: order.customer_name,
-      customer_mobile: order.customer_number,
-      date: new Date().toISOString().slice(0, 10),
-      time: new Date().toTimeString().slice(0,5),
-      distance: order.trip_distance,
-      fare_per_km: order.cost_per_km,
-      total_fare: (order.cost_per_km * order.trip_distance) + order.driver_allowance + order.permit_charges + order.hill_charges + order.toll_charges,
-      status: 'confirmed',
-      assigned_driver: null,
-      assigned_vehicle: null,
-    };
+      if (acceptResponse.success) {
+        // Remove order from pending list
+        setPendingOrders(prev => prev.filter(o => o.order_id !== order.order_id));
 
-    addFutureRide(ride);
+        const ride: FutureRide = {
+          id: order.order_id.toString(),
+          booking_id: `B${order.order_id}`,
+          pickup: order.pickup_drop_location.pickup,
+          drop: order.pickup_drop_location.drop,
+          customer_name: order.customer_name,
+          customer_mobile: order.customer_number,
+          date: new Date().toISOString().slice(0, 10),
+          time: new Date().toTimeString().slice(0,5),
+          distance: order.trip_distance,
+          fare_per_km: order.cost_per_km,
+          total_fare: (order.cost_per_km * order.trip_distance) + order.driver_allowance + order.permit_charges + order.hill_charges + order.toll_charges,
+          status: 'confirmed',
+          assigned_driver: null,
+          assigned_vehicle: null,
+        };
 
-    // Send notification for accepted order
-    sendOrderAssignedNotification({
-      orderId: order.order_id.toString(),
-      pickup: order.pickup_drop_location.pickup,
-      drop: order.pickup_drop_location.drop,
-      customerName: order.customer_name,
-      customerMobile: order.customer_number,
-      distance: order.trip_distance,
-      fare: (order.cost_per_km * order.trip_distance) + order.driver_allowance + order.permit_charges + order.hill_charges + order.toll_charges,
-      orderType: 'assigned'
-    });
+        addFutureRide(ride);
 
-    Alert.alert(
-      'Booking Accepted',
-      `SMS sent to customer: "DropCars: Your driver ${user?.fullName || 'Driver'} (${dashboardData?.cars?.[0]?.car_brand || 'Vehicle'} ${dashboardData?.cars?.[0]?.car_model || ''} - ${dashboardData?.cars?.[0]?.car_number || 'Number'}) has accepted your booking."`
-    );
+        // Send notification for accepted order
+        sendOrderAssignedNotification({
+          orderId: order.order_id.toString(),
+          pickup: order.pickup_drop_location.pickup,
+          drop: order.pickup_drop_location.drop,
+          customerName: order.customer_name,
+          customerMobile: order.customer_number,
+          distance: order.trip_distance,
+          fare: (order.cost_per_km * order.trip_distance) + order.driver_allowance + order.permit_charges + order.hill_charges + order.toll_charges,
+          orderType: 'assigned'
+        });
+
+        Alert.alert(
+          'Booking Accepted',
+          `Order accepted successfully! SMS sent to customer: "DropCars: Your driver ${user?.fullName || 'Driver'} (${dashboardData?.cars?.[0]?.car_brand || 'Vehicle'} ${dashboardData?.cars?.[0]?.car_model || ''} - ${dashboardData?.cars?.[0]?.car_number || 'Number'}) has accepted your booking."`
+        );
+      } else {
+        throw new Error(acceptResponse.message || 'Failed to accept order');
+      }
+    } catch (error: any) {
+      console.error('❌ Error accepting order:', error);
+      Alert.alert(
+        'Error',
+        error.message || 'Failed to accept order. Please try again.'
+      );
+    } finally {
+      setProcessingOrderId(null);
+    }
   };
 
   return (
@@ -417,13 +474,16 @@ export default function DashboardScreen() {
           <Menu color={colors.text} size={24} />
         </TouchableOpacity>
         
-        <View style={dynamicStyles.balanceContainer}>
+        <TouchableOpacity 
+          style={dynamicStyles.balanceContainer}
+          onLongPress={() => setDebugMode(!debugMode)}
+        >
           <Text style={dynamicStyles.welcomeText}>
             Welcome back, {dashboardData?.user_info?.full_name || user?.fullName || 'Driver'}!
           </Text>
           <Text style={dynamicStyles.balanceLabel}>Available Balance</Text>
           <Text style={dynamicStyles.balanceAmount}>₹{dashboardData?.user_info?.wallet_balance || balance || 0}</Text>
-        </View>
+        </TouchableOpacity>
 
         <View style={dynamicStyles.headerRight}>
           <TouchableOpacity onPress={handleRefresh} style={dynamicStyles.refreshButton} disabled={refreshing}>
@@ -432,6 +492,11 @@ export default function DashboardScreen() {
           <TouchableOpacity onPress={() => router.push('/(tabs)/wallet')} style={dynamicStyles.walletButton}>
             <Wallet color={colors.primary} size={24} />
           </TouchableOpacity>
+          {debugMode && (
+            <TouchableOpacity onPress={handleDebugAPI} style={dynamicStyles.debugButton}>
+              <Text style={dynamicStyles.debugButtonText}>Debug</Text>
+            </TouchableOpacity>
+          )}
         </View>
       </View>
 
@@ -518,6 +583,7 @@ export default function DashboardScreen() {
                       }}
                       onAccept={() => handleAcceptBooking(order)}
                       disabled={!canAcceptBookings}
+                      loading={processingOrderId === order.order_id.toString()}
                     />
                   ))
                 ) : (
