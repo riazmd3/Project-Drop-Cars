@@ -87,7 +87,29 @@ export default function WalletScreen() {
 
       console.log('✅ Payment order created:', orderResponse);
 
-      // Prepare Razorpay options
+      // Check if we're using mock data (backend not available)
+      if (orderResponse.message.includes('mock') || orderResponse.message.includes('fallback')) {
+        // Simulate payment success with mock data
+        console.log('🔧 Using mock payment flow');
+        
+        // Add money to wallet directly
+        await addMoney(amount, `Wallet top-up via Razorpay (Mock)`, {
+          razorpay_payment_id: `mock_pay_${Date.now()}`,
+          razorpay_order_id: orderResponse.order_id,
+          payment_method: 'razorpay_mock'
+        });
+
+        Alert.alert(
+          'Payment Successful! 🎉 (Mock)',
+          `₹${amount} has been added to your wallet successfully.\n\nThis is a mock payment for development.\n\nPayment ID: mock_pay_${Date.now()}`,
+          [{ text: 'OK' }]
+        );
+        
+        setAddAmount('');
+        return;
+      }
+
+      // Prepare Razorpay options for real payment
       const razorpayOptions = getRazorpayOptions(
         orderResponse.order_id,
         amount,
