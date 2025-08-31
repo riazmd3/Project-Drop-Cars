@@ -76,82 +76,84 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
     const ownerDetails: VehicleOwnerDetails = ownerResponse.data;
     console.log('✅ Vehicle owner details received:', ownerDetails);
 
-    // 2. Fetch available cars using new assignment endpoint
+    // 2. Fetch all cars for the vehicle owner (not just available ones)
     let cars: CarDetail[] = [];
     try {
-      console.log('🚗 Fetching available cars from assignment endpoint...');
-      const carsResponse = await axiosInstance.get('/api/assignments/available-cars', {
-        headers: authHeaders
-      });
-      cars = carsResponse.data || [];
-      console.log('✅ Available cars fetched from assignment endpoint:', cars.length, 'cars');
-    } catch (error) {
-      console.warn('⚠️ Assignment cars endpoint failed, trying fallback endpoints...');
+      console.log('🚗 Fetching all cars for vehicle owner...');
       
-      // Fallback to organization endpoint
-      if (ownerDetails.organization_id) {
+      // Try multiple endpoints to get all cars
+      const carEndpoints = [
+        `/api/users/vehicle-owner/${ownerDetails.id}/cars`,
+        `/api/users/vehicleowner/cars`,
+        `/api/users/cardetails/organization/${ownerDetails.organization_id}`,
+        `/api/users/vehicle-owner/cars`,
+        `/api/cars/owner/${ownerDetails.id}`,
+        `/api/assignments/available-cars` // Fallback to available cars only
+      ];
+      
+      for (const endpoint of carEndpoints) {
         try {
-          const carsResponse = await axiosInstance.get(`/api/users/cardetails/organization/${ownerDetails.organization_id}`, {
+          console.log(`🔍 Trying car endpoint: ${endpoint}`);
+          const carsResponse = await axiosInstance.get(endpoint, {
             headers: authHeaders
           });
-          cars = carsResponse.data || [];
-          console.log('✅ Car details fetched from organization endpoint:', cars.length, 'cars');
-        } catch (orgError) {
-          console.warn('⚠️ Organization cars endpoint failed, trying alternative...');
           
-          // Try alternative endpoint
-          try {
-            const altCarsResponse = await axiosInstance.get('/api/users/vehicleowner/cars', {
-              headers: authHeaders
-            });
-            if (altCarsResponse.data) {
-              cars = altCarsResponse.data;
-              console.log('✅ Car details fetched from alternative endpoint:', cars.length, 'cars');
-            }
-          } catch (altError) {
-            console.warn('⚠️ Alternative car endpoint also failed:', altError);
+          if (carsResponse.data && Array.isArray(carsResponse.data)) {
+            cars = carsResponse.data;
+            console.log(`✅ Cars fetched from ${endpoint}:`, cars.length, 'cars');
+            break; // Use the first successful endpoint
           }
+        } catch (endpointError) {
+          console.log(`❌ Car endpoint ${endpoint} failed:`, endpointError.response?.status);
+          continue; // Try next endpoint
         }
       }
+      
+      if (cars.length === 0) {
+        console.warn('⚠️ No cars found from any endpoint');
+      }
+    } catch (error) {
+      console.error('❌ All car endpoints failed:', error);
     }
 
-    // 3. Fetch available drivers using new assignment endpoint
+    // 3. Fetch all drivers for the vehicle owner (not just available ones)
     let drivers: DriverDetail[] = [];
     try {
-      console.log('👤 Fetching available drivers from assignment endpoint...');
-      const driversResponse = await axiosInstance.get('/api/assignments/available-drivers', {
-        headers: authHeaders
-      });
-      drivers = driversResponse.data || [];
-      console.log('✅ Available drivers fetched from assignment endpoint:', drivers.length, 'drivers');
-    } catch (error) {
-      console.warn('⚠️ Assignment drivers endpoint failed, trying fallback endpoints...');
+      console.log('👤 Fetching all drivers for vehicle owner...');
       
-      // Fallback to organization endpoint
-      if (ownerDetails.organization_id) {
+      // Try multiple endpoints to get all drivers
+      const driverEndpoints = [
+        `/api/users/vehicle-owner/${ownerDetails.id}/drivers`,
+        `/api/users/vehicleowner/drivers`,
+        `/api/users/cardriver/organization/${ownerDetails.organization_id}`,
+        `/api/users/vehicle-owner/drivers`,
+        `/api/drivers/owner/${ownerDetails.id}`,
+        `/api/assignments/available-drivers` // Fallback to available drivers only
+      ];
+      
+      for (const endpoint of driverEndpoints) {
         try {
-          const driversResponse = await axiosInstance.get(`/api/users/cardriver/organization/${ownerDetails.organization_id}`, {
+          console.log(`🔍 Trying driver endpoint: ${endpoint}`);
+          const driversResponse = await axiosInstance.get(endpoint, {
             headers: authHeaders
           });
-          drivers = driversResponse.data || [];
-          console.log('✅ Driver details fetched from organization endpoint:', drivers.length, 'drivers');
-        } catch (orgError) {
-          console.warn('⚠️ Organization drivers endpoint failed, trying alternative...');
           
-          // Try alternative endpoint
-          try {
-            const altDriversResponse = await axiosInstance.get('/api/users/vehicleowner/drivers', {
-              headers: authHeaders
-            });
-            if (altDriversResponse.data) {
-              drivers = altDriversResponse.data;
-              console.log('✅ Driver details fetched from alternative endpoint:', drivers.length, 'drivers');
-            }
-          } catch (altError) {
-            console.warn('⚠️ Alternative driver endpoint also failed:', altError);
+          if (driversResponse.data && Array.isArray(driversResponse.data)) {
+            drivers = driversResponse.data;
+            console.log(`✅ Drivers fetched from ${endpoint}:`, drivers.length, 'drivers');
+            break; // Use the first successful endpoint
           }
+        } catch (endpointError) {
+          console.log(`❌ Driver endpoint ${endpoint} failed:`, endpointError.response?.status);
+          continue; // Try next endpoint
         }
       }
+      
+      if (drivers.length === 0) {
+        console.warn('⚠️ No drivers found from any endpoint');
+      }
+    } catch (error) {
+      console.error('❌ All driver endpoints failed:', error);
     }
 
     const dashboardData: DashboardData = {
@@ -194,6 +196,111 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
 export const refreshDashboardData = async (): Promise<DashboardData> => {
   console.log('🔄 Refreshing dashboard data...');
   return fetchDashboardData();
+};
+
+/**
+ * Force refresh dashboard data (useful after adding new cars/drivers)
+ */
+export const forceRefreshDashboardData = async (): Promise<DashboardData> => {
+  console.log('🔄 Force refreshing dashboard data...');
+  
+  // Clear any cached data and fetch fresh data
+  try {
+    const freshData = await fetchDashboardData();
+    console.log('✅ Dashboard data force refreshed successfully');
+    return freshData;
+  } catch (error) {
+    console.error('❌ Force refresh failed:', error);
+    throw error;
+  }
+};
+
+/**
+ * Debug function to test car and driver endpoints
+ */
+export const debugCarDriverEndpoints = async (): Promise<any> => {
+  try {
+    console.log('🧪 Testing car and driver endpoints...');
+    
+    const authHeaders = await getAuthHeaders();
+    
+    // Get vehicle owner details first
+    const ownerResponse = await axiosInstance.get('/api/users/vehicle-owner/me', {
+      headers: authHeaders
+    });
+    
+    const ownerDetails = ownerResponse.data;
+    console.log('👤 Vehicle owner details:', ownerDetails);
+    
+    // Test car endpoints
+    const carEndpoints = [
+      `/api/users/vehicle-owner/${ownerDetails.id}/cars`,
+      `/api/users/vehicleowner/cars`,
+      `/api/users/cardetails/organization/${ownerDetails.organization_id}`,
+      `/api/users/vehicle-owner/cars`,
+      `/api/cars/owner/${ownerDetails.id}`,
+      `/api/assignments/available-cars`
+    ];
+    
+    const carResults = [];
+    for (const endpoint of carEndpoints) {
+      try {
+        const response = await axiosInstance.get(endpoint, { headers: authHeaders });
+        carResults.push({
+          endpoint,
+          status: response.status,
+          count: response.data?.length || 0,
+          success: true
+        });
+      } catch (error) {
+        carResults.push({
+          endpoint,
+          status: error.response?.status,
+          error: error.message,
+          success: false
+        });
+      }
+    }
+    
+    // Test driver endpoints
+    const driverEndpoints = [
+      `/api/users/vehicle-owner/${ownerDetails.id}/drivers`,
+      `/api/users/vehicleowner/drivers`,
+      `/api/users/cardriver/organization/${ownerDetails.organization_id}`,
+      `/api/users/vehicle-owner/drivers`,
+      `/api/drivers/owner/${ownerDetails.id}`,
+      `/api/assignments/available-drivers`
+    ];
+    
+    const driverResults = [];
+    for (const endpoint of driverEndpoints) {
+      try {
+        const response = await axiosInstance.get(endpoint, { headers: authHeaders });
+        driverResults.push({
+          endpoint,
+          status: response.status,
+          count: response.data?.length || 0,
+          success: true
+        });
+      } catch (error) {
+        driverResults.push({
+          endpoint,
+          status: error.response?.status,
+          error: error.message,
+          success: false
+        });
+      }
+    }
+    
+    return {
+      owner: ownerDetails,
+      cars: carResults,
+      drivers: driverResults
+    };
+  } catch (error) {
+    console.error('❌ Debug test failed:', error);
+    throw error;
+  }
 };
 
 // New function to fetch pending orders

@@ -18,7 +18,7 @@ import { useRouter } from 'expo-router';
 import { Menu, Wallet, MapPin, Clock, User, Phone, Car, RefreshCw } from 'lucide-react-native';
 import BookingCard from '@/components/BookingCard';
 import DrawerNavigation from '@/components/DrawerNavigation';
-import { fetchDashboardData, DashboardData, fetchPendingOrders, PendingOrder } from '@/services/dashboardService';
+import { fetchDashboardData, DashboardData, fetchPendingOrders, PendingOrder, forceRefreshDashboardData, debugCarDriverEndpoints } from '@/services/dashboardService';
 import { acceptOrder, testOrderAcceptanceAPI, checkOrderAvailability } from '@/services/assignmentService';
 
 interface Booking {
@@ -124,8 +124,14 @@ export default function DashboardScreen() {
   const handleRefresh = async () => {
     try {
       setRefreshing(true);
+      console.log('🔄 Manual refresh triggered...');
+      
+      // Force refresh dashboard data to get latest cars and drivers
+      await forceRefreshDashboardData();
       await refreshData();
       await fetchPendingOrdersData(); // Also refresh orders
+      
+      console.log('✅ Manual refresh completed successfully');
     } catch (error) {
       console.error('❌ Refresh failed:', error);
     } finally {
@@ -136,12 +142,22 @@ export default function DashboardScreen() {
   const handleDebugAPI = async () => {
     try {
       console.log('🧪 Starting API debug test...');
-      const result = await testOrderAcceptanceAPI();
-      console.log('📊 Debug test result:', result);
+      
+      // Test order acceptance API
+      const orderResult = await testOrderAcceptanceAPI();
+      console.log('📊 Order acceptance debug result:', orderResult);
+      
+      // Test car and driver endpoints
+      const carDriverResult = await debugCarDriverEndpoints();
+      console.log('📊 Car/Driver endpoints debug result:', carDriverResult);
+      
+      // Show summary
+      const successfulCarEndpoints = carDriverResult.cars.filter((r: any) => r.success).length;
+      const successfulDriverEndpoints = carDriverResult.drivers.filter((r: any) => r.success).length;
       
       Alert.alert(
         'API Debug Test',
-        `Test completed!\n\nResults logged to console.\n\nSuccess: ${result.success}\n${result.error ? `Error: ${result.error}` : ''}`,
+        `Test completed!\n\nResults logged to console.\n\nOrder API: ${orderResult.success ? 'OK' : 'Failed'}\nCar endpoints: ${successfulCarEndpoints}/6 working\nDriver endpoints: ${successfulDriverEndpoints}/6 working`,
         [{ text: 'OK' }]
       );
     } catch (error: any) {
