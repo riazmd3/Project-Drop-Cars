@@ -233,13 +233,50 @@ export const fetchPendingOrders = async (): Promise<PendingOrder[]> => {
     const authHeaders = await getAuthHeaders();
     console.log('🔐 Using JWT token for pending orders:', authHeaders.Authorization?.substring(0, 20) + '...');
 
+    // First, try to get orders that are truly available (not assigned)
+    let availableOrders: PendingOrder[] = [];
+    
+    try {
+      console.log('🔍 Trying to fetch truly available orders...');
+      const availableResponse = await axiosInstance.get('/api/orders/available', {
+        headers: authHeaders
+      });
+      
+      if (availableResponse.data) {
+        availableOrders = availableResponse.data;
+        console.log('✅ Available orders fetched:', availableOrders.length, 'orders');
+        return availableOrders;
+      }
+    } catch (availableError) {
+      console.log('⚠️ Available orders endpoint not found, trying pending-all with filtering...');
+    }
+
+    // Fallback to pending-all endpoint
     const response = await axiosInstance.get('/api/orders/pending-all', {
       headers: authHeaders
     });
 
     if (response.data) {
       console.log('✅ Pending orders fetched:', response.data.length, 'orders');
-      return response.data;
+      
+      // Filter out orders that might already be assigned
+      // This is a client-side filter as a safety measure
+      const filteredOrders = response.data.filter((order: PendingOrder) => {
+        // Check if order has a reasonable status (not already assigned)
+        const isAvailable = order.trip_status === 'PENDING' || 
+                           order.trip_status === 'AVAILABLE' || 
+                           order.trip_status === 'OPEN' ||
+                           !order.trip_status;
+        
+        if (!isAvailable) {
+          console.log(`🚫 Filtering out order ${order.order_id} with status: ${order.trip_status}`);
+        }
+        
+        return isAvailable;
+      });
+      
+      console.log('✅ Filtered orders:', filteredOrders.length, 'out of', response.data.length, 'orders');
+      return filteredOrders;
     }
 
     return [];

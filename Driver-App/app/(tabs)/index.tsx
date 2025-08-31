@@ -19,7 +19,7 @@ import { Menu, Wallet, MapPin, Clock, User, Phone, Car, RefreshCw } from 'lucide
 import BookingCard from '@/components/BookingCard';
 import DrawerNavigation from '@/components/DrawerNavigation';
 import { fetchDashboardData, DashboardData, fetchPendingOrders, PendingOrder } from '@/services/dashboardService';
-import { acceptOrder, testOrderAcceptanceAPI } from '@/services/assignmentService';
+import { acceptOrder, testOrderAcceptanceAPI, checkOrderAvailability } from '@/services/assignmentService';
 
 interface Booking {
   booking_id: string;
@@ -407,6 +407,26 @@ export default function DashboardScreen() {
       // Show loading state for this specific order
       setProcessingOrderId(order.order_id.toString());
       
+      // First check if the order is still available
+      const isAvailable = await checkOrderAvailability(order.order_id.toString());
+      
+      if (!isAvailable) {
+        Alert.alert(
+          'Order No Longer Available',
+          'This order has already been taken by another vehicle owner. Refreshing available orders...',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Refresh the orders list to remove already assigned orders
+                fetchPendingOrdersData();
+              }
+            }
+          ]
+        );
+        return;
+      }
+      
       // Call the new API to accept the order
       const acceptResponse = await acceptOrder({
         order_id: order.order_id.toString(),
@@ -458,10 +478,31 @@ export default function DashboardScreen() {
       }
     } catch (error: any) {
       console.error('❌ Error accepting order:', error);
-      Alert.alert(
-        'Error',
-        error.message || 'Failed to accept order. Please try again.'
-      );
+      
+      // Check if it's an "already assigned" error
+      if (error.message.includes('already been accepted') || 
+          error.message.includes('already assigned') ||
+          error.message.includes('active assignment')) {
+        
+        Alert.alert(
+          'Order Already Taken',
+          'This order has already been accepted by another vehicle owner. Refreshing available orders...',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Refresh the orders list to remove already assigned orders
+                fetchPendingOrdersData();
+              }
+            }
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Error',
+          error.message || 'Failed to accept order. Please try again.'
+        );
+      }
     } finally {
       setProcessingOrderId(null);
     }

@@ -332,6 +332,39 @@ export const checkCarAvailability = async (carId: string): Promise<boolean> => {
 };
 
 /**
+ * Check if an order is still available for acceptance
+ */
+export const checkOrderAvailability = async (orderId: string): Promise<boolean> => {
+  try {
+    console.log('🔍 Checking order availability:', orderId);
+    
+    const authHeaders = await getAuthHeaders();
+    
+    // Try to get order details to check if it's still available
+    const response = await axiosInstance.get(`/api/orders/${orderId}`, {
+      headers: authHeaders
+    });
+
+    if (response.data) {
+      const order = response.data;
+      const isAvailable = order.trip_status === 'PENDING' || 
+                         order.trip_status === 'AVAILABLE' || 
+                         order.trip_status === 'OPEN' ||
+                         !order.trip_status;
+      
+      console.log('✅ Order availability check:', { orderId, status: order.trip_status, isAvailable });
+      return isAvailable;
+    }
+
+    return false;
+  } catch (error: any) {
+    console.error('❌ Failed to check order availability:', error);
+    // If we can't check, assume it's available and let the accept call fail
+    return true;
+  }
+};
+
+/**
  * Accept an order using the new API endpoint
  */
 export const acceptOrder = async (request: AcceptOrderRequest): Promise<AcceptOrderResponse> => {
@@ -399,6 +432,14 @@ export const acceptOrder = async (request: AcceptOrderRequest): Promise<AcceptOr
       throw new Error('Authentication failed. Please login again.');
     } else if (error.response?.status === 400) {
       const errorDetail = error.response.data?.detail || error.response.data?.message || 'Invalid request';
+      
+      // Check if it's an "already assigned" error
+      if (errorDetail.includes('already has an active assignment') || 
+          errorDetail.includes('already assigned') ||
+          errorDetail.includes('AssignmentStatusEnum.PENDING')) {
+        throw new Error('This order has already been accepted by another vehicle owner. Please refresh to see available orders.');
+      }
+      
       throw new Error(`Invalid request: ${errorDetail}`);
     } else if (error.response?.status === 404) {
       throw new Error('Order acceptance endpoint not found. Please contact support.');
