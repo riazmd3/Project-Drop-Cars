@@ -162,7 +162,7 @@ export default function FundScreen() {
       >
         {/* Header Section */}
         <LinearGradient
-          colors={['#6366F1', '#8B5CF6', '#A855F7']}
+          colors={['#1E40AF', '#3B82F6', '#60A5FA']}
           style={styles.headerSection}
         >
           <View style={styles.headerContent}>
@@ -242,7 +242,7 @@ export default function FundScreen() {
               onPress={() => setShowHistory(!showHistory)}
             >
               <LinearGradient
-                colors={['#10B981', '#059669']}
+                colors={['#60A5FA', '#3B82F6']}
                 style={styles.actionButtonGradient}
               >
                 <View style={styles.actionIcon}>
@@ -301,7 +301,7 @@ export default function FundScreen() {
                 
                 <View style={styles.statCard}>
                   <LinearGradient
-                    colors={['#8B5CF6', '#7C3AED']}
+                    colors={['#3B82F6', '#1D4ED8']}
                     style={styles.statCardGradient}
                   >
                     <View style={styles.statIcon}>
@@ -763,7 +763,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingVertical: 16,
     borderRadius: 12,
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#1E40AF',
   },
   confirmButtonText: {
     fontSize: 16,

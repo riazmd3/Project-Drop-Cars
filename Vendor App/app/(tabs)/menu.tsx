@@ -74,7 +74,7 @@ export default function MenuScreen() {
       title: 'Profile',
       subtitle: 'View and edit your profile',
       icon: User,
-      iconColor: '#3B82F6',
+      iconColor: '#1E40AF',
       action: () => console.log('Navigate to Profile'),
     },
     {
@@ -82,7 +82,7 @@ export default function MenuScreen() {
       title: 'Orders',
       subtitle: 'Manage your deliveries',
       icon: Package,
-      iconColor: '#10B981',
+      iconColor: '#3B82F6',
       action: () => console.log('Navigate to Orders'),
     },
     {
@@ -90,7 +90,7 @@ export default function MenuScreen() {
       title: 'Earnings',
       subtitle: 'Track your income',
       icon: DollarSign,
-      iconColor: '#F59E0B',
+      iconColor: '#60A5FA',
       action: () => console.log('Navigate to Earnings'),
     },
     {
@@ -98,7 +98,7 @@ export default function MenuScreen() {
       title: 'Analytics',
       subtitle: 'View performance insights',
       icon: TrendingUp,
-      iconColor: '#8B5CF6',
+      iconColor: '#1E40AF',
       action: () => console.log('Navigate to Analytics'),
     },
     {
@@ -106,7 +106,7 @@ export default function MenuScreen() {
       title: 'Schedule',
       subtitle: 'Manage your availability',
       icon: Calendar,
-      iconColor: '#06B6D4',
+      iconColor: '#3B82F6',
       action: () => console.log('Navigate to Schedule'),
     },
     {
@@ -114,7 +114,7 @@ export default function MenuScreen() {
       title: 'Settings',
       subtitle: 'App preferences',
       icon: Settings,
-      iconColor: '#6B7280',
+      iconColor: '#60A5FA',
       action: () => console.log('Navigate to Settings'),
     },
     {
@@ -122,7 +122,7 @@ export default function MenuScreen() {
       title: 'Support',
       subtitle: 'Get help and contact us',
       icon: HelpCircle,
-      iconColor: '#EF4444',
+      iconColor: '#1E40AF',
       action: () => console.log('Navigate to Support'),
     },
     {
@@ -130,7 +130,7 @@ export default function MenuScreen() {
       title: 'About',
       subtitle: 'App information',
       icon: Info,
-      iconColor: '#8B5CF6',
+      iconColor: '#3B82F6',
       action: () => console.log('Navigate to About'),
     },
   ];
@@ -145,12 +145,12 @@ export default function MenuScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#6366F1" />
+      <StatusBar barStyle="light-content" backgroundColor="#1E40AF" />
       
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Header Section */}
         <LinearGradient
-          colors={['#6366F1', '#8B5CF6', '#A855F7']}
+          colors={['#1E40AF', '#3B82F6', '#60A5FA']}
           style={styles.headerSection}
         >
           <View style={styles.headerContent}>
@@ -211,7 +211,7 @@ export default function MenuScreen() {
           <View style={styles.contactCard}>
             <TouchableOpacity style={styles.contactItem}>
               <View style={styles.contactIcon}>
-                <Phone size={20} color="#3B82F6" />
+                <Phone size={20} color="#1E40AF" />
               </View>
               <View style={styles.contactContent}>
                 <Text style={styles.contactLabel}>Call Support</Text>
@@ -222,7 +222,7 @@ export default function MenuScreen() {
             
             <TouchableOpacity style={styles.contactItem}>
               <View style={styles.contactIcon}>
-                <Mail size={20} color="#10B981" />
+                <Mail size={20} color="#3B82F6" />
               </View>
               <View style={styles.contactContent}>
                 <Text style={styles.contactLabel}>Email Support</Text>
@@ -233,7 +233,7 @@ export default function MenuScreen() {
             
             <TouchableOpacity style={styles.contactItem}>
               <View style={styles.contactIcon}>
-                <Globe size={20} color="#F59E0B" />
+                <Globe size={20} color="#60A5FA" />
               </View>
               <View style={styles.contactContent}>
                 <Text style={styles.contactLabel}>Website</Text>
@@ -486,16 +486,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: '#EFF6FF',
     paddingVertical: 16,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: '#BFDBFE',
     marginBottom: 40,
   },
   logoutButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#EF4444',
+    color: '#1E40AF',
   },
 });
