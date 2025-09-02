@@ -292,26 +292,25 @@ export const loginDriver = async (mobileNumber: string, password: string): Promi
     console.log('🚗 Starting driver login...');
     console.log('📱 Mobile:', mobileNumber);
     
-    // Format phone number for backend (add +91 prefix if not present)
-    const formatPhoneForBackend = (phone: string): string => {
+    // Format phone number for backend (backend expects 10-digit without +91)
+    const formatPhoneForSignin = (phone: string): string => {
       if (!phone) return '';
-      // Remove +91 prefix if present and ensure it's properly formatted
-      const cleanPhone = phone.replace(/^\+91/, '');
-      // Add +91 prefix back
-      return `+91${cleanPhone}`;
+      // Remove +91 if present and all non-digits, then take last 10 digits
+      const digitsOnly = phone.replace(/^\+91/, '').replace(/\D/g, '');
+      return digitsOnly.slice(-10);
     };
     
-    const formattedPhone = formatPhoneForBackend(mobileNumber);
+    const cleanedPhone = formatPhoneForSignin(mobileNumber);
     
     console.log('🔐 Attempting driver login with:', {
-      mobile_number: formattedPhone,
+      primary_number: cleanedPhone,
       password: password
     });
 
-    // Make API call to driver login endpoint
-    const response = await axiosInstance.post('/api/users/cardriver/login', {
-      mobile_number: formattedPhone,
-      password: password
+    // Make API call to driver signin endpoint (expects primary_number)
+    const response = await axiosInstance.post('/api/users/cardriver/signin', {
+      primary_number: cleanedPhone,
+      password
     });
 
     console.log('✅ Driver login successful:', response.data);
