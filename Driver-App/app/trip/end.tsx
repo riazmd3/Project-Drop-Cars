@@ -10,7 +10,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useWallet } from '@/contexts/WalletContext';
 import { Camera, ArrowLeft, Check, IndianRupee } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -21,10 +21,10 @@ export default function EndTripScreen() {
   const [thanked, setThanked] = useState(false);
   const { deductMoney } = useWallet();
   const router = useRouter();
+  const params = useLocalSearchParams<{ orderId?: string; startKm?: string; farePerKm?: string }>();
 
-  // Dummy trip data - in real app this would come from current trip state
-  const startKm = 10230;
-  const farePerKm = 10;
+  const startKm = parseInt(String(params.startKm || '0')) || 0;
+  const farePerKm = parseFloat(String(params.farePerKm || '0')) || 0;
 
   const takeOdometerPhoto = async () => {
     try {
@@ -68,7 +68,7 @@ export default function EndTripScreen() {
     Alert.alert(
       'Trip Completed',
       `Trip completed successfully!\n\nDistance: ${totalKm} km\nTotal Fare: ₹${totalFare}\nCommission: ₹50`,
-      [{ text: 'OK', onPress: () => router.replace('/(tabs)') }]
+      [{ text: 'OK', onPress: () => router.replace('/quick-dashboard') }]
     );
   };
 

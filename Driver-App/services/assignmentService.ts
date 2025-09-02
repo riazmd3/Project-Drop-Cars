@@ -282,6 +282,46 @@ export const fetchUserAssignments = async (): Promise<AssignmentResponse[]> => {
 };
 
 /**
+ * Get assignments for a specific driver
+ */
+export const fetchAssignmentsForDriver = async (driverId: string): Promise<AssignmentResponse[]> => {
+  try {
+    console.log('📋 Fetching assignments for driver:', driverId);
+    const authHeaders = await getAuthHeaders();
+
+    // Try the most likely endpoint first
+    const endpoints = [
+      `/api/assignments/driver/${driverId}`,
+      `/api/assignments/by-driver/${driverId}`,
+      `/api/assignments?driver_id=${encodeURIComponent(driverId)}`
+    ];
+
+    for (const endpoint of endpoints) {
+      try {
+        const response = await axiosInstance.get(endpoint, { headers: authHeaders });
+        if (Array.isArray(response.data)) {
+          console.log('✅ Driver assignments fetched:', response.data.length);
+          return response.data;
+        }
+      } catch (error: any) {
+        if (error.response?.status === 404) {
+          continue;
+        }
+        throw error;
+      }
+    }
+
+    return [];
+  } catch (error: any) {
+    console.error('❌ Failed to fetch assignments for driver:', error);
+    if (error.response?.status === 401) {
+      throw new Error('Authentication failed. Please login again.');
+    }
+    throw new Error(error.message || 'Failed to fetch assignments for driver');
+  }
+};
+
+/**
  * Check if a driver is available for assignment
  */
 export const checkDriverAvailability = async (driverId: string): Promise<boolean> => {

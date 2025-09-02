@@ -9,7 +9,7 @@ import {
   Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Camera, Upload, ArrowLeft } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 
@@ -17,6 +17,7 @@ export default function StartTripScreen() {
   const [startKm, setStartKm] = useState('');
   const [odometerPhoto, setOdometerPhoto] = useState<string | null>(null);
   const router = useRouter();
+  const params = useLocalSearchParams<{ orderId?: string; farePerKm?: string }>();
 
   const takeOdometerPhoto = async () => {
     try {
@@ -40,11 +41,14 @@ export default function StartTripScreen() {
       return;
     }
 
-    Alert.alert(
-      'Trip Started',
-      `Trip started successfully with ${startKm} KM`,
-      [{ text: 'OK', onPress: () => router.back() }]
-    );
+    router.replace({
+      pathname: '/trip/end',
+      params: {
+        orderId: String(params.orderId || ''),
+        startKm: String(startKm),
+        farePerKm: String(params.farePerKm || '0'),
+      }
+    });
   };
 
   return (
