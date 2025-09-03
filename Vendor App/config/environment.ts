@@ -8,6 +8,7 @@ export const ENV = {
   },
   
   // Production environment
+  // 34.126.222.137
   production: {
     API_BASE_URL: 'https://your-production-backend.com', // Update this
     DEBUG: false,
