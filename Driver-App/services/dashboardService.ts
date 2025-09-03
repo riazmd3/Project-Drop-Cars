@@ -346,7 +346,21 @@ export const fetchPendingOrders = async (): Promise<PendingOrder[]> => {
 
     if (response.data) {
       console.log('✅ Pending orders fetched:', response.data.length, 'orders');
-      return response.data;
+      // Filter by status: keep only truly pending orders
+      const filtered = response.data.filter((order: any) => {
+        const rawStatus = (order.trip_status || order.status || '').toString();
+        const status = rawStatus.trim().toUpperCase();
+        // Backend status set includes: COMPLETED, ACCEPTED, IN_PROGRESS, PENDING
+        // We only show PENDING here
+        const isPending = status === 'PENDING';
+        if (!isPending) {
+          // Omit ACCEPTED / IN_PROGRESS / COMPLETED from pending list
+          return false;
+        }
+        return true;
+      });
+      console.log('✅ Filtered pending orders:', filtered.length);
+      return filtered;
     }
 
     return [];
