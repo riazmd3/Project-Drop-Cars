@@ -12,12 +12,14 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useNotifications } from '@/contexts/NotificationContext';
 import { Moon, Sun, LogOut, ChevronRight, User, Bell, Shield } from 'lucide-react-native';
+import NotificationTest from '@/components/NotificationTest';
 
 export default function SettingsScreen() {
-  const [notifications, setNotifications] = useState(true);
   const { user, logout } = useAuth();
   const { isDarkMode, toggleTheme, colors } = useTheme();
+  const { notificationsEnabled, toggleNotifications } = useNotifications();
   const router = useRouter();
 
   const handleLogout = () => {
@@ -175,10 +177,10 @@ export default function SettingsScreen() {
             subtitle="Receive booking and trip notifications"
             rightComponent={
               <Switch
-                value={notifications}
-                onValueChange={setNotifications}
+                value={notificationsEnabled}
+                onValueChange={toggleNotifications}
                 trackColor={{ false: colors.border, true: colors.primary }}
-                thumbColor={notifications ? '#FFFFFF' : '#F3F4F6'}
+                thumbColor={notificationsEnabled ? '#FFFFFF' : '#F3F4F6'}
               />
             }
           />
@@ -187,7 +189,12 @@ export default function SettingsScreen() {
         <View style={dynamicStyles.section}>
           <Text style={dynamicStyles.sectionTitle}>Account</Text>
           
-
+          <SettingItem
+            icon={<User color={colors.textSecondary} size={20} />}
+            title="Profile"
+            subtitle="View and edit your profile information"
+            onPress={() => Alert.alert('Profile', 'Profile settings coming soon')}
+          />
 
           <SettingItem
             icon={<Shield color={colors.textSecondary} size={20} />}
@@ -195,6 +202,11 @@ export default function SettingsScreen() {
             subtitle="Manage your privacy settings"
             onPress={() => Alert.alert('Privacy', 'Privacy settings coming soon')}
           />
+        </View>
+
+        <View style={dynamicStyles.section}>
+          <Text style={dynamicStyles.sectionTitle}>Notification Testing</Text>
+          <NotificationTest />
         </View>
 
         <View style={dynamicStyles.section}>

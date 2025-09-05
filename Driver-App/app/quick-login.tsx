@@ -14,18 +14,19 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Smartphone, Lock, ArrowRight, ArrowLeft } from 'lucide-react-native';
+import { loginDriver } from '@/services/driverService';
 
 export default function QuickLoginScreen() {
   const [phoneNumber, setPhoneNumber] = useState('');
-  const [quickId, setQuickId] = useState('');
+  const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { login } = useAuth();
   const { colors } = useTheme();
 
   const handleQuickLogin = async () => {
-    if (!phoneNumber || !quickId) {
-      Alert.alert('Error', 'Please enter both phone number and Quick ID');
+    if (!phoneNumber || !password) {
+      Alert.alert('Error', 'Please enter both phone number and password');
       return;
     }
 
@@ -34,50 +35,47 @@ export default function QuickLoginScreen() {
       return;
     }
 
-    if (quickId.length !== 4) {
-      Alert.alert('Error', 'Please enter a valid 4-digit Quick ID');
+    if (password.length < 6) {
+      Alert.alert('Error', 'Please enter a valid password (minimum 6 characters)');
       return;
     }
 
     setLoading(true);
 
     try {
-      // Test credentials for quick driver
-      if (phoneNumber === '9876543211' && quickId === '1234') {
-        const quickDriverUser = {
-          id: '2',
-          name: 'Kumar (Quick Driver)',
-          mobile: '9876543211',
-          address: 'Chennai, Tamil Nadu',
-          languages: ['Tamil', 'English'],
-          cars: [{
-            id: '2',
-            name: 'Maruti Swift',
-            type: 'Hatchback',
-            registration: 'TN11AB5678',
-            isDefault: true
-          }],
-          isQuickDriver: true,
-          assignedOrder: {
-            booking_id: 'B125',
-            pickup: 'Adyar',
-            drop: 'Velachery',
-            customer_name: 'Lakshmi Devi',
-            customer_mobile: '9988776655',
-            fare_per_km: 12,
-            distance_km: 25,
-            total_fare: 300,
-            status: 'assigned'
-          }
+      console.log('🔐 Attempting driver login...');
+      
+      // Call the real driver login API
+      const loginResponse = await loginDriver(phoneNumber, password);
+      
+      if (loginResponse.access_token) {
+        console.log('✅ Driver login successful, creating user object...');
+        
+        // Create driver user object from login response
+        const driverUser = {
+          id: loginResponse.driver_id,
+          fullName: loginResponse.full_name,
+          primaryMobile: phoneNumber,
+          secondaryMobile: undefined,
+          password: password,
+          address: 'Driver Address', // This could be fetched separately if needed
+          aadharNumber: '', // Drivers don't have Aadhar in this context
+          organizationId: 'driver_org', // Default organization for drivers
+          languages: ['English'], // Default language
+          documents: {} // No documents needed for quick login
         };
         
-        await login(quickDriverUser, 'quick-driver-jwt-token');
+        // Login with the driver user data and token
+        await login(driverUser, loginResponse.access_token);
+        
+        console.log('✅ Driver logged in successfully, redirecting to dashboard...');
         router.replace('/quick-dashboard');
       } else {
-        Alert.alert('Error', 'Invalid credentials. Use test credentials: 9876543211 / 1234');
+        throw new Error('No access token received from server');
       }
-    } catch (error) {
-      Alert.alert('Error', 'Login failed. Please try again.');
+    } catch (error: any) {
+      console.error('❌ Driver login failed:', error);
+      Alert.alert('Login Failed', error.message || 'Please check your credentials and try again.');
     } finally {
       setLoading(false);
     }
@@ -96,7 +94,7 @@ export default function QuickLoginScreen() {
 
           <View style={styles.header}>
             <Text style={styles.title}>Quick Driver</Text>
-            <Text style={styles.subtitle}>Login with assigned credentials</Text>
+            <Text style={styles.subtitle}>Login with your driver credentials</Text>
           </View>
 
           <View style={styles.form}>
@@ -117,12 +115,11 @@ export default function QuickLoginScreen() {
               <Lock color="#6B7280" size={20} />
               <TextInput
                 style={styles.input}
-                placeholder="Enter 4-digit Quick ID"
+                placeholder="Enter password"
                 placeholderTextColor="#9CA3AF"
-                value={quickId}
-                onChangeText={setQuickId}
-                keyboardType="numeric"
-                maxLength={4}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
               />
             </View>
 
@@ -132,17 +129,12 @@ export default function QuickLoginScreen() {
               disabled={loading}
             >
               <Text style={styles.loginButtonText}>
-                {loading ? 'Signing In...' : 'Quick Login'}
+                {loading ? 'Signing In...' : 'Driver Login'}
               </Text>
               <ArrowRight color="#FFFFFF" size={20} />
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => {
-              setPhoneNumber('9876543211');
-              setQuickId('1234');
-            }} style={styles.testButton}>
-              <Text style={styles.testButtonText}>Use Test Credentials</Text>
-            </TouchableOpacity>
+            {/* Test credentials button removed - now using real driver authentication */}
           </View>
         </View>
       </KeyboardAvoidingView>
@@ -226,13 +218,5 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-SemiBold',
     marginRight: 8,
   },
-  testButton: {
-    marginTop: 16,
-    alignItems: 'center',
-  },
-  testButtonText: {
-    color: '#6B7280',
-    fontSize: 14,
-    fontFamily: 'Inter-Medium',
-  },
+  // Test button styles removed - no longer needed
 });

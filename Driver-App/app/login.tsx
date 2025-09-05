@@ -15,7 +15,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Smartphone, Lock, ArrowRight } from 'lucide-react-native';
 import WelcomeScreen from '@/components/WelcomeScreen';
+import AccountVerificationScreen from '@/components/AccountVerificationScreen';
 import axiosInstance from '@/app/api/axiosInstance';
+import { extractUserIdFromJWT } from '@/utils/jwtDecoder'; 
 
 // Helper function to validate Indian mobile numbers
 const validateIndianMobile = (phone: string): boolean => {
@@ -41,6 +43,8 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [showAccountVerification, setShowAccountVerification] = useState(false);
+  const [accountStatus, setAccountStatus] = useState<string>('');
   const router = useRouter();
   const { login } = useAuth();
   const { colors } = useTheme();
@@ -76,9 +80,20 @@ export default function LoginScreen() {
 
       console.log('✅ Login successful:', response.data);
 
+      // Extract user ID from JWT token
+      const token = response.data.access_token;
+      let userId = extractUserIdFromJWT(token);
+      
+      if (!userId) {
+        console.warn('⚠️ Could not extract user ID from JWT, using fallback ID');
+        userId = 'e5b9edb1-b4bb-48b8-a662-f7fd00abb6eb'; // Use the UUID from your Postman
+      } else {
+        console.log('🔍 Extracted user ID from JWT:', userId);
+      }
+      
       // Create user object from response
       const userData = {
-        id: response.data.user_id || 'temp_id',
+        id: userId,
         fullName: response.data.full_name || 'Driver',
         primaryMobile: phoneNumber,
         password: password,
@@ -91,6 +106,44 @@ export default function LoginScreen() {
 
       // Login with the user data and token
       await login(userData, response.data.access_token);
+
+      // Check account status first
+      const accountStatus = response.data.account_status;
+      const carCount = response.data.car_details_count ?? 0;
+      const driverCount = response.data.car_driver_count ?? 0;
+      
+      console.log('🔍 Account status:', accountStatus);
+      console.log('🔍 Car count:', carCount);
+      console.log('🔍 Driver count:', driverCount);
+      console.log('🔍 Full response data:', response.data);
+      
+      // FIRST: Check if user has uploaded any documents
+      // Priority: Car first, then Driver
+      if (carCount === 0) {
+        // No cars uploaded - redirect to add car
+        console.log('🚗 No cars uploaded, redirecting to add car page');
+        router.replace('/add-car');
+        return;
+      }
+      
+      if (driverCount === 0) {
+        // No drivers uploaded - redirect to add driver
+        console.log('👤 No drivers uploaded, redirecting to add driver page');
+        router.replace('/add-driver');
+        return;
+      }
+      
+      // SECOND: Now check account status (only if documents are uploaded)
+      if (accountStatus?.toLowerCase() !== 'active') {
+        // Documents uploaded but account is not active
+        console.log('⏳ Documents uploaded, but account status is:', accountStatus);
+        setAccountStatus(accountStatus);
+        setShowAccountVerification(true);
+        return;
+      }
+      
+      // THIRD: If documents are uploaded and account is active, proceed to dashboard
+      console.log('✅ Documents uploaded and account active, proceeding to dashboard');
       setShowWelcome(true);
 
     } catch (error: any) {
@@ -125,6 +178,82 @@ export default function LoginScreen() {
     setShowWelcome(false);
     router.replace('/(tabs)');
   };
+
+  const handleRefreshStatus = async () => {
+    try {
+      setLoading(true);
+      // Make a request to check current account status
+      const response = await axiosInstance.post('/api/users/vehicleowner/login', {
+        mobile_number: formatPhoneForBackend(phoneNumber),
+        password: password
+      });
+      
+      const newStatus = response.data.account_status;
+      const carCount = response.data.car_details_count ?? 0;
+      const driverCount = response.data.car_driver_count ?? 0;
+      
+      setAccountStatus(newStatus);
+      
+      // Use the same logic as login
+      // FIRST: Check if user has uploaded any documents
+      // Priority: Car first, then Driver
+      if (carCount === 0) {
+        // No cars uploaded - redirect to add car
+        console.log('🚗 No cars uploaded, redirecting to add car page');
+        setShowAccountVerification(false);
+        router.replace('/add-car');
+        return;
+      }
+      
+      if (driverCount === 0) {
+        // No drivers uploaded - redirect to add driver
+        console.log('👤 No drivers uploaded, redirecting to add driver page');
+        setShowAccountVerification(false);
+        router.replace('/add-driver');
+        return;
+      }
+      
+      // SECOND: Now check account status (only if documents are uploaded)
+      if (newStatus?.toLowerCase() !== 'active') {
+        // Documents uploaded but account is not active
+        console.log('⏳ Documents uploaded, but account status is:', newStatus);
+        setAccountStatus(newStatus);
+        return;
+      }
+      
+      // THIRD: If documents are uploaded and account is active, proceed to dashboard
+      console.log('✅ Documents uploaded and account active, proceeding to dashboard');
+      setShowAccountVerification(false);
+      setShowWelcome(true);
+    } catch (error) {
+      console.error('❌ Failed to refresh status:', error);
+      Alert.alert('Error', 'Failed to refresh account status. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      // Clear any stored data
+      setShowAccountVerification(false);
+      setAccountStatus('');
+      // You can add more logout logic here if needed
+    } catch (error) {
+      console.error('❌ Logout error:', error);
+    }
+  };
+
+  if (showAccountVerification) {
+    return (
+      <AccountVerificationScreen
+        accountStatus={accountStatus}
+        onRefresh={handleRefreshStatus}
+        onLogout={handleLogout}
+        isLoading={loading}
+      />
+    );
+  }
 
   if (showWelcome) {
     return <WelcomeScreen onComplete={handleWelcomeComplete} />;

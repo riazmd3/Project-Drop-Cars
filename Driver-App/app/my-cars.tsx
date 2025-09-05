@@ -1,63 +1,65 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  TextInput,
   Alert,
-  Modal,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { ArrowLeft, Car, Plus, X, Check } from 'lucide-react-native';
-
-const carTypes = ['Sedan', 'Hatchback', 'SUV', 'Innova', 'Innova Crysta', 'Other'];
+import { useDashboard } from '@/contexts/DashboardContext';
+import { useRouter } from 'expo-router';
+import { ArrowLeft, Car, Plus, Edit, Trash2, Image as ImageIcon } from 'lucide-react-native';
+import { fetchDashboardData } from '@/services/dashboardService';
 
 export default function MyCarsScreen() {
-  const { user, setUser } = useAuth();
+  const { user } = useAuth();
   const { colors } = useTheme();
+  const { dashboardData, loading, error, fetchData } = useDashboard();
   const router = useRouter();
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newCar, setNewCar] = useState({ name: '', type: '', registration: '' });
+  const [refreshing, setRefreshing] = useState(false);
 
-  const addCar = () => {
-    if (!newCar.name || !newCar.type || !newCar.registration) {
-      Alert.alert('Error', 'Please fill all fields');
-      return;
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await fetchData();
+    } catch (error) {
+      console.error('Error refreshing cars:', error);
+    } finally {
+      setRefreshing(false);
     }
-
-    const carToAdd = {
-      id: Date.now().toString(),
-      ...newCar,
-      isDefault: user?.cars?.length === 0,
-    };
-
-    const updatedUser = {
-      ...user,
-      cars: [...(user?.cars || []), carToAdd]
-    };
-
-    setUser(updatedUser);
-    setNewCar({ name: '', type: '', registration: '' });
-    setShowAddModal(false);
-    Alert.alert('Success', 'Car added successfully');
   };
 
-  const setDefaultCar = (carId) => {
-    const updatedCars = user?.cars?.map(car => ({
-      ...car,
-      isDefault: car.id === carId
-    }));
-
-    setUser({ ...user, cars: updatedCars });
-    Alert.alert('Success', 'Default car updated');
+  const handleAddCar = () => {
+    router.push('/add-car');
   };
 
+  const handleEditCar = (carId: string) => {
+    // TODO: Implement edit car functionality
+    Alert.alert('Edit Car', 'Edit functionality coming soon!');
+  };
 
+  const handleDeleteCar = (carId: string) => {
+    Alert.alert(
+      'Delete Car',
+      'Are you sure you want to delete this car? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: () => {
+            // TODO: Implement delete car functionality
+            Alert.alert('Delete Car', 'Delete functionality coming soon!');
+          }
+        }
+      ]
+    );
+  };
 
   const dynamicStyles = StyleSheet.create({
     container: {
@@ -70,33 +72,67 @@ export default function MyCarsScreen() {
       justifyContent: 'space-between',
       paddingHorizontal: 20,
       paddingVertical: 16,
-      backgroundColor: colors.surface,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
-    headerContent: {
+    headerLeft: {
+      flexDirection: 'row',
       alignItems: 'center',
     },
-    headerTitle: {
-      fontSize: 18,
-      fontFamily: 'Inter-SemiBold',
-      color: colors.text,
-      marginBottom: 2,
+    backButton: {
+      padding: 8,
+      marginRight: 16,
     },
-    headerSubtitle: {
-      fontSize: 12,
-      fontFamily: 'Inter-Medium',
-      color: colors.textSecondary,
+    headerTitle: {
+      fontSize: 20,
+      fontFamily: 'Inter-Bold',
+      color: colors.text,
+    },
+    addButton: {
+      backgroundColor: colors.primary,
+      borderRadius: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    addButtonText: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontFamily: 'Inter-SemiBold',
+      marginLeft: 4,
     },
     content: {
       flex: 1,
-      paddingHorizontal: 20,
-      paddingTop: 20,
+      padding: 20,
+    },
+    emptyState: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: 60,
+    },
+    emptyIcon: {
+      marginBottom: 16,
+    },
+    emptyTitle: {
+      fontSize: 18,
+      fontFamily: 'Inter-SemiBold',
+      color: colors.text,
+      marginBottom: 8,
+      textAlign: 'center',
+    },
+    emptySubtitle: {
+      fontSize: 14,
+      fontFamily: 'Inter-Regular',
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginBottom: 24,
     },
     carCard: {
       backgroundColor: colors.surface,
       borderRadius: 16,
-      padding: 16,
+      padding: 20,
       marginBottom: 16,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
@@ -106,305 +142,227 @@ export default function MyCarsScreen() {
     },
     carHeader: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 12,
-    },
-    carName: {
-      fontSize: 18,
-      fontFamily: 'Inter-SemiBold',
-      color: colors.text,
-    },
-    defaultBadge: {
-      backgroundColor: colors.success,
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 8,
-    },
-    defaultText: {
-      fontSize: 10,
-      fontFamily: 'Inter-SemiBold',
-      color: '#FFFFFF',
-    },
-    carDetails: {
-      marginBottom: 12,
-    },
-    carDetailRow: {
-      flexDirection: 'row',
       justifyContent: 'space-between',
-      marginBottom: 4,
+      marginBottom: 16,
     },
-    carDetailLabel: {
-      fontSize: 14,
-      fontFamily: 'Inter-Medium',
-      color: colors.textSecondary,
-    },
-    carDetailValue: {
-      fontSize: 14,
-      fontFamily: 'Inter-SemiBold',
+    carTitle: {
+      fontSize: 18,
+      fontFamily: 'Inter-Bold',
       color: colors.text,
+      flex: 1,
     },
     carActions: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
+      alignItems: 'center',
     },
     actionButton: {
-      backgroundColor: colors.background,
-      borderRadius: 8,
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderWidth: 1,
-      borderColor: colors.border,
+      padding: 8,
+      marginLeft: 8,
     },
-    defaultButton: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
+    carInfo: {
+      marginBottom: 16,
     },
-    actionButtonText: {
-      fontSize: 12,
-      fontFamily: 'Inter-SemiBold',
-      color: colors.textSecondary,
-    },
-    defaultButtonText: {
-      color: '#FFFFFF',
-    },
-    addButton: {
-      backgroundColor: colors.primary,
-      borderRadius: 16,
-      padding: 20,
+    carRow: {
+      flexDirection: 'row',
       alignItems: 'center',
-      marginTop: 20,
+      marginBottom: 12,
     },
-    addButtonText: {
-      color: '#FFFFFF',
-      fontSize: 16,
-      fontFamily: 'Inter-SemiBold',
-      marginTop: 8,
+    carLabel: {
+      fontSize: 14,
+      fontFamily: 'Inter-Medium',
+      color: colors.textSecondary,
+      width: 100,
     },
-    modalOverlay: {
+    carValue: {
+      fontSize: 14,
+      fontFamily: 'Inter-Regular',
+      color: colors.text,
       flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    },
+    carImages: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    imageItem: {
+      width: 80,
+      height: 60,
+      backgroundColor: colors.border,
+      borderRadius: 8,
       justifyContent: 'center',
       alignItems: 'center',
     },
-    modalContent: {
-      backgroundColor: colors.surface,
-      borderRadius: 16,
-      padding: 20,
-      width: '90%',
+    imageText: {
+      fontSize: 10,
+      fontFamily: 'Inter-Regular',
+      color: colors.textSecondary,
+      textAlign: 'center',
     },
-    modalHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
       alignItems: 'center',
-      marginBottom: 20,
+      paddingVertical: 60,
     },
-    modalTitle: {
-      fontSize: 18,
-      fontFamily: 'Inter-SemiBold',
-      color: colors.text,
-    },
-    closeButton: {
-      padding: 8,
-    },
-    inputGroup: {
-      marginBottom: 16,
-    },
-    inputLabel: {
-      fontSize: 14,
-      fontFamily: 'Inter-SemiBold',
-      color: colors.text,
-      marginBottom: 8,
-    },
-    input: {
-      backgroundColor: colors.background,
-      borderRadius: 12,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
+    loadingText: {
       fontSize: 16,
-      fontFamily: 'Inter-Medium',
-      color: colors.text,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    typeSelector: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      marginTop: 8,
-    },
-    typeButton: {
-      backgroundColor: colors.background,
-      borderRadius: 8,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      marginRight: 8,
-      marginBottom: 8,
-      borderWidth: 1,
-      borderColor: colors.border,
-    },
-    selectedTypeButton: {
-      backgroundColor: colors.primary,
-      borderColor: colors.primary,
-    },
-    typeButtonText: {
-      fontSize: 12,
       fontFamily: 'Inter-Medium',
       color: colors.textSecondary,
     },
-    selectedTypeButtonText: {
-      color: '#FFFFFF',
-    },
-    submitButton: {
-      backgroundColor: colors.primary,
-      borderRadius: 12,
-      paddingVertical: 16,
+    errorContainer: {
+      flex: 1,
+      justifyContent: 'center',
       alignItems: 'center',
-      marginTop: 20,
+      paddingVertical: 60,
     },
-    submitButtonText: {
+    errorText: {
+      fontSize: 16,
+      fontFamily: 'Inter-Medium',
+      color: colors.error,
+      textAlign: 'center',
+      marginBottom: 16,
+    },
+    retryButton: {
+      backgroundColor: colors.primary,
+      borderRadius: 8,
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+    },
+    retryButtonText: {
       color: '#FFFFFF',
       fontSize: 16,
       fontFamily: 'Inter-SemiBold',
     },
   });
 
-  const CarCard = ({ car }) => (
-    <View style={dynamicStyles.carCard}>
-      <View style={dynamicStyles.carHeader}>
-        <Text style={dynamicStyles.carName}>{car.name}</Text>
-        {car.isDefault && (
-          <View style={dynamicStyles.defaultBadge}>
-            <Text style={dynamicStyles.defaultText}>DEFAULT</Text>
-          </View>
-        )}
-      </View>
-
-      <View style={dynamicStyles.carDetails}>
-        <View style={dynamicStyles.carDetailRow}>
-          <Text style={dynamicStyles.carDetailLabel}>Type:</Text>
-          <Text style={dynamicStyles.carDetailValue}>{car.type}</Text>
+  if (loading) {
+    return (
+      <SafeAreaView style={dynamicStyles.container}>
+        <View style={dynamicStyles.loadingContainer}>
+          <Text style={dynamicStyles.loadingText}>Loading your cars...</Text>
         </View>
-        <View style={dynamicStyles.carDetailRow}>
-          <Text style={dynamicStyles.carDetailLabel}>Registration:</Text>
-          <Text style={dynamicStyles.carDetailValue}>{car.registration}</Text>
-        </View>
-      </View>
+      </SafeAreaView>
+    );
+  }
 
-      <View style={dynamicStyles.carActions}>
-        {!car.isDefault && (
-          <TouchableOpacity 
-            style={[dynamicStyles.actionButton, dynamicStyles.defaultButton]}
-            onPress={() => setDefaultCar(car.id)}
-          >
-            <Text style={[dynamicStyles.actionButtonText, dynamicStyles.defaultButtonText]}>
-              Set Default
-            </Text>
+  if (error) {
+    return (
+      <SafeAreaView style={dynamicStyles.container}>
+        <View style={dynamicStyles.errorContainer}>
+          <Text style={dynamicStyles.errorText}>Error: {error}</Text>
+          <TouchableOpacity style={dynamicStyles.retryButton} onPress={fetchData}>
+            <Text style={dynamicStyles.retryButtonText}>Retry</Text>
           </TouchableOpacity>
-        )}
+        </View>
+      </SafeAreaView>
+    );
+  }
 
-      </View>
-    </View>
-  );
+  const cars = dashboardData?.cars || [];
 
   return (
     <SafeAreaView style={dynamicStyles.container}>
       <View style={dynamicStyles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <ArrowLeft color={colors.text} size={24} />
-        </TouchableOpacity>
-        <View style={dynamicStyles.headerContent}>
+        <View style={dynamicStyles.headerLeft}>
+          <TouchableOpacity onPress={() => router.back()} style={dynamicStyles.backButton}>
+            <ArrowLeft color={colors.text} size={24} />
+          </TouchableOpacity>
           <Text style={dynamicStyles.headerTitle}>My Cars</Text>
-          <Text style={dynamicStyles.headerSubtitle}>Welcome back, {user?.name}!</Text>
         </View>
-        <View style={{ width: 24 }} />
+        <TouchableOpacity style={dynamicStyles.addButton} onPress={handleAddCar}>
+          <Plus color="#FFFFFF" size={16} />
+          <Text style={dynamicStyles.addButtonText}>Add Car</Text>
+        </TouchableOpacity>
       </View>
 
-      <ScrollView style={dynamicStyles.content} showsVerticalScrollIndicator={false}>
-        {user?.cars?.map((car) => (
-          <CarCard key={car.id} car={car} />
-        ))}
-
-        <TouchableOpacity 
-          style={dynamicStyles.addButton}
-          onPress={() => setShowAddModal(true)}
-        >
-          <Plus color="#FFFFFF" size={24} />
-          <Text style={dynamicStyles.addButtonText}>Add New Car</Text>
-        </TouchableOpacity>
-      </ScrollView>
-
-      <Modal
-        visible={showAddModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowAddModal(false)}
+      <ScrollView 
+        style={dynamicStyles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
       >
-        <View style={dynamicStyles.modalOverlay}>
-          <View style={dynamicStyles.modalContent}>
-            <View style={dynamicStyles.modalHeader}>
-              <Text style={dynamicStyles.modalTitle}>Add New Car</Text>
-              <TouchableOpacity 
-                onPress={() => setShowAddModal(false)}
-                style={dynamicStyles.closeButton}
-              >
-                <X color={colors.textSecondary} size={24} />
-              </TouchableOpacity>
-            </View>
-
-            <View style={dynamicStyles.inputGroup}>
-              <Text style={dynamicStyles.inputLabel}>Car Name</Text>
-              <TextInput
-                style={dynamicStyles.input}
-                placeholder="e.g., Tata Nexon"
-                value={newCar.name}
-                onChangeText={(value) => setNewCar({ ...newCar, name: value })}
-                placeholderTextColor={colors.textSecondary}
-              />
-            </View>
-
-            <View style={dynamicStyles.inputGroup}>
-              <Text style={dynamicStyles.inputLabel}>Car Type</Text>
-              <View style={dynamicStyles.typeSelector}>
-                {carTypes.map((type) => (
-                  <TouchableOpacity
-                    key={type}
-                    style={[
-                      dynamicStyles.typeButton,
-                      newCar.type === type && dynamicStyles.selectedTypeButton
-                    ]}
-                    onPress={() => setNewCar({ ...newCar, type })}
-                  >
-                    <Text style={[
-                      dynamicStyles.typeButtonText,
-                      newCar.type === type && dynamicStyles.selectedTypeButtonText
-                    ]}>
-                      {type}
-                    </Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </View>
-
-            <View style={dynamicStyles.inputGroup}>
-              <Text style={dynamicStyles.inputLabel}>Registration Number</Text>
-              <TextInput
-                style={dynamicStyles.input}
-                placeholder="e.g., TN10BZ1234"
-                value={newCar.registration}
-                onChangeText={(value) => setNewCar({ ...newCar, registration: value.toUpperCase() })}
-                autoCapitalize="characters"
-                placeholderTextColor={colors.textSecondary}
-              />
-            </View>
-
-            <TouchableOpacity style={dynamicStyles.submitButton} onPress={addCar}>
-              <Text style={dynamicStyles.submitButtonText}>Add Car</Text>
+        {cars.length === 0 ? (
+          <View style={dynamicStyles.emptyState}>
+            <Car color={colors.textSecondary} size={64} style={dynamicStyles.emptyIcon} />
+            <Text style={dynamicStyles.emptyTitle}>No Cars Added Yet</Text>
+            <Text style={dynamicStyles.emptySubtitle}>
+              Add your first car to start earning with Drop Cars
+            </Text>
+            <TouchableOpacity style={dynamicStyles.addButton} onPress={handleAddCar}>
+              <Plus color="#FFFFFF" size={16} />
+              <Text style={dynamicStyles.addButtonText}>Add Your First Car</Text>
             </TouchableOpacity>
           </View>
-        </View>
-      </Modal>
+        ) : (
+          cars.map((car) => (
+            <View key={car.id} style={dynamicStyles.carCard}>
+              <View style={dynamicStyles.carHeader}>
+                <Text style={dynamicStyles.carTitle}>
+                  {car.car_brand} {car.car_model}
+                </Text>
+                <View style={dynamicStyles.carActions}>
+                  <TouchableOpacity 
+                    style={dynamicStyles.actionButton}
+                    onPress={() => handleEditCar(car.id)}
+                  >
+                    <Edit color={colors.primary} size={20} />
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={dynamicStyles.actionButton}
+                    onPress={() => handleDeleteCar(car.id)}
+                  >
+                    <Trash2 color={colors.error} size={20} />
+                  </TouchableOpacity>
+                </View>
+              </View>
 
+              <View style={dynamicStyles.carInfo}>
+                <View style={dynamicStyles.carRow}>
+                  <Text style={dynamicStyles.carLabel}>Registration:</Text>
+                  <Text style={dynamicStyles.carValue}>{car.car_number}</Text>
+                </View>
+                <View style={dynamicStyles.carRow}>
+                  <Text style={dynamicStyles.carLabel}>Type:</Text>
+                  <Text style={dynamicStyles.carValue}>{car.car_type}</Text>
+                </View>
+                <View style={dynamicStyles.carRow}>
+                  <Text style={dynamicStyles.carLabel}>Year:</Text>
+                  <Text style={dynamicStyles.carValue}>{car.car_year}</Text>
+                </View>
+                <View style={dynamicStyles.carRow}>
+                  <Text style={dynamicStyles.carLabel}>Organization:</Text>
+                  <Text style={dynamicStyles.carValue}>{car.organization_id}</Text>
+                </View>
+              </View>
 
+              <View style={dynamicStyles.carImages}>
+                <View style={dynamicStyles.imageItem}>
+                  <ImageIcon color={colors.textSecondary} size={20} />
+                  <Text style={dynamicStyles.imageText}>RC Front</Text>
+                </View>
+                <View style={dynamicStyles.imageItem}>
+                  <ImageIcon color={colors.textSecondary} size={20} />
+                  <Text style={dynamicStyles.imageText}>RC Back</Text>
+                </View>
+                <View style={dynamicStyles.imageItem}>
+                  <ImageIcon color={colors.textSecondary} size={20} />
+                  <Text style={dynamicStyles.imageText}>Insurance</Text>
+                </View>
+                <View style={dynamicStyles.imageItem}>
+                  <ImageIcon color={colors.textSecondary} size={20} />
+                  <Text style={dynamicStyles.imageText}>FC</Text>
+                </View>
+                <View style={dynamicStyles.imageItem}>
+                  <ImageIcon color={colors.textSecondary} size={20} />
+                  <Text style={dynamicStyles.imageText}>Car Image</Text>
+                </View>
+              </View>
+            </View>
+          ))
+        )}
+      </ScrollView>
     </SafeAreaView>
   );
 }
