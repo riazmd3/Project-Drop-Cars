@@ -1,7 +1,8 @@
-import { getCreateQuoteUrl, getConfirmOrderUrl } from '../config/api';
+// services/orderService.ts
+import api from '../app/api/api';
 
-// Types for the order API
-export interface OrderQuoteRequest {
+// Define types for better TypeScript support
+interface QuoteData {
   vendor_id: string;
   trip_type: string;
   car_type: string;
@@ -18,108 +19,151 @@ export interface OrderQuoteRequest {
   hill_charges: number;
   toll_charges: number;
   pickup_notes: string;
-}
-
-export interface OrderQuoteResponse {
-  fare: {
-    total_km: number;
-    base_km_amount: number;
-    driver_allowance: number;
-    extra_driver_allowance: number;
-    permit_charges: number;
-    hill_charges: number;
-    toll_charges: number;
-    total_amount: number;
-  };
-  echo: OrderQuoteRequest;
-}
-
-export interface OrderConfirmRequest extends OrderQuoteRequest {
-  send_to: 'ALL' | 'NEAR_CITY';
+  send_to?: string;
   near_city?: string;
 }
 
-export interface OrderConfirmResponse {
-  order_id: number;
-  trip_status: string;
-  pick_near_city: string;
-  fare: {
-    total_km: number;
-    base_km_amount: number;
-    driver_allowance: number;
-    extra_driver_allowance: number;
-    permit_charges: number;
-    hill_charges: number;
-    toll_charges: number;
-    total_amount: number;
+interface FormData {
+  vendor_id: string;
+  trip_type: string;
+  car_type: string;
+  pickup_drop_location: { [key: string]: string };
+  start_date_time: Date;
+  customer_name: string;
+  customer_number: string;
+  cost_per_km: string;
+  extra_cost_per_km: string;
+  driver_allowance: string;
+  extra_driver_allowance: string;
+  permit_charges: string;
+  extra_permit_charges: string;
+  hill_charges: string;
+  toll_charges: string;
+  pickup_notes: string;
+}
+
+// Quote API functions
+export const getOnewayQuote = async (quoteData: QuoteData) => {
+  try {
+    console.log('Making oneway quote request to:', '/orders/oneway/quote');
+    console.log('Request data:', quoteData);
+    const response = await api.post('/orders/oneway/quote', quoteData);
+    console.log('Oneway quote response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting oneway quote:', error);
+    throw error;
+  }
+};
+
+export const getRoundTripQuote = async (quoteData: QuoteData) => {
+  try {
+    console.log('Making round trip quote request to:', '/orders/roundtrip/quote');
+    console.log('Request data:', quoteData);
+    const response = await api.post('/orders/roundtrip/quote', quoteData);
+    console.log('Round trip quote response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting round trip quote:', error);
+    throw error;
+  }
+};
+
+export const getMulticityQuote = async (quoteData: QuoteData) => {
+  try {
+    console.log('Making multicity quote request to:', '/orders/multicity/quote');
+    console.log('Request data:', quoteData);
+    const response = await api.post('/orders/multicity/quote', quoteData);
+    console.log('Multicity quote response:', response.data);
+    return response.data;
+  } catch (error) {
+    console.error('Error getting multicity quote:', error);
+    throw error;
+  }
+};
+
+// Order confirmation API functions
+export const confirmOnewayOrder = async (orderData: QuoteData) => {
+  try {
+    const response = await api.post('/orders/oneway/confirm', orderData);
+    return response.data;
+  } catch (error) {
+    console.error('Error confirming oneway order:', error);
+    throw error;
+  }
+};
+
+export const confirmRoundTripOrder = async (orderData: QuoteData) => {
+  try {
+    const response = await api.post('/orders/roundtrip/confirm', orderData);
+    return response.data;
+  } catch (error) {
+    console.error('Error confirming round trip order:', error);
+    throw error;
+  }
+};
+
+export const confirmMulticityOrder = async (orderData: QuoteData) => {
+  try {
+    const response = await api.post('/orders/multicity/confirm', orderData);
+    return response.data;
+  } catch (error) {
+    console.error('Error confirming multicity order:', error);
+    throw error;
+  }
+};
+
+// Generic functions that automatically determine the endpoint based on trip type
+export const getQuote = async (quoteData: QuoteData) => {
+  const { trip_type } = quoteData;
+  
+  switch (trip_type) {
+    case 'Oneway':
+      return getOnewayQuote(quoteData);
+    case 'Round Trip':
+      return getRoundTripQuote(quoteData);
+    case 'Multicity':
+      return getMulticityQuote(quoteData);
+    default:
+      throw new Error(`Unsupported trip type: ${trip_type}`);
+  }
+};
+
+export const confirmOrder = async (orderData: QuoteData) => {
+  const { trip_type } = orderData;
+  
+  switch (trip_type) {
+    case 'Oneway':
+      return confirmOnewayOrder(orderData);
+    case 'Round Trip':
+      return confirmRoundTripOrder(orderData);
+    case 'Multicity':
+      return confirmMulticityOrder(orderData);
+    default:
+      throw new Error(`Unsupported trip type: ${trip_type}`);
+  }
+};
+
+// Helper function to format form data for API
+export const formatOrderData = (formData: FormData, sendTo: string = 'ALL', nearCity: string = ''): QuoteData => {
+  return {
+    vendor_id: formData.vendor_id,
+    trip_type: formData.trip_type === 'Round Trip' ? 'Round Trip' : formData.trip_type,
+    car_type: formData.car_type,
+    pickup_drop_location: formData.pickup_drop_location,
+    start_date_time: formData.start_date_time.toISOString(),
+    customer_name: formData.customer_name,
+    customer_number: formData.customer_number,
+    cost_per_km: parseFloat(formData.cost_per_km),
+    extra_cost_per_km: parseFloat(formData.extra_cost_per_km) || 0,
+    driver_allowance: parseFloat(formData.driver_allowance) || 0,
+    extra_driver_allowance: parseFloat(formData.extra_driver_allowance) || 0,
+    permit_charges: parseFloat(formData.permit_charges) || 0,
+    extra_permit_charges: parseFloat(formData.extra_permit_charges) || 0,
+    hill_charges: parseFloat(formData.hill_charges) || 0,
+    toll_charges: parseFloat(formData.toll_charges) || 0,
+    pickup_notes: formData.pickup_notes,
+    ...(sendTo === 'NEAR_CITY' && nearCity && { near_city: nearCity }),
+    ...(sendTo && { send_to: sendTo })
   };
-}
-
-export class OrderService {
-  private static instance: OrderService;
-
-  private constructor() {}
-
-  public static getInstance(): OrderService {
-    if (!OrderService.instance) {
-      OrderService.instance = new OrderService();
-    }
-    return OrderService.instance;
-  }
-
-  /**
-   * Create a quote for a oneway trip
-   */
-  public async createQuote(request: OrderQuoteRequest): Promise<OrderQuoteResponse> {
-    try {
-      const response = await fetch(getCreateQuoteUrl(), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(request),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-      }
-
-      const result: OrderQuoteResponse = await response.json();
-      return result;
-    } catch (error) {
-      console.error('Error creating quote:', error);
-      throw error;
-    }
-  }
-
-  /**
-   * Confirm and create the order
-   */
-  public async confirmOrder(request: OrderConfirmRequest, accessToken: string): Promise<OrderConfirmResponse> {
-    try {
-      const response = await fetch(getConfirmOrderUrl(), {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify(request),
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || `HTTP error! status: ${response.status}`);
-      }
-
-      const result: OrderConfirmResponse = await response.json();
-      return result;
-    } catch (error) {
-      console.error('Error confirming order:', error);
-      throw error;
-    }
-  }
-}
-
-// Export singleton instance
-export const orderService = OrderService.getInstance();
+};
