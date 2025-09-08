@@ -116,40 +116,12 @@ export const addDriverDetails = async (driverData: DriverDetails): Promise<Drive
 
     // Get authentication headers
     const authHeaders = await getAuthHeaders();
-    console.log('🔐 Using JWT token:', authHeaders.Authorization?.substring(0, 20) + '...');
-
-    // Log the exact request being sent
-    console.log('📤 Sending request to backend:', {
-      url: '/api/users/cardriver/signup',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'multipart/form-data',
-        Authorization: authHeaders.Authorization?.substring(0, 20) + '...'
-      },
-      formDataSummary: {
-        textFields: {
-          full_name: driverData.full_name,
-          primary_number: driverData.primary_number,
-          licence_number: driverData.licence_number,
-          adress: driverData.adress,
-          organization_id: driverData.organization_id,
-          vehicle_owner_id: driverData.vehicle_owner_id
-        },
-        imageFiles: {
-          licence_front_img: !!driverData.licence_front_img,
-          rc_front_img: !!driverData.rc_front_img,
-          rc_back_img: !!driverData.rc_back_img,
-          insurance_img: !!driverData.insurance_img,
-          fc_img: !!driverData.fc_img,
-          car_img: !!driverData.car_img
-        }
-      }
-    });
+    console.log('🔐 Using JWT token');
 
     // Make API call
     const response = await axiosInstance.post('/api/users/cardriver/signup', formData, {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        // Let Axios set multipart boundary
         ...authHeaders
       },
     });
@@ -169,13 +141,11 @@ export const addDriverDetails = async (driverData: DriverDetails): Promise<Drive
         headers: response.headers
       });
       
-      // Log the actual error detail content
       if (response.data?.detail) {
         console.log('❌ Error detail content:', JSON.stringify(response.data.detail, null, 2));
       }
     }
 
-    // Check if response is successful
     if (response.status >= 200 && response.status < 300) {
       const responseData = response.data;
       
@@ -184,13 +154,11 @@ export const addDriverDetails = async (driverData: DriverDetails): Promise<Drive
         throw new Error('Invalid response from server');
       }
 
-      // Validate response structure - be more flexible with success conditions
       if (responseData.status === 'success' || responseData.driver_id || responseData.message) {
         console.log('✅ Driver details registration successful');
         return responseData;
       } else {
         console.log('⚠️ Response structure unexpected, but status is successful');
-        // Return a success response even if structure is unexpected
         return {
           status: 'success',
           message: 'Driver registered successfully',
@@ -205,14 +173,11 @@ export const addDriverDetails = async (driverData: DriverDetails): Promise<Drive
     console.error('❌ Driver details registration failed with error:', error);
     
     if (error.response?.status === 400 || error.response?.status === 422) {
-      // Handle validation errors
       const errorData = error.response.data;
       console.log('🔍 Processing validation error:', JSON.stringify(errorData, null, 2));
       
       if (errorData?.detail) {
-        // Handle different detail formats
         if (Array.isArray(errorData.detail)) {
-          // Extract field-specific errors
           const fieldErrors = errorData.detail.map((err: any) => {
             if (err.loc && err.msg) {
               return `${err.loc.join('.')}: ${err.msg}`;
@@ -290,31 +255,39 @@ export interface DriverLoginResponse {
 export const loginDriver = async (mobileNumber: string, password: string): Promise<DriverLoginResponse> => {
   try {
     console.log('🚗 Starting driver login...');
-    console.log('📱 Mobile:', mobileNumber);
+    console.log('📱 Mobile (input):', mobileNumber);
     
-    // Format phone number for backend (backend expects 10-digit without +91)
-    const formatPhoneForSignin = (phone: string): string => {
-      if (!phone) return '';
-      // Remove +91 if present and all non-digits, then take last 10 digits
-      const digitsOnly = phone.replace(/^\+91/, '').replace(/\D/g, '');
-      return digitsOnly.slice(-10);
-    };
-    
-    const cleanedPhone = formatPhoneForSignin(mobileNumber);
-    
+    // Normalize phone: allow +91xxxxxxxxxx or 10 digits; if 10 digits, prepend +91
+    const digitsOnly = (mobileNumber || '').replace(/\D/g, '');
+    const normalized = mobileNumber.startsWith('+')
+      ? mobileNumber
+      : (digitsOnly.length === 10 ? `+91${digitsOnly}` : mobileNumber);
+
     console.log('🔐 Attempting driver login with:', {
-      primary_number: cleanedPhone,
-      password: password
+      mobile_number: normalized,
+      password: '***'
     });
 
-    // Make API call to driver signin endpoint (expects primary_number)
-    const response = await axiosInstance.post('/api/users/cardriver/signin', {
-      primary_number: cleanedPhone,
-      password
-    });
-
-    console.log('✅ Driver login successful:', response.data);
-    return response.data;
+    // Some backends expect `mobile_number`, others `primary_number`. Try primary endpoint first.
+    try {
+      const response = await axiosInstance.post('/api/users/cardriver/signin', {
+        primary_number: digitsOnly.slice(-10),
+        password
+      });
+      console.log('✅ Driver login successful (primary_number):', response.data);
+      return response.data;
+    } catch (primaryErr: any) {
+      if (primaryErr.response?.status && primaryErr.response.status !== 404) {
+        throw primaryErr;
+      }
+      // Fallback to mobile_number format if required by backend
+      const response = await axiosInstance.post('/api/users/cardriver/signin', {
+        mobile_number: normalized,
+        password
+      });
+      console.log('✅ Driver login successful (mobile_number):', response.data);
+      return response.data;
+    }
   } catch (error: any) {
     console.error('❌ Driver login failed:', error);
     

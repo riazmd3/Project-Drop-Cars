@@ -21,6 +21,9 @@ export interface SignupResponse {
   status: string;
 }
 
+// Helper: normalize Indian phone number to digits only with optional +91 added by backend
+const toDigitsOnly = (phone: string): string => (phone || '').replace(/\D/g, '');
+
 // Single signup API call using FormData for file upload
 export const signupAccount = async (personalData: any, documents: any): Promise<SignupResponse> => {
   console.log('🚀 Starting signup process with FormData...');
@@ -40,7 +43,11 @@ export const signupAccount = async (personalData: any, documents: any): Promise<
       // Append the image file
       if (documents.aadharFront) {
         const imageUri = documents.aadharFront;
-        const imageName = imageUri.split('/').pop() || 'aadhar.jpg';
+        const looksValidUri = typeof imageUri === 'string' && imageUri.startsWith('file://');
+        if (!looksValidUri) {
+          console.warn('⚠️ Aadhar image URI seems invalid, expected file:// URI:', imageUri);
+        }
+        const imageName = (imageUri.split('/').pop() || 'aadhar.jpg');
         const imageType = imageUri.endsWith('.png') ? 'image/png' : 'image/jpeg';
         
         formData.append('aadhar_front_img', {
@@ -52,19 +59,14 @@ export const signupAccount = async (personalData: any, documents: any): Promise<
         console.log('🖼️ Image appended to FormData:', { uri: imageUri, type: imageType, name: imageName });
       }
       
-      // Helper function to format phone numbers for backend
-      const formatPhoneForBackend = (phone: string): string => {
-        if (!phone) return '';
-        // Remove +91 prefix if present and ensure it's properly formatted
-        const cleanPhone = phone.replace(/^\+91/, '');
-        // Add +91 prefix back
-        return `+91${cleanPhone}`;
-      };
+      // Normalize phone numbers to digits only; backend can prepend +91 if required
+      const primaryDigits = toDigitsOnly(personalData.primaryMobile || '');
+      const secondaryDigits = toDigitsOnly(personalData.secondaryMobile || '');
 
       // Append all other fields
       formData.append('full_name', personalData.fullName || '');
-      formData.append('primary_number', formatPhoneForBackend(personalData.primaryMobile || ''));
-      formData.append('secondary_number', personalData.secondaryMobile ? formatPhoneForBackend(personalData.secondaryMobile) : '');
+      formData.append('primary_number', primaryDigits);
+      formData.append('secondary_number', secondaryDigits);
       formData.append('password', personalData.password || '');
       formData.append('address', personalData.address || '');
       formData.append('aadhar_number', personalData.aadharNumber || '');
@@ -72,8 +74,8 @@ export const signupAccount = async (personalData: any, documents: any): Promise<
       
       console.log('📤 FormData created with fields:', {
         full_name: personalData.fullName,
-        primary_number: personalData.primaryMobile,
-        secondary_number: personalData.secondaryMobile,
+        primary_number: primaryDigits,
+        secondary_number: secondaryDigits,
         password: personalData.password,
         address: personalData.address,
         aadhar_number: personalData.aadharNumber,
@@ -81,11 +83,9 @@ export const signupAccount = async (personalData: any, documents: any): Promise<
         aadhar_front_img: documents.aadharFront ? 'File attached' : 'No file'
       });
       
-      // Make the API call with FormData
+      // Make the API call with FormData; let Axios set multipart boundaries
       const response = await axiosInstance.post('/api/users/vehicleowner/signup', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
+        // Do not set Content-Type here; Axios will set correct boundary
         timeout: 120000, // 2 minutes timeout for file uploads
       });
       
@@ -184,8 +184,8 @@ export const testSignupDataStructure = (personalData: any, documents: any) => {
   
   const testData = {
     full_name: personalData.fullName || '',
-    primary_number: personalData.primaryMobile || '',
-    secondary_number: personalData.secondaryMobile || '',
+    primary_number: toDigitsOnly(personalData.primaryMobile || ''),
+    secondary_number: toDigitsOnly(personalData.secondaryMobile || ''),
     password: personalData.password || '',
     address: personalData.address || '',
     aadhar_number: personalData.aadharNumber || '',
@@ -230,17 +230,8 @@ export const signupAndLogin = async (personalData: any, documents: any) => {
     throw new Error('Signup did not complete successfully');
   }
 
-  // Use the SAME phone number format for login as used in signup
-  // Apply the same formatting function to ensure consistency
-  const formatPhoneForBackend = (phone: string): string => {
-    if (!phone) return '';
-    // Remove +91 prefix if present and ensure it's properly formatted
-    const cleanPhone = phone.replace(/^\+91/, '');
-    // Add +91 prefix back
-    return `+91${cleanPhone}`;
-  };
-  
-  const mobileForLogin = formatPhoneForBackend(personalData.primaryMobile || '');
+  // Use digits-only for login to match signup format
+  const mobileForLogin = toDigitsOnly(personalData.primaryMobile || '');
   
   console.log('🔐 Using consistent phone format for login:', {
     original: personalData.primaryMobile,

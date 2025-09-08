@@ -15,7 +15,6 @@ const axiosInstance = axios.create({
   },
   // Add retry configuration
   maxRedirects: 5,
-  validateStatus: (status) => status < 500, // Don't treat 4xx as errors
 });
 
 // Request interceptor with logging
@@ -34,12 +33,13 @@ axiosInstance.interceptors.request.use(
       config.headers.Authorization = `Bearer ${token}`;
     }
     
-    // Ensure proper Content-Type for FormData (matches Postman form-data)
+    // Ensure proper handling for FormData: let Axios set the Content-Type boundary
     if (config.data instanceof FormData) {
-      config.headers['Content-Type'] = 'multipart/form-data';
+      // Do NOT set multipart header manually; Axios will set correct boundary
+      delete config.headers['Content-Type'];
       // Increase timeout for file uploads
       config.timeout = 120000; // 2 minutes for file uploads
-      console.log('📤 FormData detected, setting Content-Type to multipart/form-data and timeout to 120s');
+      console.log('📤 FormData detected, letting Axios set Content-Type boundary, timeout 120s');
     }
     
     return config;
@@ -73,19 +73,11 @@ axiosInstance.interceptors.response.use(
       method: error.config?.method,
       timeout: error.config?.timeout,
       data: error.response?.data,
-      // Check if we got a partial response
-      isPartialResponse: error.response?.status >= 200 && error.response?.status < 300,
       // Check if it's a timeout
       isTimeout: error.code === 'ECONNABORTED',
       // Check if it's a network error
       isNetworkError: error.code === 'ERR_NETWORK'
     });
-    
-    // If we got a successful response but axios still treats it as an error
-    if (error.response?.status >= 200 && error.response?.status < 300) {
-      console.log('🔄 Converting partial success response to success');
-      return Promise.resolve(error.response);
-    }
     
     return Promise.reject(error);
   }

@@ -24,14 +24,19 @@ export default function QuickLoginScreen() {
   const { login } = useAuth();
   const { colors } = useTheme();
 
+  const isValidPhone = (value: string) => {
+    const digits = (value || '').replace(/\D/g, '');
+    return digits.length === 10 || /^\+91\d{10}$/.test(value);
+  };
+
   const handleQuickLogin = async () => {
     if (!phoneNumber || !password) {
       Alert.alert('Error', 'Please enter both phone number and password');
       return;
     }
 
-    if (phoneNumber.length !== 10) {
-      Alert.alert('Error', 'Please enter a valid 10-digit phone number');
+    if (!isValidPhone(phoneNumber)) {
+      Alert.alert('Error', 'Enter a 10-digit number or +91 followed by 10 digits');
       return;
     }
 
@@ -107,7 +112,7 @@ export default function QuickLoginScreen() {
                 value={phoneNumber}
                 onChangeText={setPhoneNumber}
                 keyboardType="phone-pad"
-                maxLength={10}
+                maxLength={13}
               />
             </View>
 
