@@ -257,37 +257,22 @@ export const loginDriver = async (mobileNumber: string, password: string): Promi
     console.log('🚗 Starting driver login...');
     console.log('📱 Mobile (input):', mobileNumber);
     
-    // Normalize phone: allow +91xxxxxxxxxx or 10 digits; if 10 digits, prepend +91
+    // Build primary_number exactly how backend accepted in Postman: +91XXXXXXXXXX
     const digitsOnly = (mobileNumber || '').replace(/\D/g, '');
-    const normalized = mobileNumber.startsWith('+')
-      ? mobileNumber
-      : (digitsOnly.length === 10 ? `+91${digitsOnly}` : mobileNumber);
+    const ten = digitsOnly.slice(-10);
+    const primaryWithPlus = mobileNumber.startsWith('+') ? mobileNumber : `+91${ten}`;
 
-    console.log('🔐 Attempting driver login with:', {
-      mobile_number: normalized,
-      password: '***'
-    });
+    const payload = {
+      primary_number: primaryWithPlus,
+      password,
+    };
 
-    // Some backends expect `mobile_number`, others `primary_number`. Try primary endpoint first.
-    try {
-      const response = await axiosInstance.post('/api/users/cardriver/signin', {
-        primary_number: digitsOnly.slice(-10),
-        password
-      });
-      console.log('✅ Driver login successful (primary_number):', response.data);
-      return response.data;
-    } catch (primaryErr: any) {
-      if (primaryErr.response?.status && primaryErr.response.status !== 404) {
-        throw primaryErr;
-      }
-      // Fallback to mobile_number format if required by backend
-      const response = await axiosInstance.post('/api/users/cardriver/signin', {
-        mobile_number: normalized,
-        password
-      });
-      console.log('✅ Driver login successful (mobile_number):', response.data);
-      return response.data;
-    }
+    console.log('🔐 Attempting driver login with payload:', { ...payload, password: '***' });
+
+    const response = await axiosInstance.post('/api/users/cardriver/signin', payload);
+
+    console.log('✅ Driver login successful:', response.data);
+    return response.data;
   } catch (error: any) {
     console.error('❌ Driver login failed:', error);
     
