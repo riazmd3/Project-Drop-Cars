@@ -25,6 +25,8 @@ const documentTypes = [
   { key: 'aadharFront', label: 'Aadhar Front Image', required: true },
 ];
 
+const normalizeLocalUri = (uri: string) => (uri ? uri.replace('/useer/', '/user/') : uri);
+
 export default function DocumentsStep({ data, onUpdate, onBack, formData, onSignupSuccess }: DocumentsStepProps) {
   const [documents, setDocuments] = useState(data);
   const [loading, setLoading] = useState(false);
@@ -41,10 +43,13 @@ export default function DocumentsStep({ data, onUpdate, onBack, formData, onSign
       });
 
       if (!result.canceled) {
+        const rawUri = result.assets[0].uri;
+        const fixedUri = normalizeLocalUri(rawUri);
         const updatedDocuments = {
           ...documents,
-          [documentKey]: result.assets[0].uri
+          [documentKey]: fixedUri
         };
+        console.log('🖼️ Document selected:', { rawUri, fixedUri });
         setDocuments(updatedDocuments);
         onUpdate(updatedDocuments);
       }
@@ -79,12 +84,19 @@ export default function DocumentsStep({ data, onUpdate, onBack, formData, onSign
     try {
       console.log('📤 Starting signup process...');
       
+      // Ensure URI normalization just before submit
+      const normalizedDocs = {
+        ...documents,
+        aadharFront: normalizeLocalUri(documents.aadharFront)
+      };
+      console.log('🧭 Normalized docs for submit:', normalizedDocs);
+      
       // Test data structure first
-      const testData = testSignupDataStructure(formData.personalDetails, documents);
+      const testData = testSignupDataStructure(formData.personalDetails, normalizedDocs);
       console.log('🧪 Data structure test completed');
       
       // Signup then login to obtain JWT token per API docs
-      const { signup, login: loginResp } = await signupAndLogin(formData.personalDetails, documents);
+      const { signup, login: loginResp } = await signupAndLogin(formData.personalDetails, normalizedDocs);
 
       if (signup.status === 'success') {
         // Create user object for local auth
@@ -98,7 +110,7 @@ export default function DocumentsStep({ data, onUpdate, onBack, formData, onSign
           aadharNumber: formData.personalDetails.aadharNumber,
           organizationId: formData.personalDetails.organizationId,
           languages: formData.personalDetails.languages || [],
-          documents: documents,
+          documents: normalizedDocs,
         };
 
         // Save user and real token

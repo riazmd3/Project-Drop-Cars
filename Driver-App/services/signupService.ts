@@ -1,5 +1,6 @@
 import axiosInstance from '@/app/api/axiosInstance';
 import { authService, getAuthHeaders } from './authService';
+import * as FileSystem from 'expo-file-system';
 
 // Single API call interface matching your working Postman request
 export interface SignupData {
@@ -24,6 +25,25 @@ export interface SignupResponse {
 // Helper: normalize Indian phone number to digits only with optional +91 added by backend
 const toDigitsOnly = (phone: string): string => (phone || '').replace(/\D/g, '');
 
+// Helper: normalize common URI issues
+const normalizeLocalUri = (uri: string): string => {
+  if (!uri) return uri;
+  let fixed = uri;
+  // Fix common misspelling from some caches: /useer/ -> /user/
+  fixed = fixed.replace('/useer/', '/user/');
+  return fixed;
+};
+
+// Check that file exists before attaching
+const ensureFileExists = async (uri: string): Promise<boolean> => {
+  try {
+    const info = await FileSystem.getInfoAsync(uri);
+    return !!info.exists;
+  } catch {
+    return false;
+  }
+};
+
 // Single signup API call using FormData for file upload
 export const signupAccount = async (personalData: any, documents: any): Promise<SignupResponse> => {
   console.log('🚀 Starting signup process with FormData...');
@@ -42,10 +62,15 @@ export const signupAccount = async (personalData: any, documents: any): Promise<
       
       // Append the image file
       if (documents.aadharFront) {
-        const imageUri = documents.aadharFront;
+        const rawUri = documents.aadharFront;
+        const imageUri = normalizeLocalUri(rawUri);
         const looksValidUri = typeof imageUri === 'string' && imageUri.startsWith('file://');
         if (!looksValidUri) {
           console.warn('⚠️ Aadhar image URI seems invalid, expected file:// URI:', imageUri);
+        }
+        const exists = looksValidUri ? (await ensureFileExists(imageUri)) : false;
+        if (!exists) {
+          console.warn('⚠️ Aadhar image file does not exist at URI:', imageUri);
         }
         const imageName = (imageUri.split('/').pop() || 'aadhar.jpg');
         const imageType = imageUri.endsWith('.png') ? 'image/png' : 'image/jpeg';
@@ -213,10 +238,11 @@ export const testSignupDataStructure = (personalData: any, documents: any) => {
     }
   });
   
+  const normalized = normalizeLocalUri(documents.aadharFront);
   console.log('🖼️ Image details:', {
-    uri: documents.aadharFront,
-    type: documents.aadharFront ? (documents.aadharFront.endsWith('.png') ? 'image/png' : 'image/jpeg') : 'N/A',
-    name: documents.aadharFront ? documents.aadharFront.split('/').pop() : 'N/A'
+    uri: normalized,
+    type: documents.aadharFront ? (normalized.endsWith('.png') ? 'image/png' : 'image/jpeg') : 'N/A',
+    name: documents.aadharFront ? normalized.split('/').pop() : 'N/A'
   });
   
   return testData;

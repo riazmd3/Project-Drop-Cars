@@ -30,12 +30,11 @@ const validateIndianMobile = (phone: string): boolean => {
 };
 
 // Helper function to format phone number for backend
-const formatPhoneForBackend = (phone: string): string => {
-  if (!phone) return '';
-  // Remove +91 prefix if present and ensure it's properly formatted
-  const cleanPhone = phone.replace(/^\+91/, '');
-  // Add +91 prefix back
-  return `+91${cleanPhone}`;
+const formatForBackend = (phone: string) => {
+  const digitsOnly = (phone || '').replace(/\D/g, '');
+  const ten = digitsOnly.slice(-10);
+  const withPlus = phone.startsWith('+') ? phone : `+91${ten}`;
+  return { withPlus, ten };
 };
 
 export default function LoginScreen() {
@@ -64,19 +63,19 @@ export default function LoginScreen() {
     setLoading(true);
 
     try {
-      // Format phone number for backend (add +91 prefix)
-      const formattedPhone = formatPhoneForBackend(phoneNumber);
+      // Build both formats for maximum compatibility
+      const { withPlus, ten } = formatForBackend(phoneNumber);
       
-      console.log('🔐 Attempting login with:', {
-        mobile_number: formattedPhone,
-        password: password
-      });
+      const payload = {
+        mobile_number: withPlus,
+        primary_number: withPlus, // Some environments expect +91 in primary_number
+        password: password,
+      } as any;
+
+      console.log('🔐 Attempting login with payload:', { ...payload, password: '***' });
 
       // Make actual API call to backend
-      const response = await axiosInstance.post('/api/users/vehicleowner/login', {
-        mobile_number: formattedPhone,
-        password: password
-      });
+      const response = await axiosInstance.post('/api/users/vehicleowner/login', payload);
 
       console.log('✅ Login successful:', response.data);
 
@@ -152,7 +151,7 @@ export default function LoginScreen() {
       let errorMessage = 'Login failed. Please try again.';
       
       if (error.response?.status === 401) {
-        errorMessage = 'Invalid mobile number or password.';
+        errorMessage = error.response?.data?.detail || 'Invalid mobile number or password.';
       } else if (error.response?.status === 422) {
         errorMessage = 'Invalid data provided. Please check your input.';
       } else if (error.response?.status === 500) {
@@ -182,9 +181,11 @@ export default function LoginScreen() {
   const handleRefreshStatus = async () => {
     try {
       setLoading(true);
+      const { withPlus } = formatForBackend(phoneNumber);
       // Make a request to check current account status
       const response = await axiosInstance.post('/api/users/vehicleowner/login', {
-        mobile_number: formatPhoneForBackend(phoneNumber),
+        mobile_number: withPlus,
+        primary_number: withPlus,
         password: password
       });
       

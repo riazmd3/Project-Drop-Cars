@@ -60,26 +60,7 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
 
 
   const handleNext = () => {
-    if (!fullName || !primaryMobile || !password || !address || !aadharNumber) {
-      Alert.alert('Error', 'Please fill all required fields');
-      return;
-    }
-
-    if (!validateIndianMobile(primaryMobile)) {
-      Alert.alert('Error', 'Please enter a valid primary mobile number starting with 6, 7, 8, or 9');
-      return;
-    }
-
-    if (secondaryMobile && !validateIndianMobile(secondaryMobile)) {
-      Alert.alert('Error', 'Please enter a valid secondary mobile number starting with 6, 7, 8, or 9');
-      return;
-    }
-
-    if (aadharNumber.length !== 12) {
-      Alert.alert('Error', 'Please enter a valid 12-digit Aadhar number');
-      return;
-    }
-
+    // Remove blocking client-side validations to allow signup without constraints
     const personalData = {
       fullName,
       primaryMobile,
@@ -122,7 +103,7 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
             onChangeText={(text) => {
               // Allow only digits and +91 prefix
               const cleanText = text.replace(/[^\d+]/g, '');
-              if (cleanText.startsWith('+91') || cleanText.length <= 10) {
+              if (cleanText.startsWith('+91') || cleanText.length <= 13) {
                 setPrimaryMobile(cleanText);
               }
             }}
@@ -130,10 +111,7 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
             maxLength={13}
           />
         </View>
-        <Text style={styles.helperText}>Enter 10-digit mobile number starting with 6, 7, 8, or 9</Text>
-        {primaryMobile && !validateIndianMobile(primaryMobile) && (
-          <Text style={styles.errorText}>Must start with 6, 7, 8, or 9</Text>
-        )}
+        {/* Helper/error hints removed to avoid blocking UX */}
 
         {/* Secondary Mobile */}
         <View style={styles.inputGroup}>
@@ -143,9 +121,8 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
             placeholder="Secondary Mobile Number (Optional)"
             value={secondaryMobile}
             onChangeText={(text) => {
-              // Allow only digits and +91 prefix
               const cleanText = text.replace(/[^\d+]/g, '');
-              if (cleanText.startsWith('+91') || cleanText.length <= 10) {
+              if (cleanText.startsWith('+91') || cleanText.length <= 13) {
                 setSecondaryMobile(cleanText);
               }
             }}
@@ -153,12 +130,6 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
             maxLength={13}
           />
         </View>
-        {secondaryMobile && (
-          <Text style={styles.helperText}>Enter 10-digit mobile number starting with 6, 7, 8, or 9</Text>
-        )}
-        {secondaryMobile && !validateIndianMobile(secondaryMobile) && (
-          <Text style={styles.errorText}>Must start with 6, 7, 8, or 9</Text>
-        )}
 
         {/* Password */}
         <View style={styles.inputGroup}>
