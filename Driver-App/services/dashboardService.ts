@@ -58,7 +58,7 @@ export interface DashboardData {
 
 export const fetchDashboardData = async (): Promise<DashboardData> => {
   try {
-    console.log('📊 Fetching dashboard data...');
+    console.log('Fetching dashboard data...');
     
     const authHeaders = await getAuthHeaders();
     console.log('🔐 Using JWT token:', authHeaders.Authorization?.substring(0, 20) + '...');
@@ -76,19 +76,15 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
     const ownerDetails: VehicleOwnerDetails = ownerResponse.data;
     console.log('✅ Vehicle owner details received:', ownerDetails);
 
-    // 2. Fetch all cars for the vehicle owner (not just available ones)
+    // 2. Fetch all cars for the vehicle owner (prioritize org endpoint, then available-cars fallback)
     let cars: CarDetail[] = [];
     try {
       console.log('🚗 Fetching all cars for vehicle owner...');
       
-      // Try multiple endpoints to get all cars
       const carEndpoints = [
-        `/api/users/vehicle-owner/${ownerDetails.id}/cars`,
-        `/api/users/vehicleowner/cars`,
-        `/api/users/cardetails/organization/${ownerDetails.organization_id}`,
-        `/api/users/vehicle-owner/cars`,
-        `/api/cars/owner/${ownerDetails.id}`,
-        `/api/assignments/available-cars` // Fallback to available cars only
+        `/api/users/cardetails/organization/${ownerDetails.organization_id}`, // 200 OK in logs
+        `/api/assignments/available-cars`, // fallback, 200 OK
+        `/api/users/vehicle-owner/${ownerDetails.id}/cars`, // may be 404 depending on backend version
       ];
       
       for (const endpoint of carEndpoints) {
@@ -103,8 +99,8 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
             console.log(`✅ Cars fetched from ${endpoint}:`, cars.length, 'cars');
             break; // Use the first successful endpoint
           }
-        } catch (endpointError) {
-          console.log(`❌ Car endpoint ${endpoint} failed:`, endpointError.response?.status);
+        } catch (endpointError: any) {
+          console.log(`❌ Car endpoint ${endpoint} failed:`, endpointError.response?.status || endpointError.message);
           continue; // Try next endpoint
         }
       }
@@ -116,19 +112,15 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
       console.error('❌ All car endpoints failed:', error);
     }
 
-    // 3. Fetch all drivers for the vehicle owner (not just available ones)
+    // 3. Fetch all drivers for the vehicle owner (prioritize org endpoint, then available-drivers fallback)
     let drivers: DriverDetail[] = [];
     try {
       console.log('👤 Fetching all drivers for vehicle owner...');
       
-      // Try multiple endpoints to get all drivers
       const driverEndpoints = [
-        `/api/users/vehicle-owner/${ownerDetails.id}/drivers`,
-        `/api/users/vehicleowner/drivers`,
-        `/api/users/cardriver/organization/${ownerDetails.organization_id}`,
-        `/api/users/vehicle-owner/drivers`,
-        `/api/drivers/owner/${ownerDetails.id}`,
-        `/api/assignments/available-drivers` // Fallback to available drivers only
+        `/api/users/cardriver/organization/${ownerDetails.organization_id}`, // 200 OK in logs
+        `/api/assignments/available-drivers`, // fallback, 200 OK
+        `/api/users/vehicle-owner/${ownerDetails.id}/drivers`, // may be 404 depending on backend version
       ];
       
       for (const endpoint of driverEndpoints) {
@@ -143,8 +135,8 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
             console.log(`✅ Drivers fetched from ${endpoint}:`, drivers.length, 'drivers');
             break; // Use the first successful endpoint
           }
-        } catch (endpointError) {
-          console.log(`❌ Driver endpoint ${endpoint} failed:`, endpointError.response?.status);
+        } catch (endpointError: any) {
+          console.log(`❌ Driver endpoint ${endpoint} failed:`, endpointError.response?.status || endpointError.message);
           continue; // Try next endpoint
         }
       }
@@ -167,7 +159,7 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
       }
     };
 
-    console.log('📊 Dashboard data assembled:', {
+    console.log('Dashboard data assembled:', {
       user: dashboardData.user_info,
       carCount: dashboardData.cars.length,
       driverCount: dashboardData.drivers.length,
@@ -215,93 +207,6 @@ export const forceRefreshDashboardData = async (): Promise<DashboardData> => {
   }
 };
 
-/**
- * Debug function to test car and driver endpoints
- */
-export const debugCarDriverEndpoints = async (): Promise<any> => {
-  try {
-    console.log('🧪 Testing car and driver endpoints...');
-    
-    const authHeaders = await getAuthHeaders();
-    
-    // Get vehicle owner details first
-    const ownerResponse = await axiosInstance.get('/api/users/vehicle-owner/me', {
-      headers: authHeaders
-    });
-    
-    const ownerDetails = ownerResponse.data;
-    console.log('👤 Vehicle owner details:', ownerDetails);
-    
-    // Test car endpoints
-    const carEndpoints = [
-      `/api/users/vehicle-owner/${ownerDetails.id}/cars`,
-      `/api/users/vehicleowner/cars`,
-      `/api/users/cardetails/organization/${ownerDetails.organization_id}`,
-      `/api/users/vehicle-owner/cars`,
-      `/api/cars/owner/${ownerDetails.id}`,
-      `/api/assignments/available-cars`
-    ];
-    
-    const carResults = [];
-    for (const endpoint of carEndpoints) {
-      try {
-        const response = await axiosInstance.get(endpoint, { headers: authHeaders });
-        carResults.push({
-          endpoint,
-          status: response.status,
-          count: response.data?.length || 0,
-          success: true
-        });
-      } catch (error) {
-        carResults.push({
-          endpoint,
-          status: error.response?.status,
-          error: error.message,
-          success: false
-        });
-      }
-    }
-    
-    // Test driver endpoints
-    const driverEndpoints = [
-      `/api/users/vehicle-owner/${ownerDetails.id}/drivers`,
-      `/api/users/vehicleowner/drivers`,
-      `/api/users/cardriver/organization/${ownerDetails.organization_id}`,
-      `/api/users/vehicle-owner/drivers`,
-      `/api/drivers/owner/${ownerDetails.id}`,
-      `/api/assignments/available-drivers`
-    ];
-    
-    const driverResults = [];
-    for (const endpoint of driverEndpoints) {
-      try {
-        const response = await axiosInstance.get(endpoint, { headers: authHeaders });
-        driverResults.push({
-          endpoint,
-          status: response.status,
-          count: response.data?.length || 0,
-          success: true
-        });
-      } catch (error) {
-        driverResults.push({
-          endpoint,
-          status: error.response?.status,
-          error: error.message,
-          success: false
-        });
-      }
-    }
-    
-    return {
-      owner: ownerDetails,
-      cars: carResults,
-      drivers: driverResults
-    };
-  } catch (error) {
-    console.error('❌ Debug test failed:', error);
-    throw error;
-  }
-};
 
 // New function to fetch pending orders
 export interface PendingOrder {

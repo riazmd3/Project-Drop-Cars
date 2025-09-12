@@ -31,7 +31,24 @@ const normalizeLocalUri = (uri: string): string => {
   let fixed = uri;
   // Fix common misspelling from some caches: /useer/ -> /user/
   fixed = fixed.replace('/useer/', '/user/');
+  // Fix occasional path typos
+  fixed = fixed.replace('ExperienceDatta/', 'ExperienceData/');
+  fixed = fixed.replace('anonymmous', 'anonymous');
   return fixed;
+};
+
+// Guess MIME type from URI extension
+const getMimeTypeFromUri = (uri: string): string => {
+  const lower = (uri || '').toLowerCase();
+  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+  if (lower.endsWith('.png')) return 'image/png';
+  if (lower.endsWith('.webp')) return 'image/webp';
+  if (lower.endsWith('.gif')) return 'image/gif';
+  if (lower.endsWith('.bmp')) return 'image/bmp';
+  if (lower.endsWith('.heic')) return 'image/heic';
+  if (lower.endsWith('.heif')) return 'image/heif';
+  if (lower.endsWith('.tif') || lower.endsWith('.tiff')) return 'image/tiff';
+  return 'application/octet-stream';
 };
 
 // Check that file exists before attaching
@@ -42,6 +59,28 @@ const ensureFileExists = async (uri: string): Promise<boolean> => {
   } catch {
     return false;
   }
+};
+
+// Ensure a safe, final URI. If needed, copy to a temp file and use that path
+const getFinalUploadUri = async (uri: string): Promise<string | null> => {
+  const normalized = normalizeLocalUri(uri);
+  const sanitized = normalized.replace('/useer/', '/user/');
+  if (await ensureFileExists(sanitized)) {
+    return sanitized;
+  }
+  // Try original
+  if (await ensureFileExists(uri)) {
+    return uri;
+  }
+  // As a last resort, try copying if normalized exists under a different casing/path
+  try {
+    const tempPath = `${FileSystem.cacheDirectory}upload_${Date.now()}`;
+    await FileSystem.copyAsync({ from: normalized, to: tempPath });
+    if (await ensureFileExists(tempPath)) {
+      return tempPath;
+    }
+  } catch {}
+  return null;
 };
 
 // Single signup API call using FormData for file upload
@@ -60,38 +99,33 @@ export const signupAccount = async (personalData: any, documents: any): Promise<
       // Create FormData for multipart/form-data upload
       const formData = new FormData();
       
-      // Append the image file
+      // Append the image file (only if exists). If not, continue without file to avoid network errors
       if (documents.aadharFront) {
         const rawUri = documents.aadharFront;
-        const imageUri = normalizeLocalUri(rawUri);
-        const looksValidUri = typeof imageUri === 'string' && imageUri.startsWith('file://');
-        if (!looksValidUri) {
-          console.warn('⚠️ Aadhar image URI seems invalid, expected file:// URI:', imageUri);
+        const finalUri = await getFinalUploadUri(rawUri);
+        console.log('🧾 Image final URI resolution:', { rawUri, finalUri });
+        if (finalUri) {
+          const imageName = (finalUri.split('/').pop() || 'aadhar');
+          const imageType = getMimeTypeFromUri(finalUri);
+          formData.append('aadhar_front_img', {
+            uri: finalUri,
+            type: imageType,
+            name: imageName
+          } as any);
+          console.log('🖼️ Image appended to FormData:', { uri: finalUri, type: imageType, name: imageName });
+        } else {
+          console.warn('⚠️ Skipping image append; could not resolve a valid file URI');
         }
-        const exists = looksValidUri ? (await ensureFileExists(imageUri)) : false;
-        if (!exists) {
-          console.warn('⚠️ Aadhar image file does not exist at URI:', imageUri);
-        }
-        const imageName = (imageUri.split('/').pop() || 'aadhar.jpg');
-        const imageType = imageUri.endsWith('.png') ? 'image/png' : 'image/jpeg';
-        
-        formData.append('aadhar_front_img', {
-          uri: imageUri,
-          type: imageType,
-          name: imageName
-        } as any);
-        
-        console.log('🖼️ Image appended to FormData:', { uri: imageUri, type: imageType, name: imageName });
       }
       
-      // Normalize phone numbers to digits only; backend can prepend +91 if required
-      const primaryDigits = toDigitsOnly(personalData.primaryMobile || '');
-      const secondaryDigits = toDigitsOnly(personalData.secondaryMobile || '');
+      // Keep phone numbers in original format for backend compatibility
+      const primaryNumber = personalData.primaryMobile || '';
+      const secondaryNumber = personalData.secondaryMobile || '';
 
       // Append all other fields
       formData.append('full_name', personalData.fullName || '');
-      formData.append('primary_number', primaryDigits);
-      formData.append('secondary_number', secondaryDigits);
+      formData.append('primary_number', primaryNumber);
+      formData.append('secondary_number', secondaryNumber);
       formData.append('password', personalData.password || '');
       formData.append('address', personalData.address || '');
       formData.append('aadhar_number', personalData.aadharNumber || '');
@@ -99,18 +133,20 @@ export const signupAccount = async (personalData: any, documents: any): Promise<
       
       console.log('📤 FormData created with fields:', {
         full_name: personalData.fullName,
-        primary_number: primaryDigits,
-        secondary_number: secondaryDigits,
+        primary_number: primaryNumber,
+        secondary_number: secondaryNumber,
         password: personalData.password,
         address: personalData.address,
         aadhar_number: personalData.aadharNumber,
         organization_id: personalData.organizationId,
-        aadhar_front_img: documents.aadharFront ? 'File attached' : 'No file'
+        aadhar_front_img: documents.aadharFront ? 'File attached (if exists)' : 'No file'
       });
       
       // Make the API call with FormData; let Axios set multipart boundaries
       const response = await axiosInstance.post('/api/users/vehicleowner/signup', formData, {
-        // Do not set Content-Type here; Axios will set correct boundary
+        headers: {
+          'Accept': 'application/json',
+        },
         timeout: 120000, // 2 minutes timeout for file uploads
       });
       
@@ -190,63 +226,6 @@ export const signupAccount = async (personalData: any, documents: any): Promise<
   }
 };
 
-// Test function to check API connectivity
-export const testSignupConnection = async () => {
-  try {
-    console.log('🧪 Testing signup endpoint connectivity...');
-    const response = await axiosInstance.get('/api/users/vehicleowner/signup');
-    console.log('✅ Signup endpoint accessible:', response.status);
-    return true;
-  } catch (error: any) {
-    console.error('❌ Signup endpoint test failed:', error.message);
-    return false;
-  }
-};
-
-// Test function to validate data structure
-export const testSignupDataStructure = (personalData: any, documents: any) => {
-  console.log('🧪 Testing signup data structure for FormData...');
-  
-  const testData = {
-    full_name: personalData.fullName || '',
-    primary_number: toDigitsOnly(personalData.primaryMobile || ''),
-    secondary_number: toDigitsOnly(personalData.secondaryMobile || ''),
-    password: personalData.password || '',
-    address: personalData.address || '',
-    aadhar_number: personalData.aadharNumber || '',
-    organization_id: personalData.organizationId || 'org_001',
-    aadhar_front_img: documents.aadharFront ? 'File will be attached' : 'No file',
-  };
-  
-  console.log('📊 Data Structure Test:');
-  console.log('✅ Required fields present:', {
-    full_name: !!testData.full_name,
-    primary_number: !!testData.primary_number,
-    password: !!testData.password,
-    address: !!testData.address,
-    aadhar_number: !!testData.aadhar_number,
-    organization_id: !!testData.organization_id,
-    aadhar_front_img: !!documents.aadharFront,
-  });
-  
-  console.log('🔍 Field values:');
-  Object.entries(testData).forEach(([key, value]) => {
-    if (key !== 'aadhar_front_img') {
-      console.log(`  ${key}: ${typeof value} = "${value}"`);
-    } else {
-      console.log(`  ${key}: ${documents.aadharFront ? 'File attached' : 'No file'}`);
-    }
-  });
-  
-  const normalized = normalizeLocalUri(documents.aadharFront);
-  console.log('🖼️ Image details:', {
-    uri: normalized,
-    type: documents.aadharFront ? (normalized.endsWith('.png') ? 'image/png' : 'image/jpeg') : 'N/A',
-    name: documents.aadharFront ? normalized.split('/').pop() : 'N/A'
-  });
-  
-  return testData;
-};
 
 // Convenience helper: perform signup then login to get JWT
 export const signupAndLogin = async (personalData: any, documents: any) => {
@@ -667,73 +646,3 @@ export const addCarDetailsWithLogin = async (
   }
 };
 
-// Test function to check car details API connectivity
-export const testCarDetailsConnection = async () => {
-  try {
-    console.log('🧪 Testing car details endpoint connectivity...');
-    const response = await axiosInstance.get('/api/users/cardetails/signup');
-    console.log('✅ Car details endpoint accessible:', response.status);
-    return true;
-  } catch (error: any) {
-    console.error('❌ Car details endpoint test failed:', error.message);
-    return false;
-  }
-};
-
-// Test function to validate car details data structure
-export const testCarDetailsDataStructure = (carData: CarDetailsData) => {
-  console.log('🧪 Testing car details data structure for FormData...');
-  
-  const testData = {
-    car_name: carData.car_name || '',
-    car_type: carData.car_type || '',
-    car_number: carData.car_number || '',
-    organization_id: carData.organization_id || '',
-    vehicle_owner_id: carData.vehicle_owner_id || '',
-    rc_front_img: carData.rc_front_img ? 'File will be attached' : 'No file',
-    rc_back_img: carData.rc_back_img ? 'File will be attached' : 'No file',
-    insurance_img: carData.insurance_img ? 'File will be attached' : 'No file',
-    fc_img: carData.fc_img ? 'File will be attached' : 'No file',
-    car_img: carData.car_img ? 'File will be attached' : 'No file',
-  };
-  
-  console.log('📊 Car Details Data Structure Test:');
-  console.log('✅ Required fields present:', {
-    car_name: !!testData.car_name,
-    car_type: !!testData.car_type,
-    car_number: !!testData.car_number,
-    organization_id: !!testData.organization_id,
-    vehicle_owner_id: !!testData.vehicle_owner_id,
-    rc_front_img: !!carData.rc_front_img,
-    rc_back_img: !!carData.rc_back_img,
-    insurance_img: !!carData.insurance_img,
-    fc_img: !!carData.fc_img,
-    car_img: !!carData.car_img,
-  });
-  
-  console.log('🔍 Field values:');
-  Object.entries(testData).forEach(([key, value]) => {
-    if (key.includes('_img')) {
-      console.log(`  ${key}: ${carData[key as keyof CarDetailsData] ? 'File attached' : 'No file'}`);
-    } else {
-      console.log(`  ${key}: ${typeof value} = "${value}"`);
-    }
-  });
-  
-  console.log('🖼️ Image details:');
-  const imageFields = ['rc_front_img', 'rc_back_img', 'insurance_img', 'fc_img', 'car_img'];
-  imageFields.forEach(field => {
-    const imageUri = carData[field as keyof CarDetailsData];
-    if (imageUri) {
-      console.log(`  ${field}:`, {
-        uri: imageUri,
-        type: imageUri.endsWith('.png') ? 'image/png' : 'image/jpeg',
-        name: imageUri.split('/').pop()
-      });
-    } else {
-      console.log(`  ${field}: No image provided`);
-    }
-  });
-  
-  return testData;
-};

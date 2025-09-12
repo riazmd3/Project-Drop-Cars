@@ -82,15 +82,9 @@ const MOCK_DATA = {
   ] as WalletTransaction[]
 };
 
-// Check if backend is available
+// Check if backend is available (no longer calls /api/health)
 const isBackendAvailable = async (): Promise<boolean> => {
-  try {
-    const response = await axiosInstance.get('/api/health', { timeout: 3000 });
-    return response.status === 200;
-  } catch (error) {
-    console.log('🔧 Backend not available, using mock data');
-    return false;
-  }
+  return true;
 };
 
 /**

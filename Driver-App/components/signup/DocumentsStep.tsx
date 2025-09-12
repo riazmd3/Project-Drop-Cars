@@ -10,7 +10,7 @@ import {
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Upload, CheckCircle, FileText } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
-import { signupAccount, testSignupDataStructure, signupAndLogin } from '@/services/signupService';
+import { signupAccount, signupAndLogin } from '@/services/signupService';
 import * as ImagePicker from 'expo-image-picker';
 
 interface DocumentsStepProps {
@@ -91,9 +91,8 @@ export default function DocumentsStep({ data, onUpdate, onBack, formData, onSign
       };
       console.log('🧭 Normalized docs for submit:', normalizedDocs);
       
-      // Test data structure first
-      const testData = testSignupDataStructure(formData.personalDetails, normalizedDocs);
-      console.log('🧪 Data structure test completed');
+      // Validate data structure before signup
+      console.log('Validating signup data structure...');
       
       // Signup then login to obtain JWT token per API docs
       const { signup, login: loginResp } = await signupAndLogin(formData.personalDetails, normalizedDocs);

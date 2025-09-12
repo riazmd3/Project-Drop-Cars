@@ -173,6 +173,44 @@ export default function LoginScreen() {
     setPassword('secret123');
   };
 
+  const testVehicleOwnerSignupPrefilled = async () => {
+    try {
+      const form = new FormData();
+      form.append('full_name', 'VehicleOwner Test');
+      form.append('primary_number', '9500000000');
+      form.append('secondary_number', '');
+      form.append('password', 'vehicle123');
+      form.append('address', '123 Test Street, Test City');
+      form.append('aadhar_number', '123456789012');
+      form.append('organization_id', 'org_001');
+
+      const tinyJpeg = {
+        uri: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAkGBxAQEhAQEBAQDw8QEA8PDw8QDw8QEA8QFREWFhURFRUYHSggGBolGxUVITEhJSkrLi4uFx8zODMtNygtLisBCgoKDg0OGxAQGy0lHyUtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLf/AABEIAAEAAQMBIgACEQEDEQH/xAAXAAADAQAAAAAAAAAAAAAAAAABAgME/8QAFhABAQEAAAAAAAAAAAAAAAAAABEh/8QAFgEBAQEAAAAAAAAAAAAAAAAAAAEF/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8A7wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//2Q==',
+        type: 'image/jpeg',
+        name: 'aadhar.jpg'
+      } as any;
+      form.append('aadhar_front_img', tinyJpeg);
+
+      console.log('🚀 Sending prefilled VehicleOwner signup request...');
+      const response = await axiosInstance.post('/api/users/vehicleowner/signup', form, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+          'Accept': 'application/json'
+        }
+      });
+
+      console.log(`✅ Prefilled signup successful: ${response.status}`);
+      console.log(`   Response: ${JSON.stringify(response.data, null, 2)}`);
+      Alert.alert('Success', `Signup successful!\nStatus: ${response.status}\nResponse: ${JSON.stringify(response.data)}`);
+    } catch (error: any) {
+      console.error(`❌ Prefilled signup failed: ${error.message}`);
+      if (error.code) console.log(`   Code: ${error.code}`);
+      if (error.response?.status) console.log(`   Status: ${error.response.status}`);
+      if (error.response?.data) console.log(`   Data: ${JSON.stringify(error.response.data)}`);
+      Alert.alert('Error', `Signup failed: ${error.message}`);
+    }
+  };
+
   const handleWelcomeComplete = () => {
     setShowWelcome(false);
     router.replace('/(tabs)');
@@ -321,6 +359,10 @@ export default function LoginScreen() {
 
             <TouchableOpacity onPress={autoFillTestCredentials} style={styles.testButton}>
               <Text style={styles.testButtonText}>Use Test Credentials</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={testVehicleOwnerSignupPrefilled} style={styles.testButton}>
+              <Text style={styles.testButtonText}>Test VehicleOwner Signup API</Text>
             </TouchableOpacity>
 
             <TouchableOpacity onPress={() => router.push('/signup')}>

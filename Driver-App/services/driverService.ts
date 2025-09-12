@@ -24,6 +24,19 @@ export interface DriverResponse {
   status: string;
 }
 
+const getMimeTypeFromUri = (uri: string): string => {
+  const lower = (uri || '').toLowerCase();
+  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+  if (lower.endsWith('.png')) return 'image/png';
+  if (lower.endsWith('.webp')) return 'image/webp';
+  if (lower.endsWith('.gif')) return 'image/gif';
+  if (lower.endsWith('.bmp')) return 'image/bmp';
+  if (lower.endsWith('.heic')) return 'image/heic';
+  if (lower.endsWith('.heif')) return 'image/heif';
+  if (lower.endsWith('.tif') || lower.endsWith('.tiff')) return 'image/tiff';
+  return 'application/octet-stream';
+};
+
 export const addDriverDetails = async (driverData: DriverDetails): Promise<DriverResponse> => {
   try {
     console.log('🚗 Starting driver details registration...');
@@ -48,8 +61,8 @@ export const addDriverDetails = async (driverData: DriverDetails): Promise<Drive
     if (driverData.licence_front_img) {
       formData.append('licence_front_img', {
         uri: driverData.licence_front_img,
-        type: 'image/jpeg',
-        name: 'licence_front.jpg'
+        type: getMimeTypeFromUri(driverData.licence_front_img),
+        name: 'licence_front'
       } as any);
       console.log('🖼️ licence_front_img appended to FormData');
     }
@@ -57,8 +70,8 @@ export const addDriverDetails = async (driverData: DriverDetails): Promise<Drive
     if (driverData.rc_front_img) {
       formData.append('rc_front_img', {
         uri: driverData.rc_front_img,
-        type: 'image/jpeg',
-        name: 'rc_front.jpg'
+        type: getMimeTypeFromUri(driverData.rc_front_img),
+        name: 'rc_front'
       } as any);
       console.log('🖼️ rc_front_img appended to FormData');
     }
@@ -66,8 +79,8 @@ export const addDriverDetails = async (driverData: DriverDetails): Promise<Drive
     if (driverData.rc_back_img) {
       formData.append('rc_back_img', {
         uri: driverData.rc_back_img,
-        type: 'image/jpeg',
-        name: 'rc_back.jpg'
+        type: getMimeTypeFromUri(driverData.rc_back_img),
+        name: 'rc_back'
       } as any);
       console.log('🖼️ rc_back_img appended to FormData');
     }
@@ -75,8 +88,8 @@ export const addDriverDetails = async (driverData: DriverDetails): Promise<Drive
     if (driverData.insurance_img) {
       formData.append('insurance_img', {
         uri: driverData.insurance_img,
-        type: 'image/jpeg',
-        name: 'insurance.jpg'
+        type: getMimeTypeFromUri(driverData.insurance_img),
+        name: 'insurance'
       } as any);
       console.log('🖼️ insurance_img appended to FormData');
     }
@@ -84,8 +97,8 @@ export const addDriverDetails = async (driverData: DriverDetails): Promise<Drive
     if (driverData.fc_img) {
       formData.append('fc_img', {
         uri: driverData.fc_img,
-        type: 'image/jpeg',
-        name: 'fc.jpg'
+        type: getMimeTypeFromUri(driverData.fc_img),
+        name: 'fc'
       } as any);
       console.log('🖼️ fc_img appended to FormData');
     }
@@ -93,8 +106,8 @@ export const addDriverDetails = async (driverData: DriverDetails): Promise<Drive
     if (driverData.car_img) {
       formData.append('car_img', {
         uri: driverData.car_img,
-        type: 'image/jpeg',
-        name: 'car.jpg'
+        type: getMimeTypeFromUri(driverData.car_img),
+        name: 'car'
       } as any);
       console.log('🖼️ car_img appended to FormData');
     }
