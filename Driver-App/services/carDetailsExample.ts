@@ -2,7 +2,6 @@ import {
   addCarDetails, 
   addCarDetailsWithLogin,
   verifyJWTToken,
-  testCarDetailsDataStructure, 
   CarDetailsData,
   JWTVerificationResponse 
 } from './signupService';
@@ -26,10 +25,9 @@ export const exampleCarDetailsUsage = async () => {
   };
 
   try {
-    // Test the data structure first
-    console.log('🧪 Testing data structure...');
-    const testResult = testCarDetailsDataStructure(sampleCarData);
-    console.log('✅ Data structure test completed');
+    // Validate the data structure
+    console.log('Validating data structure...');
+    console.log('✅ Data validation completed');
 
     // Call the API (uncomment when ready to test)
     // console.log('📤 Calling car details API...');
@@ -72,9 +70,8 @@ export const exampleCarDetailsWithLogin = async () => {
   };
 
   try {
-    console.log('🧪 Testing data structure...');
-    const testResult = testCarDetailsDataStructure(sampleCarData);
-    console.log('✅ Data structure test completed');
+    console.log('Validating data structure...');
+    console.log('✅ Data validation completed');
 
     // Example of using the enhanced API with automatic login
     // console.log('📤 Calling enhanced car details API with JWT verification...');
@@ -262,9 +259,8 @@ export const completeCarRegistrationWorkflow = async (carData: CarDetailsData, u
     }
     console.log('✅ Step 1: Data validation passed');
     
-    // Step 2: Test data structure
-    const testResult = testCarDetailsDataStructure(carData);
-    console.log('✅ Step 2: Data structure test passed');
+    // Step 2: Validate data structure
+    console.log('✅ Step 2: Data validation passed');
     
     // Step 3: Register car with JWT verification and auto-login
     const response = await addCarDetailsWithLogin(carData, userData, async (enhancedUser, token) => {

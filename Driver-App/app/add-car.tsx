@@ -12,7 +12,7 @@ import {
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Car, Save, Upload, CheckCircle, FileText, Image, ChevronDown } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
-import { addCarDetails, testCarDetailsDataStructure } from '@/services/signupService';
+import { addCarDetails } from '@/services/signupService';
 import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store';
 import axiosInstance from '@/app/api/axiosInstance';
@@ -159,7 +159,6 @@ export default function AddCarScreen() {
         car_img: carImages.carImage
       };
 
-      testCarDetailsDataStructure(payload);
       await addCarDetails(payload);
 
       Alert.alert(

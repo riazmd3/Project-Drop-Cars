@@ -1,6 +1,5 @@
 import axiosInstance from '@/app/api/axiosInstance';
 import { authService, getAuthHeaders } from './authService';
-import * as FileSystem from 'expo-file-system';
 
 // Single API call interface matching your working Postman request
 export interface SignupData {
@@ -22,67 +21,6 @@ export interface SignupResponse {
   status: string;
 }
 
-// Helper: normalize Indian phone number to digits only with optional +91 added by backend
-const toDigitsOnly = (phone: string): string => (phone || '').replace(/\D/g, '');
-
-// Helper: normalize common URI issues
-const normalizeLocalUri = (uri: string): string => {
-  if (!uri) return uri;
-  let fixed = uri;
-  // Fix common misspelling from some caches: /useer/ -> /user/
-  fixed = fixed.replace('/useer/', '/user/');
-  // Fix occasional path typos
-  fixed = fixed.replace('ExperienceDatta/', 'ExperienceData/');
-  fixed = fixed.replace('anonymmous', 'anonymous');
-  return fixed;
-};
-
-// Guess MIME type from URI extension
-const getMimeTypeFromUri = (uri: string): string => {
-  const lower = (uri || '').toLowerCase();
-  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
-  if (lower.endsWith('.png')) return 'image/png';
-  if (lower.endsWith('.webp')) return 'image/webp';
-  if (lower.endsWith('.gif')) return 'image/gif';
-  if (lower.endsWith('.bmp')) return 'image/bmp';
-  if (lower.endsWith('.heic')) return 'image/heic';
-  if (lower.endsWith('.heif')) return 'image/heif';
-  if (lower.endsWith('.tif') || lower.endsWith('.tiff')) return 'image/tiff';
-  return 'application/octet-stream';
-};
-
-// Check that file exists before attaching
-const ensureFileExists = async (uri: string): Promise<boolean> => {
-  try {
-    const info = await FileSystem.getInfoAsync(uri);
-    return !!info.exists;
-  } catch {
-    return false;
-  }
-};
-
-// Ensure a safe, final URI. If needed, copy to a temp file and use that path
-const getFinalUploadUri = async (uri: string): Promise<string | null> => {
-  const normalized = normalizeLocalUri(uri);
-  const sanitized = normalized.replace('/useer/', '/user/');
-  
-  // Try sanitized first
-  if (await ensureFileExists(sanitized)) {
-    return sanitized;
-  }
-  // Try normalized
-  if (await ensureFileExists(normalized)) {
-    return normalized;
-  }
-  // Try original
-  if (await ensureFileExists(uri)) {
-    return uri;
-  }
-  
-  console.warn('⚠️ File not found at any URI variant:', { uri, normalized, sanitized });
-  return null;
-};
-
 // Single signup API call using FormData for file upload
 export const signupAccount = async (personalData: any, documents: any): Promise<SignupResponse> => {
   console.log('🚀 Starting signup process with FormData...');
@@ -99,53 +37,61 @@ export const signupAccount = async (personalData: any, documents: any): Promise<
       // Create FormData for multipart/form-data upload
       const formData = new FormData();
       
-      // Append the image file (only if exists). If not, continue without file to avoid network errors
+      // Append the image file
       if (documents.aadharFront) {
-        const rawUri = documents.aadharFront;
-        const finalUri = await getFinalUploadUri(rawUri);
-        console.log('🧾 Image final URI resolution:', { rawUri, finalUri });
-        if (finalUri) {
-          const imageName = (finalUri.split('/').pop() || 'aadhar');
-          const imageType = getMimeTypeFromUri(finalUri);
-          formData.append('aadhar_front_img', {
-            uri: finalUri,
-            type: imageType,
-            name: imageName
-          } as any);
-          console.log('🖼️ Image appended to FormData:', { uri: finalUri, type: imageType, name: imageName });
-        } else {
-          console.warn('⚠️ Skipping image append; could not resolve a valid file URI');
-        }
+        const imageUri = documents.aadharFront;
+        const imageName = imageUri.split('/').pop() || 'aadhar.jpg';
+        const imageType = imageUri.endsWith('.png') ? 'image/png' : 'image/jpeg';
+        
+        formData.append('aadhar_front_img', {
+          uri: imageUri,
+          type: imageType,
+          name: imageName
+        } as any);
+        
+        console.log('🖼️ Image appended to FormData:', { uri: imageUri, type: imageType, name: imageName });
       }
       
-      // Extract only digits from phone numbers (10 digits without +91)
-      const primaryNumber = (personalData.primaryMobile || '').replace(/\D/g, '');
-      const secondaryNumber = (personalData.secondaryMobile || '').replace(/\D/g, '');
+      // Helper function to format phone numbers for backend
+      const formatPhoneForBackend = (phone: string): string => {
+        if (!phone || !phone.trim()) return '';
+        // Remove +91 prefix if present and ensure it's properly formatted
+        const cleanPhone = phone.replace(/^\+91/, '').trim();
+        if (!cleanPhone) return '';
+        // Add +91 prefix back
+        return `+91${cleanPhone}`;
+      };
 
-      // Append all other fields
-      formData.append('full_name', personalData.fullName || '');
-      formData.append('primary_number', primaryNumber);
-      formData.append('secondary_number', secondaryNumber);
-      formData.append('password', personalData.password || '');
-      formData.append('address', personalData.address || '');
-      formData.append('aadhar_number', personalData.aadharNumber || '');
-      formData.append('organization_id', personalData.organizationId || 'org_001');
+       // Append all other fields
+       formData.append('full_name', personalData.fullName || '');
+       formData.append('primary_number', formatPhoneForBackend(personalData.primaryMobile || ''));
+       // Send null instead of empty string for secondary_number to pass backend validation
+       const formattedSecondary = formatPhoneForBackend(personalData.secondaryMobile || '');
+       if (formattedSecondary) {
+         formData.append('secondary_number', formattedSecondary);
+       } else {
+         formData.append('secondary_number', null as any);
+       }
+       formData.append('password', personalData.password || '');
+       formData.append('address', personalData.address || '');
+       formData.append('aadhar_number', personalData.aadharNumber || '');
+       formData.append('organization_id', personalData.organizationId || 'org_001');
       
       console.log('📤 FormData created with fields:', {
         full_name: personalData.fullName,
-        primary_number: primaryNumber,
-        secondary_number: secondaryNumber,
+        primary_number: personalData.primaryMobile,
+        secondary_number: personalData.secondaryMobile,
         password: personalData.password,
         address: personalData.address,
         aadhar_number: personalData.aadharNumber,
         organization_id: personalData.organizationId,
-        aadhar_front_img: documents.aadharFront ? 'File attached (if exists)' : 'No file'
+        aadhar_front_img: documents.aadharFront ? 'File attached' : 'No file'
       });
       
-      // Make the API call with FormData; let Axios set multipart boundaries
+      // Make the API call with FormData
       const response = await axiosInstance.post('/api/users/vehicleowner/signup', formData, {
         headers: {
-          'Accept': 'application/json',
+          'Content-Type': 'multipart/form-data',
         },
         timeout: 120000, // 2 minutes timeout for file uploads
       });
@@ -226,6 +172,62 @@ export const signupAccount = async (personalData: any, documents: any): Promise<
   }
 };
 
+// Test function to check API connectivity
+export const testSignupConnection = async () => {
+  try {
+    console.log('🧪 Testing signup endpoint connectivity...');
+    const response = await axiosInstance.get('/api/users/vehicleowner/signup');
+    console.log('✅ Signup endpoint accessible:', response.status);
+    return true;
+  } catch (error: any) {
+    console.error('❌ Signup endpoint test failed:', error.message);
+    return false;
+  }
+};
+
+// Test function to validate data structure
+export const testSignupDataStructure = (personalData: any, documents: any) => {
+  console.log('🧪 Testing signup data structure for FormData...');
+  
+  const testData = {
+    full_name: personalData.fullName || '',
+    primary_number: personalData.primaryMobile || '',
+    secondary_number: personalData.secondaryMobile || '',
+    password: personalData.password || '',
+    address: personalData.address || '',
+    aadhar_number: personalData.aadharNumber || '',
+    organization_id: personalData.organizationId || 'org_001',
+    aadhar_front_img: documents.aadharFront ? 'File will be attached' : 'No file',
+  };
+  
+  console.log('📊 Data Structure Test:');
+  console.log('✅ Required fields present:', {
+    full_name: !!testData.full_name,
+    primary_number: !!testData.primary_number,
+    password: !!testData.password,
+    address: !!testData.address,
+    aadhar_number: !!testData.aadhar_number,
+    organization_id: !!testData.organization_id,
+    aadhar_front_img: !!documents.aadharFront,
+  });
+  
+  console.log('🔍 Field values:');
+  Object.entries(testData).forEach(([key, value]) => {
+    if (key !== 'aadhar_front_img') {
+      console.log(`  ${key}: ${typeof value} = "${value}"`);
+    } else {
+      console.log(`  ${key}: ${documents.aadharFront ? 'File attached' : 'No file'}`);
+    }
+  });
+  
+  console.log('🖼️ Image details:', {
+    uri: documents.aadharFront,
+    type: documents.aadharFront ? (documents.aadharFront.endsWith('.png') ? 'image/png' : 'image/jpeg') : 'N/A',
+    name: documents.aadharFront ? documents.aadharFront.split('/').pop() : 'N/A'
+  });
+  
+  return testData;
+};
 
 // Convenience helper: perform signup then login to get JWT
 export const signupAndLogin = async (personalData: any, documents: any) => {
@@ -235,8 +237,18 @@ export const signupAndLogin = async (personalData: any, documents: any) => {
     throw new Error('Signup did not complete successfully');
   }
 
-  // Use digits-only for login to match signup format (10 digits without +91)
-  const mobileForLogin = (personalData.primaryMobile || '').replace(/\D/g, '');
+  // Use the SAME phone number format for login as used in signup
+  // Apply the same formatting function to ensure consistency
+  const formatPhoneForBackend = (phone: string): string => {
+    if (!phone || !phone.trim()) return '';
+    // Remove +91 prefix if present and ensure it's properly formatted
+    const cleanPhone = phone.replace(/^\+91/, '').trim();
+    if (!cleanPhone) return '';
+    // Add +91 prefix back
+    return `+91${cleanPhone}`;
+  };
+  
+  const mobileForLogin = formatPhoneForBackend(personalData.primaryMobile || '');
   
   console.log('🔐 Using consistent phone format for login:', {
     original: personalData.primaryMobile,
@@ -646,3 +658,73 @@ export const addCarDetailsWithLogin = async (
   }
 };
 
+// Test function to check car details API connectivity
+export const testCarDetailsConnection = async () => {
+  try {
+    console.log('🧪 Testing car details endpoint connectivity...');
+    const response = await axiosInstance.get('/api/users/cardetails/signup');
+    console.log('✅ Car details endpoint accessible:', response.status);
+    return true;
+  } catch (error: any) {
+    console.error('❌ Car details endpoint test failed:', error.message);
+    return false;
+  }
+};
+
+// Test function to validate car details data structure
+export const testCarDetailsDataStructure = (carData: CarDetailsData) => {
+  console.log('🧪 Testing car details data structure for FormData...');
+  
+  const testData = {
+    car_name: carData.car_name || '',
+    car_type: carData.car_type || '',
+    car_number: carData.car_number || '',
+    organization_id: carData.organization_id || '',
+    vehicle_owner_id: carData.vehicle_owner_id || '',
+    rc_front_img: carData.rc_front_img ? 'File will be attached' : 'No file',
+    rc_back_img: carData.rc_back_img ? 'File will be attached' : 'No file',
+    insurance_img: carData.insurance_img ? 'File will be attached' : 'No file',
+    fc_img: carData.fc_img ? 'File will be attached' : 'No file',
+    car_img: carData.car_img ? 'File will be attached' : 'No file',
+  };
+  
+  console.log('📊 Car Details Data Structure Test:');
+  console.log('✅ Required fields present:', {
+    car_name: !!testData.car_name,
+    car_type: !!testData.car_type,
+    car_number: !!testData.car_number,
+    organization_id: !!testData.organization_id,
+    vehicle_owner_id: !!testData.vehicle_owner_id,
+    rc_front_img: !!carData.rc_front_img,
+    rc_back_img: !!carData.rc_back_img,
+    insurance_img: !!carData.insurance_img,
+    fc_img: !!carData.fc_img,
+    car_img: !!carData.car_img,
+  });
+  
+  console.log('🔍 Field values:');
+  Object.entries(testData).forEach(([key, value]) => {
+    if (key.includes('_img')) {
+      console.log(`  ${key}: ${carData[key as keyof CarDetailsData] ? 'File attached' : 'No file'}`);
+    } else {
+      console.log(`  ${key}: ${typeof value} = "${value}"`);
+    }
+  });
+  
+  console.log('🖼️ Image details:');
+  const imageFields = ['rc_front_img', 'rc_back_img', 'insurance_img', 'fc_img', 'car_img'];
+  imageFields.forEach(field => {
+    const imageUri = carData[field as keyof CarDetailsData];
+    if (imageUri) {
+      console.log(`  ${field}:`, {
+        uri: imageUri,
+        type: imageUri.endsWith('.png') ? 'image/png' : 'image/jpeg',
+        name: imageUri.split('/').pop()
+      });
+    } else {
+      console.log(`  ${field}: No image provided`);
+    }
+  });
+  
+  return testData;
+};

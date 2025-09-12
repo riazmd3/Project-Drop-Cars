@@ -175,39 +175,61 @@ export default function LoginScreen() {
 
   const testVehicleOwnerSignupPrefilled = async () => {
     try {
-      const form = new FormData();
-      form.append('full_name', 'VehicleOwner Test');
-      form.append('primary_number', '9500000000');
-      form.append('secondary_number', '');
-      form.append('password', 'vehicle123');
-      form.append('address', '123 Test Street, Test City');
-      form.append('aadhar_number', '123456789012');
-      form.append('organization_id', 'org_001');
+      // Test 1: Without image first
+      const formNoImage = new FormData();
+      formNoImage.append('full_name', 'VehicleOwner Test');
+      formNoImage.append('primary_number', '+919500000000');
+      formNoImage.append('secondary_number', null as any); // Send null instead of empty string
+      formNoImage.append('password', 'vehicle123');
+      formNoImage.append('address', '123 Test Street, Test City');
+      formNoImage.append('aadhar_number', '123456789012');
+      formNoImage.append('organization_id', 'org_001');
 
-      const tinyJpeg = {
-        uri: 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wCEAAkGBxAQEhAQEBAQDw8QEA8PDw8QDw8QEA8QFREWFhURFRUYHSggGBolGxUVITEhJSkrLi4uFx8zODMtNygtLisBCgoKDg0OGxAQGy0lHyUtLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLS0tLf/AABEIAAEAAQMBIgACEQEDEQH/xAAXAAADAQAAAAAAAAAAAAAAAAABAgME/8QAFhABAQEAAAAAAAAAAAAAAAAAABEh/8QAFgEBAQEAAAAAAAAAAAAAAAAAAAEF/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8A7wAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA//2Q==',
-        type: 'image/jpeg',
-        name: 'aadhar.jpg'
-      } as any;
-      form.append('aadhar_front_img', tinyJpeg);
-
-      console.log('🚀 Sending prefilled VehicleOwner signup request...');
-      const response = await axiosInstance.post('/api/users/vehicleowner/signup', form, {
+      console.log('🚀 Testing signup WITHOUT image first...');
+      const response1 = await axiosInstance.post('/api/users/vehicleowner/signup', formNoImage, {
         headers: {
-          'Content-Type': 'multipart/form-data',
           'Accept': 'application/json'
         }
       });
 
-      console.log(`✅ Prefilled signup successful: ${response.status}`);
-      console.log(`   Response: ${JSON.stringify(response.data, null, 2)}`);
-      Alert.alert('Success', `Signup successful!\nStatus: ${response.status}\nResponse: ${JSON.stringify(response.data)}`);
+      console.log(`✅ Signup without image successful: ${response1.status}`);
+      Alert.alert('Success', `Signup without image successful!\nStatus: ${response1.status}`);
+      
     } catch (error: any) {
-      console.error(`❌ Prefilled signup failed: ${error.message}`);
+      console.error(`❌ Signup test failed: ${error.message}`);
       if (error.code) console.log(`   Code: ${error.code}`);
       if (error.response?.status) console.log(`   Status: ${error.response.status}`);
       if (error.response?.data) console.log(`   Data: ${JSON.stringify(error.response.data)}`);
       Alert.alert('Error', `Signup failed: ${error.message}`);
+    }
+  };
+
+  const testCarDetailsWithoutImages = async () => {
+    try {
+      const formNoImages = new FormData();
+      formNoImages.append('car_name', 'Test Car');
+      formNoImages.append('car_type', 'SEDAN');
+      formNoImages.append('car_number', 'TEST123');
+      formNoImages.append('organization_id', 'org_001');
+      formNoImages.append('vehicle_owner_id', 'b04be5e6-391c-4af9-9903-aa0fc6bfabe0');
+
+      console.log('🚗 Testing car details WITHOUT images...');
+      const response = await axiosInstance.post('/api/users/cardetails/signup', formNoImages, {
+        headers: {
+          'Accept': 'application/json',
+          'Authorization': `Bearer ${await SecureStore.getItemAsync('authToken')}`
+        }
+      });
+
+      console.log(`✅ Car details without images successful: ${response.status}`);
+      Alert.alert('Success', `Car details without images successful!\nStatus: ${response.status}`);
+      
+    } catch (error: any) {
+      console.error(`❌ Car details test failed: ${error.message}`);
+      if (error.code) console.log(`   Code: ${error.code}`);
+      if (error.response?.status) console.log(`   Status: ${error.response.status}`);
+      if (error.response?.data) console.log(`   Data: ${JSON.stringify(error.response.data)}`);
+      Alert.alert('Error', `Car details failed: ${error.message}`);
     }
   };
 
@@ -363,6 +385,10 @@ export default function LoginScreen() {
 
             <TouchableOpacity onPress={testVehicleOwnerSignupPrefilled} style={styles.testButton}>
               <Text style={styles.testButtonText}>Test VehicleOwner Signup API</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={testCarDetailsWithoutImages} style={styles.testButton}>
+              <Text style={styles.testButtonText}>Test Car Details Without Images</Text>
             </TouchableOpacity>
 
             <TouchableOpacity onPress={() => router.push('/signup')}>
