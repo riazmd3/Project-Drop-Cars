@@ -65,21 +65,21 @@ const ensureFileExists = async (uri: string): Promise<boolean> => {
 const getFinalUploadUri = async (uri: string): Promise<string | null> => {
   const normalized = normalizeLocalUri(uri);
   const sanitized = normalized.replace('/useer/', '/user/');
+  
+  // Try sanitized first
   if (await ensureFileExists(sanitized)) {
     return sanitized;
+  }
+  // Try normalized
+  if (await ensureFileExists(normalized)) {
+    return normalized;
   }
   // Try original
   if (await ensureFileExists(uri)) {
     return uri;
   }
-  // As a last resort, try copying if normalized exists under a different casing/path
-  try {
-    const tempPath = `${FileSystem.cacheDirectory}upload_${Date.now()}`;
-    await FileSystem.copyAsync({ from: normalized, to: tempPath });
-    if (await ensureFileExists(tempPath)) {
-      return tempPath;
-    }
-  } catch {}
+  
+  console.warn('⚠️ File not found at any URI variant:', { uri, normalized, sanitized });
   return null;
 };
 
@@ -118,9 +118,9 @@ export const signupAccount = async (personalData: any, documents: any): Promise<
         }
       }
       
-      // Keep phone numbers in original format for backend compatibility
-      const primaryNumber = personalData.primaryMobile || '';
-      const secondaryNumber = personalData.secondaryMobile || '';
+      // Extract only digits from phone numbers (10 digits without +91)
+      const primaryNumber = (personalData.primaryMobile || '').replace(/\D/g, '');
+      const secondaryNumber = (personalData.secondaryMobile || '').replace(/\D/g, '');
 
       // Append all other fields
       formData.append('full_name', personalData.fullName || '');
@@ -235,8 +235,8 @@ export const signupAndLogin = async (personalData: any, documents: any) => {
     throw new Error('Signup did not complete successfully');
   }
 
-  // Use digits-only for login to match signup format
-  const mobileForLogin = toDigitsOnly(personalData.primaryMobile || '');
+  // Use digits-only for login to match signup format (10 digits without +91)
+  const mobileForLogin = (personalData.primaryMobile || '').replace(/\D/g, '');
   
   console.log('🔐 Using consistent phone format for login:', {
     original: personalData.primaryMobile,

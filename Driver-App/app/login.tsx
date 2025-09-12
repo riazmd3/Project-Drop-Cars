@@ -67,8 +67,8 @@ export default function LoginScreen() {
       const { withPlus, ten } = formatForBackend(phoneNumber);
       
       const payload = {
-        mobile_number: withPlus,
-        primary_number: withPlus, // Some environments expect +91 in primary_number
+        mobile_number: ten, // Send 10 digits only
+        primary_number: ten, // Send 10 digits only
         password: password,
       } as any;
 
@@ -219,11 +219,11 @@ export default function LoginScreen() {
   const handleRefreshStatus = async () => {
     try {
       setLoading(true);
-      const { withPlus } = formatForBackend(phoneNumber);
+      const { ten } = formatForBackend(phoneNumber);
       // Make a request to check current account status
       const response = await axiosInstance.post('/api/users/vehicleowner/login', {
-        mobile_number: withPlus,
-        primary_number: withPlus,
+        mobile_number: ten,
+        primary_number: ten,
         password: password
       });
       
