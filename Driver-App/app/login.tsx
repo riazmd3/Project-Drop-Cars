@@ -179,7 +179,7 @@ export default function LoginScreen() {
       const formNoImage = new FormData();
       formNoImage.append('full_name', 'VehicleOwner Test');
       formNoImage.append('primary_number', '+919500000000');
-      formNoImage.append('secondary_number', null as any); // Send null instead of empty string
+      // Don't append secondary_number at all - let backend handle as optional
       formNoImage.append('password', 'vehicle123');
       formNoImage.append('address', '123 Test Street, Test City');
       formNoImage.append('aadhar_number', '123456789012');

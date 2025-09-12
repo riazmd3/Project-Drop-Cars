@@ -65,13 +65,12 @@ export const signupAccount = async (personalData: any, documents: any): Promise<
        // Append all other fields
        formData.append('full_name', personalData.fullName || '');
        formData.append('primary_number', formatPhoneForBackend(personalData.primaryMobile || ''));
-       // Send null instead of empty string for secondary_number to pass backend validation
+       // Only append secondary_number if it has a value, otherwise skip it entirely
        const formattedSecondary = formatPhoneForBackend(personalData.secondaryMobile || '');
        if (formattedSecondary) {
          formData.append('secondary_number', formattedSecondary);
-       } else {
-         formData.append('secondary_number', null as any);
        }
+       // Don't append anything if secondary number is empty - let backend handle it as optional
        formData.append('password', personalData.password || '');
        formData.append('address', personalData.address || '');
        formData.append('aadhar_number', personalData.aadharNumber || '');
@@ -79,8 +78,8 @@ export const signupAccount = async (personalData: any, documents: any): Promise<
       
       console.log('📤 FormData created with fields:', {
         full_name: personalData.fullName,
-        primary_number: personalData.primaryMobile,
-        secondary_number: personalData.secondaryMobile,
+        primary_number: formatPhoneForBackend(personalData.primaryMobile || ''),
+        secondary_number: formattedSecondary || 'Not provided (skipped)',
         password: personalData.password,
         address: personalData.address,
         aadhar_number: personalData.aadharNumber,
