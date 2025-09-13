@@ -29,7 +29,7 @@ export interface CarDriverResponse {
   address: string;
   aadhar_number: string;
   organization_id: string;
-  status: 'ONLINE' | 'DRIVING' | 'BLOCKED' | 'PROCESSING' | 'offline' | 'busy' | 'inactive';
+  status: 'ONLINE' | 'DRIVING' | 'BLOCKED' | 'PROCESSING' | 'offline'| 'inactive';
   email?: string;
   license_number?: string;
   experience_years?: number;
@@ -593,7 +593,7 @@ export const deleteCarDriver = async (driverId: string): Promise<{ success: bool
  */
 export const searchDrivers = async (filters: {
   organization_id?: string;
-  status?: 'online' | 'offline' | 'busy' | 'inactive';
+  status?: 'online' | 'offline'| 'inactive';
   vehicle_type?: string;
   experience_min?: number;
   experience_max?: number;

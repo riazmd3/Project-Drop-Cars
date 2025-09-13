@@ -63,6 +63,9 @@ export default function FutureRidesScreen() {
         fetchAvailableCars()
       ]);
       
+      console.log('🔍 Raw drivers from API:', drivers);
+      console.log('🔍 Dashboard drivers for comparison:', dashboardData?.drivers);
+      
       setAvailableDrivers(drivers);
       setAvailableCars(cars);
       
@@ -74,11 +77,17 @@ export default function FutureRidesScreen() {
       console.error('❌ Failed to fetch available assignments:', error);
       // Fallback to dashboard data if assignment endpoints fail
       // Convert dashboard data to assignment format
-      const fallbackDrivers: AvailableDriver[] = (dashboardData?.drivers || []).map(driver => ({
-        ...driver,
-        is_available: true, // Assume available as fallback
-        current_assignment: undefined
-      }));
+      const fallbackDrivers: AvailableDriver[] = (dashboardData?.drivers || [])
+        .filter(driver => driver.driver_status === 'ONLINE' || driver.driver_status === 'PROCESSING') // Include ONLINE and PROCESSING drivers
+        .map(driver => ({
+          ...driver,
+          address: driver.adress, // Map adress to address
+          aadhar_number: driver.licence_number, // Map licence_number to aadhar_number
+          status: driver.driver_status, // Map driver_status to status
+          updated_at: driver.created_at, // Use created_at as updated_at fallback
+          is_available: true, // Assume available as fallback
+          current_assignment: undefined
+        }));
       
       const fallbackCars: AvailableCar[] = (dashboardData?.cars || []).map(car => ({
         ...car,
@@ -182,7 +191,7 @@ export default function FutureRidesScreen() {
     ) : (
       <View style={[dynamicStyles.availabilityBadge, { backgroundColor: '#EF4444' }]}>
         <AlertCircle color="#FFFFFF" size={12} />
-        <Text style={dynamicStyles.availabilityText}>Busy</Text>
+        <Text style={dynamicStyles.availabilityText}>Unavailable</Text>
       </View>
     );
   };
@@ -449,15 +458,6 @@ export default function FutureRidesScreen() {
       fontFamily: 'Inter-Medium',
       color: '#FFFFFF',
     },
-    loadingContainer: {
-      padding: 20,
-      alignItems: 'center',
-    },
-    loadingText: {
-      fontSize: 16,
-      fontFamily: 'Inter-Medium',
-      color: colors.textSecondary,
-    },
     selectButtonDisabled: {
       backgroundColor: colors.border,
       opacity: 0.6,
@@ -615,7 +615,7 @@ export default function FutureRidesScreen() {
                         dynamicStyles.selectButtonText,
                         !driver.is_available && dynamicStyles.selectButtonTextDisabled
                       ]}>
-                        {driver.is_available ? 'Select' : 'Busy'}
+                        {driver.is_available ? 'Select' : 'Unavailable'}
                       </Text>
                     </TouchableOpacity>
                   </View>
@@ -677,7 +677,7 @@ export default function FutureRidesScreen() {
                         dynamicStyles.selectButtonText,
                         !car.is_available && dynamicStyles.selectButtonTextDisabled
                       ]}>
-                        {car.is_available ? 'Select' : 'Busy'}
+                        {car.is_available ? 'Select' : 'Unavailable'}
                       </Text>
                     </TouchableOpacity>
                   </View>

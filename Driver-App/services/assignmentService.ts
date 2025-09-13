@@ -78,33 +78,69 @@ export const fetchAvailableDrivers = async (): Promise<AvailableDriver[]> => {
     console.log('👤 Fetching available drivers from assignment endpoint...');
     
     const authHeaders = await getAuthHeaders();
-    const response = await axiosInstance.get('/api/assignments/available-drivers', {
-      headers: authHeaders
-    });
+    
+    // Try the assignment endpoint first
+    let response;
+    try {
+      response = await axiosInstance.get('/api/assignments/available-drivers', {
+        headers: authHeaders
+      });
+    } catch (assignmentError) {
+      console.log('⚠️ Assignment endpoint failed, trying users endpoint...');
+      // Fallback to users endpoint
+      response = await axiosInstance.get('/api/users/available-drivers', {
+        headers: authHeaders
+      });
+    }
 
     if (response.data) {
       console.log('✅ Available drivers fetched successfully:', response.data.length, 'drivers');
       
       // Filter and log driver availability details
       const availableDrivers = response.data.filter((driver: any) => {
-        const isAvailable = driver.is_available !== false && 
-                           driver.status !== 'busy' && 
-                           driver.status !== 'DRIVING' &&
-                           driver.status !== 'BLOCKED' &&
-                           !driver.current_assignment;
+        // Handle different API response formats
+        const driverStatus = driver.driver_status || driver.status;
+        const isAvailable = driver.is_available !== false;
+        const hasCurrentAssignment = driver.current_assignment;
+        
+        // A driver is available if:
+        // 1. Their status is ONLINE or PROCESSING (both can be assigned)
+        // 2. They don't have a current assignment
+        // 3. They are not explicitly marked as unavailable
+        const isAvailableForAssignment = (driverStatus === 'ONLINE' || driverStatus === 'online' || 
+                                        driverStatus === 'PROCESSING' || driverStatus === 'processing') &&
+                                        !hasCurrentAssignment &&
+                                        isAvailable;
         
         console.log(`🔍 Driver ${driver.full_name}:`, {
+          driver_status: driver.driver_status,
           status: driver.status,
           is_available: driver.is_available,
           current_assignment: driver.current_assignment,
-          is_available_for_assignment: isAvailable
+          is_available_for_assignment: isAvailableForAssignment
         });
         
-        return isAvailable;
+        return isAvailableForAssignment;
       });
       
-      console.log(`✅ Filtered to ${availableDrivers.length} truly available drivers`);
-      return availableDrivers;
+      // Map the data to the expected AvailableDriver format
+      const mappedDrivers: AvailableDriver[] = availableDrivers.map((driver: any) => ({
+        id: driver.id,
+        full_name: driver.full_name,
+        primary_number: driver.primary_number,
+        secondary_number: driver.secondary_number,
+        address: driver.adress || driver.address || '',
+        aadhar_number: driver.licence_number || driver.aadhar_number || '',
+        organization_id: driver.organization_id,
+        status: driver.driver_status || driver.status || 'PROCESSING',
+        is_available: driver.is_available !== false,
+        current_assignment: driver.current_assignment,
+        created_at: driver.created_at,
+        updated_at: driver.updated_at || driver.created_at
+      }));
+      
+      console.log(`✅ Filtered to ${mappedDrivers.length} truly available drivers`);
+      return mappedDrivers;
     }
 
     return [];
