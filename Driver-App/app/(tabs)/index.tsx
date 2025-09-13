@@ -18,7 +18,7 @@ import { useRouter } from 'expo-router';
 import { Menu, Wallet, MapPin, Clock, User, Phone, Car, RefreshCw } from 'lucide-react-native';
 import BookingCard from '@/components/BookingCard';
 import DrawerNavigation from '@/components/DrawerNavigation';
-import { fetchDashboardData, DashboardData, fetchPendingOrders, PendingOrder, forceRefreshDashboardData, debugCarDriverEndpoints } from '@/services/dashboardService';
+import { fetchDashboardData, DashboardData, fetchPendingOrders, PendingOrder, forceRefreshDashboardData, debugCarDriverEndpoints, debugDriverCountIssue } from '@/services/dashboardService';
 import { acceptOrder, testOrderAcceptanceAPI, checkOrderAvailability } from '@/services/assignmentService';
 
 interface Booking {
@@ -201,6 +201,27 @@ export default function DashboardScreen() {
     } catch (error: any) {
       console.error('❌ Debug test failed:', error);
       Alert.alert('Debug Test Failed', error.message);
+    }
+  };
+
+  const handleDebugDriverCount = async () => {
+    try {
+      console.log('🧪 Starting driver count debug test...');
+      
+      const result = await debugDriverCountIssue();
+      console.log('👥 Driver count debug result:', result);
+      
+      const successfulEndpoints = result.drivers.filter((d: any) => d.success);
+      const totalDrivers = successfulEndpoints.reduce((sum: number, d: any) => sum + (d.dataLength || 0), 0);
+      
+      Alert.alert(
+        'Driver Count Debug Complete',
+        `Total drivers found: ${totalDrivers}\nSuccessful endpoints: ${successfulEndpoints.length}\nCheck console for detailed breakdown.`,
+        [{ text: 'OK' }]
+      );
+    } catch (error: any) {
+      console.error('❌ Driver count debug failed:', error);
+      Alert.alert('Driver Count Debug Failed', error.message || 'Unknown error');
     }
   };
 
@@ -609,9 +630,14 @@ export default function DashboardScreen() {
             <Wallet color={colors.primary} size={24} />
           </TouchableOpacity>
           {debugMode && (
-            <TouchableOpacity onPress={handleDebugAPI} style={dynamicStyles.debugButton}>
-              <Text style={dynamicStyles.debugButtonText}>Debug</Text>
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity onPress={handleDebugAPI} style={dynamicStyles.debugButton}>
+                <Text style={dynamicStyles.debugButtonText}>Debug</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleDebugDriverCount} style={[dynamicStyles.debugButton, { backgroundColor: colors.primary }]}>
+                <Text style={dynamicStyles.debugButtonText}>Driver Count</Text>
+              </TouchableOpacity>
+            </>
           )}
         </View>
       </View>
