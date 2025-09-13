@@ -51,6 +51,30 @@ export default function DashboardScreen() {
 
   const canAcceptBookings = balance >= 1000;
 
+  // Helper function to extract pickup and drop locations from the API response
+  const getPickupDropLocations = (pickupDropLocation: any) => {
+    if (!pickupDropLocation) return { pickup: 'Unknown', drop: 'Unknown' };
+    
+    // Handle array format: { "0": "Chennai", "1": "Gingee" }
+    if (typeof pickupDropLocation === 'object' && pickupDropLocation['0'] && pickupDropLocation['1']) {
+      return {
+        pickup: pickupDropLocation['0'],
+        drop: pickupDropLocation['1']
+      };
+    }
+    
+    // Handle object format: { pickup: "Chennai", drop: "Gingee" }
+    if (pickupDropLocation.pickup && pickupDropLocation.drop) {
+      return {
+        pickup: pickupDropLocation.pickup,
+        drop: pickupDropLocation.drop
+      };
+    }
+    
+    // Fallback
+    return { pickup: 'Unknown', drop: 'Unknown' };
+  };
+
   // Debug logging
   useEffect(() => {
     console.log('🔍 DashboardScreen mounted with:', {
@@ -88,10 +112,11 @@ export default function DashboardScreen() {
       // New orders received
       const newOrders = pendingOrders.slice(previousOrderCount);
       newOrders.forEach(order => {
+        const locations = getPickupDropLocations(order.pickup_drop_location);
         sendNewOrderNotification({
           orderId: order.order_id.toString(),
-          pickup: order.pickup_drop_location.pickup,
-          drop: order.pickup_drop_location.drop,
+          pickup: locations.pickup,
+          drop: locations.drop,
           customerName: order.customer_name,
           customerMobile: order.customer_number,
           distance: order.trip_distance,
@@ -438,9 +463,10 @@ export default function DashboardScreen() {
       return;
     }
 
+    const locations = getPickupDropLocations(order.pickup_drop_location);
     Alert.alert(
       'Accept Booking',
-      `Accept trip from ${order.pickup_drop_location.pickup} to ${order.pickup_drop_location.drop}?`,
+      `Accept trip from ${locations.pickup} to ${locations.drop}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Accept', onPress: () => acceptBooking(order) }
@@ -486,11 +512,12 @@ export default function DashboardScreen() {
         // Remove order from pending list
         setPendingOrders(prev => prev.filter(o => o.order_id !== order.order_id));
 
+        const locations = getPickupDropLocations(order.pickup_drop_location);
         const ride: FutureRide = {
           id: order.order_id.toString(),
           booking_id: `B${order.order_id}`,
-          pickup: order.pickup_drop_location.pickup,
-          drop: order.pickup_drop_location.drop,
+          pickup: locations.pickup,
+          drop: locations.drop,
           customer_name: order.customer_name,
           customer_mobile: order.customer_number,
           date: new Date().toISOString().slice(0, 10),
@@ -508,8 +535,8 @@ export default function DashboardScreen() {
         // Send notification for accepted order
         sendOrderAssignedNotification({
           orderId: order.order_id.toString(),
-          pickup: order.pickup_drop_location.pickup,
-          drop: order.pickup_drop_location.drop,
+          pickup: locations.pickup,
+          drop: locations.drop,
           customerName: order.customer_name,
           customerMobile: order.customer_number,
           distance: order.trip_distance,
@@ -669,24 +696,27 @@ export default function DashboardScreen() {
                     <Text style={dynamicStyles.loadingText}>Loading pending orders...</Text>
                   </View>
                 ) : pendingOrders.length > 0 ? (
-                  pendingOrders.map((order) => (
-                    <BookingCard
-                      key={order.order_id}
-                      booking={{
-                        booking_id: order.order_id.toString(),
-                        pickup: order.pickup_drop_location.pickup,
-                        drop: order.pickup_drop_location.drop,
-                        customer_name: order.customer_name,
-                        customer_mobile: order.customer_number,
-                        fare_per_km: order.cost_per_km,
-                        distance_km: order.trip_distance,
-                        total_fare: (order.cost_per_km * order.trip_distance) + order.driver_allowance + order.permit_charges + order.hill_charges + order.toll_charges
-                      }}
-                      onAccept={() => handleAcceptBooking(order)}
-                      disabled={!canAcceptBookings}
-                      loading={processingOrderId === order.order_id.toString()}
-                    />
-                  ))
+                  pendingOrders.map((order) => {
+                    const locations = getPickupDropLocations(order.pickup_drop_location);
+                    return (
+                      <BookingCard
+                        key={order.order_id}
+                        booking={{
+                          booking_id: order.order_id.toString(),
+                          pickup: locations.pickup,
+                          drop: locations.drop,
+                          customer_name: order.customer_name,
+                          customer_mobile: order.customer_number,
+                          fare_per_km: order.cost_per_km,
+                          distance_km: order.trip_distance,
+                          total_fare: (order.cost_per_km * order.trip_distance) + order.driver_allowance + order.permit_charges + order.hill_charges + order.toll_charges
+                        }}
+                        onAccept={() => handleAcceptBooking(order)}
+                        disabled={!canAcceptBookings}
+                        loading={processingOrderId === order.order_id.toString()}
+                      />
+                    );
+                  })
                 ) : (
                   <View style={dynamicStyles.noBookings}>
                     <Text style={dynamicStyles.noBookingsText}>No pending bookings available</Text>

@@ -324,12 +324,20 @@ export default function QuickDashboardScreen() {
             <View style={dynamicStyles.routeContainer}>
               <View style={dynamicStyles.routeRow}>
                 <MapPin color={colors.success} size={16} />
-                <Text style={dynamicStyles.routeText}>{nextAssignedOrder.pickup_drop_location?.pickup || nextAssignedOrder.pickup}</Text>
+                <Text style={dynamicStyles.routeText}>
+                  {nextAssignedOrder.pickup_drop_location?.['0'] || 
+                   nextAssignedOrder.pickup_drop_location?.pickup || 
+                   nextAssignedOrder.pickup || 'Unknown'}
+                </Text>
               </View>
               <View style={dynamicStyles.routeLine} />
               <View style={dynamicStyles.routeRow}>
                 <MapPin color={colors.error} size={16} />
-                <Text style={dynamicStyles.routeText}>{nextAssignedOrder.pickup_drop_location?.drop || nextAssignedOrder.drop}</Text>
+                <Text style={dynamicStyles.routeText}>
+                  {nextAssignedOrder.pickup_drop_location?.['1'] || 
+                   nextAssignedOrder.pickup_drop_location?.drop || 
+                   nextAssignedOrder.drop || 'Unknown'}
+                </Text>
               </View>
             </View>
 

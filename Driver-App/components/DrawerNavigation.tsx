@@ -107,13 +107,15 @@ export default function DrawerNavigation({ visible, onClose }: DrawerNavigationP
     const blockedCount = statusCounts.BLOCKED;
     const processingCount = statusCounts.PROCESSING;
 
-    // Show priority order: ONLINE, DRIVING, OFFLINE, BLOCKED, PROCESSING
-    if (onlineCount > 0) {
+    // Show online and offline drivers prominently
+    if (onlineCount > 0 && offlineCount > 0) {
+      return `${total} drivers • ${onlineCount} online • ${offlineCount} offline`;
+    } else if (onlineCount > 0) {
       return `${total} drivers • ${onlineCount} online`;
-    } else if (drivingCount > 0) {
-      return `${total} drivers • ${drivingCount} on duty`;
     } else if (offlineCount > 0) {
       return `${total} drivers • ${offlineCount} offline`;
+    } else if (drivingCount > 0) {
+      return `${total} drivers • ${drivingCount} on duty`;
     } else if (blockedCount > 0) {
       return `${total} drivers • ${blockedCount} blocked`;
     } else if (processingCount > 0) {

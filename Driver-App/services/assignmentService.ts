@@ -399,13 +399,20 @@ export const checkOrderAvailability = async (orderId: string): Promise<boolean> 
     return false;
   } catch (error: any) {
     console.error('❌ Failed to check order availability:', error);
-    // If we can't check, assume it's available and let the accept call fail
+    
+    // If the order is not found (404), it's not available
+    if (error.response?.status === 404) {
+      console.log('❌ Order not found, considering it unavailable');
+      return false;
+    }
+    
+    // If we can't check due to other errors, assume it's available and let the accept call fail
     return true;
   }
 };
 
 /**
- * Accept an order using the new API endpoint
+ * Accept an order by creating an assignment
  */
 export const acceptOrder = async (request: AcceptOrderRequest): Promise<AcceptOrderResponse> => {
   try {
@@ -415,48 +422,71 @@ export const acceptOrder = async (request: AcceptOrderRequest): Promise<AcceptOr
     const authHeaders = await getAuthHeaders();
     console.log('🔐 Auth headers:', authHeaders.Authorization ? 'Present' : 'Missing');
     
-    // Try multiple endpoint variations to find the correct one
-    const endpoints = [
-      '/api/assignments/acceptorder',
-      '/api/orders/accept',
-      '/api/orders/accept-order',
-      '/api/assignments/accept-order'
-    ];
+    // First, try to get available drivers and cars for this vehicle owner
+    let driverId: string | null = null;
+    let carId: string | null = null;
     
-    let lastError: any = null;
-    
-    for (const endpoint of endpoints) {
-      try {
-        console.log(`🔍 Trying endpoint: ${endpoint}`);
-        const response = await axiosInstance.post(endpoint, request, {
-          headers: authHeaders
-        });
-
-        if (response.data) {
-          console.log('✅ Order accepted successfully:', response.data);
-          return response.data;
-        }
-
-        throw new Error('No response data received');
-      } catch (error: any) {
-        console.log(`❌ Endpoint ${endpoint} failed:`, {
-          status: error.response?.status,
-          message: error.response?.data?.detail || error.message
-        });
-        lastError = error;
-        
-        // If it's a 404, try the next endpoint
-        if (error.response?.status === 404) {
-          continue;
-        }
-        
-        // For other errors, break and throw
-        break;
+    try {
+      // Get available drivers
+      const availableDrivers = await fetchAvailableDrivers();
+      if (availableDrivers.length > 0) {
+        // Find a driver that belongs to this vehicle owner
+        const ownerDriver = availableDrivers.find(driver => 
+          driver.organization_id === request.vehicle_owner_id || 
+          driver.id === request.vehicle_owner_id
+        );
+        driverId = ownerDriver?.id || availableDrivers[0].id;
+        console.log('🔍 Selected driver:', driverId);
       }
+      
+      // Get available cars
+      const availableCars = await fetchAvailableCars();
+      if (availableCars.length > 0) {
+        // Find a car that belongs to this vehicle owner
+        const ownerCar = availableCars.find(car => 
+          car.vehicle_owner_id === request.vehicle_owner_id
+        );
+        carId = ownerCar?.id || availableCars[0].id;
+        console.log('🔍 Selected car:', carId);
+      }
+    } catch (error) {
+      console.log('⚠️ Could not fetch available drivers/cars, proceeding with fallback');
     }
     
-    // If we get here, all endpoints failed
-    throw lastError || new Error('All endpoints failed');
+    // If we couldn't get specific IDs, use the vehicle_owner_id as fallback
+    if (!driverId) {
+      driverId = request.vehicle_owner_id;
+      console.log('⚠️ Using vehicle_owner_id as driver_id fallback');
+    }
+    if (!carId) {
+      carId = request.vehicle_owner_id;
+      console.log('⚠️ Using vehicle_owner_id as car_id fallback');
+    }
+    
+    // Try to create an assignment
+    const assignmentData: AssignmentRequest = {
+      order_id: request.order_id,
+      driver_id: driverId,
+      car_id: carId,
+      assigned_by: request.vehicle_owner_id,
+      assignment_notes: request.acceptance_notes
+    };
+    
+    console.log('🔗 Creating assignment with data:', assignmentData);
+    
+    const response = await assignDriverAndCar(assignmentData);
+    
+    if (response) {
+      console.log('✅ Order accepted successfully via assignment creation:', response);
+      return {
+        success: true,
+        message: 'Order accepted successfully',
+        order_id: request.order_id,
+        accepted_at: new Date().toISOString()
+      };
+    }
+
+    throw new Error('No response data received from assignment creation');
     
   } catch (error: any) {
     console.error('❌ Failed to accept order:', error);
