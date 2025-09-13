@@ -84,7 +84,27 @@ export const fetchAvailableDrivers = async (): Promise<AvailableDriver[]> => {
 
     if (response.data) {
       console.log('✅ Available drivers fetched successfully:', response.data.length, 'drivers');
-      return response.data;
+      
+      // Filter and log driver availability details
+      const availableDrivers = response.data.filter((driver: any) => {
+        const isAvailable = driver.is_available !== false && 
+                           driver.status !== 'busy' && 
+                           driver.status !== 'DRIVING' &&
+                           driver.status !== 'BLOCKED' &&
+                           !driver.current_assignment;
+        
+        console.log(`🔍 Driver ${driver.full_name}:`, {
+          status: driver.status,
+          is_available: driver.is_available,
+          current_assignment: driver.current_assignment,
+          is_available_for_assignment: isAvailable
+        });
+        
+        return isAvailable;
+      });
+      
+      console.log(`✅ Filtered to ${availableDrivers.length} truly available drivers`);
+      return availableDrivers;
     }
 
     return [];
@@ -436,7 +456,34 @@ export const acceptOrder = async (request: AcceptOrderRequest): Promise<AcceptOr
           driver.id === request.vehicle_owner_id
         );
         driverId = ownerDriver?.id || availableDrivers[0].id;
-        console.log('🔍 Selected driver:', driverId);
+        console.log('🔍 Selected driver from available drivers:', driverId);
+      } else {
+        console.log('⚠️ No available drivers found, trying organization drivers...');
+        
+        // Fallback: Get drivers from organization endpoint
+        try {
+          const orgDriversResponse = await axiosInstance.get(`/api/users/cardriver/organization/${request.vehicle_owner_id}`, {
+            headers: authHeaders
+          });
+          
+          if (orgDriversResponse.data && orgDriversResponse.data.length > 0) {
+            // Find an ONLINE driver
+            const onlineDriver = orgDriversResponse.data.find((driver: any) => 
+              driver.driver_status === 'ONLINE' || driver.status === 'ONLINE'
+            );
+            
+            if (onlineDriver) {
+              driverId = onlineDriver.id;
+              console.log('🔍 Selected ONLINE driver from organization:', driverId);
+            } else {
+              // Use any driver as fallback
+              driverId = orgDriversResponse.data[0].id;
+              console.log('🔍 Selected any driver from organization as fallback:', driverId);
+            }
+          }
+        } catch (orgError) {
+          console.log('⚠️ Could not fetch organization drivers:', orgError);
+        }
       }
       
       // Get available cars
@@ -447,7 +494,23 @@ export const acceptOrder = async (request: AcceptOrderRequest): Promise<AcceptOr
           car.vehicle_owner_id === request.vehicle_owner_id
         );
         carId = ownerCar?.id || availableCars[0].id;
-        console.log('🔍 Selected car:', carId);
+        console.log('🔍 Selected car from available cars:', carId);
+      } else {
+        console.log('⚠️ No available cars found, trying organization cars...');
+        
+        // Fallback: Get cars from organization endpoint
+        try {
+          const orgCarsResponse = await axiosInstance.get(`/api/users/cardetails/organization/${request.vehicle_owner_id}`, {
+            headers: authHeaders
+          });
+          
+          if (orgCarsResponse.data && orgCarsResponse.data.length > 0) {
+            carId = orgCarsResponse.data[0].id;
+            console.log('🔍 Selected car from organization:', carId);
+          }
+        } catch (orgError) {
+          console.log('⚠️ Could not fetch organization cars:', orgError);
+        }
       }
     } catch (error) {
       console.log('⚠️ Could not fetch available drivers/cars, proceeding with fallback');
@@ -463,11 +526,45 @@ export const acceptOrder = async (request: AcceptOrderRequest): Promise<AcceptOr
       console.log('⚠️ Using vehicle_owner_id as car_id fallback');
     }
     
+    // Before creating assignment, check if driver is actually available
+    if (driverId) {
+      try {
+        const isDriverAvailable = await checkDriverAvailability(driverId);
+        if (!isDriverAvailable) {
+          console.log('⚠️ Driver is not available, trying to find another driver...');
+          
+          // Try to get another driver from organization
+          try {
+            const orgDriversResponse = await axiosInstance.get(`/api/users/cardriver/organization/${request.vehicle_owner_id}`, {
+              headers: authHeaders
+            });
+            
+            if (orgDriversResponse.data && orgDriversResponse.data.length > 0) {
+              // Find an ONLINE driver that's different from the current one
+              const alternativeDriver = orgDriversResponse.data.find((driver: any) => 
+                driver.id !== driverId && 
+                (driver.driver_status === 'ONLINE' || driver.status === 'ONLINE')
+              );
+              
+              if (alternativeDriver) {
+                driverId = alternativeDriver.id;
+                console.log('🔍 Switched to alternative ONLINE driver:', driverId);
+              }
+            }
+          } catch (orgError) {
+            console.log('⚠️ Could not find alternative driver:', orgError);
+          }
+        }
+      } catch (availabilityError) {
+        console.log('⚠️ Could not check driver availability, proceeding anyway:', availabilityError);
+      }
+    }
+    
     // Try to create an assignment
     const assignmentData: AssignmentRequest = {
       order_id: request.order_id,
-      driver_id: driverId,
-      car_id: carId,
+      driver_id: driverId || request.vehicle_owner_id,
+      car_id: carId || request.vehicle_owner_id,
       assigned_by: request.vehicle_owner_id,
       assignment_notes: request.acceptance_notes
     };
