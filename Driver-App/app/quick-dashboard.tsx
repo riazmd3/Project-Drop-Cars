@@ -25,12 +25,31 @@ export default function QuickDashboardScreen() {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [driverOrders, setDriverOrders] = useState<any[]>([]);
 
-  // Fetch assignments for this driver and resolve order details
+  // Fetch current driver status and assignments
   useEffect(() => {
-    const loadAssignments = async () => {
+    const loadDriverData = async () => {
       if (!user?.id) return;
       try {
         setOrdersLoading(true);
+        
+        // Fetch current driver status
+        try {
+          const authHeaders = await getAuthHeaders();
+          const driverResponse = await axiosInstance.get(`/api/users/cardriver/${user.id}`, { 
+            headers: authHeaders 
+          });
+          if (driverResponse.data?.driver_status) {
+            const status = driverResponse.data.driver_status.toUpperCase();
+            if (status === 'ONLINE' || status === 'OFFLINE') {
+              setDriverStatus(status);
+              console.log('🔍 Current driver status:', status);
+            }
+          }
+        } catch (statusError) {
+          console.log('⚠️ Could not fetch driver status, using default OFFLINE');
+        }
+        
+        // Fetch assignments
         const assignments = await fetchAssignmentsForDriver(user.id);
         const authHeaders = await getAuthHeaders();
         const detailedOrders: any[] = [];
@@ -47,7 +66,7 @@ export default function QuickDashboardScreen() {
         setOrdersLoading(false);
       }
     };
-    loadAssignments();
+    loadDriverData();
   }, [user?.id]);
 
   // Sort by scheduled date/time ascending and pick the next one
@@ -80,14 +99,43 @@ export default function QuickDashboardScreen() {
     if (!user?.id) return;
     try {
       if (driverStatus === 'OFFLINE') {
+        // Try to set driver online
         const res = await setDriverOnline(user.id);
-        if (res?.status === 'online' || res?.success) setDriverStatus('ONLINE');
+        console.log('🟢 Online response:', res);
+        
+        // Check if the API call was successful
+        if (res?.success || res?.status === 'online' || res?.message?.includes('success')) {
+          setDriverStatus('ONLINE');
+        } else if (res?.detail?.includes('already') || res?.detail?.includes('Current status: ONLINE')) {
+          // Driver is already online, update local state
+          setDriverStatus('ONLINE');
+        }
       } else {
+        // Try to set driver offline
         const res = await setDriverOffline(user.id);
-        if (res?.status === 'offline' || res?.success) setDriverStatus('OFFLINE');
+        console.log('🔴 Offline response:', res);
+        
+        // Check if the API call was successful
+        if (res?.success || res?.status === 'offline' || res?.message?.includes('success')) {
+          setDriverStatus('OFFLINE');
+        } else if (res?.detail?.includes('already') || res?.detail?.includes('Current status: OFFLINE')) {
+          // Driver is already offline, update local state
+          setDriverStatus('OFFLINE');
+        }
       }
     } catch (e: any) {
-      Alert.alert('Status Update Failed', e.message || 'Please try again');
+      console.error('❌ Status toggle error:', e);
+      // Check if it's a "already in that status" error
+      if (e.message?.includes('already') || e.message?.includes('Current status')) {
+        // Update local state to match the current status
+        if (e.message?.includes('ONLINE')) {
+          setDriverStatus('ONLINE');
+        } else if (e.message?.includes('OFFLINE')) {
+          setDriverStatus('OFFLINE');
+        }
+      } else {
+        Alert.alert('Status Update Failed', e.message || 'Please try again');
+      }
     }
   };
 
@@ -322,16 +370,35 @@ export default function QuickDashboardScreen() {
           <TouchableOpacity
             onPress={toggleStatus}
             style={{
-              backgroundColor: driverStatus === 'ONLINE' ? colors.success : colors.surface,
+              backgroundColor: driverStatus === 'ONLINE' ? '#10B981' : '#EF4444', // Green for ONLINE, Red for OFFLINE
               borderRadius: 12,
-              paddingVertical: 14,
+              paddingVertical: 16,
               alignItems: 'center',
-              borderWidth: 1,
-              borderColor: driverStatus === 'ONLINE' ? colors.success : colors.border,
+              borderWidth: 2,
+              borderColor: driverStatus === 'ONLINE' ? '#10B981' : '#EF4444',
+              shadowColor: driverStatus === 'ONLINE' ? '#10B981' : '#EF4444',
+              shadowOffset: { width: 0, height: 2 },
+              shadowOpacity: 0.3,
+              shadowRadius: 4,
+              elevation: 4,
             }}
           >
-            <Text style={{ color: driverStatus === 'ONLINE' ? '#FFFFFF' : colors.text }}>
-              Driver Status: {driverStatus} (tap to toggle)
+            <Text style={{ 
+              color: '#FFFFFF', 
+              fontSize: 16,
+              fontFamily: 'Inter-SemiBold',
+              textAlign: 'center'
+            }}>
+              {driverStatus === 'ONLINE' ? '🟢 ONLINE - Tap to go OFFLINE' : '🔴 OFFLINE - Tap to go ONLINE'}
+            </Text>
+            <Text style={{ 
+              color: '#FFFFFF', 
+              fontSize: 12,
+              fontFamily: 'Inter-Regular',
+              marginTop: 4,
+              opacity: 0.9
+            }}>
+              {driverStatus === 'ONLINE' ? 'Available for orders' : 'Not available for orders'}
             </Text>
           </TouchableOpacity>
         </View>

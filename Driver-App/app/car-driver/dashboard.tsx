@@ -70,7 +70,7 @@ export default function CarDriverDashboardScreen() {
       setStatusLoading(true);
       clearError();
 
-      if (driver.status === 'ONLINE') {
+      if (driver.driver_status === 'ONLINE') {
         await goOffline();
         Alert.alert('Status Updated', 'You are now offline');
       } else {
@@ -110,34 +110,30 @@ export default function CarDriverDashboardScreen() {
   };
 
   const getStatusColor = () => {
-    switch (driver?.status?.toUpperCase()) {
-      case 'ONLINE':
+    switch (driver?.status) {
+      case 'online':
         return '#10B981'; // Green
-      case 'OFFLINE':
+      case 'offline':
         return '#6B7280'; // Gray
-      case 'DRIVING':
-        return '#3B82F6'; // Blue
-      case 'BLOCKED':
+      case 'busy':
+        return '#F59E0B'; // Yellow
+      case 'inactive':
         return '#EF4444'; // Red
-      case 'PROCESSING':
-        return '#F59E0B'; // Orange
       default:
         return '#6B7280';
     }
   };
 
   const getStatusText = () => {
-    switch (driver?.status?.toUpperCase()) {
-      case 'ONLINE':
+    switch (driver?.status) {
+      case 'online':
         return 'Online';
-      case 'OFFLINE':
+      case 'offline':
         return 'Offline';
-      case 'DRIVING':
-        return 'On Duty';
-      case 'BLOCKED':
-        return 'Blocked';
-      case 'PROCESSING':
-        return 'Verifying';
+      case 'busy':
+        return 'On Trip';
+      case 'inactive':
+        return 'Inactive';
       default:
         return 'Unknown';
     }
@@ -451,7 +447,7 @@ export default function CarDriverDashboardScreen() {
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
               <Text style={dynamicStyles.statusButtonText}>
-                {driver.status === 'ONLINE' ? 'Go Offline' : 'Go Online'}
+                {driver.driver_status === 'ONLINE' ? 'Go Offline' : 'Go Online'}
               </Text>
             )}
           </TouchableOpacity>
