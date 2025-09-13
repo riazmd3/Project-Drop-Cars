@@ -29,7 +29,7 @@ export interface CarDriverResponse {
   address: string;
   aadhar_number: string;
   organization_id: string;
-  status: 'online' | 'offline' | 'busy' | 'inactive';
+  status: 'ONLINE' | 'DRIVING' | 'BLOCKED' | 'PROCESSING' | 'offline' | 'busy' | 'inactive';
   email?: string;
   license_number?: string;
   experience_years?: number;
@@ -110,7 +110,7 @@ export const signupCarDriver = async (request: CarDriverSignupRequest): Promise<
         address: request.address,
         aadhar_number: request.aadhar_number,
         organization_id: request.organization_id,
-        status: 'offline',
+        status: 'PROCESSING', // New drivers should be in PROCESSING status for verification
         email: request.email,
         license_number: request.license_number,
         experience_years: request.experience_years,

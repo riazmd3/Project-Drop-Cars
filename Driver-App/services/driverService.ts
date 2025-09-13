@@ -45,11 +45,21 @@ export const addDriverDetails = async (driverData: DriverDetails): Promise<Drive
     // Create FormData for file uploads
     const formData = new FormData();
 
-    // Add text fields
+    // Helper function to format phone numbers for backend - send 10 digits only
+    const formatPhoneForBackend = (phone: string): string => {
+      if (!phone || !phone.trim()) return '';
+      // Remove +91 prefix and any non-digit characters, keep only 10 digits
+      const cleanPhone = phone.replace(/^\+91/, '').replace(/\D/g, '').trim();
+      if (!cleanPhone) return '';
+      // Return only the last 10 digits (in case there are more)
+      return cleanPhone.slice(-10);
+    };
+
+    // Add text fields with proper phone number formatting
     formData.append('full_name', driverData.full_name);
-    formData.append('primary_number', driverData.primary_number);
+    formData.append('primary_number', formatPhoneForBackend(driverData.primary_number));
     if (driverData.secondary_number) {
-      formData.append('secondary_number', driverData.secondary_number);
+      formData.append('secondary_number', formatPhoneForBackend(driverData.secondary_number));
     }
     formData.append('password', driverData.password);
     formData.append('licence_number', driverData.licence_number);
@@ -274,13 +284,18 @@ export const loginDriver = async (mobileNumber: string, password: string): Promi
     console.log('🚗 Starting driver login...');
     console.log('📱 Mobile (input):', mobileNumber);
     
-    // Build primary_number exactly how backend accepted in Postman: +91XXXXXXXXXX
-    const digitsOnly = (mobileNumber || '').replace(/\D/g, '');
-    const ten = digitsOnly.slice(-10);
-    const primaryWithPlus = mobileNumber.startsWith('+') ? mobileNumber : `+91${ten}`;
+    // Format phone number for backend - send 10 digits only
+    const formatPhoneForBackend = (phone: string): string => {
+      if (!phone || !phone.trim()) return '';
+      // Remove +91 prefix and any non-digit characters, keep only 10 digits
+      const cleanPhone = phone.replace(/^\+91/, '').replace(/\D/g, '').trim();
+      if (!cleanPhone) return '';
+      // Return only the last 10 digits (in case there are more)
+      return cleanPhone.slice(-10);
+    };
 
     const payload = {
-      primary_number: primaryWithPlus,
+      primary_number: formatPhoneForBackend(mobileNumber),
       password,
     };
 

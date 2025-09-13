@@ -52,14 +52,14 @@ export const signupAccount = async (personalData: any, documents: any): Promise<
         console.log('🖼️ Image appended to FormData:', { uri: imageUri, type: imageType, name: imageName });
       }
       
-      // Helper function to format phone numbers for backend
+      // Helper function to format phone numbers for backend - send 10 digits only
       const formatPhoneForBackend = (phone: string): string => {
         if (!phone || !phone.trim()) return '';
-        // Remove +91 prefix if present and ensure it's properly formatted
-        const cleanPhone = phone.replace(/^\+91/, '').trim();
+        // Remove +91 prefix and any non-digit characters, keep only 10 digits
+        const cleanPhone = phone.replace(/^\+91/, '').replace(/\D/g, '').trim();
         if (!cleanPhone) return '';
-        // Add +91 prefix back
-        return `+91${cleanPhone}`;
+        // Return only the last 10 digits (in case there are more)
+        return cleanPhone.slice(-10);
       };
 
        // Append all other fields
@@ -236,15 +236,15 @@ export const signupAndLogin = async (personalData: any, documents: any) => {
     throw new Error('Signup did not complete successfully');
   }
 
-  // Use the SAME phone number format for login as used in signup
+  // Use the SAME phone number format for login as used in signup - send 10 digits only
   // Apply the same formatting function to ensure consistency
   const formatPhoneForBackend = (phone: string): string => {
     if (!phone || !phone.trim()) return '';
-    // Remove +91 prefix if present and ensure it's properly formatted
-    const cleanPhone = phone.replace(/^\+91/, '').trim();
+    // Remove +91 prefix and any non-digit characters, keep only 10 digits
+    const cleanPhone = phone.replace(/^\+91/, '').replace(/\D/g, '').trim();
     if (!cleanPhone) return '';
-    // Add +91 prefix back
-    return `+91${cleanPhone}`;
+    // Return only the last 10 digits (in case there are more)
+    return cleanPhone.slice(-10);
   };
   
   const mobileForLogin = formatPhoneForBackend(personalData.primaryMobile || '');

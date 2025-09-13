@@ -131,8 +131,39 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
           });
           
           if (driversResponse.data && Array.isArray(driversResponse.data)) {
-            drivers = driversResponse.data;
+            // Map the response data to ensure consistent field names
+            drivers = driversResponse.data.map((driver: any) => {
+              let driverStatus = driver.driver_status || driver.status || 'PROCESSING';
+              
+              // If backend returns BLOCKED for new drivers, treat as PROCESSING for verification
+              // This handles the case where backend sets default status to BLOCKED instead of PROCESSING
+              if (driverStatus === 'BLOCKED') {
+                // Check if this is a recently created driver (within last 24 hours)
+                const createdAt = new Date(driver.created_at || driver.createdAt || '');
+                const now = new Date();
+                const hoursSinceCreation = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
+                
+                // If created recently, treat as PROCESSING for verification
+                if (hoursSinceCreation < 24) {
+                  console.log(`🔄 Converting BLOCKED to PROCESSING for recently created driver: ${driver.full_name}`);
+                  driverStatus = 'PROCESSING';
+                }
+              }
+              
+              return {
+                ...driver,
+                // Map 'status' to 'driver_status' with proper status handling
+                driver_status: driverStatus,
+                // Map 'address' to 'adress' if needed (API inconsistency)
+                adress: driver.adress || driver.address || '',
+                // Map 'aadhar_number' to 'licence_number' if needed
+                licence_number: driver.licence_number || driver.aadhar_number || driver.license_number || '',
+                // Ensure licence_front_img exists
+                licence_front_img: driver.licence_front_img || driver.license_front_img || ''
+              };
+            });
             console.log(`✅ Drivers fetched from ${endpoint}:`, drivers.length, 'drivers');
+            console.log('🔍 Driver statuses:', drivers.map(d => ({ name: d.full_name, status: d.driver_status })));
             break; // Use the first successful endpoint
           }
         } catch (endpointError: any) {

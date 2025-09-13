@@ -69,6 +69,49 @@ export default function DrawerNavigation({ visible, onClose }: DrawerNavigationP
     }
   };
 
+  const getDriverStatusSummary = () => {
+    if (!dashboardData?.drivers || dashboardData.drivers.length === 0) {
+      return '0 drivers';
+    }
+
+    const drivers = dashboardData.drivers;
+    const statusCounts = {
+      ONLINE: 0,
+      DRIVING: 0,
+      BLOCKED: 0,
+      PROCESSING: 0,
+      OTHER: 0
+    };
+
+    drivers.forEach(driver => {
+      const status = driver.driver_status?.toUpperCase();
+      if (statusCounts.hasOwnProperty(status)) {
+        statusCounts[status]++;
+      } else {
+        statusCounts.OTHER++;
+      }
+    });
+
+    const total = drivers.length;
+    const onlineCount = statusCounts.ONLINE;
+    const drivingCount = statusCounts.DRIVING;
+    const blockedCount = statusCounts.BLOCKED;
+    const processingCount = statusCounts.PROCESSING;
+
+    // Show priority order: ONLINE, DRIVING, BLOCKED, PROCESSING
+    if (onlineCount > 0) {
+      return `${total} drivers • ${onlineCount} online`;
+    } else if (drivingCount > 0) {
+      return `${total} drivers • ${drivingCount} on duty`;
+    } else if (blockedCount > 0) {
+      return `${total} drivers • ${blockedCount} blocked`;
+    } else if (processingCount > 0) {
+      return `${total} drivers • ${processingCount} verifying`;
+    } else {
+      return `${total} drivers`;
+    }
+  };
+
   const dynamicStyles = StyleSheet.create({
     overlay: {
       flex: 1,
@@ -302,7 +345,7 @@ export default function DrawerNavigation({ visible, onClose }: DrawerNavigationP
               <MenuItem
                 icon={<Users color={colors.textSecondary} size={20} />}
                 title="My Drivers"
-                subtitle={`${dashboardData?.drivers?.length || 0} drivers`}
+                subtitle={getDriverStatusSummary()}
                 onPress={() => {
                   onClose();
                   if (dashboardData?.drivers && dashboardData.drivers.length > 0) {

@@ -234,6 +234,25 @@ export default function MyDriversScreen() {
       fontSize: 16,
       fontFamily: 'Inter-SemiBold',
     },
+    statusBadge: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 12,
+      marginTop: 4,
+    },
+    statusDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      marginRight: 6,
+    },
+    statusText: {
+      fontSize: 12,
+      fontFamily: 'Inter-SemiBold',
+    },
   });
 
   if (loading) {
@@ -259,7 +278,43 @@ export default function MyDriversScreen() {
     );
   }
 
-  const drivers = dashboardData?.drivers || [];
+  // Sort drivers by status priority: ONLINE, DRIVING, BLOCKED, PROCESSING, OTHER
+  const getDriverStatusPriority = (status: string) => {
+    const statusUpper = status?.toUpperCase();
+    switch (statusUpper) {
+      case 'ONLINE': return 1;
+      case 'DRIVING': return 2;
+      case 'BLOCKED': return 3;
+      case 'PROCESSING': return 4;
+      default: return 5;
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    const statusUpper = status?.toUpperCase();
+    switch (statusUpper) {
+      case 'ONLINE': return '#10B981'; // Green
+      case 'DRIVING': return '#3B82F6'; // Blue
+      case 'BLOCKED': return '#EF4444'; // Red
+      case 'PROCESSING': return '#F59E0B'; // Orange
+      default: return colors.textSecondary;
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    const statusUpper = status?.toUpperCase();
+    switch (statusUpper) {
+      case 'ONLINE': return 'Online';
+      case 'DRIVING': return 'On Duty';
+      case 'BLOCKED': return 'Blocked';
+      case 'PROCESSING': return 'Verifying';
+      default: return status || 'Unknown';
+    }
+  };
+
+  const drivers = (dashboardData?.drivers || []).sort((a, b) => {
+    return getDriverStatusPriority(a.driver_status) - getDriverStatusPriority(b.driver_status);
+  });
 
   return (
     <SafeAreaView style={dynamicStyles.container}>
@@ -299,9 +354,17 @@ export default function MyDriversScreen() {
           drivers.map((driver) => (
             <View key={driver.id} style={dynamicStyles.driverCard}>
               <View style={dynamicStyles.driverHeader}>
-                <Text style={dynamicStyles.driverTitle}>
-                  {driver.full_name}
-                </Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={dynamicStyles.driverTitle}>
+                    {driver.full_name}
+                  </Text>
+                  <View style={[dynamicStyles.statusBadge, { backgroundColor: getStatusColor(driver.driver_status) + '20' }]}>
+                    <View style={[dynamicStyles.statusDot, { backgroundColor: getStatusColor(driver.driver_status) }]} />
+                    <Text style={[dynamicStyles.statusText, { color: getStatusColor(driver.driver_status) }]}>
+                      {getStatusText(driver.driver_status)}
+                    </Text>
+                  </View>
+                </View>
                 <View style={dynamicStyles.driverActions}>
                   <TouchableOpacity 
                     style={dynamicStyles.actionButton}
