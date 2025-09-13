@@ -278,15 +278,16 @@ export default function MyDriversScreen() {
     );
   }
 
-  // Sort drivers by status priority: ONLINE, DRIVING, BLOCKED, PROCESSING, OTHER
+  // Sort drivers by status priority: ONLINE, DRIVING, OFFLINE, BLOCKED, PROCESSING, OTHER
   const getDriverStatusPriority = (status: string) => {
     const statusUpper = status?.toUpperCase();
     switch (statusUpper) {
       case 'ONLINE': return 1;
       case 'DRIVING': return 2;
-      case 'BLOCKED': return 3;
-      case 'PROCESSING': return 4;
-      default: return 5;
+      case 'OFFLINE': return 3;
+      case 'BLOCKED': return 4;
+      case 'PROCESSING': return 5;
+      default: return 6;
     }
   };
 
@@ -295,6 +296,7 @@ export default function MyDriversScreen() {
     switch (statusUpper) {
       case 'ONLINE': return '#10B981'; // Green
       case 'DRIVING': return '#3B82F6'; // Blue
+      case 'OFFLINE': return '#6B7280'; // Gray
       case 'BLOCKED': return '#EF4444'; // Red
       case 'PROCESSING': return '#F59E0B'; // Orange
       default: return colors.textSecondary;
@@ -306,6 +308,7 @@ export default function MyDriversScreen() {
     switch (statusUpper) {
       case 'ONLINE': return 'Online';
       case 'DRIVING': return 'On Duty';
+      case 'OFFLINE': return 'Offline';
       case 'BLOCKED': return 'Blocked';
       case 'PROCESSING': return 'Verifying';
       default: return status || 'Unknown';

@@ -155,9 +155,22 @@ export default function DashboardScreen() {
       const successfulCarEndpoints = carDriverResult.cars.filter((r: any) => r.success).length;
       const successfulDriverEndpoints = carDriverResult.drivers.filter((r: any) => r.success).length;
       
+      // Debug driver status specifically
+      console.log('🔍 Current dashboard data drivers:', dashboardData?.drivers);
+      console.log('🔍 Driver count:', dashboardData?.drivers?.length || 0);
+      if (dashboardData?.drivers) {
+        dashboardData.drivers.forEach((driver, index) => {
+          console.log(`🔍 Driver ${index + 1}:`, {
+            name: driver.full_name,
+            status: driver.driver_status,
+            id: driver.id
+          });
+        });
+      }
+      
       Alert.alert(
         'API Debug Test',
-        `Test completed!\n\nResults logged to console.\n\nOrder API: ${orderResult.success ? 'OK' : 'Failed'}\nCar endpoints: ${successfulCarEndpoints}/6 working\nDriver endpoints: ${successfulDriverEndpoints}/6 working`,
+        `Test completed!\n\nResults logged to console.\n\nOrder API: ${orderResult.success ? 'OK' : 'Failed'}\nCar endpoints: ${successfulCarEndpoints}/6 working\nDriver endpoints: ${successfulDriverEndpoints}/6 working\n\nCurrent drivers: ${dashboardData?.drivers?.length || 0}`,
         [{ text: 'OK' }]
       );
     } catch (error: any) {
@@ -395,6 +408,25 @@ export default function DashboardScreen() {
       fontSize: 12,
       fontWeight: 'bold',
     },
+    debugSection: {
+      backgroundColor: '#F3F4F6',
+      borderRadius: 8,
+      padding: 12,
+      marginTop: 16,
+      marginBottom: 16,
+    },
+    debugTitle: {
+      fontSize: 14,
+      fontFamily: 'Inter-Bold',
+      color: '#374151',
+      marginBottom: 8,
+    },
+    debugText: {
+      fontSize: 12,
+      fontFamily: 'Inter-Regular',
+      color: '#6B7280',
+      marginBottom: 4,
+    },
   });
   const handleAcceptBooking = (order: PendingOrder) => {
     if (!canAcceptBookings) {
@@ -616,6 +648,18 @@ export default function DashboardScreen() {
                 <Text style={dynamicStyles.statLabel}>Drivers</Text>
               </View>
             </View>
+
+            {/* Debug Driver Status */}
+            {debugMode && dashboardData?.drivers && dashboardData.drivers.length > 0 && (
+              <View style={dynamicStyles.debugSection}>
+                <Text style={dynamicStyles.debugTitle}>Driver Status Debug:</Text>
+                {dashboardData.drivers.map((driver, index) => (
+                  <Text key={index} style={dynamicStyles.debugText}>
+                    {driver.full_name}: {driver.driver_status}
+                  </Text>
+                ))}
+              </View>
+            )}
 
             {
               <View style={dynamicStyles.bookingsSection}>

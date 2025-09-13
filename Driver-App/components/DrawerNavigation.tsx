@@ -71,12 +71,17 @@ export default function DrawerNavigation({ visible, onClose }: DrawerNavigationP
 
   const getDriverStatusSummary = () => {
     if (!dashboardData?.drivers || dashboardData.drivers.length === 0) {
+      console.log('🔍 No drivers found in dashboard data');
       return '0 drivers';
     }
 
     const drivers = dashboardData.drivers;
+    console.log('🔍 Driver status summary - Total drivers:', drivers.length);
+    console.log('🔍 Driver statuses:', drivers.map(d => ({ name: d.full_name, status: d.driver_status })));
+
     const statusCounts = {
       ONLINE: 0,
+      OFFLINE: 0,
       DRIVING: 0,
       BLOCKED: 0,
       PROCESSING: 0,
@@ -85,6 +90,7 @@ export default function DrawerNavigation({ visible, onClose }: DrawerNavigationP
 
     drivers.forEach(driver => {
       const status = driver.driver_status?.toUpperCase();
+      console.log(`🔍 Processing driver ${driver.full_name} with status: ${status}`);
       if (statusCounts.hasOwnProperty(status)) {
         statusCounts[status]++;
       } else {
@@ -92,17 +98,22 @@ export default function DrawerNavigation({ visible, onClose }: DrawerNavigationP
       }
     });
 
+    console.log('🔍 Status counts:', statusCounts);
+
     const total = drivers.length;
     const onlineCount = statusCounts.ONLINE;
+    const offlineCount = statusCounts.OFFLINE;
     const drivingCount = statusCounts.DRIVING;
     const blockedCount = statusCounts.BLOCKED;
     const processingCount = statusCounts.PROCESSING;
 
-    // Show priority order: ONLINE, DRIVING, BLOCKED, PROCESSING
+    // Show priority order: ONLINE, DRIVING, OFFLINE, BLOCKED, PROCESSING
     if (onlineCount > 0) {
       return `${total} drivers • ${onlineCount} online`;
     } else if (drivingCount > 0) {
       return `${total} drivers • ${drivingCount} on duty`;
+    } else if (offlineCount > 0) {
+      return `${total} drivers • ${offlineCount} offline`;
     } else if (blockedCount > 0) {
       return `${total} drivers • ${blockedCount} blocked`;
     } else if (processingCount > 0) {

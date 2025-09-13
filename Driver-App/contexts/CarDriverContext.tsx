@@ -184,6 +184,13 @@ export const CarDriverProvider: React.FC<CarDriverProviderProps> = ({ children }
       throw new Error('No driver logged in');
     }
 
+    // Check current status before making API call
+    const currentStatus = driver.status?.toUpperCase();
+    if (currentStatus === 'ONLINE') {
+      console.log('⚠️ Driver is already online, skipping API call');
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);
@@ -193,7 +200,7 @@ export const CarDriverProvider: React.FC<CarDriverProviderProps> = ({ children }
       
       if (response.success) {
         // Update local driver status
-        setDriver(prev => prev ? { ...prev, status: 'online' } : null);
+        setDriver(prev => prev ? { ...prev, status: 'ONLINE' } : null);
         console.log('✅ Driver set online successfully');
       } else {
         throw new Error(response.message || 'Failed to set driver online');
@@ -212,6 +219,13 @@ export const CarDriverProvider: React.FC<CarDriverProviderProps> = ({ children }
       throw new Error('No driver logged in');
     }
 
+    // Check current status before making API call
+    const currentStatus = driver.status?.toUpperCase();
+    if (currentStatus === 'OFFLINE') {
+      console.log('⚠️ Driver is already offline, skipping API call');
+      return;
+    }
+
     try {
       setIsLoading(true);
       setError(null);
@@ -221,7 +235,7 @@ export const CarDriverProvider: React.FC<CarDriverProviderProps> = ({ children }
       
       if (response.success) {
         // Update local driver status
-        setDriver(prev => prev ? { ...prev, status: 'offline' } : null);
+        setDriver(prev => prev ? { ...prev, status: 'OFFLINE' } : null);
         console.log('✅ Driver set offline successfully');
       } else {
         throw new Error(response.message || 'Failed to set driver offline');

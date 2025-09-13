@@ -133,22 +133,21 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
           if (driversResponse.data && Array.isArray(driversResponse.data)) {
             // Map the response data to ensure consistent field names
             drivers = driversResponse.data.map((driver: any) => {
-              let driverStatus = driver.driver_status || driver.status || 'PROCESSING';
+              // Get the raw status from the API response
+              const rawStatus = driver.driver_status || driver.status || 'PROCESSING';
               
-              // If backend returns BLOCKED for new drivers, treat as PROCESSING for verification
-              // This handles the case where backend sets default status to BLOCKED instead of PROCESSING
-              if (driverStatus === 'BLOCKED') {
-                // Check if this is a recently created driver (within last 24 hours)
-                const createdAt = new Date(driver.created_at || driver.createdAt || '');
-                const now = new Date();
-                const hoursSinceCreation = (now.getTime() - createdAt.getTime()) / (1000 * 60 * 60);
-                
-                // If created recently, treat as PROCESSING for verification
-                if (hoursSinceCreation < 24) {
-                  console.log(`🔄 Converting BLOCKED to PROCESSING for recently created driver: ${driver.full_name}`);
-                  driverStatus = 'PROCESSING';
-                }
+              // Normalize the status to match AccountStatusEnum exactly
+              let driverStatus = rawStatus.toString().trim().toUpperCase();
+              
+              // Validate against the known AccountStatusEnum values
+              const validStatuses = ['ONLINE', 'OFFLINE', 'DRIVING', 'BLOCKED', 'PROCESSING'];
+              if (!validStatuses.includes(driverStatus)) {
+                console.warn(`⚠️ Unknown driver status: "${rawStatus}" for driver ${driver.full_name}, defaulting to PROCESSING`);
+                driverStatus = 'PROCESSING';
               }
+              
+              // Log the status mapping for debugging
+              console.log(`🔍 Driver ${driver.full_name}: "${rawStatus}" -> "${driverStatus}"`);
               
               return {
                 ...driver,
