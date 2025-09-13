@@ -70,7 +70,7 @@ export default function CarDriverDashboardScreen() {
       setStatusLoading(true);
       clearError();
 
-      if (driver.status === 'online') {
+      if (driver.driver_status === 'ONLINE') {
         await goOffline();
         Alert.alert('Status Updated', 'You are now offline');
       } else {
@@ -447,7 +447,7 @@ export default function CarDriverDashboardScreen() {
               <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
               <Text style={dynamicStyles.statusButtonText}>
-                {driver.status === 'online' ? 'Go Offline' : 'Go Online'}
+                {driver.driver_status === 'ONLINE' ? 'Go Offline' : 'Go Online'}
               </Text>
             )}
           </TouchableOpacity>
@@ -484,7 +484,7 @@ export default function CarDriverDashboardScreen() {
             
             <View style={dynamicStyles.detailRow}>
               <MapPin color={colors.textSecondary} size={16} style={dynamicStyles.detailIcon} />
-              <Text style={dynamicStyles.detailText}>{driver.address}</Text>
+              <Text style={dynamicStyles.detailText}>{driver.adress}</Text>
             </View>
             
             {driver.email && (

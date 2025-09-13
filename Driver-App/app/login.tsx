@@ -233,6 +233,40 @@ export default function LoginScreen() {
     }
   };
 
+  const testDriverFetching = async () => {
+    try {
+      console.log('👤 Testing driver fetching endpoints...');
+      
+      const authToken = await SecureStore.getItemAsync('authToken');
+      const authHeaders = {
+        'Authorization': `Bearer ${authToken}`
+      };
+
+      // Test different driver endpoints
+      const endpoints = [
+        '/api/users/cardriver/vehicle-owner/b04be5e6-391c-4af9-9903-aa0fc6bfabe0',
+        '/api/users/cardriver/organization/org_001',
+        '/api/assignments/available-drivers'
+      ];
+
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`🔍 Testing endpoint: ${endpoint}`);
+          const response = await axiosInstance.get(endpoint, { headers: authHeaders });
+          console.log(`✅ ${endpoint}: ${response.status} - ${response.data?.length || 0} drivers`);
+        } catch (error: any) {
+          console.log(`❌ ${endpoint}: ${error.response?.status || error.message}`);
+        }
+      }
+
+      Alert.alert('Driver Fetch Test', 'Check console logs for results');
+      
+    } catch (error: any) {
+      console.error(`❌ Driver fetch test failed: ${error.message}`);
+      Alert.alert('Error', `Driver fetch test failed: ${error.message}`);
+    }
+  };
+
   const handleWelcomeComplete = () => {
     setShowWelcome(false);
     router.replace('/(tabs)');
@@ -389,6 +423,10 @@ export default function LoginScreen() {
 
             <TouchableOpacity onPress={testCarDetailsWithoutImages} style={styles.testButton}>
               <Text style={styles.testButtonText}>Test Car Details Without Images</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity onPress={testDriverFetching} style={styles.testButton}>
+              <Text style={styles.testButtonText}>Test Driver Fetching Endpoints</Text>
             </TouchableOpacity>
 
             <TouchableOpacity onPress={() => router.push('/signup')}>

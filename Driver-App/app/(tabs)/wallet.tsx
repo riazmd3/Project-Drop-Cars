@@ -9,29 +9,44 @@ import {
   Alert,
   ActivityIndicator,
   RefreshControl,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useWallet } from '@/contexts/WalletContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { IndianRupee, Plus, ArrowUpRight, ArrowDownLeft, RefreshCw, AlertCircle } from 'lucide-react-native';
-import RazorpayCheckout from 'react-native-razorpay';
+// Import Razorpay with error handling
+let RazorpayCheckout: any = null;
+try {
+  if (Platform.OS === 'android' || Platform.OS === 'ios') {
+    RazorpayCheckout = require('react-native-razorpay').default;
+    console.log('✅ Razorpay SDK loaded successfully for', Platform.OS);
+  } else {
+    console.warn('⚠️ Razorpay SDK only supports Android and iOS, current platform:', Platform.OS);
+  }
+} catch (error) {
+  console.warn('⚠️ Razorpay SDK not available:', error);
+  RazorpayCheckout = null;
+}
 import { 
-  createPaymentOrder, 
-  verifyPayment, 
-  getRazorpayOptions,
-  PaymentRequest 
+  processWalletTopup,
+  handleRazorpayPaymentSuccess,
+  handleRazorpayPaymentFailure,
+  getRazorpayOptions
 } from '@/services/paymentService';
 
 export default function WalletScreen() {
   const { 
     balance, 
-    addMoney, 
     transactions, 
     loading, 
     error, 
     refreshBalance, 
     refreshTransactions,
+    processWalletTopup: processTopup,
+    handlePaymentSuccess,
+    handlePaymentFailure,
     syncWithBackend 
   } = useWallet();
   const { colors } = useTheme();
@@ -66,42 +81,35 @@ export default function WalletScreen() {
       
       console.log('💰 Starting wallet top-up process:', { amount, userId: user.id });
 
-      // Create payment order on backend
-      const paymentRequest: PaymentRequest = {
-        amount,
-        currency: 'INR',
-        description: `Wallet top-up of ₹${amount}`,
-        user_id: user.id,
-        payment_type: 'wallet_topup',
-        metadata: {
-          user_name: user.fullName,
-          user_mobile: user.primaryMobile
-        }
-      };
-
-      const orderResponse = await createPaymentOrder(paymentRequest);
+      // Step 1: Create Razorpay order using the new API
+      const orderResponse = await processTopup(amount, {
+        name: user.fullName || 'Driver',
+        email: `${user.primaryMobile}@dropcars.com`, // Fallback email
+        contact: user.primaryMobile
+      });
       
-      if (!orderResponse.success || !orderResponse.order_id) {
-        throw new Error(orderResponse.message || 'Failed to create payment order');
+      if (!orderResponse.success || !orderResponse.razorpay_order_id) {
+        throw new Error('Failed to create Razorpay order');
       }
 
-      console.log('✅ Payment order created:', orderResponse);
+      console.log('✅ Razorpay order created:', orderResponse.razorpay_order_id);
 
-      // Check if we're using mock data (backend not available)
-      if (orderResponse.message.includes('mock') || orderResponse.message.includes('fallback')) {
-        // Simulate payment success with mock data
-        console.log('🔧 Using mock payment flow');
+      // Check if Razorpay SDK is available
+      if (!RazorpayCheckout) {
+        console.log('🔧 Razorpay SDK not available, using mock payment...');
         
-        // Add money to wallet directly
-        await addMoney(amount, `Wallet top-up via Razorpay (Mock)`, {
+        // Simulate successful payment
+        const mockPaymentResponse = {
           razorpay_payment_id: `mock_pay_${Date.now()}`,
-          razorpay_order_id: orderResponse.order_id,
-          payment_method: 'razorpay_mock'
-        });
+          razorpay_order_id: orderResponse.razorpay_order_id,
+          razorpay_signature: `mock_signature_${Date.now()}`
+        };
+
+        await handlePaymentSuccess(mockPaymentResponse);
 
         Alert.alert(
           'Payment Successful! 🎉 (Mock)',
-          `₹${amount} has been added to your wallet successfully.\n\nThis is a mock payment for development.\n\nPayment ID: mock_pay_${Date.now()}`,
+          `₹${amount} has been added to your wallet successfully.\n\nNote: Razorpay SDK is not available on this platform, so this is a mock payment for development.\n\nPayment ID: ${mockPaymentResponse.razorpay_payment_id}`,
           [{ text: 'OK' }]
         );
         
@@ -109,53 +117,108 @@ export default function WalletScreen() {
         return;
       }
 
-      // Prepare Razorpay options for real payment
+      // Check if we're using mock data (backend not available)
+      if (orderResponse.message.includes('mock') || orderResponse.message.includes('fallback')) {
+        // Simulate payment success with mock data
+        console.log('🔧 Using mock payment flow');
+        
+        // Simulate successful payment
+        const mockPaymentResponse = {
+          razorpay_payment_id: `mock_pay_${Date.now()}`,
+          razorpay_order_id: orderResponse.razorpay_order_id,
+          razorpay_signature: `mock_signature_${Date.now()}`
+        };
+
+        await handlePaymentSuccess(mockPaymentResponse);
+
+        Alert.alert(
+          'Payment Successful! 🎉 (Mock)',
+          `₹${amount} has been added to your wallet successfully.\n\nThis is a mock payment for development.\n\nPayment ID: ${mockPaymentResponse.razorpay_payment_id}`,
+          [{ text: 'OK' }]
+        );
+        
+        setAddAmount('');
+        return;
+      }
+
+      // Step 2: Prepare Razorpay options for real payment
       const razorpayOptions = getRazorpayOptions(
-        orderResponse.order_id,
+        orderResponse.razorpay_order_id,
         amount,
         `Wallet top-up of ₹${amount}`,
         {
           name: user.fullName || 'Driver',
-          email: `${user.primaryMobile}@dropcars.com`, // Fallback email
+          email: `${user.primaryMobile}@dropcars.com`,
           contact: user.primaryMobile
         }
       );
 
       console.log('🔧 Razorpay options:', razorpayOptions);
 
-      // Open Razorpay checkout
+      // Step 3: Open Razorpay checkout
+      console.log('🔧 Opening Razorpay checkout...');
+      
+      // Check if RazorpayCheckout is available
+      if (!RazorpayCheckout || typeof RazorpayCheckout.open !== 'function') {
+        throw new Error('Razorpay SDK not available. Using mock payment instead.');
+      }
+      
       const paymentData = await RazorpayCheckout.open(razorpayOptions);
+      
+      // Check if payment data is valid
+      if (!paymentData || !paymentData.razorpay_payment_id) {
+        throw new Error('Payment data is invalid or payment was cancelled.');
+      }
       
       console.log('✅ Payment successful:', paymentData);
 
-      // Verify payment with backend
-      const verificationResponse = await verifyPayment(
-        paymentData.razorpay_payment_id,
-        paymentData.razorpay_order_id,
-        paymentData.razorpay_signature
+      // Step 4: Handle payment success
+      await handlePaymentSuccess(paymentData);
+
+      Alert.alert(
+        'Payment Successful! 🎉',
+        `₹${amount} has been added to your wallet successfully.\n\nPayment ID: ${paymentData.razorpay_payment_id}`,
+        [{ text: 'OK' }]
       );
-
-      if (verificationResponse.success) {
-        // Add money to wallet
-        await addMoney(amount, `Wallet top-up via Razorpay`, {
-          razorpay_payment_id: paymentData.razorpay_payment_id,
-          razorpay_order_id: paymentData.razorpay_order_id,
-          payment_method: 'razorpay'
-        });
-
-        Alert.alert(
-          'Payment Successful! 🎉',
-          `₹${amount} has been added to your wallet successfully.\n\nPayment ID: ${paymentData.razorpay_payment_id}`,
-          [{ text: 'OK' }]
-        );
-        
-        setAddAmount('');
-      } else {
-        throw new Error(verificationResponse.message || 'Payment verification failed');
-      }
+      
+      setAddAmount('');
 
     } catch (error: any) {
       console.error('❌ Payment failed:', error);
+      
+      // Check if it's a Razorpay SDK issue and offer fallback
+      if (error.message.includes('Razorpay SDK not available') || 
+          error.message.includes('Cannot read property \'open\' of null')) {
+        
+        console.log('🔧 Razorpay SDK not available, using mock payment fallback...');
+        
+        try {
+          // Use mock payment as fallback
+          const mockPaymentResponse = {
+            razorpay_payment_id: `mock_pay_${Date.now()}`,
+            razorpay_order_id: orderResponse.razorpay_order_id,
+            razorpay_signature: `mock_signature_${Date.now()}`
+          };
+
+          await handlePaymentSuccess(mockPaymentResponse);
+
+          Alert.alert(
+            'Payment Successful! 🎉 (Mock)',
+            `₹${amount} has been added to your wallet successfully.\n\nNote: Razorpay SDK is not available, so this is a mock payment for development.\n\nPayment ID: ${mockPaymentResponse.razorpay_payment_id}`,
+            [{ text: 'OK' }]
+          );
+          
+          setAddAmount('');
+          return;
+        } catch (fallbackError: any) {
+          console.error('❌ Mock payment fallback also failed:', fallbackError);
+          Alert.alert('Payment Failed', 'Both Razorpay and mock payment failed. Please try again later.');
+          return;
+        }
+      }
+      
+      // Handle other payment failures
+      handlePaymentFailure(error);
       
       let errorMessage = 'Payment failed. Please try again.';
       
@@ -167,6 +230,8 @@ export default function WalletScreen() {
         errorMessage = 'Payment verification failed. Please contact support.';
       } else if (error.message.includes('order creation failed')) {
         errorMessage = 'Unable to create payment order. Please try again.';
+      } else if (error.message.includes('Payment data is invalid')) {
+        errorMessage = 'Payment was cancelled or failed. Please try again.';
       }
       
       Alert.alert('Payment Failed', errorMessage);

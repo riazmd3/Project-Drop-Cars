@@ -324,11 +324,11 @@ export const loginVehicleOwner = async (mobileNumber: string, password: string):
     
     console.log('✅ Login successful:', response.data);
     
-          // Store the access token securely
-      if (response.data.access_token) {
-        await authService.setToken(response.data.access_token);
-        console.log('🔒 Access token stored securely');
-      }
+    // Store the access token securely
+    if (response.data.access_token) {
+      await authService.setToken(response.data.access_token);
+      console.log('🔒 Access token stored securely');
+    }
     
     return response.data;
   } catch (error: any) {

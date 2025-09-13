@@ -199,6 +199,10 @@ export const addDriverDetails = async (driverData: DriverDetails): Promise<Drive
           }).join(', ');
           throw new Error(`Validation Error: ${fieldErrors}`);
         } else if (typeof errorData.detail === 'string') {
+          // Check if it's a duplicate registration error
+          if (errorData.detail.includes('already registered')) {
+            throw new Error(`Driver with primary number ${driverData.primary_number} is already registered. Please use a different number.`);
+          }
           throw new Error(`Validation Error: ${errorData.detail}`);
         } else {
           throw new Error(`Validation Error: ${JSON.stringify(errorData.detail)}`);
