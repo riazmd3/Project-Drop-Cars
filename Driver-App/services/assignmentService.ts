@@ -1,5 +1,38 @@
 import axiosInstance from '@/app/api/axiosInstance';
 import { getAuthHeaders } from '@/services/authService';
+import { extractUserIdFromJWT, isJWTExpired } from '@/utils/jwtDecoder';
+
+/**
+ * Get vehicle owner ID from JWT token
+ */
+const getVehicleOwnerIdFromToken = async (): Promise<string> => {
+  try {
+    const authHeaders = await getAuthHeaders();
+    const token = authHeaders.Authorization?.replace('Bearer ', '');
+    
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+    
+    // Check if token is expired
+    const isExpired = isJWTExpired(token);
+    if (isExpired) {
+      console.log('⚠️ JWT token is expired, user needs to login again');
+      throw new Error('JWT token has expired. Please login again.');
+    }
+    
+    const vehicleOwnerId = extractUserIdFromJWT(token);
+    if (!vehicleOwnerId) {
+      throw new Error('Could not extract vehicle owner ID from token');
+    }
+    
+    console.log('🔑 Extracted vehicle owner ID from JWT:', vehicleOwnerId);
+    return vehicleOwnerId;
+  } catch (error: any) {
+    console.error('❌ Failed to get vehicle owner ID from token:', error);
+    throw new Error('Failed to get vehicle owner ID from authentication token');
+  }
+};
 
 export interface AvailableDriver {
   id: string;
@@ -254,18 +287,30 @@ export const fetchAvailableCars = async (): Promise<AvailableCar[]> => {
 /**
  * Accept an order (creates assignment with PENDING status)
  */
-export const acceptOrder = async (orderId: string): Promise<AssignmentResponse> => {
+export const acceptOrder = async (request: AcceptOrderRequest): Promise<AcceptOrderResponse> => {
   try {
-    console.log('🔗 Accepting order:', orderId);
+    console.log('🔗 Accepting order:', request.order_id);
+    console.log('📋 Request data:', request);
+    
+    // Get vehicle owner ID from JWT token
+    const vehicleOwnerId = await getVehicleOwnerIdFromToken();
+    console.log('🔑 Using vehicle owner ID from JWT:', vehicleOwnerId);
     
     const authHeaders = await getAuthHeaders();
     const response = await axiosInstance.post('/api/assignments/acceptorder', {
-      order_id: orderId
+      order_id: request.order_id,
+      vehicle_owner_id: vehicleOwnerId, // Use the ID from JWT token
+      acceptance_notes: request.acceptance_notes
     }, {
       headers: authHeaders
     });
 
     if (response.data) {
+      // Check if the response contains an error message
+      if (response.data.detail && response.data.detail.includes('Could not validate credentials')) {
+        throw new Error('Authentication failed. Please login again.');
+      }
+      
       console.log('✅ Order accepted successfully:', response.data);
       return response.data;
     }
@@ -283,6 +328,9 @@ export const acceptOrder = async (orderId: string): Promise<AssignmentResponse> 
       throw new Error('Order not found.');
     } else if (error.response?.status === 409) {
       throw new Error('Order is already assigned or accepted.');
+    } else if (error.response?.status === 422) {
+      const errorDetail = error.response.data?.detail || error.response.data?.message || 'Validation error';
+      throw new Error(`Order acceptance validation failed: ${errorDetail}`);
     } else if (error.response?.status === 500) {
       throw new Error('Server error. Please try again later.');
     } else {
@@ -340,10 +388,16 @@ export const assignDriverAndCar = async (assignmentData: AssignmentRequest): Pro
     console.log('🔗 Assigning driver and car to order:', assignmentData.order_id);
     
     // Step 1: Accept the order (creates assignment with PENDING status)
-    const acceptedOrder = await acceptOrder(assignmentData.order_id);
+    const acceptRequest: AcceptOrderRequest = {
+      order_id: assignmentData.order_id,
+      vehicle_owner_id: assignmentData.assigned_by,
+      acceptance_notes: assignmentData.assignment_notes
+    };
+    
+    const acceptedOrder = await acceptOrder(acceptRequest);
     
     // Step 2: Update assignment status to ASSIGNED
-    const assignmentId = acceptedOrder.id;
+    const assignmentId = acceptedOrder.id || acceptedOrder.assignment_id;
     if (!assignmentId) {
       throw new Error('No assignment ID received from order acceptance');
     }
@@ -627,6 +681,12 @@ export const checkOrderAvailability = async (orderId: string): Promise<boolean> 
     });
 
     if (response.data) {
+      // Check if the response contains an error message
+      if (response.data.detail && response.data.detail.includes('Could not validate credentials')) {
+        console.log('❌ Authentication failed for order availability check');
+        return false;
+      }
+      
       const order = response.data;
       const isAvailable = order.trip_status === 'PENDING' || 
                          order.trip_status === 'AVAILABLE' || 
@@ -644,6 +704,12 @@ export const checkOrderAvailability = async (orderId: string): Promise<boolean> 
     // If the order is not found (404), it's not available
     if (error.response?.status === 404) {
       console.log('❌ Order not found, considering it unavailable');
+      return false;
+    }
+    
+    // If we get 403 Forbidden, it might be an authentication issue
+    if (error.response?.status === 403) {
+      console.log('❌ Access forbidden to order, considering it unavailable');
       return false;
     }
     
@@ -849,6 +915,217 @@ export const acceptOrderLegacy = async (request: AcceptOrderRequest): Promise<Ac
 };
 
 /**
+ * Assign a driver and car to a specific order using the new API endpoint
+ * POST /api/assignments/{order_id}/assign-car-driver
+ */
+export const assignCarDriverToOrder = async (
+  orderId: string,
+  driverId: string,
+  carId: string
+): Promise<AssignmentResponse> => {
+  try {
+    console.log('🔗 Assigning driver and car to order:', orderId);
+    console.log('👤 Driver ID:', driverId);
+    console.log('🚗 Car ID:', carId);
+    
+    // Get vehicle owner ID from JWT token for logging
+    const vehicleOwnerId = await getVehicleOwnerIdFromToken();
+    console.log('🔑 Vehicle owner ID from JWT:', vehicleOwnerId);
+    
+    const authHeaders = await getAuthHeaders();
+    const response = await axiosInstance.post(`/api/assignments/${orderId}/assign-car-driver`, {
+      driver_id: driverId,
+      car_id: carId
+    }, {
+      headers: authHeaders
+    });
+
+    if (response.data) {
+      console.log('✅ Driver and car assigned successfully:', response.data);
+      return response.data;
+    }
+
+    throw new Error('No response data received from assignment');
+  } catch (error: any) {
+    console.error('❌ Failed to assign driver and car:', error);
+    
+    if (error.response?.status === 400) {
+      const errorDetail = error.response.data?.detail || error.response.data?.message || 'Bad request';
+      throw new Error(`Assignment failed: ${errorDetail}`);
+    } else if (error.response?.status === 401) {
+      throw new Error('Authentication failed. Please login again.');
+    } else if (error.response?.status === 404) {
+      throw new Error('Order not found.');
+    } else if (error.response?.status === 409) {
+      throw new Error('Order is already assigned.');
+    } else if (error.response?.status === 500) {
+      throw new Error('Server error. Please try again later.');
+    } else {
+      throw new Error(error.message || 'Failed to assign driver and car');
+    }
+  }
+};
+
+/**
+ * Get future rides for a specific vehicle owner
+ * GET /api/assignments/vehicle_owner/{vehicle_owner_id}
+ */
+export const getFutureRidesForVehicleOwner = async (vehicleOwnerId?: string): Promise<any[]> => {
+  try {
+    // If no vehicle owner ID provided, get it from JWT token
+    const ownerId = vehicleOwnerId || await getVehicleOwnerIdFromToken();
+    console.log('📋 Fetching future rides for vehicle owner:', ownerId);
+    
+    const authHeaders = await getAuthHeaders();
+    const response = await axiosInstance.get(`/api/assignments/vehicle_owner/${ownerId}`, {
+      headers: authHeaders
+    });
+
+    if (response.data) {
+      console.log('✅ Future rides fetched successfully:', response.data.length, 'rides');
+      return response.data;
+    }
+
+    return [];
+  } catch (error: any) {
+    console.error('❌ Failed to fetch future rides:', error);
+    
+    if (error.response?.status === 401) {
+      throw new Error('Authentication failed. Please login again.');
+    } else if (error.response?.status === 404) {
+      throw new Error('Vehicle owner not found.');
+    } else if (error.response?.status === 500) {
+      throw new Error('Server error. Please try again later.');
+    } else {
+      throw new Error(error.message || 'Failed to fetch future rides');
+    }
+  }
+};
+
+/**
+ * Get order details by order ID
+ * GET /api/orders/{order_id}
+ */
+export const getOrderDetails = async (orderId: string): Promise<any> => {
+  try {
+    console.log('🔍 Fetching order details for order:', orderId);
+    
+    const authHeaders = await getAuthHeaders();
+    const response = await axiosInstance.get(`/api/orders/${orderId}`, {
+      headers: authHeaders
+    });
+
+    if (response.data) {
+      console.log('✅ Order details fetched successfully:', response.data);
+      return response.data;
+    }
+
+    throw new Error('No order data received');
+  } catch (error: any) {
+    console.error('❌ Failed to fetch order details:', error);
+    
+    if (error.response?.status === 401) {
+      throw new Error('Authentication failed. Please login again.');
+    } else if (error.response?.status === 404) {
+      throw new Error('Order not found.');
+    } else if (error.response?.status === 500) {
+      throw new Error('Server error. Please try again later.');
+    } else {
+      throw new Error(error.message || 'Failed to fetch order details');
+    }
+  }
+};
+
+/**
+ * Get future rides with complete order details
+ */
+export const getFutureRidesWithDetails = async (): Promise<any[]> => {
+  try {
+    console.log('📋 Fetching future rides with complete details...');
+    
+    // Get assignments
+    const assignments = await getFutureRidesForVehicleOwner();
+    
+    if (assignments.length === 0) {
+      return [];
+    }
+    
+    // Fetch order details for each assignment
+    const ridesWithDetails = await Promise.all(
+      assignments.map(async (assignment: any) => {
+        try {
+          const orderDetails = await getOrderDetails(assignment.order_id.toString());
+          
+          return {
+            // Assignment data
+            assignment_id: assignment.id,
+            assignment_status: assignment.assignment_status,
+            expires_at: assignment.expires_at,
+            created_at: assignment.created_at,
+            assigned_at: assignment.assigned_at,
+            
+            // Order data
+            order_id: assignment.order_id,
+            driver_id: assignment.driver_id,
+            car_id: assignment.car_id,
+            
+            // Order details
+            pickup: orderDetails.pickup_location || orderDetails.pickup || 'Pickup Location',
+            drop: orderDetails.drop_location || orderDetails.drop || 'Drop Location',
+            distance: orderDetails.distance || '0 km',
+            total_fare: orderDetails.total_fare || orderDetails.fare || '0',
+            customer_name: orderDetails.customer_name || 'Customer Name',
+            customer_mobile: orderDetails.customer_mobile || orderDetails.customer_phone || '0000000000',
+            
+            // Computed fields
+            id: assignment.id.toString(),
+            booking_id: assignment.order_id.toString(),
+            date: new Date(assignment.created_at).toLocaleDateString(),
+            time: new Date(assignment.created_at).toLocaleTimeString(),
+            status: assignment.assignment_status === 'PENDING' ? 'pending_assignment' : 'assigned',
+            assigned_driver: assignment.driver_id ? { id: assignment.driver_id } : null,
+            assigned_vehicle: assignment.car_id ? { id: assignment.car_id } : null,
+          };
+        } catch (orderError) {
+          console.error(`❌ Failed to fetch details for order ${assignment.order_id}:`, orderError);
+          
+          // Return basic assignment data if order details fail
+          return {
+            assignment_id: assignment.id,
+            assignment_status: assignment.assignment_status,
+            expires_at: assignment.expires_at,
+            created_at: assignment.created_at,
+            order_id: assignment.order_id,
+            driver_id: assignment.driver_id,
+            car_id: assignment.car_id,
+            pickup: 'Pickup Location',
+            drop: 'Drop Location',
+            distance: '0 km',
+            total_fare: '0',
+            customer_name: 'Customer Name',
+            customer_mobile: '0000000000',
+            id: assignment.id.toString(),
+            booking_id: assignment.order_id.toString(),
+            date: new Date(assignment.created_at).toLocaleDateString(),
+            time: new Date(assignment.created_at).toLocaleTimeString(),
+            status: assignment.assignment_status === 'PENDING' ? 'pending_assignment' : 'assigned',
+            assigned_driver: assignment.driver_id ? { id: assignment.driver_id } : null,
+            assigned_vehicle: assignment.car_id ? { id: assignment.car_id } : null,
+          };
+        }
+      })
+    );
+    
+    console.log('✅ Future rides with details fetched successfully:', ridesWithDetails.length, 'rides');
+    return ridesWithDetails;
+    
+  } catch (error: any) {
+    console.error('❌ Failed to fetch future rides with details:', error);
+    throw error;
+  }
+};
+
+/**
  * Test function to debug order acceptance API connectivity
  */
 export const testOrderAcceptanceAPI = async (): Promise<any> => {
@@ -904,5 +1181,75 @@ export const testOrderAcceptanceAPI = async (): Promise<any> => {
   } catch (error: any) {
     console.error('❌ API connectivity test failed:', error);
     return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Debug function to test specific order acceptance with detailed logging
+ */
+export const debugOrderAcceptance = async (orderId: string, vehicleOwnerId?: string): Promise<any> => {
+  try {
+    console.log('🐛 Debugging order acceptance for order:', orderId);
+    
+    // Get vehicle owner ID from JWT token if not provided
+    const ownerId = vehicleOwnerId || await getVehicleOwnerIdFromToken();
+    console.log('🐛 Vehicle owner ID from JWT:', ownerId);
+    
+    // Check authentication
+    const authHeaders = await getAuthHeaders();
+    console.log('🔑 Auth headers:', authHeaders);
+    
+    // Test order availability first
+    console.log('🔍 Step 1: Checking order availability...');
+    try {
+      const orderResponse = await axiosInstance.get(`/api/orders/${orderId}`, {
+        headers: authHeaders
+      });
+      console.log('✅ Order details:', orderResponse.data);
+    } catch (orderError: any) {
+      console.error('❌ Order check failed:', {
+        status: orderError.response?.status,
+        statusText: orderError.response?.statusText,
+        data: orderError.response?.data,
+        message: orderError.message
+      });
+    }
+    
+    // Test acceptorder endpoint
+    console.log('🔍 Step 2: Testing acceptorder endpoint...');
+    const acceptRequest = {
+      order_id: orderId,
+      vehicle_owner_id: ownerId, // Use the ID from JWT token
+      acceptance_notes: 'Debug test acceptance'
+    };
+    
+    console.log('📋 Accept request data:', acceptRequest);
+    
+    const acceptResponse = await axiosInstance.post('/api/assignments/acceptorder', acceptRequest, {
+      headers: authHeaders
+    });
+    
+    console.log('✅ Accept order response:', acceptResponse.data);
+    return { success: true, data: acceptResponse.data };
+    
+  } catch (error: any) {
+    console.error('❌ Debug order acceptance failed:', {
+      status: error.response?.status,
+      statusText: error.response?.statusText,
+      data: error.response?.data,
+      message: error.message,
+      url: error.config?.url,
+      method: error.config?.method
+    });
+    
+    return { 
+      success: false, 
+      error: {
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        message: error.message
+      }
+    };
   }
 };
