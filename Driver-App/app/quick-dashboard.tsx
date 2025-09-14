@@ -33,7 +33,15 @@ export default function QuickDashboardScreen() {
     try {
       setOrdersLoading(true);
         
-        // Fetch current driver status
+        // First, try to use driver_status from user object (from login response)
+        if (user.driver_status) {
+          const status = user.driver_status.toUpperCase();
+          if (status === 'ONLINE' || status === 'OFFLINE') {
+            setDriverStatus(status);
+            console.log('🔍 Using driver status from login:', status);
+          }
+        } else {
+          // If no status in user object, try to fetch from API
         try {
           const authHeaders = await getAuthHeaders();
           const driverResponse = await axiosInstance.get(`/api/users/cardriver/${user.id}`, { 
@@ -43,11 +51,13 @@ export default function QuickDashboardScreen() {
             const status = driverResponse.data.driver_status.toUpperCase();
             if (status === 'ONLINE' || status === 'OFFLINE') {
               setDriverStatus(status);
-              console.log('🔍 Current driver status:', status);
+                console.log('🔍 Current driver status from API:', status);
+              }
             }
+          } catch (statusError) {
+            console.log('⚠️ Could not fetch driver status, using default ONLINE');
+            setDriverStatus('ONLINE'); // Default to ONLINE instead of OFFLINE
           }
-        } catch (statusError) {
-          console.log('⚠️ Could not fetch driver status, using default OFFLINE');
         }
         
         // Fetch assignments using the new enhanced function
@@ -72,19 +82,19 @@ export default function QuickDashboardScreen() {
             
             // If we got assignments, enrich them with order details
             if (assignments.length > 0) {
-              const authHeaders = await getAuthHeaders();
-              for (const a of assignments) {
-                try {
-                  const res = await axiosInstance.get(`/api/orders/${a.order_id}`, { headers: authHeaders });
-                  if (res.data) {
-                    detailedOrders.push({ 
-                      ...res.data, 
-                      assignment_id: a.id, 
-                      assignment_status: a.assignment_status || a.status 
-                    });
-                  }
+        const authHeaders = await getAuthHeaders();
+        for (const a of assignments) {
+          try {
+            const res = await axiosInstance.get(`/api/orders/${a.order_id}`, { headers: authHeaders });
+            if (res.data) {
+              detailedOrders.push({ 
+                ...res.data, 
+                assignment_id: a.id, 
+                assignment_status: a.assignment_status || a.status 
+              });
+            }
                 } catch (orderError: any) {
-                  console.error('❌ Failed to fetch order details:', orderError);
+            console.error('❌ Failed to fetch order details:', orderError);
                   errorMessages.push(`Order details fetch failed: ${orderError.message}`);
                 }
               }
@@ -232,28 +242,28 @@ export default function QuickDashboardScreen() {
     }) || sortedOrders.find(o => o.assignment_status === 'ASSIGNED' || o.assignment_status === 'PENDING') || null;
   }, [sortedOrders]);
 
-  // Get current active trip (if any)
+  // Get current active trip (if any) - prioritize DRIVING status
   const currentTrip = useMemo(() => {
     return sortedOrders.find(o => o.assignment_status === 'DRIVING' || o.assignment_status === 'STARTED');
   }, [sortedOrders]);
 
   const handleStartTrip = async (order: any) => {
     try {
-      setTripStarted(true);
+    setTripStarted(true);
       const farePerKm = order.cost_per_km || order.fare_per_km || 0;
       
       // Update assignment status to DRIVING
       await updateAssignmentStatus(order.assignment_id || order.id, 'DRIVING');
       
       // Navigate to trip start screen
-      router.push({
-        pathname: '/trip/start',
-        params: {
+    router.push({
+      pathname: '/trip/start',
+      params: {
           orderId: String(order.order_id || order.booking_id || ''),
           assignmentId: String(order.assignment_id || order.id || ''),
-          farePerKm: String(farePerKm)
-        }
-      });
+        farePerKm: String(farePerKm)
+      }
+    });
     } catch (error) {
       console.error('❌ Failed to start trip:', error);
       Alert.alert('Error', 'Failed to start trip. Please try again.');
@@ -282,63 +292,86 @@ export default function QuickDashboardScreen() {
   const fetchDriverStatus = async () => {
     if (!user?.id) return;
     try {
+      console.log('📊 Fetching driver status for:', user.id);
       // Fetch current driver status from API
       const response = await axiosInstance.get(`/api/users/cardriver/${user.id}`);
+      console.log('📊 Driver status response:', response.data);
+      
       if (response.data && response.data.driver_status) {
         setDriverStatus(response.data.driver_status);
-        console.log('📊 Current driver status:', response.data.driver_status);
+        console.log('✅ Driver status updated to:', response.data.driver_status);
+      } else {
+        console.log('⚠️ No driver_status in response, using default ONLINE');
+        setDriverStatus('ONLINE'); // Default to ONLINE if no status found
       }
     } catch (error) {
       console.error('❌ Failed to fetch driver status:', error);
-      // Keep current status if fetch fails
+      // If API fails, check if we have status from login response
+      if (user.driver_status) {
+        setDriverStatus(user.driver_status as 'ONLINE' | 'OFFLINE');
+        console.log('📊 Using driver status from user object:', user.driver_status);
+      } else {
+        console.log('⚠️ No driver status available, defaulting to ONLINE');
+        setDriverStatus('ONLINE'); // Default to ONLINE if all else fails
+      }
     }
   };
 
   const toggleStatus = async () => {
     if (!user?.id) return;
+    
+    console.log('🔄 Toggling status from:', driverStatus);
+    
     try {
-      if (driverStatus === 'OFFLINE') {
-        // Try to set driver online
-        const res = await setDriverOnline(user.id);
-        console.log('🟢 Online response:', res);
-        
-        // Check if the API call was successful
-        if (res?.success || res?.status === 'online' || res?.message?.includes('success')) {
-          setDriverStatus('ONLINE');
-        } else if (res?.message?.includes('already') || res?.message?.includes('Current status: ONLINE')) {
-          // Driver is already online, update local state
-          setDriverStatus('ONLINE');
-        }
+      let newStatus = driverStatus === 'ONLINE' ? 'OFFLINE' : 'ONLINE';
+      let response;
+      
+      if (newStatus === 'ONLINE') {
+        console.log('🟢 Setting driver online...');
+        response = await setDriverOnline(user.id);
+        console.log('🟢 Online response:', response);
       } else {
-        // Try to set driver offline
-        const res = await setDriverOffline(user.id);
-        console.log('🔴 Offline response:', res);
+        console.log('🔴 Setting driver offline...');
+        response = await setDriverOffline(user.id);
+        console.log('🔴 Offline response:', response);
+      }
         
         // Check if the API call was successful
-        if (res?.success || res?.status === 'offline' || res?.message?.includes('success')) {
-          setDriverStatus('OFFLINE');
-        } else if (res?.message?.includes('already') || res?.message?.includes('Current status: OFFLINE')) {
-          // Driver is already offline, update local state
-          setDriverStatus('OFFLINE');
-        }
+      if (response?.success || response?.status === newStatus.toLowerCase() || response?.message?.includes('success')) {
+        setDriverStatus(newStatus as 'ONLINE' | 'OFFLINE');
+        console.log('✅ Status updated to:', newStatus);
+      } else if (response?.message?.includes('already') || response?.message?.includes('Current status')) {
+        // Driver is already in the target status, update local state
+        setDriverStatus(newStatus as 'ONLINE' | 'OFFLINE');
+        console.log('✅ Status already set to:', newStatus);
+      } else {
+        console.log('⚠️ API response unclear, refreshing status...');
+        // Refresh status to get current state
+        setTimeout(() => {
+          fetchDriverStatus();
+        }, 500);
       }
       
-      // Refresh driver status after toggle
-      setTimeout(() => {
-        fetchDriverStatus();
-      }, 1000);
-    } catch (e: any) {
-      console.error('❌ Status toggle error:', e);
+    } catch (error: any) {
+      console.error('❌ Status toggle error:', error);
+      
       // Check if it's a "already in that status" error
-      if (e.message?.includes('already') || e.message?.includes('Current status')) {
-        // Update local state to match the current status
-        if (e.message?.includes('ONLINE')) {
-          setDriverStatus('ONLINE');
-        } else if (e.message?.includes('OFFLINE')) {
-          setDriverStatus('OFFLINE');
+      if (error.message?.includes('already') || error.message?.includes('Current status')) {
+        // Extract the current status from error message
+        if (error.message?.includes('ONLINE')) {
+          setDriverStatus('ONLINE' as 'ONLINE' | 'OFFLINE');
+          console.log('✅ Status set to ONLINE from error message');
+        } else if (error.message?.includes('OFFLINE')) {
+          setDriverStatus('OFFLINE' as 'ONLINE' | 'OFFLINE');
+          console.log('✅ Status set to OFFLINE from error message');
         }
       } else {
-        Alert.alert('Status Update Failed', e.message || 'Please try again');
+        console.error('❌ Toggle failed, refreshing status...');
+        // Refresh status to get current state
+        setTimeout(() => {
+          fetchDriverStatus();
+        }, 500);
+        Alert.alert('Status Update Failed', error.message || 'Please try again');
       }
     }
   };
@@ -404,7 +437,7 @@ export default function QuickDashboardScreen() {
     scrollContent: {
       paddingHorizontal: 20,
       paddingTop: 24,
-      paddingBottom: 40,
+      paddingBottom: 100, // Add extra padding for floating button
     },
     welcomeCard: {
       backgroundColor: colors.surface,
@@ -626,23 +659,33 @@ export default function QuickDashboardScreen() {
       fontFamily: 'Inter-SemiBold',
     },
     statusContainer: {
+      position: 'absolute',
+      bottom: 20,
+      left: 20,
+      right: 20,
       paddingVertical: 16,
-      marginTop: 20,
+      zIndex: 1000,
     },
     statusToggle: {
-      borderRadius: 12,
-      paddingVertical: 16,
+      borderRadius: 16,
+      paddingVertical: 18,
+      paddingHorizontal: 24,
       alignItems: 'center',
       shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.2,
-      shadowRadius: 4,
-      elevation: 4,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.3,
+      shadowRadius: 6,
+      elevation: 8,
+      borderWidth: 2,
+      borderColor: 'rgba(255, 255, 255, 0.2)',
     },
     statusToggleText: {
       color: '#FFFFFF',
-      fontSize: 16,
-      fontFamily: 'Inter-SemiBold',
+      fontSize: 18,
+      fontFamily: 'Inter-Bold',
+      textShadowColor: 'rgba(0, 0, 0, 0.3)',
+      textShadowOffset: { width: 0, height: 1 },
+      textShadowRadius: 2,
     },
   });
 
@@ -732,6 +775,14 @@ export default function QuickDashboardScreen() {
               const canStart = order.assignment_status === 'ASSIGNED' || order.assignment_status === 'PENDING';
               const isCompleted = order.assignment_status === 'COMPLETED';
               
+              // Debug logging for trip status detection
+              console.log(`🔍 Order ${order.order_id} status:`, {
+                assignment_status: order.assignment_status,
+                isCurrentTrip,
+                canStart,
+                isCompleted
+              });
+              
               return (
                 <View key={order.id || order.assignment_id || index} style={[
                   dynamicStyles.orderCard,
@@ -749,7 +800,7 @@ export default function QuickDashboardScreen() {
                       { backgroundColor: isCurrentTrip ? colors.success : isCompleted ? colors.textSecondary : colors.primary }
                     ]}>
                       <Text style={[dynamicStyles.statusText, { color: '#FFFFFF' }]}>
-                        {isCurrentTrip ? 'ACTIVE' : order.assignment_status}
+                        {isCurrentTrip ? 'ACTIVE' : order.assignment_status === 'ASSIGNED' ? 'READY' : order.assignment_status}
                       </Text>
                     </View>
                   </View>

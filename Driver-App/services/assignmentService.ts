@@ -718,6 +718,13 @@ export const getDriverAssignmentsWithDetails = async (driverId: string): Promise
       
       // Use data directly from assigned orders response (no need for assignment details API)
       const enrichedAssignments = response.data.map((assignment: any) => {
+        console.log('🔍 Processing assignment:', {
+          id: assignment.id,
+          assignment_status: assignment.assignment_status,
+          order_id: assignment.order_id,
+          driver_id: assignment.driver_id
+        });
+        
         return {
           // Assignment data
           assignment_id: assignment.id,

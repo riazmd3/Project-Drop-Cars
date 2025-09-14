@@ -67,7 +67,8 @@ export default function QuickLoginScreen() {
           aadharNumber: '', // Drivers don't have Aadhar in this context
           organizationId: 'driver_org', // Default organization for drivers
           languages: ['English'], // Default language
-          documents: {} // No documents needed for quick login
+          documents: {}, // No documents needed for quick login
+          driver_status: loginResponse.driver_status || 'ONLINE' // Include driver status from login response
         };
         
         // Login with the driver user data and token

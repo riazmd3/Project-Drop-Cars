@@ -276,6 +276,7 @@ export interface DriverLoginResponse {
   primary_number: string;
   status: string;
   message: string;
+  driver_status?: string; // Add driver status
 }
 
 // Driver login function
