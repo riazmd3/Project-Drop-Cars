@@ -311,8 +311,10 @@ export default function FutureRidesScreen() {
       }
       
       // Use the new API endpoint for assigning driver and car
+      // Use assignment_id instead of booking_id (order_id)
+      const assignmentId = selectedRide.assignment_id || selectedRide.id;
       const assignment = await assignCarDriverToOrder(
-        selectedRide.booking_id,
+        assignmentId,
         selectedDriver.id,
         vehicle.id
       );

@@ -4,6 +4,7 @@ import { DashboardData, fetchDashboardData, fetchAvailableDrivers, DriverDetail 
 export interface FutureRide {
   id: string;
   booking_id: string;
+  assignment_id?: string; // Add assignment_id for assignment operations
   pickup: string;
   drop: string;
   customer_name: string;

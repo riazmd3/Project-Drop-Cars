@@ -309,7 +309,8 @@ export const acceptOrder = async (request: AcceptOrderRequest): Promise<AcceptOr
     // Check wallet balance if order details are available
     if (orderDetails && (orderDetails.estimated_price || orderDetails.vendor_price)) {
       try {
-        const walletBalance = await getWalletBalance();
+        const walletResponse = await getWalletBalance();
+        const walletBalance = walletResponse.balance || 0;
         const requiredAmount = orderDetails.estimated_price || orderDetails.vendor_price || 0;
         
         console.log('💰 Wallet balance check:', {
@@ -335,9 +336,7 @@ export const acceptOrder = async (request: AcceptOrderRequest): Promise<AcceptOr
     
     const authHeaders = await getAuthHeaders();
     const response = await axiosInstance.post('/api/assignments/acceptorder', {
-      order_id: request.order_id,
-      vehicle_owner_id: vehicleOwnerId, // Use the ID from JWT token
-      acceptance_notes: request.acceptance_notes
+      order_id: parseInt(request.order_id) // Just order_id as integer
     }, {
       headers: authHeaders
     });
@@ -702,37 +701,31 @@ export const getDriverAssignmentsWithDetails = async (driverId: string): Promise
       throw new Error('Invalid driver ID provided for assignment lookup');
     }
     
-    // Get all assignments and filter by driver_id (correct approach)
+    // Use the CORRECT endpoint for driver assigned orders
     const authHeaders = await getAuthHeaders();
-    const response = await axiosInstance.get('/api/assignments/all', { headers: authHeaders });
+    const response = await axiosInstance.get('/api/assignments/driver/assigned-orders', { 
+      headers: authHeaders 
+    });
+    
+    console.log('📋 Driver assigned orders response:', response.data);
     
     if (Array.isArray(response.data)) {
-      // Filter assignments for this driver that are ASSIGNED or DRIVING
-      const driverAssignments = response.data.filter((assignment: any) => {
-        const matchesDriver = assignment.driver_id === driverId;
-        const isAssigned = assignment.assignment_status === 'ASSIGNED' || 
-                          assignment.assignment_status === 'DRIVING' || 
-                          assignment.assignment_status === 'COMPLETED';
-        
-        return matchesDriver && isAssigned;
-      });
+      console.log('📋 Found driver assignments:', response.data.length);
       
-      console.log('📋 Found driver assignments:', driverAssignments.length);
-      
-      if (driverAssignments.length === 0) {
+      if (response.data.length === 0) {
         return [];
       }
       
       // Enrich assignments with order details
       const enrichedAssignments = await Promise.all(
-        driverAssignments.map(async (assignment: any) => {
+        response.data.map(async (assignment: any) => {
           try {
-            // Get order details
-            const orderDetails = await getOrderDetails(assignment.order_id.toString());
+            // Use assignment_id to get assignment details
+            const assignmentDetails = await getAssignmentDetails(assignment.assignment_id || assignment.id);
             
             return {
               // Assignment data
-              assignment_id: assignment.id,
+              assignment_id: assignment.assignment_id || assignment.id,
               assignment_status: assignment.assignment_status,
               expires_at: assignment.expires_at,
               created_at: assignment.created_at,
@@ -743,16 +736,16 @@ export const getDriverAssignmentsWithDetails = async (driverId: string): Promise
               driver_id: assignment.driver_id,
               car_id: assignment.car_id,
               
-              // Order details
-              pickup: orderDetails.pickup_location || orderDetails.pickup || 'Pickup Location',
-              drop: orderDetails.drop_location || orderDetails.drop || 'Drop Location',
-              distance: orderDetails.distance || '0 km',
-              total_fare: orderDetails.total_fare || orderDetails.fare || '0',
-              customer_name: orderDetails.customer_name || 'Customer Name',
-              customer_mobile: orderDetails.customer_mobile || orderDetails.customer_phone || '0000000000',
+              // Order details from assignment
+              pickup: assignment.pickup_location || assignment.pickup || 'Pickup Location',
+              drop: assignment.drop_location || assignment.drop || 'Drop Location',
+              distance: assignment.distance || '0 km',
+              total_fare: assignment.total_fare || assignment.fare || '0',
+              customer_name: assignment.customer_name || 'Customer Name',
+              customer_mobile: assignment.customer_mobile || assignment.customer_phone || '0000000000',
               
               // Computed fields
-              id: assignment.id.toString(),
+              id: (assignment.assignment_id || assignment.id).toString(),
               booking_id: assignment.order_id.toString(),
               date: new Date(assignment.created_at).toLocaleDateString(),
               time: new Date(assignment.created_at).toLocaleTimeString(),
@@ -760,8 +753,8 @@ export const getDriverAssignmentsWithDetails = async (driverId: string): Promise
               assigned_driver: assignment.driver_id,
               assigned_vehicle: assignment.car_id
             };
-          } catch (orderError) {
-            console.error('❌ Failed to get order details for assignment:', assignment.id, orderError);
+          } catch (assignmentError) {
+            console.error('❌ Failed to get assignment details:', assignment.id, assignmentError);
             return {
               ...assignment,
               pickup: 'Unknown',
@@ -769,7 +762,7 @@ export const getDriverAssignmentsWithDetails = async (driverId: string): Promise
               customer_name: 'Unknown',
               customer_mobile: '0000000000',
               status: 'assigned',
-              error: 'Failed to fetch order details'
+              error: 'Failed to fetch assignment details'
             };
           }
         })
@@ -1089,12 +1082,12 @@ export const acceptOrderLegacy = async (request: AcceptOrderRequest): Promise<Ac
  * POST /api/assignments/{order_id}/assign-car-driver
  */
 export const assignCarDriverToOrder = async (
-  orderId: string,
+  assignmentId: string,
   driverId: string,
   carId: string
 ): Promise<AssignmentResponse> => {
   try {
-    console.log('🔗 Assigning driver and car to order:', orderId);
+    console.log('🔗 Assigning driver and car to assignment:', assignmentId);
     console.log('👤 Driver ID:', driverId);
     console.log('🚗 Car ID:', carId);
     
@@ -1105,30 +1098,22 @@ export const assignCarDriverToOrder = async (
     if (!carId || carId === 'undefined' || carId === 'null') {
       throw new Error('Invalid car ID provided');
     }
-    if (!orderId || orderId === 'undefined' || orderId === 'null') {
-      throw new Error('Invalid order ID provided');
+    if (!assignmentId || assignmentId === 'undefined' || assignmentId === 'null') {
+      throw new Error('Invalid assignment ID provided');
     }
     
-    // Check if order is already assigned before attempting assignment
+    // Check if assignment is already assigned before attempting assignment
     try {
-      const assignments = await getOrderAssignments(orderId);
+      const assignmentDetails = await getAssignmentDetails(assignmentId);
       
-      if (assignments && assignments.length > 0) {
-        const assignedOrder = assignments.find(assignment => 
-          assignment.assignment_status === 'ASSIGNED' || 
-          assignment.assignment_status === 'DRIVING' || 
-          assignment.assignment_status === 'COMPLETED'
-        );
-        
-        if (assignedOrder) {
-          console.warn('⚠️ Order already assigned:', {
-            order_id: orderId,
-            assignment_status: assignedOrder.assignment_status,
-            driver_id: assignedOrder.driver_id,
-            car_id: assignedOrder.car_id
-          });
-          throw new Error(`Order ${orderId} is already assigned to driver ${assignedOrder.driver_id} and car ${assignedOrder.car_id}`);
-        }
+      if (assignmentDetails && assignmentDetails.assignment_status === 'ASSIGNED') {
+        console.warn('⚠️ Assignment already assigned:', {
+          assignment_id: assignmentId,
+          assignment_status: assignmentDetails.assignment_status,
+          driver_id: assignmentDetails.driver_id,
+          car_id: assignmentDetails.car_id
+        });
+        throw new Error(`Assignment ${assignmentId} is already assigned to driver ${assignmentDetails.driver_id} and car ${assignmentDetails.car_id}`);
       }
     } catch (checkError: any) {
       if (checkError.message.includes('already assigned')) {
@@ -1143,7 +1128,7 @@ export const assignCarDriverToOrder = async (
       car_id: carId
     };
     
-    const response = await axiosInstance.patch(`/api/assignments/${orderId}/assign-car-driver`, requestData, {
+    const response = await axiosInstance.patch(`/api/assignments/${assignmentId}/assign-car-driver`, requestData, {
       headers: authHeaders
     });
 
@@ -1251,6 +1236,39 @@ export const getOrderDetails = async (orderId: string): Promise<any> => {
     } else {
       throw new Error(error.message || 'Failed to fetch order details');
     }
+  }
+};
+
+/**
+ * Get assignment details by assignment ID
+ */
+export const getAssignmentDetails = async (assignmentId: string): Promise<any> => {
+  try {
+    console.log('🔍 Fetching assignment details for assignment:', assignmentId);
+    
+    const authHeaders = await getAuthHeaders();
+    const response = await axiosInstance.get(`/api/assignments/${assignmentId}`, {
+      headers: authHeaders
+    });
+
+    if (response.data) {
+      console.log('✅ Assignment details fetched successfully:', response.data);
+      return response.data;
+    }
+
+    throw new Error('No assignment details received from server');
+  } catch (error: any) {
+    console.error('❌ Failed to fetch assignment details:', error);
+    
+    if (error.response?.status === 401) {
+      throw new Error('Authentication failed. Please login again.');
+    } else if (error.response?.status === 404) {
+      throw new Error('Assignment not found.');
+    } else if (error.response?.status === 500) {
+      throw new Error('Server error. Please try again later.');
+    }
+    
+    throw new Error(error.message || 'Failed to fetch assignment details');
   }
 };
 
