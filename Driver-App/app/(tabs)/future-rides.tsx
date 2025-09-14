@@ -14,7 +14,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDashboard, FutureRide } from '@/contexts/DashboardContext';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { MapPin, Clock, IndianRupee, User, Phone, Car, X, CheckCircle, AlertCircle } from 'lucide-react-native';
-import { fetchAvailableDrivers, fetchAvailableCars, assignDriverAndCar, AvailableDriver, AvailableCar } from '@/services/assignmentService';
+import { fetchAvailableDrivers, fetchAvailableCars, assignDriverAndCar, getPendingOrders, getOrderAssignments, AvailableDriver, AvailableCar } from '@/services/assignmentService';
 
 // Removed local interface - using imported FutureRide from DashboardContext
 
@@ -32,6 +32,8 @@ export default function FutureRidesScreen() {
   const [availableDrivers, setAvailableDrivers] = useState<AvailableDriver[]>([]);
   const [availableCars, setAvailableCars] = useState<AvailableCar[]>([]);
   const [assignmentsLoading, setAssignmentsLoading] = useState(false);
+  const [pendingOrders, setPendingOrders] = useState<any[]>([]);
+  const [pendingOrdersLoading, setPendingOrdersLoading] = useState(false);
 
   // Dedupe rides by id (fallback to booking_id) to avoid duplicate entries
   const uniqueRides = useMemo(() => {
@@ -49,8 +51,54 @@ export default function FutureRidesScreen() {
   useEffect(() => {
     if (!loading && dashboardData) {
       fetchAvailableAssignments();
+      fetchPendingOrders();
     }
   }, [loading, dashboardData]);
+
+  const fetchPendingOrders = async () => {
+    try {
+      setPendingOrdersLoading(true);
+      console.log('📋 Fetching pending orders...');
+      
+      const orders = await getPendingOrders();
+      console.log('📋 Raw pending orders:', orders);
+      
+      // Check assignment status for each order
+      const ordersWithAssignmentStatus = await Promise.all(
+        orders.map(async (order) => {
+          try {
+            const assignments = await getOrderAssignments(order.id || order.order_id);
+            const hasAssignedStatus = assignments.some(assignment => 
+              assignment.assignment_status === 'ASSIGNED' || 
+              assignment.assignment_status === 'DRIVING' || 
+              assignment.assignment_status === 'COMPLETED'
+            );
+            
+            return {
+              ...order,
+              isAssigned: hasAssignedStatus,
+              assignments: assignments
+            };
+          } catch (error) {
+            console.error('❌ Failed to check assignment status for order:', order.id, error);
+            return {
+              ...order,
+              isAssigned: false,
+              assignments: []
+            };
+          }
+        })
+      );
+      
+      console.log('📋 Orders with assignment status:', ordersWithAssignmentStatus);
+      setPendingOrders(ordersWithAssignmentStatus);
+    } catch (error) {
+      console.error('❌ Failed to fetch pending orders:', error);
+      setPendingOrders([]);
+    } finally {
+      setPendingOrdersLoading(false);
+    }
+  };
 
   const fetchAvailableAssignments = async () => {
     try {
@@ -89,11 +137,17 @@ export default function FutureRidesScreen() {
           current_assignment: undefined
         }));
       
-      const fallbackCars: AvailableCar[] = (dashboardData?.cars || []).map(car => ({
-        ...car,
-        is_available: true, // Assume available as fallback
-        current_assignment: undefined
-      }));
+      const fallbackCars: AvailableCar[] = (dashboardData?.cars || [])
+        .filter(car => {
+          // Check if car has a status property (from API) or assume it's available
+          const carStatus = (car as any).car_status || (car as any).status;
+          return !carStatus || carStatus === 'ONLINE' || carStatus === 'PROCESSING' || carStatus === 'ACTIVE';
+        })
+        .map(car => ({
+          ...car,
+          is_available: true, // Assume available as fallback
+          current_assignment: undefined
+        }));
       
       setAvailableDrivers(fallbackDrivers);
       setAvailableCars(fallbackCars);
@@ -116,7 +170,7 @@ export default function FutureRidesScreen() {
     try {
       console.log('🔗 Creating assignment for order:', selectedRide.booking_id);
       
-      // Create assignment using the new service
+      // Create assignment using the new service (acceptOrder + updateStatus)
       const assignment = await assignDriverAndCar({
         order_id: selectedRide.booking_id,
         driver_id: selectedDriver.id,
@@ -158,8 +212,9 @@ export default function FutureRidesScreen() {
         `Driver: ${selectedDriver.full_name}\nVehicle: ${vehicle.car_name} (${vehicle.car_number})\nTrip: ${selectedRide.booking_id}\n\nMobile: ${selectedDriver.primary_number}\n\nThe driver can now login using their registered password.`
       );
       
-      // Refresh available assignments
+      // Refresh available assignments and pending orders
       await fetchAvailableAssignments();
+      await fetchPendingOrders();
       
     } catch (error: any) {
       console.error('❌ Assignment failed:', error);

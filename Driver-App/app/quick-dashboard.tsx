@@ -10,10 +10,10 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useRouter } from 'expo-router';
-import { MapPin, User, Phone, Car, ArrowRight, LogOut } from 'lucide-react-native';
+import { MapPin, User, Phone, Car, ArrowRight, LogOut, RefreshCw } from 'lucide-react-native';
 import axiosInstance from '@/app/api/axiosInstance';
 import { getAuthHeaders } from '@/services/authService';
-import { fetchAssignmentsForDriver } from '@/services/assignmentService';
+import { fetchAssignmentsForDriver, getVehicleOwnerAssignments } from '@/services/assignmentService';
 import { setDriverOnline, setDriverOffline } from '@/services/carDriverService';
 
 export default function QuickDashboardScreen() {
@@ -24,13 +24,13 @@ export default function QuickDashboardScreen() {
   const [driverStatus, setDriverStatus] = useState<'ONLINE' | 'OFFLINE'>('OFFLINE');
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [driverOrders, setDriverOrders] = useState<any[]>([]);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Fetch current driver status and assignments
-  useEffect(() => {
-    const loadDriverData = async () => {
-      if (!user?.id) return;
-      try {
-        setOrdersLoading(true);
+  const loadDriverData = async () => {
+    if (!user?.id) return;
+    try {
+      setOrdersLoading(true);
         
         // Fetch current driver status
         try {
@@ -49,25 +49,69 @@ export default function QuickDashboardScreen() {
           console.log('⚠️ Could not fetch driver status, using default OFFLINE');
         }
         
-        // Fetch assignments
-        const assignments = await fetchAssignmentsForDriver(user.id);
+        // Fetch assignments using multiple methods
+        console.log('🔍 Fetching assignments for driver:', user.id);
+        
+        let assignments: any[] = [];
+        
+        // Method 1: Try driver-specific assignments
+        try {
+          assignments = await fetchAssignmentsForDriver(user.id);
+          console.log('📋 Driver assignments received:', assignments);
+        } catch (driverError) {
+          console.log('⚠️ Driver assignments failed, trying vehicle owner assignments...');
+        }
+        
+        // Method 2: If no driver assignments, try vehicle owner assignments
+        if (assignments.length === 0 && user?.id) {
+          try {
+            const vehicleOwnerAssignments = await getVehicleOwnerAssignments(user.id);
+            console.log('📋 Vehicle owner assignments received:', vehicleOwnerAssignments);
+            
+            // Filter assignments for this specific driver
+            assignments = vehicleOwnerAssignments.filter(assignment => 
+              assignment.driver_id === user.id
+            );
+            console.log('📋 Filtered assignments for driver:', assignments);
+          } catch (vehicleOwnerError) {
+            console.error('❌ Vehicle owner assignments failed:', vehicleOwnerError);
+          }
+        }
+        
         const authHeaders = await getAuthHeaders();
         const detailedOrders: any[] = [];
         for (const a of assignments) {
           try {
+            console.log('🔍 Fetching order details for assignment:', a.order_id);
             const res = await axiosInstance.get(`/api/orders/${a.order_id}`, { headers: authHeaders });
             if (res.data) {
-              detailedOrders.push({ ...res.data, assignment_id: a.id, assignment_status: a.status });
+              console.log('✅ Order details fetched:', res.data);
+              detailedOrders.push({ 
+                ...res.data, 
+                assignment_id: a.id, 
+                assignment_status: a.assignment_status || a.status 
+              });
             }
-          } catch {}
+          } catch (orderError) {
+            console.error('❌ Failed to fetch order details:', orderError);
+          }
         }
+        console.log('📋 Final detailed orders:', detailedOrders);
         setDriverOrders(detailedOrders);
       } finally {
         setOrdersLoading(false);
       }
     };
+
+  useEffect(() => {
     loadDriverData();
   }, [user?.id]);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadDriverData();
+    setRefreshing(false);
+  };
 
   // Sort by scheduled date/time ascending and pick the next one
   const nextAssignedOrder = useMemo(() => {
@@ -106,7 +150,7 @@ export default function QuickDashboardScreen() {
         // Check if the API call was successful
         if (res?.success || res?.status === 'online' || res?.message?.includes('success')) {
           setDriverStatus('ONLINE');
-        } else if (res?.detail?.includes('already') || res?.detail?.includes('Current status: ONLINE')) {
+        } else if (res?.message?.includes('already') || res?.message?.includes('Current status: ONLINE')) {
           // Driver is already online, update local state
           setDriverStatus('ONLINE');
         }
@@ -118,7 +162,7 @@ export default function QuickDashboardScreen() {
         // Check if the API call was successful
         if (res?.success || res?.status === 'offline' || res?.message?.includes('success')) {
           setDriverStatus('OFFLINE');
-        } else if (res?.detail?.includes('already') || res?.detail?.includes('Current status: OFFLINE')) {
+        } else if (res?.message?.includes('already') || res?.message?.includes('Current status: OFFLINE')) {
           // Driver is already offline, update local state
           setDriverStatus('OFFLINE');
         }
@@ -185,6 +229,14 @@ export default function QuickDashboardScreen() {
       fontSize: 14,
       fontFamily: 'Inter-Medium',
       color: colors.textSecondary,
+    },
+    headerActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    refreshButton: {
+      padding: 8,
     },
     content: {
       flex: 1,
@@ -297,6 +349,39 @@ export default function QuickDashboardScreen() {
     logoutButton: {
       padding: 8,
     },
+    noOrdersContainer: {
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      padding: 20,
+      alignItems: 'center',
+      marginBottom: 24,
+    },
+    noOrdersText: {
+      fontSize: 16,
+      fontFamily: 'Inter-Medium',
+      color: colors.text,
+      marginBottom: 8,
+    },
+    noOrdersSubtext: {
+      fontSize: 14,
+      fontFamily: 'Inter-Regular',
+      color: colors.textSecondary,
+      marginBottom: 16,
+    },
+    refreshButtonSmall: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.primary,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: 8,
+      gap: 8,
+    },
+    refreshButtonText: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontFamily: 'Inter-Medium',
+    },
   });
 
   return (
@@ -304,16 +389,23 @@ export default function QuickDashboardScreen() {
       <View style={dynamicStyles.header}>
         <View style={dynamicStyles.headerContent}>
           <Text style={dynamicStyles.headerTitle}>Quick Driver Dashboard</Text>
-          <Text style={dynamicStyles.headerSubtitle}>Welcome back, {user?.name}!</Text>
+          <Text style={dynamicStyles.headerSubtitle}>
+            Welcome back, {user?.fullName || 'Driver'}!
+          </Text>
         </View>
-        <TouchableOpacity onPress={handleLogout} style={dynamicStyles.logoutButton}>
-          <LogOut color={colors.error} size={24} />
-        </TouchableOpacity>
+        <View style={dynamicStyles.headerActions}>
+          <TouchableOpacity onPress={handleRefresh} style={dynamicStyles.refreshButton}>
+            <RefreshCw color={colors.primary} size={24} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={handleLogout} style={dynamicStyles.logoutButton}>
+            <LogOut color={colors.error} size={24} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={dynamicStyles.content}>
         <View style={dynamicStyles.welcomeCard}>
-          <Text style={dynamicStyles.welcomeText}>Welcome, {user?.fullName || user?.name}</Text>
+          <Text style={dynamicStyles.welcomeText}>Welcome, {user?.fullName || 'Driver'}</Text>
           <Text style={dynamicStyles.quickDriverText}>Quick Driver Mode</Text>
         </View>
 
@@ -370,7 +462,16 @@ export default function QuickDashboardScreen() {
         )}
 
         {!nextAssignedOrder && !ordersLoading && (
-          <Text style={{ color: colors.textSecondary }}>No assigned trips yet.</Text>
+          <View style={dynamicStyles.noOrdersContainer}>
+            <Text style={dynamicStyles.noOrdersText}>No assigned trips yet.</Text>
+            <Text style={dynamicStyles.noOrdersSubtext}>
+              Total assignments found: {driverOrders.length}
+            </Text>
+            <TouchableOpacity onPress={handleRefresh} style={dynamicStyles.refreshButtonSmall}>
+              <RefreshCw color={colors.primary} size={16} />
+              <Text style={dynamicStyles.refreshButtonText}>Refresh</Text>
+            </TouchableOpacity>
+          </View>
         )}
 
         {/* Status toggle at bottom */}

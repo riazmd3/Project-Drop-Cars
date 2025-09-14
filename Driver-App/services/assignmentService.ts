@@ -52,6 +52,7 @@ export interface AssignmentResponse {
   car_id: string;
   assigned_by: string;
   status: 'assigned' | 'in_progress' | 'completed' | 'cancelled';
+  assignment_status: 'PENDING' | 'ASSIGNED' | 'DRIVING' | 'COMPLETED' | 'CANCELLED';
   assignment_notes?: string;
   assigned_at: string;
   updated_at: string;
@@ -68,6 +69,8 @@ export interface AcceptOrderResponse {
   message: string;
   order_id: string;
   accepted_at: string;
+  assignment_id?: string;
+  id?: string;
 }
 
 /**
@@ -167,13 +170,69 @@ export const fetchAvailableCars = async (): Promise<AvailableCar[]> => {
     console.log('🚗 Fetching available cars from assignment endpoint...');
     
     const authHeaders = await getAuthHeaders();
-    const response = await axiosInstance.get('/api/assignments/available-cars', {
-      headers: authHeaders
-    });
+    
+    // Try the assignment endpoint first
+    let response;
+    try {
+      response = await axiosInstance.get('/api/assignments/available-cars', {
+        headers: authHeaders
+      });
+    } catch (assignmentError) {
+      console.log('⚠️ Assignment endpoint failed, trying users endpoint...');
+      // Fallback to users endpoint
+      response = await axiosInstance.get('/api/users/available-cars', {
+        headers: authHeaders
+      });
+    }
 
     if (response.data) {
       console.log('✅ Available cars fetched successfully:', response.data.length, 'cars');
-      return response.data;
+      
+      // Filter and log car availability details
+      const availableCars = response.data.filter((car: any) => {
+        // Handle different API response formats
+        const carStatus = car.car_status || car.status;
+        const isAvailable = car.is_available !== false;
+        const hasCurrentAssignment = car.current_assignment;
+        
+        // A car is available if:
+        // 1. Their status is ONLINE, PROCESSING, or ACTIVE (all can be assigned)
+        // 2. They don't have a current assignment
+        // 3. They are not explicitly marked as unavailable
+        const isAvailableForAssignment = (carStatus === 'ONLINE' || carStatus === 'online' ||
+                                        carStatus === 'PROCESSING' || carStatus === 'processing' || 
+                                        carStatus === 'ACTIVE' || carStatus === 'active') &&
+                                        !hasCurrentAssignment &&
+                                        isAvailable;
+        
+        console.log(`🔍 Car ${car.car_name}:`, {
+          car_status: car.car_status,
+          status: car.status,
+          is_available: car.is_available,
+          current_assignment: car.current_assignment,
+          is_available_for_assignment: isAvailableForAssignment
+        });
+        
+        return isAvailableForAssignment;
+      });
+      
+      // Map the data to the expected AvailableCar format
+      const mappedCars: AvailableCar[] = availableCars.map((car: any) => ({
+        id: car.id,
+        car_name: car.car_name,
+        car_number: car.car_number,
+        car_type: car.car_type,
+        vehicle_owner_id: car.vehicle_owner_id,
+        organization_id: car.organization_id,
+        status: car.car_status || car.status || 'PROCESSING',
+        is_available: car.is_available !== false,
+        current_assignment: car.current_assignment,
+        created_at: car.created_at,
+        updated_at: car.updated_at || car.created_at
+      }));
+      
+      console.log(`✅ Filtered to ${mappedCars.length} truly available cars`);
+      return mappedCars;
     }
 
     return [];
@@ -193,56 +252,58 @@ export const fetchAvailableCars = async (): Promise<AvailableCar[]> => {
 };
 
 /**
- * Assign a driver and car to an order
+ * Accept an order (creates assignment with PENDING status)
  */
-export const assignDriverAndCar = async (assignmentData: AssignmentRequest): Promise<AssignmentResponse> => {
+export const acceptOrder = async (orderId: string): Promise<AssignmentResponse> => {
   try {
-    console.log('🔗 Assigning driver and car to order:', assignmentData.order_id);
+    console.log('🔗 Accepting order:', orderId);
     
     const authHeaders = await getAuthHeaders();
-    const response = await axiosInstance.post('/api/assignments/create', assignmentData, {
+    const response = await axiosInstance.post('/api/assignments/acceptorder', {
+      order_id: orderId
+    }, {
       headers: authHeaders
     });
 
     if (response.data) {
-      console.log('✅ Assignment created successfully:', response.data);
+      console.log('✅ Order accepted successfully:', response.data);
       return response.data;
     }
 
-    throw new Error('No response data received from assignment creation');
+    throw new Error('No response data received from order acceptance');
   } catch (error: any) {
-    console.error('❌ Failed to create assignment:', error);
+    console.error('❌ Failed to accept order:', error);
     
     if (error.response?.status === 400) {
       const errorDetail = error.response.data?.detail || error.response.data?.message || 'Bad request';
-      throw new Error(`Assignment failed: ${errorDetail}`);
+      throw new Error(`Order acceptance failed: ${errorDetail}`);
     } else if (error.response?.status === 401) {
       throw new Error('Authentication failed. Please login again.');
     } else if (error.response?.status === 404) {
-      throw new Error('Assignment endpoint not found.');
+      throw new Error('Order not found.');
     } else if (error.response?.status === 409) {
-      throw new Error('Driver or car is already assigned to another order.');
+      throw new Error('Order is already assigned or accepted.');
     } else if (error.response?.status === 500) {
       throw new Error('Server error. Please try again later.');
     } else {
-      throw new Error(error.message || 'Failed to create assignment');
+      throw new Error(error.message || 'Failed to accept order');
     }
   }
 };
 
 /**
- * Update assignment status
+ * Update assignment status (PENDING → ASSIGNED → DRIVING → COMPLETED)
  */
 export const updateAssignmentStatus = async (
   assignmentId: string, 
-  status: 'in_progress' | 'completed' | 'cancelled'
+  status: 'PENDING' | 'ASSIGNED' | 'DRIVING' | 'COMPLETED' | 'CANCELLED'
 ): Promise<AssignmentResponse> => {
   try {
     console.log('📝 Updating assignment status:', assignmentId, 'to', status);
     
     const authHeaders = await getAuthHeaders();
     const response = await axiosInstance.patch(`/api/assignments/${assignmentId}/status`, {
-      status: status
+      assignment_status: status
     }, {
       headers: authHeaders
     });
@@ -267,6 +328,130 @@ export const updateAssignmentStatus = async (
       throw new Error('Server error. Please try again later.');
     } else {
       throw new Error(error.message || 'Failed to update assignment status');
+    }
+  }
+};
+
+/**
+ * Assign a driver and car to an order (legacy function - now uses acceptOrder + updateStatus)
+ */
+export const assignDriverAndCar = async (assignmentData: AssignmentRequest): Promise<AssignmentResponse> => {
+  try {
+    console.log('🔗 Assigning driver and car to order:', assignmentData.order_id);
+    
+    // Step 1: Accept the order (creates assignment with PENDING status)
+    const acceptedOrder = await acceptOrder(assignmentData.order_id);
+    
+    // Step 2: Update assignment status to ASSIGNED
+    const assignmentId = acceptedOrder.id;
+    if (!assignmentId) {
+      throw new Error('No assignment ID received from order acceptance');
+    }
+    const updatedAssignment = await updateAssignmentStatus(assignmentId, 'ASSIGNED');
+    
+    console.log('✅ Assignment completed successfully:', updatedAssignment);
+    return updatedAssignment;
+  } catch (error: any) {
+    console.error('❌ Failed to assign driver and car:', error);
+    throw error;
+  }
+};
+
+/**
+ * Get pending orders for vehicle owner (orders available for assignment)
+ */
+export const getPendingOrders = async (): Promise<any[]> => {
+  try {
+    console.log('📋 Fetching pending orders for vehicle owner...');
+    
+    const authHeaders = await getAuthHeaders();
+    const response = await axiosInstance.get('/api/assignments/vehicle_owner/pending', {
+      headers: authHeaders
+    });
+
+    if (response.data) {
+      console.log('✅ Pending orders fetched successfully:', response.data.length, 'orders');
+      return response.data;
+    }
+
+    return [];
+  } catch (error: any) {
+    console.error('❌ Failed to fetch pending orders:', error);
+    
+    if (error.response?.status === 401) {
+      throw new Error('Authentication failed. Please login again.');
+    } else if (error.response?.status === 404) {
+      throw new Error('Pending orders endpoint not found.');
+    } else if (error.response?.status === 500) {
+      throw new Error('Server error. Please try again later.');
+    } else {
+      throw new Error(error.message || 'Failed to fetch pending orders');
+    }
+  }
+};
+
+/**
+ * Get assignments for a specific order
+ */
+export const getOrderAssignments = async (orderId: string): Promise<AssignmentResponse[]> => {
+  try {
+    console.log('🔍 Fetching assignments for order:', orderId);
+    
+    const authHeaders = await getAuthHeaders();
+    const response = await axiosInstance.get(`/api/assignments/order/${orderId}`, {
+      headers: authHeaders
+    });
+
+    if (response.data) {
+      console.log('✅ Order assignments fetched successfully:', response.data);
+      return response.data;
+    }
+
+    return [];
+  } catch (error: any) {
+    console.error('❌ Failed to fetch order assignments:', error);
+    
+    if (error.response?.status === 401) {
+      throw new Error('Authentication failed. Please login again.');
+    } else if (error.response?.status === 404) {
+      throw new Error('Order not found.');
+    } else if (error.response?.status === 500) {
+      throw new Error('Server error. Please try again later.');
+    } else {
+      throw new Error(error.message || 'Failed to fetch order assignments');
+    }
+  }
+};
+
+/**
+ * Get assignments for a vehicle owner
+ */
+export const getVehicleOwnerAssignments = async (vehicleOwnerId: string): Promise<AssignmentResponse[]> => {
+  try {
+    console.log('🔍 Fetching assignments for vehicle owner:', vehicleOwnerId);
+    
+    const authHeaders = await getAuthHeaders();
+    const response = await axiosInstance.get(`/api/assignments/vehicle_owner/${vehicleOwnerId}`, {
+      headers: authHeaders
+    });
+
+    if (response.data) {
+      console.log('✅ Vehicle owner assignments fetched successfully:', response.data);
+      return response.data;
+    }
+
+    return [];
+  } catch (error: any) {
+    console.error('❌ Failed to fetch vehicle owner assignments:', error);
+    
+    if (error.response?.status === 401) {
+      throw new Error('Authentication failed. Please login again.');
+    } else if (error.response?.status === 404) {
+      throw new Error('Vehicle owner not found.');
+    } else if (error.response?.status === 500) {
+      throw new Error('Server error. Please try again later.');
+    } else {
+      throw new Error(error.message || 'Failed to fetch vehicle owner assignments');
     }
   }
 };
@@ -468,9 +653,9 @@ export const checkOrderAvailability = async (orderId: string): Promise<boolean> 
 };
 
 /**
- * Accept an order by creating an assignment
+ * Accept an order by creating an assignment (LEGACY - use the new acceptOrder function above)
  */
-export const acceptOrder = async (request: AcceptOrderRequest): Promise<AcceptOrderResponse> => {
+export const acceptOrderLegacy = async (request: AcceptOrderRequest): Promise<AcceptOrderResponse> => {
   try {
     console.log('✅ Accepting order:', request.order_id);
     console.log('📋 Request data:', request);
