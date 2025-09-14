@@ -5,6 +5,7 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  ScrollView,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
@@ -13,7 +14,7 @@ import { useRouter } from 'expo-router';
 import { MapPin, User, Phone, Car, ArrowRight, LogOut, RefreshCw } from 'lucide-react-native';
 import axiosInstance from '@/app/api/axiosInstance';
 import { getAuthHeaders } from '@/services/authService';
-import { fetchAssignmentsForDriver, getVehicleOwnerAssignments, getDriverAssignmentsWithDetails } from '@/services/assignmentService';
+import { fetchAssignmentsForDriver, getVehicleOwnerAssignments, getDriverAssignmentsWithDetails, updateAssignmentStatus } from '@/services/assignmentService';
 import { setDriverOnline, setDriverOffline } from '@/services/carDriverService';
 
 export default function QuickDashboardScreen() {
@@ -56,6 +57,7 @@ export default function QuickDashboardScreen() {
         try {
           // Use the new function that tries multiple approaches and enriches data
           detailedOrders = await getDriverAssignmentsWithDetails(user.id);
+          
           
           if (detailedOrders.length === 0) {
             errorMessages.push('No assignments found for this driver');
@@ -128,6 +130,7 @@ export default function QuickDashboardScreen() {
 
   useEffect(() => {
     loadDriverData();
+    fetchDriverStatus();
   }, [user?.id]);
 
   const handleRefresh = async () => {
@@ -206,30 +209,89 @@ export default function QuickDashboardScreen() {
     }
   };
 
-  // Sort by scheduled date/time ascending and pick the next one
-  const nextAssignedOrder = useMemo(() => {
-    if (!driverOrders || driverOrders.length === 0) return null;
-    const sorted = [...driverOrders].sort((a, b) => {
+  // Sort all orders by scheduled date/time ascending
+  const sortedOrders = useMemo(() => {
+    if (!driverOrders || driverOrders.length === 0) {
+      return [];
+    }
+    return [...driverOrders].sort((a, b) => {
       const da = new Date(a.scheduled_at || a.created_at || 0).getTime();
       const db = new Date(b.scheduled_at || b.created_at || 0).getTime();
       return da - db;
     });
-    const now = new Date();
-    const upcoming = sorted.find(o => new Date(o.scheduled_at || o.created_at || 0) >= now) || sorted[0];
-    return upcoming;
   }, [driverOrders]);
 
-  const handleStartTrip = () => {
-    setTripStarted(true);
-    if (!nextAssignedOrder) return;
-    const farePerKm = nextAssignedOrder.cost_per_km || nextAssignedOrder.fare_per_km || 0;
-    router.push({
-      pathname: '/trip/start',
-      params: {
-        orderId: String(nextAssignedOrder.order_id || nextAssignedOrder.booking_id || ''),
-        farePerKm: String(farePerKm)
+  // Get the next available order (not started)
+  const nextAssignedOrder = useMemo(() => {
+    if (sortedOrders.length === 0) return null;
+    const now = new Date();
+    return sortedOrders.find(o => {
+      const isNotStarted = o.assignment_status === 'ASSIGNED' || o.assignment_status === 'PENDING';
+      const isUpcoming = new Date(o.scheduled_at || o.created_at || 0) >= now;
+      return isNotStarted && isUpcoming;
+    }) || sortedOrders.find(o => o.assignment_status === 'ASSIGNED' || o.assignment_status === 'PENDING') || null;
+  }, [sortedOrders]);
+
+  // Get current active trip (if any)
+  const currentTrip = useMemo(() => {
+    return sortedOrders.find(o => o.assignment_status === 'DRIVING' || o.assignment_status === 'STARTED');
+  }, [sortedOrders]);
+
+  const handleStartTrip = async (order: any) => {
+    try {
+      setTripStarted(true);
+      const farePerKm = order.cost_per_km || order.fare_per_km || 0;
+      
+      // Update assignment status to DRIVING
+      await updateAssignmentStatus(order.assignment_id || order.id, 'DRIVING');
+      
+      // Navigate to trip start screen
+      router.push({
+        pathname: '/trip/start',
+        params: {
+          orderId: String(order.order_id || order.booking_id || ''),
+          assignmentId: String(order.assignment_id || order.id || ''),
+          farePerKm: String(farePerKm)
+        }
+      });
+    } catch (error) {
+      console.error('❌ Failed to start trip:', error);
+      Alert.alert('Error', 'Failed to start trip. Please try again.');
+    }
+  };
+
+  const handleEndTrip = async (order: any) => {
+    try {
+      // Update assignment status to COMPLETED
+      await updateAssignmentStatus(order.assignment_id || order.id, 'COMPLETED');
+      
+      // Navigate to trip end screen
+      router.push({
+        pathname: '/trip/end',
+        params: {
+          orderId: String(order.order_id || order.booking_id || ''),
+          assignmentId: String(order.assignment_id || order.id || '')
+        }
+      });
+    } catch (error) {
+      console.error('❌ Failed to end trip:', error);
+      Alert.alert('Error', 'Failed to end trip. Please try again.');
+    }
+  };
+
+  const fetchDriverStatus = async () => {
+    if (!user?.id) return;
+    try {
+      // Fetch current driver status from API
+      const response = await axiosInstance.get(`/api/users/cardriver/${user.id}`);
+      if (response.data && response.data.driver_status) {
+        setDriverStatus(response.data.driver_status);
+        console.log('📊 Current driver status:', response.data.driver_status);
       }
-    });
+    } catch (error) {
+      console.error('❌ Failed to fetch driver status:', error);
+      // Keep current status if fetch fails
+    }
   };
 
   const toggleStatus = async () => {
@@ -260,6 +322,11 @@ export default function QuickDashboardScreen() {
           setDriverStatus('OFFLINE');
         }
       }
+      
+      // Refresh driver status after toggle
+      setTimeout(() => {
+        fetchDriverStatus();
+      }, 1000);
     } catch (e: any) {
       console.error('❌ Status toggle error:', e);
       // Check if it's a "already in that status" error
@@ -333,8 +400,11 @@ export default function QuickDashboardScreen() {
     },
     content: {
       flex: 1,
+    },
+    scrollContent: {
       paddingHorizontal: 20,
       paddingTop: 24,
+      paddingBottom: 40,
     },
     welcomeCard: {
       backgroundColor: colors.surface,
@@ -475,6 +545,105 @@ export default function QuickDashboardScreen() {
       fontSize: 14,
       fontFamily: 'Inter-Medium',
     },
+    ordersSection: {
+      marginBottom: 24,
+    },
+    sectionTitle: {
+      fontSize: 18,
+      fontFamily: 'Inter-SemiBold',
+      color: colors.text,
+      marginBottom: 16,
+    },
+    statusBadge: {
+      backgroundColor: colors.surface,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 6,
+      alignSelf: 'flex-start',
+      marginBottom: 8,
+    },
+    statusText: {
+      fontSize: 12,
+      fontFamily: 'Inter-Bold',
+      textTransform: 'uppercase',
+    },
+    headerSection: {
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      padding: 20,
+      marginBottom: 20,
+    },
+    orderCountText: {
+      fontSize: 16,
+      fontFamily: 'Inter-Medium',
+      color: colors.primary,
+    },
+    ordersList: {
+      marginBottom: 20,
+    },
+    orderHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'flex-start',
+      marginBottom: 12,
+    },
+    orderInfo: {
+      flex: 1,
+    },
+    customerName: {
+      fontSize: 14,
+      fontFamily: 'Inter-Medium',
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    orderDetails: {
+      marginTop: 12,
+      gap: 8,
+    },
+    detailRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    detailText: {
+      fontSize: 14,
+      fontFamily: 'Inter-Regular',
+      color: colors.textSecondary,
+    },
+    actionButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 8,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      marginTop: 12,
+      gap: 8,
+    },
+    actionButtonText: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontFamily: 'Inter-SemiBold',
+    },
+    statusContainer: {
+      paddingVertical: 16,
+      marginTop: 20,
+    },
+    statusToggle: {
+      borderRadius: 12,
+      paddingVertical: 16,
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.2,
+      shadowRadius: 4,
+      elevation: 4,
+    },
+    statusToggleText: {
+      color: '#FFFFFF',
+      fontSize: 16,
+      fontFamily: 'Inter-SemiBold',
+    },
   });
 
   return (
@@ -487,9 +656,6 @@ export default function QuickDashboardScreen() {
           </Text>
         </View>
         <View style={dynamicStyles.headerActions}>
-          <TouchableOpacity onPress={handleDebugAssignments} style={dynamicStyles.refreshButton}>
-            <Text style={{ color: colors.warning, fontSize: 12, fontWeight: 'bold' }}>DEBUG</Text>
-          </TouchableOpacity>
           <TouchableOpacity onPress={handleRefresh} style={dynamicStyles.refreshButton}>
             <RefreshCw color={colors.primary} size={24} />
           </TouchableOpacity>
@@ -499,32 +665,43 @@ export default function QuickDashboardScreen() {
         </View>
       </View>
 
-      <View style={dynamicStyles.content}>
-        <View style={dynamicStyles.welcomeCard}>
+      <ScrollView 
+        style={dynamicStyles.content}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={dynamicStyles.scrollContent}
+      >
+        {/* Header with order count */}
+        <View style={dynamicStyles.headerSection}>
           <Text style={dynamicStyles.welcomeText}>Welcome, {user?.fullName || 'Driver'}</Text>
-          <Text style={dynamicStyles.quickDriverText}>Quick Driver Mode</Text>
+          <Text style={dynamicStyles.orderCountText}>
+            {sortedOrders.length} Assigned Trip{sortedOrders.length !== 1 ? 's' : ''}
+          </Text>
         </View>
 
-        {nextAssignedOrder && (
-          <View style={dynamicStyles.orderCard}>
-            <Text style={dynamicStyles.orderTitle}>Assigned Trip #{nextAssignedOrder.order_id || nextAssignedOrder.booking_id}</Text>
+        {/* Current Active Trip */}
+        {currentTrip && (
+          <View style={[dynamicStyles.orderCard, { borderColor: colors.success, borderWidth: 2 }]}>
+            <View style={dynamicStyles.statusBadge}>
+              <Text style={[dynamicStyles.statusText, { color: colors.success }]}>CURRENT TRIP</Text>
+            </View>
+            <Text style={dynamicStyles.orderTitle}>Active Trip #{currentTrip.order_id || currentTrip.booking_id}</Text>
             
             <View style={dynamicStyles.routeContainer}>
               <View style={dynamicStyles.routeRow}>
                 <MapPin color={colors.success} size={16} />
                 <Text style={dynamicStyles.routeText}>
-                  {nextAssignedOrder.pickup_drop_location?.['0'] || 
-                   nextAssignedOrder.pickup_drop_location?.pickup || 
-                   nextAssignedOrder.pickup || 'Unknown'}
+                  {currentTrip.pickup_drop_location?.['0'] || 
+                   currentTrip.pickup_drop_location?.pickup || 
+                   currentTrip.pickup || 'Unknown'}
                 </Text>
               </View>
               <View style={dynamicStyles.routeLine} />
               <View style={dynamicStyles.routeRow}>
                 <MapPin color={colors.error} size={16} />
                 <Text style={dynamicStyles.routeText}>
-                  {nextAssignedOrder.pickup_drop_location?.['1'] || 
-                   nextAssignedOrder.pickup_drop_location?.drop || 
-                   nextAssignedOrder.drop || 'Unknown'}
+                  {currentTrip.pickup_drop_location?.['1'] || 
+                   currentTrip.pickup_drop_location?.drop || 
+                   currentTrip.drop || 'Unknown'}
                 </Text>
               </View>
             </View>
@@ -532,85 +709,131 @@ export default function QuickDashboardScreen() {
             <View style={dynamicStyles.customerInfo}>
               <View style={dynamicStyles.customerRow}>
                 <User color={colors.textSecondary} size={16} />
-                <Text style={dynamicStyles.customerText}>{nextAssignedOrder.customer_name}</Text>
+                <Text style={dynamicStyles.customerText}>{currentTrip.customer_name}</Text>
               </View>
               <View style={dynamicStyles.customerRow}>
                 <Phone color={colors.textSecondary} size={16} />
-                <Text style={dynamicStyles.customerText}>{nextAssignedOrder.customer_number || nextAssignedOrder.customer_mobile}</Text>
-              </View>
-              <View style={dynamicStyles.customerRow}>
-                <Car color={colors.textSecondary} size={16} />
-                <Text style={dynamicStyles.customerText}>
-                  {(nextAssignedOrder.trip_distance || nextAssignedOrder.distance_km)} km • ₹{(nextAssignedOrder.cost_per_km || nextAssignedOrder.fare_per_km)}/km
-                </Text>
+                <Text style={dynamicStyles.customerText}>{currentTrip.customer_number || currentTrip.customer_mobile}</Text>
               </View>
             </View>
 
-            <View style={dynamicStyles.fareInfo}>
-              <Text style={dynamicStyles.fareText}>₹{nextAssignedOrder.total_fare || ((nextAssignedOrder.cost_per_km || 0) * (nextAssignedOrder.trip_distance || 0))}</Text>
-            </View>
-
-            <TouchableOpacity style={dynamicStyles.startButton} onPress={handleStartTrip}>
-              <Text style={dynamicStyles.startButtonText}>Start Trip</Text>
+            <TouchableOpacity style={[dynamicStyles.startButton, { backgroundColor: colors.error }]} onPress={() => handleEndTrip(currentTrip)}>
+              <Text style={dynamicStyles.startButtonText}>End Trip</Text>
               <ArrowRight color="#FFFFFF" size={20} />
             </TouchableOpacity>
           </View>
         )}
 
-        {!nextAssignedOrder && !ordersLoading && (
-          <View style={dynamicStyles.noOrdersContainer}>
-            <Text style={dynamicStyles.noOrdersText}>No assigned trips yet.</Text>
-            <Text style={dynamicStyles.noOrdersSubtext}>
-              Total assignments found: {driverOrders.length}
-            </Text>
-            <Text style={[dynamicStyles.noOrdersSubtext, { fontSize: 12, marginTop: 8, color: colors.textSecondary }]}>
-              Driver ID: {user?.id || 'Unknown'}
-            </Text>
-            <TouchableOpacity onPress={handleRefresh} style={dynamicStyles.refreshButtonSmall}>
-              <RefreshCw color={colors.primary} size={16} />
-              <Text style={dynamicStyles.refreshButtonText}>Refresh</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+        {/* Orders List */}
+        {sortedOrders.length > 0 ? (
+          <View style={dynamicStyles.ordersList}>
+            {sortedOrders.map((order, index) => {
+              const isCurrentTrip = order.assignment_status === 'DRIVING' || order.assignment_status === 'STARTED';
+              const canStart = order.assignment_status === 'ASSIGNED' || order.assignment_status === 'PENDING';
+              const isCompleted = order.assignment_status === 'COMPLETED';
+              
+              return (
+                <View key={order.id || order.assignment_id || index} style={[
+                  dynamicStyles.orderCard,
+                  isCurrentTrip && { borderColor: colors.success, borderWidth: 2 },
+                  isCompleted && { opacity: 0.6, backgroundColor: colors.surface }
+                ]}>
+                  {/* Order Header */}
+                  <View style={dynamicStyles.orderHeader}>
+                    <View style={dynamicStyles.orderInfo}>
+                      <Text style={dynamicStyles.orderTitle}>Trip #{order.order_id || order.booking_id}</Text>
+                      <Text style={dynamicStyles.customerName}>{order.customer_name}</Text>
+                    </View>
+                    <View style={[
+                      dynamicStyles.statusBadge,
+                      { backgroundColor: isCurrentTrip ? colors.success : isCompleted ? colors.textSecondary : colors.primary }
+                    ]}>
+                      <Text style={[dynamicStyles.statusText, { color: '#FFFFFF' }]}>
+                        {isCurrentTrip ? 'ACTIVE' : order.assignment_status}
+                      </Text>
+                    </View>
+                  </View>
 
-        {/* Status toggle at bottom */}
-        <View style={{ marginTop: 'auto', paddingVertical: 16 }}>
+                  {/* Route */}
+                  <View style={dynamicStyles.routeContainer}>
+                    <View style={dynamicStyles.routeRow}>
+                      <MapPin color={colors.success} size={16} />
+                      <Text style={dynamicStyles.routeText}>
+                        {order.pickup || 'Pickup Location'}
+                      </Text>
+                    </View>
+                    <View style={dynamicStyles.routeLine} />
+                    <View style={dynamicStyles.routeRow}>
+                      <MapPin color={colors.error} size={16} />
+                      <Text style={dynamicStyles.routeText}>
+                        {order.drop || 'Drop Location'}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Order Details */}
+                  <View style={dynamicStyles.orderDetails}>
+                    <View style={dynamicStyles.detailRow}>
+                      <Phone color={colors.textSecondary} size={14} />
+                      <Text style={dynamicStyles.detailText}>{order.customer_mobile}</Text>
+                    </View>
+                    <View style={dynamicStyles.detailRow}>
+                      <Car color={colors.textSecondary} size={14} />
+                      <Text style={dynamicStyles.detailText}>
+                        {order.car_type} • {order.trip_type}
+                      </Text>
+                    </View>
+                    <View style={dynamicStyles.detailRow}>
+                      <Text style={[dynamicStyles.detailText, { fontWeight: 'bold', color: colors.success }]}>
+                        ₹{order.total_fare || order.estimated_price || 0}
+                      </Text>
+                    </View>
+                  </View>
+
+                  {/* Action Button */}
+                  {isCurrentTrip ? (
+                    <TouchableOpacity style={[dynamicStyles.actionButton, { backgroundColor: colors.error }]} onPress={() => handleEndTrip(order)}>
+                      <Text style={dynamicStyles.actionButtonText}>End Trip</Text>
+                      <ArrowRight color="#FFFFFF" size={16} />
+                    </TouchableOpacity>
+                  ) : canStart ? (
+                    <TouchableOpacity style={[dynamicStyles.actionButton, { backgroundColor: colors.success }]} onPress={() => handleStartTrip(order)}>
+                      <Text style={dynamicStyles.actionButtonText}>Start Trip</Text>
+                      <ArrowRight color="#FFFFFF" size={16} />
+                    </TouchableOpacity>
+                  ) : isCompleted ? (
+                    <View style={[dynamicStyles.actionButton, { backgroundColor: colors.textSecondary }]}>
+                      <Text style={dynamicStyles.actionButtonText}>Completed</Text>
+                    </View>
+                  ) : null}
+                </View>
+              );
+            })}
+          </View>
+        ) : !ordersLoading ? (
+          <View style={dynamicStyles.noOrdersContainer}>
+            <Text style={dynamicStyles.noOrdersText}>No assigned trips yet</Text>
+            <Text style={dynamicStyles.noOrdersSubtext}>
+              Check back later for new assignments
+            </Text>
+          </View>
+        ) : null}
+
+        {/* Status Toggle at Bottom */}
+        <View style={dynamicStyles.statusContainer}>
           <TouchableOpacity
             onPress={toggleStatus}
-            style={{
-              backgroundColor: driverStatus === 'ONLINE' ? '#10B981' : '#EF4444', // Green for ONLINE, Red for OFFLINE
-              borderRadius: 12,
-              paddingVertical: 16,
-              alignItems: 'center',
-              borderWidth: 2,
-              borderColor: driverStatus === 'ONLINE' ? '#10B981' : '#EF4444',
-              shadowColor: driverStatus === 'ONLINE' ? '#10B981' : '#EF4444',
-              shadowOffset: { width: 0, height: 2 },
-              shadowOpacity: 0.3,
-              shadowRadius: 4,
-              elevation: 4,
-            }}
+            style={[
+              dynamicStyles.statusToggle,
+              { backgroundColor: driverStatus === 'ONLINE' ? colors.success : colors.error }
+            ]}
           >
-            <Text style={{ 
-              color: '#FFFFFF', 
-              fontSize: 16,
-              fontFamily: 'Inter-SemiBold',
-              textAlign: 'center'
-            }}>
-              {driverStatus === 'ONLINE' ? '🟢 ONLINE - Tap to go OFFLINE' : '🔴 OFFLINE - Tap to go ONLINE'}
-            </Text>
-            <Text style={{ 
-              color: '#FFFFFF', 
-              fontSize: 12,
-              fontFamily: 'Inter-Regular',
-              marginTop: 4,
-              opacity: 0.9
-            }}>
-              {driverStatus === 'ONLINE' ? 'Available for orders' : 'Not available for orders'}
+            <Text style={dynamicStyles.statusToggleText}>
+              {driverStatus === 'ONLINE' ? '🟢 ONLINE' : '🔴 OFFLINE'}
             </Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }

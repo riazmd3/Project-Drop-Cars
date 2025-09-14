@@ -716,57 +716,44 @@ export const getDriverAssignmentsWithDetails = async (driverId: string): Promise
         return [];
       }
       
-      // Enrich assignments with order details
-      const enrichedAssignments = await Promise.all(
-        response.data.map(async (assignment: any) => {
-          try {
-            // Use assignment_id to get assignment details
-            const assignmentDetails = await getAssignmentDetails(assignment.assignment_id || assignment.id);
-            
-            return {
-              // Assignment data
-              assignment_id: assignment.assignment_id || assignment.id,
-              assignment_status: assignment.assignment_status,
-              expires_at: assignment.expires_at,
-              created_at: assignment.created_at,
-              assigned_at: assignment.assigned_at,
-              
-              // Order data
-              order_id: assignment.order_id,
-              driver_id: assignment.driver_id,
-              car_id: assignment.car_id,
-              
-              // Order details from assignment
-              pickup: assignment.pickup_location || assignment.pickup || 'Pickup Location',
-              drop: assignment.drop_location || assignment.drop || 'Drop Location',
-              distance: assignment.distance || '0 km',
-              total_fare: assignment.total_fare || assignment.fare || '0',
-              customer_name: assignment.customer_name || 'Customer Name',
-              customer_mobile: assignment.customer_mobile || assignment.customer_phone || '0000000000',
-              
-              // Computed fields
-              id: (assignment.assignment_id || assignment.id).toString(),
-              booking_id: assignment.order_id.toString(),
-              date: new Date(assignment.created_at).toLocaleDateString(),
-              time: new Date(assignment.created_at).toLocaleTimeString(),
-              status: assignment.assignment_status === 'ASSIGNED' ? 'assigned' : 'pending',
-              assigned_driver: assignment.driver_id,
-              assigned_vehicle: assignment.car_id
-            };
-          } catch (assignmentError) {
-            console.error('❌ Failed to get assignment details:', assignment.id, assignmentError);
-            return {
-              ...assignment,
-              pickup: 'Unknown',
-              drop: 'Unknown',
-              customer_name: 'Unknown',
-              customer_mobile: '0000000000',
-              status: 'assigned',
-              error: 'Failed to fetch assignment details'
-            };
-          }
-        })
-      );
+      // Use data directly from assigned orders response (no need for assignment details API)
+      const enrichedAssignments = response.data.map((assignment: any) => {
+        return {
+          // Assignment data
+          assignment_id: assignment.id,
+          assignment_status: assignment.assignment_status,
+          expires_at: assignment.expires_at,
+          created_at: assignment.created_at,
+          assigned_at: assignment.assigned_at,
+          
+          // Order data
+          order_id: assignment.order_id,
+          driver_id: assignment.driver_id,
+          car_id: assignment.car_id,
+          
+          // Order details from assignment response
+          pickup: assignment.pickup_drop_location?.['0'] || 'Pickup Location',
+          drop: assignment.pickup_drop_location?.['1'] || 'Drop Location',
+          distance: assignment.trip_distance || 0,
+          total_fare: assignment.estimated_price || 0,
+          customer_name: assignment.customer_name || 'Customer Name',
+          customer_mobile: assignment.customer_number || '0000000000',
+          
+          // Additional fields from response
+          car_type: assignment.car_type,
+          trip_type: assignment.trip_type,
+          start_date_time: assignment.start_date_time,
+          
+          // Computed fields
+          id: assignment.id.toString(),
+          booking_id: assignment.order_id.toString(),
+          date: new Date(assignment.created_at).toLocaleDateString(),
+          time: new Date(assignment.created_at).toLocaleTimeString(),
+          status: assignment.assignment_status === 'ASSIGNED' ? 'assigned' : 'pending',
+          assigned_driver: assignment.driver_id,
+          assigned_vehicle: assignment.car_id
+        };
+      });
       
       console.log('✅ Driver assignments fetched:', enrichedAssignments.length);
       return enrichedAssignments;
@@ -1489,3 +1476,4 @@ export const debugOrderAcceptance = async (orderId: string, vehicleOwnerId?: str
     };
   }
 };
+
