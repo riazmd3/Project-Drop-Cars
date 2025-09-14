@@ -19,7 +19,7 @@ import { Menu, Wallet, MapPin, Clock, User, Phone, Car, RefreshCw } from 'lucide
 import BookingCard from '@/components/BookingCard';
 import DrawerNavigation from '@/components/DrawerNavigation';
 import { fetchDashboardData, DashboardData, fetchPendingOrders, PendingOrder, forceRefreshDashboardData, debugCarDriverEndpoints, debugDriverCountIssue } from '@/services/dashboardService';
-import { acceptOrder, testOrderAcceptanceAPI, checkOrderAvailability } from '@/services/assignmentService';
+import { acceptOrder, testOrderAcceptanceAPI, checkOrderAvailability, getAvailableBookings } from '@/services/assignmentService';
 
 interface Booking {
   booking_id: string;
@@ -134,10 +134,21 @@ export default function DashboardScreen() {
   const fetchPendingOrdersData = async () => {
     try {
       setOrdersLoading(true);
-      console.log('📋 Fetching pending orders for dashboard...');
-      const orders = await fetchPendingOrders();
+      console.log('📋 Fetching available bookings for dashboard...');
+      
+      // Try the new API endpoint first
+      let orders;
+      try {
+        orders = await getAvailableBookings();
+        console.log('✅ Available bookings loaded from new API:', orders.length);
+      } catch (newApiError) {
+        console.log('⚠️ New API failed, falling back to old API:', newApiError);
+        // Fallback to old API if new one fails
+        orders = await fetchPendingOrders();
+        console.log('✅ Pending orders loaded from fallback API:', orders.length);
+      }
+      
       setPendingOrders(orders);
-      console.log('✅ Pending orders loaded:', orders.length);
     } catch (error) {
       console.error('❌ Failed to fetch pending orders:', error);
       // Don't show error alert, just log it
@@ -176,6 +187,17 @@ export default function DashboardScreen() {
       const carDriverResult = await debugCarDriverEndpoints();
       console.log('📊 Car/Driver endpoints debug result:', carDriverResult);
       
+      // Test new available bookings API
+      let availableBookingsResult: { success: boolean; error?: string; count?: number; data?: any[] } = { success: false, error: 'Not tested' };
+      try {
+        const bookings = await getAvailableBookings();
+        availableBookingsResult = { success: true, count: bookings.length, data: bookings };
+        console.log('📊 Available bookings debug result:', availableBookingsResult);
+      } catch (bookingsError: any) {
+        availableBookingsResult = { success: false, error: bookingsError.message };
+        console.log('❌ Available bookings debug failed:', bookingsError);
+      }
+      
       // Show summary
       const successfulCarEndpoints = carDriverResult.cars.filter((r: any) => r.success).length;
       const successfulDriverEndpoints = carDriverResult.drivers.filter((r: any) => r.success).length;
@@ -195,7 +217,7 @@ export default function DashboardScreen() {
       
       Alert.alert(
         'API Debug Test',
-        `Test completed!\n\nResults logged to console.\n\nOrder API: ${orderResult.success ? 'OK' : 'Failed'}\nCar endpoints: ${successfulCarEndpoints}/6 working\nDriver endpoints: ${successfulDriverEndpoints}/6 working\n\nCurrent drivers: ${dashboardData?.drivers?.length || 0}`,
+        `Test completed!\n\nResults logged to console.\n\nOrder API: ${orderResult.success ? 'OK' : 'Failed'}\nAvailable Bookings: ${availableBookingsResult.success ? `OK (${availableBookingsResult.count} bookings)` : 'Failed'}\nCar endpoints: ${successfulCarEndpoints}/6 working\nDriver endpoints: ${successfulDriverEndpoints}/6 working\n\nCurrent drivers: ${dashboardData?.drivers?.length || 0}`,
         [{ text: 'OK' }]
       );
     } catch (error: any) {
@@ -222,6 +244,24 @@ export default function DashboardScreen() {
     } catch (error: any) {
       console.error('❌ Driver count debug failed:', error);
       Alert.alert('Driver Count Debug Failed', error.message || 'Unknown error');
+    }
+  };
+
+  const handleTestAvailableBookings = async () => {
+    try {
+      console.log('🧪 Testing available bookings API...');
+      
+      const bookings = await getAvailableBookings();
+      console.log('📊 Available bookings result:', bookings);
+      
+      Alert.alert(
+        'Available Bookings Test',
+        `Test completed!\n\nFound ${bookings.length} available bookings.\n\nResults logged to console.`,
+        [{ text: 'OK' }]
+      );
+    } catch (error: any) {
+      console.error('❌ Available bookings test failed:', error);
+      Alert.alert('Available Bookings Test Failed', error.message);
     }
   };
 

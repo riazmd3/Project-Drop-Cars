@@ -13,7 +13,7 @@ import { useRouter } from 'expo-router';
 import { MapPin, User, Phone, Car, ArrowRight, LogOut, RefreshCw } from 'lucide-react-native';
 import axiosInstance from '@/app/api/axiosInstance';
 import { getAuthHeaders } from '@/services/authService';
-import { fetchAssignmentsForDriver, getVehicleOwnerAssignments } from '@/services/assignmentService';
+import { fetchAssignmentsForDriver, getVehicleOwnerAssignments, getDriverAssignmentsWithDetails } from '@/services/assignmentService';
 import { setDriverOnline, setDriverOffline } from '@/services/carDriverService';
 
 export default function QuickDashboardScreen() {
@@ -49,55 +49,78 @@ export default function QuickDashboardScreen() {
           console.log('⚠️ Could not fetch driver status, using default OFFLINE');
         }
         
-        // Fetch assignments using multiple methods
-        console.log('🔍 Fetching assignments for driver:', user.id);
+        // Fetch assignments using the new enhanced function
+        let detailedOrders: any[] = [];
+        let errorMessages: string[] = [];
         
-        let assignments: any[] = [];
-        
-        // Method 1: Try driver-specific assignments
         try {
-          assignments = await fetchAssignmentsForDriver(user.id);
-          console.log('📋 Driver assignments received:', assignments);
-        } catch (driverError) {
-          console.log('⚠️ Driver assignments failed, trying vehicle owner assignments...');
-        }
-        
-        // Method 2: If no driver assignments, try vehicle owner assignments
-        if (assignments.length === 0 && user?.id) {
+          // Use the new function that tries multiple approaches and enriches data
+          detailedOrders = await getDriverAssignmentsWithDetails(user.id);
+          
+          if (detailedOrders.length === 0) {
+            errorMessages.push('No assignments found for this driver');
+          }
+        } catch (driverError: any) {
+          console.error('❌ Driver assignments failed:', driverError);
+          errorMessages.push(`Assignment fetch failed: ${driverError.message}`);
+          
+          // Fallback: Try the old method
           try {
-            const vehicleOwnerAssignments = await getVehicleOwnerAssignments(user.id);
-            console.log('📋 Vehicle owner assignments received:', vehicleOwnerAssignments);
+            const assignments = await fetchAssignmentsForDriver(user.id);
             
-            // Filter assignments for this specific driver
-            assignments = vehicleOwnerAssignments.filter(assignment => 
-              assignment.driver_id === user.id
-            );
-            console.log('📋 Filtered assignments for driver:', assignments);
-          } catch (vehicleOwnerError) {
-            console.error('❌ Vehicle owner assignments failed:', vehicleOwnerError);
+            // If we got assignments, enrich them with order details
+            if (assignments.length > 0) {
+              const authHeaders = await getAuthHeaders();
+              for (const a of assignments) {
+                try {
+                  const res = await axiosInstance.get(`/api/orders/${a.order_id}`, { headers: authHeaders });
+                  if (res.data) {
+                    detailedOrders.push({ 
+                      ...res.data, 
+                      assignment_id: a.id, 
+                      assignment_status: a.assignment_status || a.status 
+                    });
+                  }
+                } catch (orderError: any) {
+                  console.error('❌ Failed to fetch order details:', orderError);
+                  errorMessages.push(`Order details fetch failed: ${orderError.message}`);
+                }
+              }
+            } else {
+              errorMessages.push('No assignments found via fallback method');
+            }
+          } catch (fallbackError: any) {
+            console.error('❌ Fallback method also failed:', fallbackError);
+            errorMessages.push(`Fallback method failed: ${fallbackError.message}`);
           }
         }
         
-        const authHeaders = await getAuthHeaders();
-        const detailedOrders: any[] = [];
-        for (const a of assignments) {
-          try {
-            console.log('🔍 Fetching order details for assignment:', a.order_id);
-            const res = await axiosInstance.get(`/api/orders/${a.order_id}`, { headers: authHeaders });
-            if (res.data) {
-              console.log('✅ Order details fetched:', res.data);
-              detailedOrders.push({ 
-                ...res.data, 
-                assignment_id: a.id, 
-                assignment_status: a.assignment_status || a.status 
-              });
-            }
-          } catch (orderError) {
-            console.error('❌ Failed to fetch order details:', orderError);
-          }
-        }
-        console.log('📋 Final detailed orders:', detailedOrders);
         setDriverOrders(detailedOrders);
+        
+        // Show error alert if there were issues
+        if (errorMessages.length > 0 && detailedOrders.length === 0) {
+          const errorMessage = `Failed to load driver assignments:\n\n${errorMessages.join('\n')}\n\nDriver ID: ${user.id}\n\nCheck console logs for detailed information.`;
+          
+          Alert.alert(
+            'Assignment Loading Failed',
+            errorMessage,
+            [
+              { text: 'OK' },
+              { 
+                text: 'Retry', 
+                onPress: () => {
+                  loadDriverData();
+                }
+              },
+              {
+                text: 'Debug',
+                onPress: () => {
+                  handleDebugAssignments();
+                }
+              }
+            ]
+          );
+        }
       } finally {
         setOrdersLoading(false);
       }
@@ -111,6 +134,76 @@ export default function QuickDashboardScreen() {
     setRefreshing(true);
     await loadDriverData();
     setRefreshing(false);
+  };
+
+  const handleDebugAssignments = async () => {
+    if (!user?.id) {
+      Alert.alert('Debug Error', 'No user ID available');
+      return;
+    }
+
+    try {
+      console.log('🧪 Testing driver assignments for driver:', user.id);
+      
+      // Test the new function
+      const assignments = await getDriverAssignmentsWithDetails(user.id);
+      console.log('📊 Driver assignments debug result:', assignments);
+      
+      // Create detailed debug message
+      let debugMessage = `Driver ID: ${user.id}\n`;
+      debugMessage += `Found ${assignments.length} assignments\n\n`;
+      
+      if (assignments.length > 0) {
+        debugMessage += 'Assignments:\n';
+        assignments.forEach((assignment, index) => {
+          debugMessage += `${index + 1}. Order ${assignment.order_id} - ${assignment.assignment_status}\n`;
+          debugMessage += `   Driver: ${assignment.driver_id}\n`;
+          debugMessage += `   Car: ${assignment.car_id}\n`;
+          debugMessage += `   Customer: ${assignment.customer_name}\n\n`;
+        });
+      } else {
+        debugMessage += 'No assignments found. This could mean:\n';
+        debugMessage += '• Driver has no assigned orders\n';
+        debugMessage += '• Assignments exist but not in ASSIGNED status\n';
+        debugMessage += '• API endpoint issues\n';
+        debugMessage += '• Driver ID mismatch\n\n';
+        debugMessage += 'Check console logs for detailed information.';
+      }
+      
+      Alert.alert(
+        'Driver Assignments Debug',
+        debugMessage,
+        [
+          { text: 'OK' },
+          { 
+            text: 'Refresh', 
+            onPress: () => {
+              loadDriverData();
+            }
+          }
+        ]
+      );
+    } catch (error: any) {
+      console.error('❌ Driver assignments debug failed:', error);
+      
+      let errorMessage = `Debug failed: ${error.message}\n\n`;
+      errorMessage += 'Possible causes:\n';
+      errorMessage += '• Network connectivity issues\n';
+      errorMessage += '• Authentication problems\n';
+      errorMessage += '• API endpoint not available\n';
+      errorMessage += '• Invalid driver ID\n\n';
+      errorMessage += 'Check console logs for detailed error information.';
+      
+      Alert.alert('Debug Error', errorMessage, [
+        { text: 'OK' },
+        { 
+          text: 'Retry', 
+          onPress: () => {
+            handleDebugAssignments();
+          }
+        }
+      ]);
+    }
   };
 
   // Sort by scheduled date/time ascending and pick the next one
@@ -394,6 +487,9 @@ export default function QuickDashboardScreen() {
           </Text>
         </View>
         <View style={dynamicStyles.headerActions}>
+          <TouchableOpacity onPress={handleDebugAssignments} style={dynamicStyles.refreshButton}>
+            <Text style={{ color: colors.warning, fontSize: 12, fontWeight: 'bold' }}>DEBUG</Text>
+          </TouchableOpacity>
           <TouchableOpacity onPress={handleRefresh} style={dynamicStyles.refreshButton}>
             <RefreshCw color={colors.primary} size={24} />
           </TouchableOpacity>
@@ -466,6 +562,9 @@ export default function QuickDashboardScreen() {
             <Text style={dynamicStyles.noOrdersText}>No assigned trips yet.</Text>
             <Text style={dynamicStyles.noOrdersSubtext}>
               Total assignments found: {driverOrders.length}
+            </Text>
+            <Text style={[dynamicStyles.noOrdersSubtext, { fontSize: 12, marginTop: 8, color: colors.textSecondary }]}>
+              Driver ID: {user?.id || 'Unknown'}
             </Text>
             <TouchableOpacity onPress={handleRefresh} style={dynamicStyles.refreshButtonSmall}>
               <RefreshCw color={colors.primary} size={16} />

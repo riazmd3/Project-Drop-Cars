@@ -1,6 +1,7 @@
 import axiosInstance from '@/app/api/axiosInstance';
 import { getAuthHeaders } from '@/services/authService';
 import { extractUserIdFromJWT, isJWTExpired } from '@/utils/jwtDecoder';
+import { getWalletBalance } from '@/services/paymentService';
 
 /**
  * Get vehicle owner ID from JWT token
@@ -292,6 +293,42 @@ export const acceptOrder = async (request: AcceptOrderRequest): Promise<AcceptOr
     console.log('🔗 Accepting order:', request.order_id);
     console.log('📋 Request data:', request);
     
+    // Get order details to check estimated price
+    let orderDetails;
+    try {
+      orderDetails = await getOrderDetails(request.order_id);
+      console.log('📋 Order details for balance check:', {
+        order_id: request.order_id,
+        estimated_price: orderDetails.estimated_price,
+        vendor_price: orderDetails.vendor_price
+      });
+    } catch (orderError) {
+      console.log('⚠️ Could not fetch order details for balance check, proceeding anyway');
+    }
+    
+    // Check wallet balance if order details are available
+    if (orderDetails && (orderDetails.estimated_price || orderDetails.vendor_price)) {
+      try {
+        const walletBalance = await getWalletBalance();
+        const requiredAmount = orderDetails.estimated_price || orderDetails.vendor_price || 0;
+        
+        console.log('💰 Wallet balance check:', {
+          required: requiredAmount,
+          available: walletBalance,
+          sufficient: walletBalance >= requiredAmount
+        });
+        
+        if (walletBalance < requiredAmount) {
+          throw new Error(`Insufficient wallet balance. Required: ₹${requiredAmount}, Available: ₹${walletBalance}. Please add funds to your wallet.`);
+        }
+      } catch (balanceError: any) {
+        if (balanceError.message.includes('Insufficient wallet balance')) {
+          throw balanceError; // Re-throw balance error
+        }
+        console.log('⚠️ Could not check wallet balance, proceeding anyway:', balanceError.message);
+      }
+    }
+    
     // Get vehicle owner ID from JWT token
     const vehicleOwnerId = await getVehicleOwnerIdFromToken();
     console.log('🔑 Using vehicle owner ID from JWT:', vehicleOwnerId);
@@ -381,30 +418,23 @@ export const updateAssignmentStatus = async (
 };
 
 /**
- * Assign a driver and car to an order (legacy function - now uses acceptOrder + updateStatus)
+ * Assign a driver and car to an order
  */
 export const assignDriverAndCar = async (assignmentData: AssignmentRequest): Promise<AssignmentResponse> => {
   try {
     console.log('🔗 Assigning driver and car to order:', assignmentData.order_id);
+    console.log('👤 Driver ID:', assignmentData.driver_id);
+    console.log('🚗 Car ID:', assignmentData.car_id);
     
-    // Step 1: Accept the order (creates assignment with PENDING status)
-    const acceptRequest: AcceptOrderRequest = {
-      order_id: assignmentData.order_id,
-      vehicle_owner_id: assignmentData.assigned_by,
-      acceptance_notes: assignmentData.assignment_notes
-    };
+    // Use the direct assignment API that assigns driver and car in one call
+    const response = await assignCarDriverToOrder(
+      assignmentData.order_id,
+      assignmentData.driver_id,
+      assignmentData.car_id
+    );
     
-    const acceptedOrder = await acceptOrder(acceptRequest);
-    
-    // Step 2: Update assignment status to ASSIGNED
-    const assignmentId = acceptedOrder.id || acceptedOrder.assignment_id;
-    if (!assignmentId) {
-      throw new Error('No assignment ID received from order acceptance');
-    }
-    const updatedAssignment = await updateAssignmentStatus(assignmentId, 'ASSIGNED');
-    
-    console.log('✅ Assignment completed successfully:', updatedAssignment);
-    return updatedAssignment;
+    console.log('✅ Driver and car assigned successfully:', response);
+    return response;
   } catch (error: any) {
     console.error('❌ Failed to assign driver and car:', error);
     throw error;
@@ -440,6 +470,49 @@ export const getPendingOrders = async (): Promise<any[]> => {
       throw new Error('Server error. Please try again later.');
     } else {
       throw new Error(error.message || 'Failed to fetch pending orders');
+    }
+  }
+};
+
+/**
+ * Get available bookings for vehicle owner (new API endpoint)
+ * GET /api/orders/vehicle_owner/pending
+ */
+export const getAvailableBookings = async (): Promise<any[]> => {
+  try {
+    const authHeaders = await getAuthHeaders();
+    const response = await axiosInstance.get('/api/orders/vehicle_owner/pending', {
+      headers: authHeaders
+    });
+
+    if (response.data) {
+      // Filter out already assigned orders
+      const availableOrders = response.data.filter((order: any) => {
+        const isAssigned = order.assignment_status === 'ASSIGNED' || 
+                          order.assignment_status === 'DRIVING' || 
+                          order.assignment_status === 'COMPLETED' ||
+                          order.driver_id !== null ||
+                          order.car_id !== null;
+        
+        return !isAssigned;
+      });
+      
+      console.log('📋 Available bookings:', availableOrders.length, 'out of', response.data.length);
+      return availableOrders;
+    }
+
+    return [];
+  } catch (error: any) {
+    console.error('❌ Failed to fetch available bookings:', error);
+    
+    if (error.response?.status === 401) {
+      throw new Error('Authentication failed. Please login again.');
+    } else if (error.response?.status === 404) {
+      throw new Error('Available bookings endpoint not found.');
+    } else if (error.response?.status === 500) {
+      throw new Error('Server error. Please try again later.');
+    } else {
+      throw new Error(error.message || 'Failed to fetch available bookings');
     }
   }
 };
@@ -613,6 +686,103 @@ export const fetchAssignmentsForDriver = async (driverId: string): Promise<Assig
       throw new Error('Authentication failed. Please login again.');
     }
     throw new Error(error.message || 'Failed to fetch assignments for driver');
+  }
+};
+
+/**
+ * Get assignments for a specific driver with order details
+ * This function fetches assignments and enriches them with order information
+ */
+export const getDriverAssignmentsWithDetails = async (driverId: string): Promise<any[]> => {
+  try {
+    console.log('📋 Fetching driver assignments for driver:', driverId);
+    
+    // Validate driver ID
+    if (!driverId || driverId === 'undefined' || driverId === 'null') {
+      throw new Error('Invalid driver ID provided for assignment lookup');
+    }
+    
+    // Get all assignments and filter by driver_id (correct approach)
+    const authHeaders = await getAuthHeaders();
+    const response = await axiosInstance.get('/api/assignments/all', { headers: authHeaders });
+    
+    if (Array.isArray(response.data)) {
+      // Filter assignments for this driver that are ASSIGNED or DRIVING
+      const driverAssignments = response.data.filter((assignment: any) => {
+        const matchesDriver = assignment.driver_id === driverId;
+        const isAssigned = assignment.assignment_status === 'ASSIGNED' || 
+                          assignment.assignment_status === 'DRIVING' || 
+                          assignment.assignment_status === 'COMPLETED';
+        
+        return matchesDriver && isAssigned;
+      });
+      
+      console.log('📋 Found driver assignments:', driverAssignments.length);
+      
+      if (driverAssignments.length === 0) {
+        return [];
+      }
+      
+      // Enrich assignments with order details
+      const enrichedAssignments = await Promise.all(
+        driverAssignments.map(async (assignment: any) => {
+          try {
+            // Get order details
+            const orderDetails = await getOrderDetails(assignment.order_id.toString());
+            
+            return {
+              // Assignment data
+              assignment_id: assignment.id,
+              assignment_status: assignment.assignment_status,
+              expires_at: assignment.expires_at,
+              created_at: assignment.created_at,
+              assigned_at: assignment.assigned_at,
+              
+              // Order data
+              order_id: assignment.order_id,
+              driver_id: assignment.driver_id,
+              car_id: assignment.car_id,
+              
+              // Order details
+              pickup: orderDetails.pickup_location || orderDetails.pickup || 'Pickup Location',
+              drop: orderDetails.drop_location || orderDetails.drop || 'Drop Location',
+              distance: orderDetails.distance || '0 km',
+              total_fare: orderDetails.total_fare || orderDetails.fare || '0',
+              customer_name: orderDetails.customer_name || 'Customer Name',
+              customer_mobile: orderDetails.customer_mobile || orderDetails.customer_phone || '0000000000',
+              
+              // Computed fields
+              id: assignment.id.toString(),
+              booking_id: assignment.order_id.toString(),
+              date: new Date(assignment.created_at).toLocaleDateString(),
+              time: new Date(assignment.created_at).toLocaleTimeString(),
+              status: assignment.assignment_status === 'ASSIGNED' ? 'assigned' : 'pending',
+              assigned_driver: assignment.driver_id,
+              assigned_vehicle: assignment.car_id
+            };
+          } catch (orderError) {
+            console.error('❌ Failed to get order details for assignment:', assignment.id, orderError);
+            return {
+              ...assignment,
+              pickup: 'Unknown',
+              drop: 'Unknown',
+              customer_name: 'Unknown',
+              customer_mobile: '0000000000',
+              status: 'assigned',
+              error: 'Failed to fetch order details'
+            };
+          }
+        })
+      );
+      
+      console.log('✅ Driver assignments fetched:', enrichedAssignments.length);
+      return enrichedAssignments;
+    }
+    
+    return [];
+  } catch (error: any) {
+    console.error('❌ Failed to fetch driver assignments:', error);
+    throw new Error(error.message || 'Failed to fetch driver assignments with details');
   }
 };
 
@@ -928,20 +1098,68 @@ export const assignCarDriverToOrder = async (
     console.log('👤 Driver ID:', driverId);
     console.log('🚗 Car ID:', carId);
     
-    // Get vehicle owner ID from JWT token for logging
-    const vehicleOwnerId = await getVehicleOwnerIdFromToken();
-    console.log('🔑 Vehicle owner ID from JWT:', vehicleOwnerId);
+    // Validate inputs
+    if (!driverId || driverId === 'undefined' || driverId === 'null') {
+      throw new Error('Invalid driver ID provided');
+    }
+    if (!carId || carId === 'undefined' || carId === 'null') {
+      throw new Error('Invalid car ID provided');
+    }
+    if (!orderId || orderId === 'undefined' || orderId === 'null') {
+      throw new Error('Invalid order ID provided');
+    }
+    
+    // Check if order is already assigned before attempting assignment
+    try {
+      const assignments = await getOrderAssignments(orderId);
+      
+      if (assignments && assignments.length > 0) {
+        const assignedOrder = assignments.find(assignment => 
+          assignment.assignment_status === 'ASSIGNED' || 
+          assignment.assignment_status === 'DRIVING' || 
+          assignment.assignment_status === 'COMPLETED'
+        );
+        
+        if (assignedOrder) {
+          console.warn('⚠️ Order already assigned:', {
+            order_id: orderId,
+            assignment_status: assignedOrder.assignment_status,
+            driver_id: assignedOrder.driver_id,
+            car_id: assignedOrder.car_id
+          });
+          throw new Error(`Order ${orderId} is already assigned to driver ${assignedOrder.driver_id} and car ${assignedOrder.car_id}`);
+        }
+      }
+    } catch (checkError: any) {
+      if (checkError.message.includes('already assigned')) {
+        throw checkError; // Re-throw assignment error
+      }
+    }
     
     const authHeaders = await getAuthHeaders();
-    const response = await axiosInstance.post(`/api/assignments/${orderId}/assign-car-driver`, {
+    
+    const requestData = {
       driver_id: driverId,
       car_id: carId
-    }, {
+    };
+    
+    const response = await axiosInstance.patch(`/api/assignments/${orderId}/assign-car-driver`, requestData, {
       headers: authHeaders
     });
 
     if (response.data) {
       console.log('✅ Driver and car assigned successfully:', response.data);
+      
+      // Validate that the response contains the correct driver and car IDs
+      if (response.data.driver_id && response.data.driver_id !== driverId) {
+        console.warn('⚠️ Warning: Response driver ID does not match requested driver ID');
+        console.warn('Requested:', driverId, 'Received:', response.data.driver_id);
+      }
+      if (response.data.car_id && response.data.car_id !== carId) {
+        console.warn('⚠️ Warning: Response car ID does not match requested car ID');
+        console.warn('Requested:', carId, 'Received:', response.data.car_id);
+      }
+      
       return response.data;
     }
 

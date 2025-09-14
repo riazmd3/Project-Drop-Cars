@@ -70,12 +70,10 @@ export default function FutureRidesScreen() {
   const fetchFutureRidesFromAPI = async () => {
     try {
       setApiRidesLoading(true);
-      console.log('📋 Fetching future rides from API...');
-      
+
       // Get future rides with complete order details
       const ridesWithDetails = await getFutureRidesWithDetails();
-      console.log('📋 Future rides with details:', ridesWithDetails);
-      
+
       // Convert to FutureRide format
       const processedRides: FutureRide[] = ridesWithDetails.map((ride: any) => ({
         id: ride.id,
@@ -103,10 +101,10 @@ export default function FutureRidesScreen() {
         expires_at?: string;
         created_at?: string;
       }));
-      
-      console.log('📋 Processed future rides:', processedRides);
+
+      console.log('📋 Future rides loaded:', processedRides.length);
       setApiFutureRides(processedRides);
-      
+
     } catch (error) {
       console.error('❌ Failed to fetch future rides from API:', error);
       setApiFutureRides([]);
@@ -251,6 +249,66 @@ export default function FutureRidesScreen() {
     
     try {
       console.log('🔗 Creating assignment for order:', selectedRide.booking_id);
+      console.log('👤 Selected Driver:', {
+        id: selectedDriver.id,
+        name: selectedDriver.full_name,
+        mobile: selectedDriver.primary_number
+      });
+      console.log('🚗 Selected Vehicle:', {
+        id: vehicle.id,
+        name: vehicle.car_name,
+        number: vehicle.car_number
+      });
+      
+      // Validate that we have valid IDs
+      if (!selectedDriver.id || selectedDriver.id === 'undefined' || selectedDriver.id === 'null') {
+        Alert.alert(
+          'Invalid Driver',
+          'Please select a valid driver before assigning the vehicle.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+      if (!vehicle.id || vehicle.id === 'undefined' || vehicle.id === 'null') {
+        Alert.alert(
+          'Invalid Vehicle',
+          'Please select a valid vehicle before proceeding.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+      
+      // Check if order is already assigned
+      try {
+        const existingAssignments = await getOrderAssignments(selectedRide.booking_id);
+        
+        if (existingAssignments && existingAssignments.length > 0) {
+          const assignedOrder = existingAssignments.find(assignment => 
+            assignment.assignment_status === 'ASSIGNED' || 
+            assignment.assignment_status === 'DRIVING' || 
+            assignment.assignment_status === 'COMPLETED'
+          );
+          
+          if (assignedOrder) {
+            Alert.alert(
+              'Order Already Assigned',
+              `This order is already assigned to:\n\nDriver: ${assignedOrder.driver_id}\nCar: ${assignedOrder.car_id}\nStatus: ${assignedOrder.assignment_status}\n\nPlease refresh the list to see updated assignments.`,
+              [
+                { text: 'OK' },
+                { 
+                  text: 'Refresh', 
+                  onPress: () => {
+                    fetchFutureRidesFromAPI();
+                  }
+                }
+              ]
+            );
+            return;
+          }
+        }
+      } catch (checkError: any) {
+        // Proceed anyway if check fails
+      }
       
       // Use the new API endpoint for assigning driver and car
       const assignment = await assignCarDriverToOrder(
@@ -307,9 +365,44 @@ export default function FutureRidesScreen() {
       
     } catch (error: any) {
       console.error('❌ Assignment failed:', error);
+      
+      let errorMessage = 'Failed to assign driver and vehicle.\n\n';
+      let errorTitle = 'Assignment Failed';
+      
+      if (error.message.includes('already assigned')) {
+        errorTitle = 'Order Already Assigned';
+        errorMessage = `This order is already assigned to another driver and car.\n\n${error.message}\n\nPlease refresh the list to see updated assignments.`;
+      } else if (error.message.includes('Invalid driver ID')) {
+        errorTitle = 'Invalid Driver';
+        errorMessage = 'The selected driver is invalid. Please select a different driver.';
+      } else if (error.message.includes('Invalid car ID')) {
+        errorTitle = 'Invalid Vehicle';
+        errorMessage = 'The selected vehicle is invalid. Please select a different vehicle.';
+      } else if (error.message.includes('Authentication failed')) {
+        errorTitle = 'Authentication Error';
+        errorMessage = 'Your session has expired. Please login again.';
+      } else if (error.message.includes('Order not found')) {
+        errorTitle = 'Order Not Found';
+        errorMessage = 'This order no longer exists. Please refresh the list.';
+      } else if (error.message.includes('Server error')) {
+        errorTitle = 'Server Error';
+        errorMessage = 'Server is temporarily unavailable. Please try again later.';
+      } else {
+        errorMessage += `Error: ${error.message}\n\nPlease check your connection and try again.`;
+      }
+      
       Alert.alert(
-        'Assignment Failed',
-        error.message || 'Failed to assign driver and vehicle. Please try again.'
+        errorTitle,
+        errorMessage,
+        [
+          { text: 'OK' },
+          { 
+            text: 'Refresh', 
+            onPress: () => {
+              fetchFutureRidesFromAPI();
+            }
+          }
+        ]
       );
     }
   };
