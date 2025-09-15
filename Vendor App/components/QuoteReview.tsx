@@ -7,12 +7,10 @@ import {
   ScrollView,
   Alert,
   Modal,
-  Animated,
   Dimensions,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { 
-  CheckCircle,
   MapPin,
   Calendar,
   Clock,
@@ -24,10 +22,12 @@ import {
   X,
   FileText,
   Mountain,
-  ChevronDown
+  ChevronDown,
+  Truck,
+  Route
 } from 'lucide-react-native';
 
-const { width, height } = Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 const cities = [
   'Chennai',
@@ -66,9 +66,6 @@ export default function QuoteReview({
   const [showNearCityPicker, setShowNearCityPicker] = useState(false);
   const [sendTo, setSendTo] = useState<'ALL' | 'NEAR_CITY'>('ALL');
   const [nearCity, setNearCity] = useState('');
-  const [showSuccess, setShowSuccess] = useState(false);
-  const [successScale] = useState(new Animated.Value(0));
-  const [successOpacity] = useState(new Animated.Value(0));
 
   const handleConfirmOrder = async () => {
     if (sendTo === 'NEAR_CITY' && !nearCity) {
@@ -78,250 +75,268 @@ export default function QuoteReview({
 
     try {
       await onConfirmOrder(sendTo, nearCity);
-      
-      // Show success animation
-      setShowSuccess(true);
-      Animated.parallel([
-        Animated.spring(successScale, {
-          toValue: 1,
-          useNativeDriver: true,
-          tension: 100,
-          friction: 8
-        }),
-        Animated.timing(successOpacity, {
-          toValue: 1,
-          duration: 300,
-          useNativeDriver: true
-        })
-      ]).start();
-
-      // Auto close after 3 seconds
-      setTimeout(() => {
-        setShowSuccess(false);
-        onClose();
-        successScale.setValue(0);
-        successOpacity.setValue(0);
-      }, 3000);
-      
     } catch (error) {
       Alert.alert('Error', 'Failed to create order. Please try again.');
     }
   };
 
-  const formatDateTime = (dateString: string) => {
-    const date = new Date(dateString);
+  const formatDateTime = (dateString: string | Date) => {
+    const date = typeof dateString === 'string' ? new Date(dateString) : dateString;
     return {
-      date: date.toLocaleDateString(),
-      time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      date: date.toLocaleDateString('en-IN', { 
+        day: '2-digit', 
+        month: 'short', 
+        year: 'numeric' 
+      }),
+      time: date.toLocaleTimeString('en-IN', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true 
+      })
     };
   };
 
   if (!quoteData) return null;
 
-  // Calculate estimated prices
-  const estimatedDistance = quoteData.fare.total_km;
-  const estimatedTime = quoteData.fare.trip_time;
-  const estimatedDriverBeta = quoteData.echo.driver_allowance;
-  const estimatedHillCharges = quoteData.echo.hill_charges;
-  const estimatedPermitCharges = quoteData.echo.permit_charges;
-  const estimatedTotal = (quoteData.echo.cost_per_km * estimatedDistance) + estimatedDriverBeta + estimatedHillCharges + estimatedPermitCharges;
+  const getLocationEntries = () => {
+    return Object.entries(quoteData.echo.pickup_drop_location)
+      .sort(([a], [b]) => parseInt(a) - parseInt(b));
+  };
 
-  // Calculate vendor prices
-  const vendorDistance = quoteData.fare.total_km;
-  const vendorTime = quoteData.fare.trip_time;
-  const vendorDriverBeta = quoteData.echo.driver_allowance + quoteData.echo.extra_driver_allowance;
-  const vendorHillCharges = quoteData.echo.hill_charges;
-  const vendorPermitCharges = quoteData.echo.permit_charges + quoteData.echo.extra_permit_charges;
-  const vendorExtraPerKm = quoteData.echo.extra_cost_per_km;
-  const vendorTotal = (quoteData.echo.cost_per_km + quoteData.echo.extra_cost_per_km) * vendorDistance + vendorDriverBeta + vendorHillCharges + vendorPermitCharges;
+  const getLocationLabel = (index: string, isLast: boolean, tripType: string) => {
+    const position = parseInt(index);
+    if (position === 0) return 'Pickup Location';
+    if (tripType === 'Round Trip' && isLast) return 'Return to Pickup';
+    if (isLast) return 'Final Destination';
+    return `Stop ${position}`;
+  };
+
+  const locations = getLocationEntries();
+  const tripType = quoteData.echo.trip_type;
 
   return (
     <Modal
       visible={visible}
       animationType="slide"
-      presentationStyle="pageSheet"
+      presentationStyle="fullScreen"
     >
       <View style={styles.container}>
-        {/* Header */}
-        <View style={styles.header}>
+        {/* Enhanced Header with Trip Type Colors */}
+        <LinearGradient
+          colors={
+            tripType === 'Round Trip' 
+              ? ['#FFF', '#FFF', '#C084FC']
+              : tripType === 'Multy City'
+              ? ['#dccdcdff', '#e5e3e3ff', '#4075d8ff'] 
+              : ['#1E40AF', '...3B82F6', '#60A5FA']
+          }
+          style={styles.header}
+        >
           <View style={styles.headerContent}>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <X size={24} color="#5F6368" />
+              <X size={24} color="#1E40AF" />
             </TouchableOpacity>
-            <Text style={styles.headerTitle}>Review & Confirm Order</Text>
+            <View style={styles.headerTitleContainer}>
+              <Text style={styles.headerTitle}>Quote Review</Text>
+              <Text style={styles.headerSubtitle}>{tripType} Journey</Text>
+            </View>
             <View style={styles.placeholder} />
           </View>
-        </View>
+        </LinearGradient>
 
         <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
           {/* Customer Details Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Customer Details</Text>
+            <View style={styles.sectionHeader}>
+              <User size={24} color="#1E40AF" />
+              <Text style={styles.sectionTitle}>Customer Details</Text>
+            </View>
             
-            <View style={styles.detailRow}>
-              <User size={20} color="#1E40AF" style={styles.detailIcon} />
-              <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>Customer Name</Text>
-                <Text style={styles.detailValue}>{quoteData.echo.customer_name}</Text>
-              </View>
-            </View>
-
-            <View style={styles.detailRow}>
-              <Phone size={20} color="#1E40AF" style={styles.detailIcon} />
-              <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>Phone Number</Text>
-                <Text style={styles.detailValue}>{quoteData.echo.customer_number}</Text>
-              </View>
-            </View>
-          </View>
-
-          {/* Travel Details Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Travel Details</Text>
-            
-            <View style={styles.detailRow}>
-              <Car size={20} color="#1E40AF" style={styles.detailIcon} />
-              <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>Car Type</Text>
-                <Text style={styles.detailValue}>{quoteData.echo.car_type}</Text>
-              </View>
-            </View>
-
-            <View style={styles.detailRow}>
-              <Calendar size={20} color="#1E40AF" style={styles.detailIcon} />
-              <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>Date</Text>
-                <Text style={styles.detailValue}>{formatDateTime(quoteData.echo.start_date_time).date}</Text>
-              </View>
-            </View>
-
-            <View style={styles.detailRow}>
-              <Clock size={20} color="#1E40AF" style={styles.detailIcon} />
-              <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>Time</Text>
-                <Text style={styles.detailValue}>{formatDateTime(quoteData.echo.start_date_time).time}</Text>
-              </View>
-            </View>
-
-            <View style={styles.detailRow}>
-              <MapPin size={20} color="#1E40AF" style={styles.detailIcon} />
-              <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>Pickup Location</Text>
-                <Text style={styles.detailValue}>{quoteData.echo.pickup_drop_location['0']}</Text>
-              </View>
-            </View>
-
-            <View style={styles.detailRow}>
-              <MapPin size={20} color="#1E40AF" style={styles.detailIcon} />
-              <View style={styles.detailContent}>
-                <Text style={styles.detailLabel}>Drop Location</Text>
-                <Text style={styles.detailValue}>{quoteData.echo.pickup_drop_location['1']}</Text>
-              </View>
-            </View>
-
-            {quoteData.echo.pickup_notes && (
+            <View style={styles.card}>
               <View style={styles.detailRow}>
-                <FileText size={20} color="#9AA0A6" style={styles.detailIcon} />
+                <User size={20} color="#1E40AF" style={styles.detailIcon} />
                 <View style={styles.detailContent}>
-                  <Text style={styles.detailLabel}>Pickup Notes</Text>
-                  <Text style={styles.detailValue}>{quoteData.echo.pickup_notes}</Text>
+                  <Text style={styles.detailLabel}>Customer Name</Text>
+                  <Text style={styles.detailValue}>{quoteData.echo.customer_name}</Text>
                 </View>
               </View>
-            )}
-          </View>
 
-          {/* Estimated Prices Section */}
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Estimated Prices</Text>
-            
-            <View style={styles.priceCard}>
-              <View style={styles.priceRow}>
-                <Text style={styles.priceLabel}>Estimated Distance:</Text>
-                <Text style={styles.priceValue}>{estimatedDistance} km</Text>
-              </View>
-              
-              <View style={styles.priceRow}>
-                <Text style={styles.priceLabel}>Estimated Time:</Text>
-                <Text style={styles.priceValue}>{estimatedTime}</Text>
-              </View>
-              
-              <View style={styles.priceRow}>
-                <Text style={styles.priceLabel}>Driver Beta:</Text>
-                <Text style={styles.priceValue}>₹{estimatedDriverBeta}</Text>
-              </View>
-              
-              <View style={styles.priceRow}>
-                <Text style={styles.priceLabel}>Hill Charges:</Text>
-                <Text style={styles.priceValue}>₹{estimatedHillCharges}</Text>
-              </View>
-              
-              <View style={styles.priceRow}>
-                <Text style={styles.priceLabel}>Permit Charges:</Text>
-                <Text style={styles.priceValue}>₹{estimatedPermitCharges}</Text>
-              </View>
-              
-              <View style={styles.priceRow}>
-                <Text style={styles.priceLabel}>Cost per KM:</Text>
-                <Text style={styles.priceValue}>₹{quoteData.echo.cost_per_km}</Text>
-              </View>
-              
-              <View style={[styles.priceRow, styles.totalRow]}>
-                <Text style={styles.totalLabel}>Total Estimated Price:</Text>
-                <Text style={styles.totalValue}>₹{estimatedTotal.toFixed(2)}</Text>
+              <View style={styles.detailRow}>
+                <Phone size={20} color="#1E40AF" style={styles.detailIcon} />
+                <View style={styles.detailContent}>
+                  <Text style={styles.detailLabel}>Phone Number</Text>
+                  <Text style={styles.detailValue}>{quoteData.echo.customer_number}</Text>
+                </View>
               </View>
             </View>
           </View>
 
-          {/* Vendor Prices Section */}
+          {/* Trip Details Section */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Vendor Prices</Text>
+            <View style={styles.sectionHeader}>
+              <Car size={24} color="#1E40AF" />
+              <Text style={styles.sectionTitle}>Trip Details</Text>
+            </View>
+            
+            <View style={styles.card}>
+              <View style={styles.detailRow}>
+                <Car size={20} color="#1E40AF" style={styles.detailIcon} />
+                <View style={styles.detailContent}>
+                  <Text style={styles.detailLabel}>Car Type</Text>
+                  <Text style={styles.detailValue}>{quoteData.echo.car_type}</Text>
+                </View>
+              </View>
+
+              <View style={styles.detailRow}>
+                <Calendar size={20} color="#1E40AF" style={styles.detailIcon} />
+                <View style={styles.detailContent}>
+                  <Text style={styles.detailLabel}>Journey Date</Text>
+                  <Text style={styles.detailValue}>{formatDateTime(quoteData.echo.start_date_time).date}</Text>
+                </View>
+              </View>
+
+              <View style={styles.detailRow}>
+                <Clock size={20} color="#1E40AF" style={styles.detailIcon} />
+                <View style={styles.detailContent}>
+                  <Text style={styles.detailLabel}>Departure Time</Text>
+                  <Text style={styles.detailValue}>{formatDateTime(quoteData.echo.start_date_time).time}</Text>
+                </View>
+              </View>
+            </View>
+          </View>
+
+          {/* Enhanced Route Details Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Route size={24} color="#1E40AF" />
+              <Text style={styles.sectionTitle}>Route Details</Text>
+              <View style={styles.routeBadge}>
+                <Text style={styles.routeBadgeText}>{locations.length} stops</Text>
+              </View>
+            </View>
+            
+            <View style={styles.card}>
+              {locations.map(([index, location], position) => (
+                <View key={index} style={[styles.routeItem, position === locations.length - 1 && styles.lastRouteItem]}>
+                  <View style={styles.routeIndicator}>
+                    <View style={[
+                      styles.routeDot,
+                      position === 0 ? styles.routeDotStart : 
+                      position === locations.length - 1 ? styles.routeDotEnd : styles.routeDotMiddle
+                    ]} />
+                    {position < locations.length - 1 && <View style={styles.routeLine} />}
+                  </View>
+                  <View style={styles.routeContent}>
+                    <Text style={styles.routeLabel}>
+                      {getLocationLabel(index, position === locations.length - 1, tripType)}
+                    </Text>
+                    <Text style={styles.routeLocation}>{String(location)}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* Trip Summary Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Truck size={24} color="#1E40AF" />
+              <Text style={styles.sectionTitle}>Trip Summary</Text>
+            </View>
+            
+            <View style={styles.summaryCard}>
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Total Distance</Text>
+                <Text style={styles.summaryValue}>{quoteData.fare.total_km} km</Text>
+              </View>
+              
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Estimated Time</Text>
+                <Text style={styles.summaryValue}>{quoteData.fare.trip_time || 'Calculating...'}</Text>
+              </View>
+              
+              <View style={styles.summaryRow}>
+                <Text style={styles.summaryLabel}>Cost per KM</Text>
+                <Text style={styles.summaryValue}>₹{quoteData.echo.cost_per_km}</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Pricing Breakdown Section */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <IndianRupee size={24} color="#1E40AF" />
+              <Text style={styles.sectionTitle}>Pricing Breakdown</Text>
+            </View>
             
             <View style={styles.priceCard}>
               <View style={styles.priceRow}>
-                <Text style={styles.priceLabel}>Estimated Distance:</Text>
-                <Text style={styles.priceValue}>{vendorDistance} km</Text>
+                <Text style={styles.priceLabel}>Base Amount ({quoteData.fare.total_km} km × ₹{quoteData.echo.cost_per_km})</Text>
+                <Text style={styles.priceValue}>₹{quoteData.fare.base_km_amount}</Text>
               </View>
+
+              {quoteData.echo.extra_cost_per_km > 0 && (
+                <View style={styles.priceRow}>
+                  <Text style={styles.priceLabel}>Extra per KM ({quoteData.fare.total_km} km × ₹{quoteData.echo.extra_cost_per_km})</Text>
+                  <Text style={styles.priceValue}>₹{Math.round(quoteData.fare.total_km * quoteData.echo.extra_cost_per_km)}</Text>
+                </View>
+              )}
               
-              <View style={styles.priceRow}>
-                <Text style={styles.priceLabel}>Estimated Time:</Text>
-                <Text style={styles.priceValue}>{vendorTime}</Text>
-              </View>
+              {quoteData.echo.driver_allowance > 0 && (
+                <View style={styles.priceRow}>
+                  <Text style={styles.priceLabel}>Driver Allowance</Text>
+                  <Text style={styles.priceValue}>₹{quoteData.echo.driver_allowance}</Text>
+                </View>
+              )}
+
+              {quoteData.echo.extra_driver_allowance > 0 && (
+                <View style={styles.priceRow}>
+                  <Text style={styles.priceLabel}>Extra Driver Allowance</Text>
+                  <Text style={styles.priceValue}>₹{quoteData.echo.extra_driver_allowance}</Text>
+                </View>
+              )}
               
-              <View style={styles.priceRow}>
-                <Text style={styles.priceLabel}>Driver Beta:</Text>
-                <Text style={styles.priceValue}>₹{vendorDriverBeta} (₹{quoteData.echo.driver_allowance} + ₹{quoteData.echo.extra_driver_allowance})</Text>
-              </View>
+              {quoteData.echo.permit_charges > 0 && (
+                <View style={styles.priceRow}>
+                  <Text style={styles.priceLabel}>Permit Charges</Text>
+                  <Text style={styles.priceValue}>₹{quoteData.echo.permit_charges}</Text>
+                </View>
+              )}
+
+              {quoteData.echo.extra_permit_charges > 0 && (
+                <View style={styles.priceRow}>
+                  <Text style={styles.priceLabel}>Extra Permit Charges</Text>
+                  <Text style={styles.priceValue}>₹{quoteData.echo.extra_permit_charges}</Text>
+                </View>
+              )}
               
-              <View style={styles.priceRow}>
-                <Text style={styles.priceLabel}>Hill Charges:</Text>
-                <Text style={styles.priceValue}>₹{vendorHillCharges}</Text>
-              </View>
-              
-              <View style={styles.priceRow}>
-                <Text style={styles.priceLabel}>Permit Charges:</Text>
-                <Text style={styles.priceValue}>₹{vendorPermitCharges} (₹{quoteData.echo.permit_charges} + ₹{quoteData.echo.extra_permit_charges})</Text>
-              </View>
-              
-              <View style={styles.priceRow}>
-                <Text style={styles.priceLabel}>Extra per KM:</Text>
-                <Text style={styles.priceValue}>₹{vendorExtraPerKm}</Text>
-              </View>
-              
-              <View style={styles.priceRow}>
-                <Text style={styles.priceLabel}>Total Price:</Text>
-                <Text style={styles.priceValue}>₹{(quoteData.echo.cost_per_km + quoteData.echo.extra_cost_per_km)} × {vendorDistance} km</Text>
-              </View>
+              {quoteData.echo.hill_charges > 0 && (
+                <View style={styles.priceRow}>
+                  <Text style={styles.priceLabel}>Hill Charges</Text>
+                  <Text style={styles.priceValue}>₹{quoteData.echo.hill_charges}</Text>
+                </View>
+              )}
+
+              {quoteData.echo.toll_charges > 0 && (
+                <View style={styles.priceRow}>
+                  <Text style={styles.priceLabel}>Toll Charges</Text>
+                  <Text style={styles.priceValue}>₹{quoteData.echo.toll_charges}</Text>
+                </View>
+              )}
               
               <View style={[styles.priceRow, styles.totalRow]}>
-                <Text style={styles.totalLabel}>Total Vendor Price:</Text>
-                <Text style={styles.totalValue}>₹{vendorTotal.toFixed(2)}</Text>
+                <Text style={styles.totalLabel}>Total Amount</Text>
+                <Text style={styles.totalValue}>₹{quoteData.fare.total_amount}</Text>
               </View>
             </View>
           </View>
 
           {/* Driver Assignment */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Driver Assignment</Text>
+            <View style={styles.sectionHeader}>
+              <Send size={24} color="#1E40AF" />
+              <Text style={styles.sectionTitle}>Driver Assignment</Text>
+            </View>
             
             <TouchableOpacity
               style={styles.pickerButton}
@@ -329,24 +344,36 @@ export default function QuoteReview({
             >
               <Send size={20} color="#1E40AF" style={styles.pickerIcon} />
               <Text style={styles.pickerText}>
-                {sendTo === 'NEAR_CITY' ? `NEAR_CITY - ${nearCity}` : sendTo}
+                {sendTo === 'NEAR_CITY' ? `NEAR CITY - ${nearCity || 'Select City'}` : 'ALL DRIVERS'}
               </Text>
               <ChevronDown size={20} color="#1E40AF" />
             </TouchableOpacity>
 
             {sendTo === 'NEAR_CITY' && (
               <TouchableOpacity
-                style={styles.pickerButton}
+                style={[styles.pickerButton, { marginTop: 12 }]}
                 onPress={() => setShowNearCityPicker(true)}
               >
                 <MapPin size={20} color="#1E40AF" style={styles.pickerIcon} />
-                <Text style={styles.pickerText}>
+                <Text style={[styles.pickerText, !nearCity && styles.pickerPlaceholder]}>
                   {nearCity || 'Select Near City'}
                 </Text>
                 <ChevronDown size={20} color="#1E40AF" />
               </TouchableOpacity>
             )}
           </View>
+
+          {quoteData.echo.pickup_notes && (
+            <View style={styles.section}>
+              <View style={styles.sectionHeader}>
+                <FileText size={24} color="#1E40AF" />
+                <Text style={styles.sectionTitle}>Additional Notes</Text>
+              </View>
+              <View style={styles.card}>
+                <Text style={styles.notesText}>{quoteData.echo.pickup_notes}</Text>
+              </View>
+            </View>
+          )}
 
           {/* Confirm Button */}
           <TouchableOpacity 
@@ -355,7 +382,13 @@ export default function QuoteReview({
             disabled={isLoading}
           >
             <LinearGradient
-              colors={['#4285F4', '#34A853']}
+              colors={
+                tripType === 'Round Trip' 
+                  ? ['#7C3AED', '#A855F7']
+                  : tripType === 'Multy City'
+                  ? ['#5196dfff', '#4357cdff'] 
+                  : ['#059669', '#10B981']
+              }
               style={styles.gradientButton}
             >
               <Send size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
@@ -377,30 +410,47 @@ export default function QuoteReview({
               <Text style={styles.modalTitle}>Select Driver Assignment</Text>
               <TouchableOpacity
                 onPress={() => setShowSendToPicker(false)}
-                style={styles.closeButton}
+                style={styles.modalCloseButton}
               >
                 <X size={24} color="#5F6368" />
               </TouchableOpacity>
             </View>
             <View style={styles.modalContent}>
               <TouchableOpacity
-                style={styles.modalOption}
+                style={[styles.modalOption, sendTo === 'ALL' && styles.modalOptionActive]}
                 onPress={() => {
                   setSendTo('ALL');
                   setNearCity('');
                   setShowSendToPicker(false);
                 }}
               >
-                <Text style={styles.modalOptionText}>ALL</Text>
+                <Send size={20} color={sendTo === 'ALL' ? "#1E40AF" : "#6B7280"} />
+                <View style={styles.modalOptionContent}>
+                  <Text style={[styles.modalOptionText, sendTo === 'ALL' && styles.modalOptionTextActive]}>
+                    ALL DRIVERS
+                  </Text>
+                  <Text style={styles.modalOptionSubtext}>
+                    Send to all available drivers
+                  </Text>
+                </View>
               </TouchableOpacity>
+              
               <TouchableOpacity
-                style={styles.modalOption}
+                style={[styles.modalOption, sendTo === 'NEAR_CITY' && styles.modalOptionActive]}
                 onPress={() => {
                   setSendTo('NEAR_CITY');
                   setShowSendToPicker(false);
                 }}
               >
-                <Text style={styles.modalOptionText}>NEAR_CITY</Text>
+                <MapPin size={20} color={sendTo === 'NEAR_CITY' ? "#1E40AF" : "#6B7280"} />
+                <View style={styles.modalOptionContent}>
+                  <Text style={[styles.modalOptionText, sendTo === 'NEAR_CITY' && styles.modalOptionTextActive]}>
+                    NEAR CITY
+                  </Text>
+                  <Text style={styles.modalOptionSubtext}>
+                    Send to drivers near specific city
+                  </Text>
+                </View>
               </TouchableOpacity>
             </View>
           </View>
@@ -417,52 +467,30 @@ export default function QuoteReview({
               <Text style={styles.modalTitle}>Select Near City</Text>
               <TouchableOpacity
                 onPress={() => setShowNearCityPicker(false)}
-                style={styles.closeButton}
+                style={styles.modalCloseButton}
               >
                 <X size={24} color="#5F6368" />
               </TouchableOpacity>
             </View>
-            <View style={styles.modalContent}>
+            <ScrollView style={styles.modalContent}>
               {cities.map((city) => (
                 <TouchableOpacity
                   key={city}
-                  style={styles.modalOption}
+                  style={[styles.modalOption, nearCity === city && styles.modalOptionActive]}
                   onPress={() => {
                     setNearCity(city);
                     setShowNearCityPicker(false);
                   }}
                 >
-                  <Text style={styles.modalOptionText}>{city}</Text>
+                  <MapPin size={20} color={nearCity === city ? "#1E40AF" : "#6B7280"} />
+                  <Text style={[styles.modalOptionText, nearCity === city && styles.modalOptionTextActive]}>
+                    {city}
+                  </Text>
                 </TouchableOpacity>
               ))}
-            </View>
+            </ScrollView>
           </View>
         </Modal>
-
-        {/* Full Screen Success Animation */}
-        {showSuccess && (
-          <Modal
-            visible={showSuccess}
-            transparent={true}
-            animationType="fade"
-          >
-            <View style={styles.successOverlay}>
-              <Animated.View 
-                style={[
-                  styles.successContainer,
-                  { 
-                    transform: [{ scale: successScale }],
-                    opacity: successOpacity
-                  }
-                ]}
-              >
-                <CheckCircle size={100} color="#34A853" />
-                <Text style={styles.successTitle}>Order Created Successfully!</Text>
-                <Text style={styles.successSubtitle}>Your order has been successfully created and sent to drivers.</Text>
-              </Animated.View>
-            </View>
-          </Modal>
-        )}
       </View>
     </Modal>
   );
@@ -474,54 +502,84 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8F9FA',
   },
   header: {
-    backgroundColor: '#FFFFFF',
-    borderBottomWidth: 1,
-    borderBottomColor: '#E8EAED',
-    paddingTop: 10,
-    paddingBottom: 20,
+    paddingTop: 60,
+    paddingBottom: 30,
+    paddingHorizontal: 24,
   },
   headerContent: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
+  },
+  headerTitleContainer: {
+    flex: 1,
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#202124',
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#1E40AF',
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    color: 'rgba(13, 80, 205, 0.99)',
   },
   closeButton: {
     padding: 8,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 20,
   },
   placeholder: {
     width: 40,
   },
   content: {
     flex: 1,
-    paddingHorizontal: 20,
+    paddingHorizontal: 24,
   },
   section: {
     marginTop: 24,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: '600',
     color: '#202124',
-    marginBottom: 16,
+    marginLeft: 12,
+    flex: 1,
+  },
+  routeBadge: {
+    backgroundColor: '#E8F4FD',
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
+  },
+  routeBadgeText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#1E40AF',
+  },
+  card: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
   },
   detailRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    marginBottom: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F3F4',
   },
   detailIcon: {
     marginRight: 16,
@@ -534,11 +592,93 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#5F6368',
     marginBottom: 4,
+    fontWeight: '500',
   },
   detailValue: {
     fontSize: 16,
     color: '#202124',
+    fontWeight: '600',
+  },
+  routeItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  lastRouteItem: {
+    marginBottom: 0,
+  },
+  routeIndicator: {
+    alignItems: 'center',
+    marginRight: 16,
+    width: 24,
+  },
+  routeDot: {
+    width: 12,
+    height: 12,
+    borderRadius: 6,
+    marginBottom: 8,
+  },
+  routeDotStart: {
+    backgroundColor: '#10B981',
+  },
+  routeDotMiddle: {
+    backgroundColor: '#F59E0B',
+  },
+  routeDotEnd: {
+    backgroundColor: '#DC2626',
+  },
+  routeLine: {
+    width: 2,
+    height: 32,
+    backgroundColor: '#D1D5DB',
+    position: 'absolute',
+    top: 12,
+  },
+  routeContent: {
+    flex: 1,
+    paddingTop: -4,
+  },
+  routeLabel: {
+    fontSize: 14,
+    color: '#5F6368',
     fontWeight: '500',
+    marginBottom: 4,
+  },
+  routeLocation: {
+    fontSize: 16,
+    color: '#202124',
+    fontWeight: '600',
+    lineHeight: 22,
+  },
+  summaryCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 2,
+    borderColor: '#E8F4FD',
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F3F4',
+  },
+  summaryLabel: {
+    fontSize: 16,
+    color: '#5F6368',
+    fontWeight: '500',
+  },
+  summaryValue: {
+    fontSize: 16,
+    color: '#1E40AF',
+    fontWeight: '600',
   },
   priceCard: {
     backgroundColor: '#FFFFFF',
@@ -565,9 +705,13 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     borderTopWidth: 2,
     borderTopColor: '#E8EAED',
+    backgroundColor: '#F8FDF9',
+    marginHorizontal: -20,
+    paddingHorizontal: 20,
+    borderRadius: 12,
   },
   priceLabel: {
-    fontSize: 16,
+    fontSize: 14,
     color: '#5F6368',
     fontWeight: '500',
     flex: 1,
@@ -576,8 +720,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#202124',
     fontWeight: '600',
-    textAlign: 'right',
-    flex: 1,
   },
   totalLabel: {
     fontSize: 18,
@@ -585,8 +727,8 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   totalValue: {
-    fontSize: 20,
-    color: '#34A853',
+    fontSize: 22,
+    color: '#059669',
     fontWeight: 'bold',
   },
   pickerButton: {
@@ -595,7 +737,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 16,
-    marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -613,8 +754,16 @@ const styles = StyleSheet.create({
     color: '#202124',
     fontWeight: '500',
   },
+  pickerPlaceholder: {
+    color: '#9AA0A6',
+  },
+  notesText: {
+    fontSize: 16,
+    color: '#202124',
+    lineHeight: 24,
+  },
   confirmButton: {
-    marginVertical: 24,
+    marginVertical: 32,
     borderRadius: 16,
     overflow: 'hidden',
   },
@@ -645,11 +794,15 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: '#E8EAED',
+    backgroundColor: '#FFFFFF',
   },
   modalTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#202124',
+  },
+  modalCloseButton: {
+    padding: 8,
   },
   modalContent: {
     flex: 1,
@@ -657,44 +810,36 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   modalOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
     paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F3F4',
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 8,
+    backgroundColor: '#F8F9FA',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  modalOptionActive: {
+    backgroundColor: '#F0F7FF',
+    borderColor: '#1E40AF',
+  },
+  modalOptionContent: {
+    flex: 1,
+    marginLeft: 12,
   },
   modalOptionText: {
-    fontSize: 18,
-    color: '#202124',
+    fontSize: 16,
+    color: '#6B7280',
+    fontWeight: '500',
+    marginBottom: 2,
   },
-  successOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    justifyContent: 'center',
-    alignItems: 'center',
+  modalOptionTextActive: {
+    color: '#1E40AF',
+    fontWeight: '600',
   },
-  successContainer: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 24,
-    padding: 40,
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    elevation: 8,
-    minWidth: width * 0.8,
-  },
-  successTitle: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#202124',
-    marginTop: 24,
-    marginBottom: 12,
-    textAlign: 'center',
-  },
-  successSubtitle: {
-    fontSize: 18,
-    color: '#5F6368',
-    textAlign: 'center',
-    lineHeight: 24,
+  modalOptionSubtext: {
+    fontSize: 14,
+    color: '#9CA3AF',
   },
 });

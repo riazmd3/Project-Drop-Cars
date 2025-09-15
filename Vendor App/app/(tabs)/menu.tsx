@@ -5,9 +5,7 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
   StatusBar,
-  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useVendorAuth } from '../../hooks/useVendorAuth';
@@ -35,17 +33,11 @@ import {
   ChevronRight,
 } from 'lucide-react-native';
 
-const { width, height } = Dimensions.get('window');
-
 interface VendorData {
   id: string;
   full_name: string;
   primary_number: string;
   account_status: string;
-  wallet_balance: number;
-  total_orders: number;
-  completed_orders: number;
-  rating: number;
 }
 
 export default function MenuScreen() {
@@ -65,10 +57,6 @@ export default function MenuScreen() {
           full_name: storedData.full_name,
           primary_number: storedData.primary_number,
           account_status: storedData.account_status,
-          wallet_balance: storedData.wallet_balance || 0,
-          total_orders: 45, // Mock data
-          completed_orders: 38, // Mock data
-          rating: 4.8, // Mock data
         });
       }
     } catch (error) {
@@ -77,7 +65,6 @@ export default function MenuScreen() {
   };
 
   const handleLogout = () => {
-    // Here you would implement logout functionality
     signOut();
   };
 
@@ -87,7 +74,7 @@ export default function MenuScreen() {
       title: 'Profile',
       subtitle: 'View and edit your profile',
       icon: User,
-      iconColor: '#3B82F6',
+      iconColor: '#1E40AF',
       action: () => console.log('Navigate to Profile'),
     },
     {
@@ -95,7 +82,7 @@ export default function MenuScreen() {
       title: 'Orders',
       subtitle: 'Manage your deliveries',
       icon: Package,
-      iconColor: '#10B981',
+      iconColor: '#3B82F6',
       action: () => console.log('Navigate to Orders'),
     },
     {
@@ -103,7 +90,7 @@ export default function MenuScreen() {
       title: 'Earnings',
       subtitle: 'Track your income',
       icon: DollarSign,
-      iconColor: '#F59E0B',
+      iconColor: '#60A5FA',
       action: () => console.log('Navigate to Earnings'),
     },
     {
@@ -111,7 +98,7 @@ export default function MenuScreen() {
       title: 'Analytics',
       subtitle: 'View performance insights',
       icon: TrendingUp,
-      iconColor: '#8B5CF6',
+      iconColor: '#1E40AF',
       action: () => console.log('Navigate to Analytics'),
     },
     {
@@ -119,7 +106,7 @@ export default function MenuScreen() {
       title: 'Schedule',
       subtitle: 'Manage your availability',
       icon: Calendar,
-      iconColor: '#06B6D4',
+      iconColor: '#3B82F6',
       action: () => console.log('Navigate to Schedule'),
     },
     {
@@ -127,7 +114,7 @@ export default function MenuScreen() {
       title: 'Settings',
       subtitle: 'App preferences',
       icon: Settings,
-      iconColor: '#6B7280',
+      iconColor: '#60A5FA',
       action: () => console.log('Navigate to Settings'),
     },
     {
@@ -135,7 +122,7 @@ export default function MenuScreen() {
       title: 'Support',
       subtitle: 'Get help and contact us',
       icon: HelpCircle,
-      iconColor: '#EF4444',
+      iconColor: '#1E40AF',
       action: () => console.log('Navigate to Support'),
     },
     {
@@ -143,7 +130,7 @@ export default function MenuScreen() {
       title: 'About',
       subtitle: 'App information',
       icon: Info,
-      iconColor: '#8B5CF6',
+      iconColor: '#3B82F6',
       action: () => console.log('Navigate to About'),
     },
   ];
@@ -158,72 +145,41 @@ export default function MenuScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1E293B" />
+      <StatusBar barStyle="light-content" backgroundColor="#1E40AF" />
       
-      {/* Header */}
-      <LinearGradient
-        colors={['#1E293B', '#334155']}
-        style={styles.header}
-      >
-        <View style={styles.headerContent}>
-          <View style={styles.profileSection}>
-            <View style={styles.profileImage}>
-              <User size={40} color="#FFFFFF" />
-            </View>
-            
-            <View style={styles.profileInfo}>
-              <Text style={styles.profileName}>{vendorData.full_name}</Text>
-              <Text style={styles.profilePhone}>{vendorData.primary_number}</Text>
-              <View style={styles.statusContainer}>
-                <View style={[styles.statusDot, { backgroundColor: vendorData.account_status === 'Active' ? '#10B981' : '#F59E0B' }]} />
-                <Text style={styles.statusText}>
-                  {vendorData.account_status === 'Active' ? 'Account Active' : 'Pending Verification'}
-                </Text>
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Header Section */}
+        <LinearGradient
+          colors={['#1E40AF', '#3B82F6', '#60A5FA']}
+          style={styles.headerSection}
+        >
+          <View style={styles.headerContent}>
+            <View style={styles.profileSection}>
+              <View style={styles.profileImage}>
+                <Shield size={40} color="#FFFFFF" />
+              </View>
+              
+              <View style={styles.profileInfo}>
+                <Text style={styles.profileName}>{vendorData.full_name}</Text>
+                <Text style={styles.profilePhone}>{vendorData.primary_number}</Text>
+                <View style={styles.statusContainer}>
+                  <View style={[styles.statusDot, { backgroundColor: vendorData.account_status === 'Active' ? '#10B981' : '#F59E0B' }]} />
+                  <Text style={styles.statusText}>
+                    {vendorData.account_status === 'Active' ? 'Account Active' : 'Pending Verification'}
+                  </Text>
+                </View>
               </View>
             </View>
+            
+            <TouchableOpacity style={styles.notificationButton}>
+              <Bell size={24} color="#FFFFFF" />
+              <View style={styles.notificationBadge} />
+            </TouchableOpacity>
           </View>
-          
-          <TouchableOpacity style={styles.notificationButton}>
-            <Bell size={24} color="#FFFFFF" />
-            <View style={styles.notificationBadge} />
-          </TouchableOpacity>
-        </View>
+        </LinearGradient>
 
-        {/* Quick Stats */}
-        <View style={styles.quickStats}>
-          <View style={styles.statItem}>
-            <View style={styles.statIcon}>
-              <Package size={20} color="#3B82F6" />
-            </View>
-            <View>
-              <Text style={styles.statValue}>{vendorData.total_orders}</Text>
-              <Text style={styles.statLabel}>Orders</Text>
-            </View>
-          </View>
-          
-          <View style={styles.statItem}>
-            <View style={styles.statIcon}>
-              <Star size={20} color="#FCD34D" />
-            </View>
-            <View>
-              <Text style={styles.statValue}>{vendorData.rating}</Text>
-              <Text style={styles.statLabel}>Rating</Text>
-            </View>
-          </View>
-          
-          <View style={styles.statItem}>
-            <View style={styles.statIcon}>
-              <DollarSign size={20} color="#10B981" />
-            </View>
-            <View>
-              <Text style={styles.statValue}>₹{vendorData.wallet_balance}</Text>
-              <Text style={styles.statLabel}>Balance</Text>
-            </View>
-          </View>
-        </View>
-      </LinearGradient>
-
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Content Section */}
+        <View style={styles.contentSection}>
         {/* Menu Items */}
         <View style={styles.menuContainer}>
           <Text style={styles.sectionTitle}>Main Menu</Text>
@@ -248,45 +204,6 @@ export default function MenuScreen() {
           ))}
         </View>
 
-        {/* Account Information */}
-        <View style={styles.accountSection}>
-          <Text style={styles.sectionTitle}>Account Information</Text>
-          
-          <View style={styles.infoCard}>
-            <View style={styles.infoRow}>
-              <View style={styles.infoIcon}>
-                <Shield size={20} color="#10B981" />
-              </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Account Status</Text>
-                <Text style={styles.infoValue}>
-                  {vendorData.account_status === 'Active' ? 'Active' : 'Pending Verification'}
-                </Text>
-              </View>
-            </View>
-            
-            <View style={styles.infoRow}>
-              <View style={styles.infoIcon}>
-                <Clock size={20} color="#F59E0B" />
-              </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Member Since</Text>
-                <Text style={styles.infoValue}>January 2024</Text>
-              </View>
-            </View>
-            
-            <View style={styles.infoRow}>
-              <View style={styles.infoIcon}>
-                <Award size={20} color="#8B5CF6" />
-              </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Performance</Text>
-                <Text style={styles.infoValue}>Excellent</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
         {/* Contact Information */}
         <View style={styles.contactSection}>
           <Text style={styles.sectionTitle}>Contact & Support</Text>
@@ -294,7 +211,7 @@ export default function MenuScreen() {
           <View style={styles.contactCard}>
             <TouchableOpacity style={styles.contactItem}>
               <View style={styles.contactIcon}>
-                <Phone size={20} color="#3B82F6" />
+                <Phone size={20} color="#1E40AF" />
               </View>
               <View style={styles.contactContent}>
                 <Text style={styles.contactLabel}>Call Support</Text>
@@ -305,7 +222,7 @@ export default function MenuScreen() {
             
             <TouchableOpacity style={styles.contactItem}>
               <View style={styles.contactIcon}>
-                <Mail size={20} color="#10B981" />
+                <Mail size={20} color="#3B82F6" />
               </View>
               <View style={styles.contactContent}>
                 <Text style={styles.contactLabel}>Email Support</Text>
@@ -316,7 +233,7 @@ export default function MenuScreen() {
             
             <TouchableOpacity style={styles.contactItem}>
               <View style={styles.contactIcon}>
-                <Globe size={20} color="#F59E0B" />
+                <Globe size={20} color="#60A5FA" />
               </View>
               <View style={styles.contactContent}>
                 <Text style={styles.contactLabel}>Website</Text>
@@ -347,6 +264,7 @@ export default function MenuScreen() {
           <LogOut size={20} color="#EF4444" />
           <Text style={styles.logoutButtonText}>Logout</Text>
         </TouchableOpacity>
+        </View>
       </ScrollView>
     </View>
   );
@@ -363,7 +281,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#F8FAFC',
   },
-  header: {
+  scrollView: {
+    flex: 1,
+  },
+  headerSection: {
     paddingTop: 60,
     paddingHorizontal: 20,
     paddingBottom: 30,
@@ -431,39 +352,9 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     backgroundColor: '#EF4444',
   },
-  quickStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 16,
-    padding: 20,
-  },
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  statIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  statValue: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
-    marginBottom: 2,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#E2E8F0',
-  },
-  content: {
-    flex: 1,
+  contentSection: {
     paddingHorizontal: 20,
+    paddingTop: 20,
   },
   menuContainer: {
     marginTop: 24,
@@ -514,46 +405,6 @@ const styles = StyleSheet.create({
   menuSubtitle: {
     fontSize: 14,
     color: '#6B7280',
-  },
-  accountSection: {
-    marginBottom: 32,
-  },
-  infoCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  infoIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  infoContent: {
-    flex: 1,
-  },
-  infoLabel: {
-    fontSize: 14,
-    color: '#6B7280',
-    marginBottom: 2,
-  },
-  infoValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
   },
   contactSection: {
     marginBottom: 32,
@@ -635,16 +486,16 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    backgroundColor: '#FEF2F2',
+    backgroundColor: '#EFF6FF',
     paddingVertical: 16,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#FECACA',
+    borderColor: '#BFDBFE',
     marginBottom: 40,
   },
   logoutButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#EF4444',
+    color: '#1E40AF',
   },
 });

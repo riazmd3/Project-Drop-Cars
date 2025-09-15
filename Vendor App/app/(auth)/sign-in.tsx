@@ -40,19 +40,20 @@ export default function SignIn() {
       if (result) {
         // Check account status before redirecting
         const accountStatus = result.vendor.account_status;
-        
+        console.log('Account Status:', accountStatus);
         if (accountStatus === 'Active') {
           // Account is active, proceed to dashboard
           router.replace('/(tabs)');
-        } else if (accountStatus === 'Pending' || accountStatus === 'Inactive') {
+        } else if (accountStatus === 'Pending') {
           // Account is inactive, show inactive screen
-          router.push('/(auth)/account-status?status=inactive&message=Your account is currently inactive and requires verification. It will be activated within 24 hours after verification.');
-        } else if (accountStatus === 'Blocked' || accountStatus === 'Suspended') {
+          router.push('/(auth)/account-status?status=Pending&message=Your account is currently inactive and requires verification. It will be activated within 24 hours after verification.');
+        } else if (accountStatus === 'Blocked') {
           // Account is blocked, show blocked screen
-          router.push('/(auth)/account-status?status=status=blocked&message=Your account has been blocked due to policy violations. Please contact support for assistance.');
+          router.push('/(auth)/account-status?status=Pending&message=Your account is currently inactive and requires verification. It will be activated within 24 hours after verification.');
+
         } else {
           // Unknown status, show inactive screen
-          router.push('/(auth)/account-status?status=inactive&message=Your account status is unclear. Please contact support for assistance.');
+          router.push('/(auth)/account-status?status=Pending&message=Your account status is unclear. Please contact support for assistance.');
         }
       }
     } catch (error) {

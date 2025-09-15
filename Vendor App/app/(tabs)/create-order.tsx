@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,11 +8,12 @@ import {
   ScrollView,
   Alert,
   Modal,
-  Platform,
   Animated,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import type { ColorValue } from 'react-native';
 import { 
   User, 
   Phone, 
@@ -26,14 +27,17 @@ import {
   X,
   ChevronDown,
   Calculator,
-  Send
+  Send,
+  Route,
+  Truck,
+  GripVertical,
+  ChevronUp,
+  ChevronDown as ChevronDownIcon
 } from 'lucide-react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { mockGoogleMapsService, PlacePrediction } from '../../services/googleMaps';
-import { orderService, OrderQuoteRequest, OrderQuoteResponse, OrderConfirmRequest } from '../../services/orderService';
-import { useVendorAuth } from '../../hooks/useVendorAuth';
 import LocationPicker from '../../components/LocationPicker';
 import QuoteReview from '../../components/QuoteReview';
+import OrderSuccess from '../../components/OrderSuccess';
+import { getQuote as getQuoteAPI, confirmOrder as confirmOrderAPI, formatOrderData } from '../../services/orderService';
 
 const { width } = Dimensions.get('window');
 
@@ -58,8 +62,6 @@ interface FormData {
   near_city: string;
 }
 
-
-
 const carTypes = [
   'Hatchback',
   'Sedan', 
@@ -69,7 +71,11 @@ const carTypes = [
   'Innova Crysta'
 ];
 
-
+const tripTypes = [
+  { value: 'Oneway', label: 'One Way', minLocations: 2, maxLocations: 2, icon: Car },
+  { value: 'Round Trip', label: 'Round Trip', minLocations: 3, maxLocations: 10, icon: Route },
+  { value: 'Multy City', label: 'Multi City', minLocations: 3, maxLocations: 10, icon: Truck },
+];
 
 export default function CreateOrderScreen() {
   const [formData, setFormData] = useState<FormData>({
@@ -93,18 +99,116 @@ export default function CreateOrderScreen() {
     near_city: ''
   });
 
-  const [showDatePicker, setShowDatePicker] = useState(false);
-  const [showTimePicker, setShowTimePicker] = useState(false);
   const [showCarTypePicker, setShowCarTypePicker] = useState(false);
-  const [showSendToPicker, setShowSendToPicker] = useState(false);
-  const [activeLocationField, setActiveLocationField] = useState<'0' | '1' | null>(null);
-  const [quoteResponse, setQuoteResponse] = useState<OrderQuoteResponse | null>(null);
+  const [showTripTypePicker, setShowTripTypePicker] = useState(false);
+  const [activeLocationField, setActiveLocationField] = useState<string | null>(null);
+  const [quoteResponse, setQuoteResponse] = useState<any | null>(null);
+  const [orderResponse, setOrderResponse] = useState<any | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
   const [showQuoteReview, setShowQuoteReview] = useState(false);
-  
-  // Get vendor auth hook
-  const { getStoredToken, getStoredVendorData } = useVendorAuth();
+  const [showOrderSuccess, setShowOrderSuccess] = useState(false);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+
+  const getCurrentTripType = () => {
+    return tripTypes.find(type => type.value === formData.trip_type) || tripTypes[0];
+  };
+
+  const getLocationKeys = () => {
+    return Object.keys(formData.pickup_drop_location).sort((a, b) => parseInt(a) - parseInt(b));
+  };
+
+  const getLocationLabel = (index: string) => {
+    const keys = getLocationKeys();
+    const position = keys.indexOf(index);
+    const tripType = getCurrentTripType();
+    
+    if (position === 0) return 'Pickup Location';
+    if (tripType.value === 'Round Trip' && position === keys.length - 1) return 'Return to Pickup';
+    if (position === keys.length - 1) return 'Final Destination';
+    return `Stop ${position}`;
+  };
+
+  const addLocation = () => {
+    const keys = getLocationKeys();
+    const nextIndex = keys.length.toString();
+    const maxLocations = getCurrentTripType().maxLocations;
+    
+    if (keys.length < maxLocations) {
+      setFormData(prev => ({
+        ...prev,
+        pickup_drop_location: {
+          ...prev.pickup_drop_location,
+          [nextIndex]: ''
+        }
+      }));
+    }
+  };
+
+  const removeLocation = (index: string) => {
+    const keys = getLocationKeys();
+    if (keys.length > getCurrentTripType().minLocations) {
+      const newLocations = { ...formData.pickup_drop_location };
+      delete newLocations[index];
+      
+      // Reindex remaining locations
+      const remaining = Object.entries(newLocations)
+        .sort(([a], [b]) => parseInt(a) - parseInt(b));
+      
+      const reindexed: { [key: string]: string } = {};
+      remaining.forEach(([, value], i) => {
+        reindexed[i.toString()] = value;
+      });
+
+      setFormData(prev => ({
+        ...prev,
+        pickup_drop_location: reindexed
+      }));
+    }
+  };
+
+  const moveLocation = (fromIndex: number, toIndex: number) => {
+    const keys = getLocationKeys();
+    if (fromIndex === toIndex || fromIndex < 0 || toIndex < 0 || fromIndex >= keys.length || toIndex >= keys.length) {
+      return;
+    }
+
+    const newKeys = [...keys];
+    const [movedKey] = newKeys.splice(fromIndex, 1);
+    newKeys.splice(toIndex, 0, movedKey);
+
+    const reindexed: { [key: string]: string } = {};
+    newKeys.forEach((key, i) => {
+      reindexed[i.toString()] = formData.pickup_drop_location[key];
+    });
+
+    setFormData(prev => ({
+      ...prev,
+      pickup_drop_location: reindexed
+    }));
+  };
+
+  const canReorderLocations = () => {
+    const tripType = getCurrentTripType();
+    return tripType.value === 'Round Trip' || tripType.value === 'Multicity';
+  };
+
+  const handleTripTypeChange = (tripType: string) => {
+    const newTripType = tripTypes.find(type => type.value === tripType)!;
+    let newLocations = { '0': '', '1': '' };
+    
+    if (newTripType.value === 'Round Trip') {
+      newLocations = { '0': '', '1': ''};
+    } else if (newTripType.value === 'Multicity') {
+      newLocations = { '0': '', '1': ''};
+    }
+    
+    setFormData(prev => ({
+      ...prev,
+      trip_type: tripType,
+      pickup_drop_location: newLocations
+    }));
+  };
 
   const handleInputChange = (field: keyof FormData, value: string | Date) => {
     setFormData(prev => ({
@@ -123,27 +227,9 @@ export default function CreateOrderScreen() {
     }));
   };
 
-  const openLocationPicker = (index: '0' | '1') => {
+  const openLocationPicker = (index: string) => {
     setActiveLocationField(index);
     setShowLocationPicker(true);
-  };
-
-  const onDateChange = (event: any, selectedDate?: Date) => {
-    setShowDatePicker(false);
-    if (selectedDate) {
-      handleInputChange('start_date_time', selectedDate);
-    }
-  };
-
-  const onTimeChange = (event: any, selectedTime?: Date) => {
-    setShowTimePicker(false);
-    if (selectedTime) {
-      const currentDate = formData.start_date_time;
-      const newDateTime = new Date(currentDate);
-      newDateTime.setHours(selectedTime.getHours());
-      newDateTime.setMinutes(selectedTime.getMinutes());
-      handleInputChange('start_date_time', newDateTime);
-    }
   };
 
   const getQuote = async () => {
@@ -156,10 +242,15 @@ export default function CreateOrderScreen() {
       Alert.alert('Error', 'Please enter customer number');
       return;
     }
-    if (!formData.pickup_drop_location['0'] || !formData.pickup_drop_location['1']) {
-      Alert.alert('Error', 'Please enter pickup and drop locations');
-      return;
+    
+    const locationKeys = getLocationKeys();
+    for (const key of locationKeys) {
+      if (!formData.pickup_drop_location[key]) {
+        Alert.alert('Error', `Please enter ${getLocationLabel(key).toLowerCase()}`);
+        return;
+      }
     }
+    
     if (!formData.cost_per_km) {
       Alert.alert('Error', 'Please enter cost per km');
       return;
@@ -168,106 +259,40 @@ export default function CreateOrderScreen() {
     setIsLoading(true);
     
     try {
-      // Prepare request data
-      const quoteRequest: OrderQuoteRequest = {
-        vendor_id: formData.vendor_id,
-        trip_type: formData.trip_type,
-        car_type: formData.car_type,
-        pickup_drop_location: formData.pickup_drop_location,
-        start_date_time: formData.start_date_time.toISOString(),
-        customer_name: formData.customer_name,
-        customer_number: formData.customer_number,
-        cost_per_km: parseFloat(formData.cost_per_km),
-        extra_cost_per_km: parseFloat(formData.extra_cost_per_km) || 0,
-        driver_allowance: parseFloat(formData.driver_allowance) || 0,
-        extra_driver_allowance: parseFloat(formData.extra_driver_allowance) || 0,
-        permit_charges: parseFloat(formData.permit_charges) || 0,
-        extra_permit_charges: parseFloat(formData.extra_permit_charges) || 0,
-        hill_charges: parseFloat(formData.hill_charges) || 0,
-        toll_charges: parseFloat(formData.toll_charges) || 0,
-        pickup_notes: formData.pickup_notes
-      };
-
-      // Call the real API
-      const response = await orderService.createQuote(quoteRequest);
-      setQuoteResponse(response);
+      // Format data using the service helper
+      const apiData = formatOrderData(formData);
+      console.log('Formatted API Data:', apiData);
+      
+      // Use the API service to get quote
+      const quoteResponse = await getQuoteAPI(apiData);
+      setQuoteResponse(quoteResponse);
       setShowQuoteReview(true);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error creating quote:', error);
-      Alert.alert('Error', 'Failed to generate quote. Please try again.');
+      const errorMessage = error.response?.data?.message || error.message || 'Unknown error occurred';
+      Alert.alert('Error', `Failed to generate quote: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }
   };
 
   const confirmOrder = async (sendTo: string, nearCity?: string) => {
-    if (sendTo === 'NEAR_CITY' && !nearCity) {
-      Alert.alert('Error', 'Please select a near city when sending to NEAR_CITY');
-      return;
-    }
-
     setIsLoading(true);
     
     try {
-      // Get access token
-      const accessToken = await getStoredToken();
-      if (!accessToken) {
-        throw new Error('No access token found. Please sign in again.');
-      }
-
-      // Prepare confirm request
-      const confirmRequest: OrderConfirmRequest = {
-        vendor_id: formData.vendor_id,
-        trip_type: formData.trip_type,
-        car_type: formData.car_type,
-        pickup_drop_location: formData.pickup_drop_location,
-        start_date_time: formData.start_date_time.toISOString(),
-        customer_name: formData.customer_name,
-        customer_number: formData.customer_number,
-        cost_per_km: parseFloat(formData.cost_per_km),
-        extra_cost_per_km: parseFloat(formData.extra_cost_per_km) || 0,
-        driver_allowance: parseFloat(formData.driver_allowance) || 0,
-        extra_driver_allowance: parseFloat(formData.extra_driver_allowance) || 0,
-        permit_charges: parseFloat(formData.permit_charges) || 0,
-        extra_permit_charges: parseFloat(formData.extra_permit_charges) || 0,
-        hill_charges: parseFloat(formData.hill_charges) || 0,
-        toll_charges: parseFloat(formData.toll_charges) || 0,
-        pickup_notes: formData.pickup_notes,
-        send_to: sendTo as 'ALL' | 'NEAR_CITY',
-        near_city: nearCity
-      };
-
-      // Call the real API
-      const response = await orderService.confirmOrder(confirmRequest, accessToken);
-      console.log('Order created successfully:', response);
+      // Format data using the service helper with sendTo and nearCity
+      const apiData = formatOrderData(formData, sendTo, nearCity);
       
-      // Reset form
-      setFormData({
-        vendor_id: '83a93a3f-2f6e-4bf6-9f78-1c3f9f42b7b1',
-        trip_type: 'Oneway',
-        car_type: 'Sedan',
-        pickup_drop_location: { '0': '', '1': '' },
-        start_date_time: new Date(),
-        customer_name: '',
-        customer_number: '',
-        cost_per_km: '',
-        extra_cost_per_km: '',
-        driver_allowance: '',
-        extra_driver_allowance: '',
-        permit_charges: '',
-        extra_permit_charges: '',
-        hill_charges: '',
-        toll_charges: '',
-        pickup_notes: '',
-        send_to: 'ALL',
-        near_city: ''
-      });
-      setQuoteResponse(null);
+      // Use the API service to confirm order
+      const orderResponse = await confirmOrderAPI(apiData);
+      setOrderResponse(orderResponse);
       setShowQuoteReview(false);
+      setShowOrderSuccess(true);
       
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error confirming order:', error);
-      Alert.alert('Error', 'Failed to create order. Please try again.');
+      const errorMessage = error.response?.data?.message || error.message || 'Unknown error occurred';
+      Alert.alert('Error', `Failed to create order: ${errorMessage}`);
     } finally {
       setIsLoading(false);
     }
@@ -275,32 +300,58 @@ export default function CreateOrderScreen() {
 
   const formatDateTime = (date: Date) => {
     return {
-      date: date.toLocaleDateString(),
-      time: date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      date: date.toLocaleDateString('en-IN', { 
+        day: '2-digit', 
+        month: 'short', 
+        year: 'numeric' 
+      }),
+      time: date.toLocaleTimeString('en-IN', { 
+        hour: '2-digit', 
+        minute: '2-digit',
+        hour12: true 
+      })
     };
+  };
+
+  const getTripTypeIcon = () => {
+    const tripType = getCurrentTripType();
+    const IconComponent = tripType.icon;
+    return <IconComponent size={32} color="#FFFFFF" />;
+  };
+  const getTripTypeColors = (): [ColorValue, ColorValue, ...ColorValue[]] => {
+    // All trip types use the same blue color scheme
+    return ['#1E40AF', '#3B82F6', '#60A5FA'];
   };
 
   return (
     <View style={styles.container}>
-      {/* Modern Blue Header */}
-      <LinearGradient
-        colors={['#1E40AF', '#3B82F6', '#60A5FA']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={styles.header}
-      >
-        <View style={styles.headerContent}>
-          <View style={styles.headerIconContainer}>
-            <Car size={32} color="#FFFFFF" />
-          </View>
-          <View style={styles.headerTextContainer}>
-            <Text style={styles.headerTitle}>Create New Order</Text>
-            <Text style={styles.headerSubtitle}>Plan your perfect trip</Text>
-          </View>
-        </View>
-      </LinearGradient>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={styles.headerTitle}>Create {formData.trip_type} Order</Text>
+      </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Trip Type Selection */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Route size={24} color="#1E40AF" />
+            <Text style={styles.sectionTitle}>Trip Type</Text>
+          </View>
+          
+          <View style={styles.inputContainer}>
+            <Route size={20} color="#6B7280" style={styles.inputIcon} />
+            <TouchableOpacity
+              style={styles.pickerButton}
+              onPress={() => setShowTripTypePicker(true)}
+            >
+              <Text style={[styles.pickerButtonText, formData.trip_type ? styles.pickerButtonTextActive : styles.pickerButtonTextPlaceholder]}>
+                {getCurrentTripType().label}
+              </Text>
+              <ChevronDown size={20} color="#6B7280" />
+            </TouchableOpacity>
+          </View>
+        </View>
+
         {/* Customer Details Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -357,7 +408,7 @@ export default function CreateOrderScreen() {
               <Calendar size={20} color="#6B7280" style={styles.inputIcon} />
               <TouchableOpacity
                 style={styles.pickerButton}
-                onPress={() => setShowDatePicker(true)}
+                onPress={() => {}}
               >
                 <Text style={styles.pickerButtonText}>
                   {formatDateTime(formData.start_date_time).date}
@@ -369,7 +420,7 @@ export default function CreateOrderScreen() {
               <Clock size={20} color="#6B7280" style={styles.inputIcon} />
               <TouchableOpacity
                 style={styles.pickerButton}
-                onPress={() => setShowTimePicker(true)}
+                onPress={() => {}}
               >
                 <Text style={styles.pickerButtonText}>
                   {formatDateTime(formData.start_date_time).time}
@@ -379,38 +430,78 @@ export default function CreateOrderScreen() {
           </View>
         </View>
 
-        {/* Locations Section */}
+        {/* Enhanced Dynamic Locations Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <MapPin size={24} color="#1E40AF" />
-            <Text style={styles.sectionTitle}>Locations</Text>
+            <Text style={styles.sectionTitle}>Locations ({getLocationKeys().length})</Text>
+            {canReorderLocations() && (
+              <Text style={styles.reorderHint}>Use ↑↓ to reorder</Text>
+            )}
           </View>
           
-          <View style={styles.inputContainer}>
-            <MapPin size={20} color="#1E40AF" style={styles.inputIcon} />
-            <TouchableOpacity
-              style={styles.locationInputButton}
-              onPress={() => openLocationPicker('0')}
-            >
-              <Text style={[styles.locationInputText, formData.pickup_drop_location['0'] ? styles.locationInputTextActive : styles.locationInputTextPlaceholder]}>
-                {formData.pickup_drop_location['0'] || 'Pickup Location (Source)'}
-              </Text>
-              <MapPin size={20} color="#1E40AF" />
-            </TouchableOpacity>
-          </View>
+          {getLocationKeys().map((index, position) => (
+            <View key={index} style={styles.locationItem}>
+              <View style={styles.locationNumberContainer}>
+                <Text style={styles.locationNumber}>{parseInt(index) + 1}</Text>
+              </View>
+              
+              <TouchableOpacity
+                style={styles.locationInputContainer}
+                onPress={() => openLocationPicker(index)}
+              >
+                <View style={styles.locationTextContainer}>
+                  <Text style={styles.locationLabelText}>
+                    {getLocationLabel(index)}
+                  </Text>
+                  <Text style={[
+                    styles.locationInputText, 
+                    formData.pickup_drop_location[index] ? styles.locationInputTextActive : styles.locationInputTextPlaceholder
+                  ]}>
+                    {formData.pickup_drop_location[index] || 'Tap to select location'}
+                  </Text>
+                </View>
+                <MapPin size={20} color="#1E40AF" />
+              </TouchableOpacity>
 
-          <View style={styles.inputContainer}>
-            <MapPin size={20} color="#1E40AF" style={styles.inputIcon} />
-            <TouchableOpacity
-              style={styles.locationInputButton}
-              onPress={() => openLocationPicker('1')}
-            >
-              <Text style={[styles.locationInputText, formData.pickup_drop_location['1'] ? styles.locationInputTextActive : styles.locationInputTextPlaceholder]}>
-                {formData.pickup_drop_location['1'] || 'Drop Location (Destination)'}
-              </Text>
-              <MapPin size={20} color="#1E40AF" />
+              {canReorderLocations() && (
+                <View style={styles.reorderControls}>
+                  <TouchableOpacity 
+                    style={[styles.reorderButton, parseInt(index) === 0 && styles.disabledReorderButton]}
+                    onPress={() => {
+                      const currentIndex = parseInt(index);
+                      if (currentIndex > 0) {
+                        moveLocation(currentIndex, currentIndex - 1);
+                      }
+                    }}
+                    disabled={parseInt(index) === 0}
+                  >
+                    <ChevronUp size={16} color={parseInt(index) === 0 ? "#9CA3AF" : "#6B7280"} />
+                  </TouchableOpacity>
+                  
+                  <TouchableOpacity 
+                    style={[styles.reorderButton, parseInt(index) === getLocationKeys().length - 1 && styles.disabledReorderButton]}
+                    onPress={() => {
+                      const currentIndex = parseInt(index);
+                      const keys = getLocationKeys();
+                      if (currentIndex < keys.length - 1) {
+                        moveLocation(currentIndex, currentIndex + 1);
+                      }
+                    }}
+                    disabled={parseInt(index) === getLocationKeys().length - 1}
+                  >
+                    <ChevronDownIcon size={16} color={parseInt(index) === getLocationKeys().length - 1 ? "#9CA3AF" : "#6B7280"} />
+                  </TouchableOpacity>
+                </View>
+              )}
+            </View>
+          ))}
+          
+          {getLocationKeys().length < getCurrentTripType().maxLocations && (
+            <TouchableOpacity onPress={addLocation} style={styles.addLocationButton}>
+              <Text style={styles.addLocationText}>+ Add Stop</Text>
             </TouchableOpacity>
-          </View>
+          )}
         </View>
 
         {/* Pricing Section */}
@@ -498,7 +589,8 @@ export default function CreateOrderScreen() {
             </View>
           </View>
 
-            <View style={styles.inputContainer}>
+          <View style={styles.row}>
+            <View style={[styles.inputContainer, styles.halfWidth]}>
               <Mountain size={20} color="#6B7280" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
@@ -510,53 +602,18 @@ export default function CreateOrderScreen() {
               />
             </View>
 
-          <View style={styles.inputContainer}>
-            <IndianRupee size={20} color="#6B7280" style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              placeholder="Toll Charges"
-              value={formData.toll_charges}
-              onChangeText={(value) => handleInputChange('toll_charges', value)}
-              keyboardType="numeric"
-              placeholderTextColor="#9CA3AF"
-            />
-          </View>
-        </View>
-
-        {/* Driver Assignment Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Send size={24} color="#1E40AF" />
-            <Text style={styles.sectionTitle}>Driver Assignment</Text>
-          </View>
-          
-          <View style={styles.inputContainer}>
-            <Send size={20} color="#6B7280" style={styles.inputIcon} />
-            <TouchableOpacity
-              style={styles.pickerButton}
-              onPress={() => setShowSendToPicker(true)}
-            >
-              <Text style={styles.pickerButtonText}>
-                {formData.send_to === 'NEAR_CITY' ? `NEAR_CITY - ${formData.near_city}` : formData.send_to}
-              </Text>
-              <ChevronDown size={20} color="#6B7280" />
-            </TouchableOpacity>
-          </View>
-
-          {formData.send_to === 'NEAR_CITY' && (
-            <View style={styles.inputContainer}>
-              <MapPin size={20} color="#6B7280" style={styles.inputIcon} />
-              <TouchableOpacity
-                style={styles.pickerButton}
-                onPress={() => setShowSendToPicker(true)}
-              >
-                <Text style={styles.pickerButtonText}>
-                  {formData.near_city || 'Select Near City'}
-                </Text>
-                <ChevronDown size={20} color="#6B7280" />
-              </TouchableOpacity>
+            <View style={[styles.inputContainer, styles.halfWidth]}>
+              <IndianRupee size={20} color="#6B7280" style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                placeholder="Toll Charges"
+                value={formData.toll_charges}
+                onChangeText={(value) => handleInputChange('toll_charges', value)}
+                keyboardType="numeric"
+                placeholderTextColor="#9CA3AF"
+              />
             </View>
-          )}
+          </View>
         </View>
 
         {/* Additional Notes Section */}
@@ -587,7 +644,7 @@ export default function CreateOrderScreen() {
           disabled={isLoading}
         >
           <LinearGradient
-            colors={['#1E40AF', '#3B82F6']}
+            colors={getTripTypeColors()}
             style={styles.gradientButton}
           >
             <Calculator size={20} color="#FFFFFF" style={{ marginRight: 8 }} />
@@ -596,10 +653,6 @@ export default function CreateOrderScreen() {
             </Text>
           </LinearGradient>
         </TouchableOpacity>
-
-
-
-
       </ScrollView>
 
       {/* Car Type Picker Modal */}
@@ -622,59 +675,72 @@ export default function CreateOrderScreen() {
             {carTypes.map((type) => (
               <TouchableOpacity
                 key={type}
-                style={styles.modalOption}
+                style={[
+                  styles.modalOption,
+                  formData.car_type === type && styles.modalOptionActive
+                ]}
                 onPress={() => {
                   handleInputChange('car_type', type);
                   setShowCarTypePicker(false);
                 }}
               >
-                <Text style={styles.modalOptionText}>{type}</Text>
+                <Car size={20} color={formData.car_type === type ? "#1E40AF" : "#6B7280"} />
+                <Text style={[
+                  styles.modalOptionText,
+                  formData.car_type === type && styles.modalOptionTextActive
+                ]}>
+                  {type}
+                </Text>
               </TouchableOpacity>
             ))}
           </View>
         </View>
       </Modal>
 
-      {/* Send To Picker Modal */}
+      {/* Trip Type Picker Modal */}
       <Modal
-        visible={showSendToPicker}
+        visible={showTripTypePicker}
         animationType="slide"
         presentationStyle="pageSheet"
       >
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>Select Driver Assignment</Text>
+            <Text style={styles.modalTitle}>Select Trip Type</Text>
             <TouchableOpacity
-              onPress={() => setShowSendToPicker(false)}
+              onPress={() => setShowTripTypePicker(false)}
               style={styles.closeButton}
             >
               <X size={24} color="#5F6368" />
             </TouchableOpacity>
           </View>
           <View style={styles.modalContent}>
-            <TouchableOpacity
-              style={styles.modalOption}
-              onPress={() => {
-                handleInputChange('send_to', 'ALL');
-                setShowSendToPicker(false);
-              }}
-            >
-              <Text style={styles.modalOptionText}>ALL</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.modalOption}
-              onPress={() => {
-                handleInputChange('send_to', 'NEAR_CITY');
-                setShowSendToPicker(false);
-              }}
-            >
-              <Text style={styles.modalOptionText}>NEAR_CITY</Text>
-            </TouchableOpacity>
+            {tripTypes.map((type) => {
+              const IconComponent = type.icon;
+              return (
+                <TouchableOpacity
+                  key={type.value}
+                  style={[
+                    styles.modalOption,
+                    formData.trip_type === type.value && styles.modalOptionActive
+                  ]}
+                  onPress={() => {
+                    handleTripTypeChange(type.value);
+                    setShowTripTypePicker(false);
+                  }}
+                >
+                  <IconComponent size={20} color={formData.trip_type === type.value ? "#1E40AF" : "#6B7280"} />
+                  <Text style={[
+                    styles.modalOptionText,
+                    formData.trip_type === type.value && styles.modalOptionTextActive
+                  ]}>
+                    {type.label}
+                  </Text>
+                </TouchableOpacity>
+              );
+            })}
           </View>
         </View>
       </Modal>
-
-
 
       {/* Location Picker */}
       <LocationPicker
@@ -686,7 +752,7 @@ export default function CreateOrderScreen() {
           }
           setShowLocationPicker(false);
         }}
-        title={activeLocationField === '0' ? 'Select Pickup Location' : 'Select Drop Location'}
+        title={activeLocationField ? `Select ${getLocationLabel(activeLocationField)}` : 'Select Location'}
         placeholder="Search for a location..."
         initialValue={activeLocationField ? formData.pickup_drop_location[activeLocationField] : ''}
       />
@@ -700,24 +766,37 @@ export default function CreateOrderScreen() {
         isLoading={isLoading}
       />
 
-      {/* Date and Time Pickers */}
-      {showDatePicker && (
-        <DateTimePicker
-          value={formData.start_date_time}
-          mode="date"
-          display="default"
-          onChange={onDateChange}
-        />
-      )}
-
-      {showTimePicker && (
-        <DateTimePicker
-          value={formData.start_date_time}
-          mode="time"
-          display="default"
-          onChange={onTimeChange}
-        />
-      )}
+      {/* Order Success */}
+      <OrderSuccess
+        visible={showOrderSuccess}
+        onClose={() => {
+          setShowOrderSuccess(false);
+          // Reset form
+          setFormData({
+            vendor_id: '83a93a3f-2f6e-4bf6-9f78-1c3f9f42b7b1',
+            trip_type: 'Oneway',
+            car_type: 'Sedan',
+            pickup_drop_location: { '0': '', '1': '' },
+            start_date_time: new Date(),
+            customer_name: '',
+            customer_number: '',
+            cost_per_km: '',
+            extra_cost_per_km: '',
+            driver_allowance: '',
+            extra_driver_allowance: '',
+            permit_charges: '',
+            extra_permit_charges: '',
+            hill_charges: '',
+            toll_charges: '',
+            pickup_notes: '',
+            send_to: 'ALL',
+            near_city: ''
+          });
+          setQuoteResponse(null);
+          setOrderResponse(null);
+        }}
+        orderData={orderResponse}
+      />
     </View>
   );
 }
@@ -728,37 +807,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8F9FA',
   },
   header: {
-    paddingTop: 60,
-    paddingBottom: 30,
+    backgroundColor: '#1E40AF',
+    paddingTop: Platform.OS === 'ios' ? 50 : 30,
+    paddingBottom: 16,
     paddingHorizontal: 24,
-    borderBottomLeftRadius: 30,
-    borderBottomRightRadius: 30,
-  },
-  headerContent: {
-    flexDirection: 'row',
     alignItems: 'center',
-  },
-  headerIconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  headerTextContainer: {
-    flex: 1,
   },
   headerTitle: {
-    fontSize: 28,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  headerSubtitle: {
-    fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.9)',
   },
   content: {
     flex: 1,
@@ -777,6 +835,79 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#202124',
     marginLeft: 12,
+    flex: 1,
+  },
+  reorderHint: {
+    fontSize: 12,
+    color: '#6B7280',
+    fontStyle: 'italic',
+  },
+  addLocationButton: {
+    backgroundColor: '#F0F7FF',
+    borderRadius: 12,
+    paddingVertical: 16,
+    alignItems: 'center',
+    marginTop: 12,
+    borderWidth: 2,
+    borderColor: '#1E40AF',
+    borderStyle: 'dashed',
+  },
+  addLocationText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#1E40AF',
+  },
+  locationItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  dragHandle: {
+    padding: 8,
+    marginLeft: 8,
+  },
+  reorderControls: {
+    flexDirection: 'column',
+    marginLeft: 8,
+  },
+  reorderButton: {
+    padding: 4,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 4,
+    marginVertical: 1,
+  },
+  disabledReorderButton: {
+    backgroundColor: '#F9FAFB',
+  },
+  locationNumberContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#1E40AF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  locationNumber: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  locationInputContainer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#E8EAED',
   },
   inputContainer: {
     flexDirection: 'row',
@@ -805,7 +936,7 @@ const styles = StyleSheet.create({
   textArea: {
     height: 100,
     textAlignVertical: 'top',
-    paddingTop: 40,
+    paddingTop: 16,
   },
   row: {
     flexDirection: 'row',
@@ -832,16 +963,34 @@ const styles = StyleSheet.create({
   pickerButtonTextPlaceholder: {
     color: '#9AA0A6',
   },
-
-  quoteButton: {
-    marginVertical: 24,
-    borderRadius: 16,
-    overflow: 'hidden',
+  locationTextContainer: {
+    flex: 1,
   },
-  confirmButton: {
-    marginTop: 20,
+  locationLabelText: {
+    fontSize: 12,
+    color: '#5F6368',
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  locationInputText: {
+    fontSize: 16,
+  },
+  locationInputTextActive: {
+    color: '#202124',
+    fontWeight: '500',
+  },
+  locationInputTextPlaceholder: {
+    color: '#9AA0A6',
+  },
+  quoteButton: {
+    marginVertical: 32,
     borderRadius: 16,
     overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.15,
+    shadowRadius: 8,
+    elevation: 6,
   },
   disabledButton: {
     opacity: 0.6,
@@ -857,7 +1006,6 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
   },
-
   modalContainer: {
     flex: 1,
     backgroundColor: '#FFFFFF',
@@ -886,32 +1034,28 @@ const styles = StyleSheet.create({
     paddingTop: 20,
   },
   modalOption: {
-    paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F3F4',
-  },
-  modalOptionText: {
-    fontSize: 18,
-    color: '#202124',
-  },
-
-  locationInputButton: {
-    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    height: 52,
+    paddingVertical: 16,
     paddingHorizontal: 16,
+    borderRadius: 12,
+    marginBottom: 8,
+    backgroundColor: '#F8F9FA',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
   },
-  locationInputText: {
+  modalOptionActive: {
+    backgroundColor: '#F0F7FF',
+    borderColor: '#1E40AF',
+  },
+  modalOptionText: {
     fontSize: 16,
-    color: '#202124',
-    flex: 1,
+    color: '#6B7280',
+    marginLeft: 12,
+    fontWeight: '500',
   },
-  locationInputTextActive: {
-    color: '#202124',
-  },
-  locationInputTextPlaceholder: {
-    color: '#9AA0A6',
+  modalOptionTextActive: {
+    color: '#1E40AF',
+    fontWeight: '600',
   },
 });
