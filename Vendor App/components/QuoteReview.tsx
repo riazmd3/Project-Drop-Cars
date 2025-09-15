@@ -125,16 +125,16 @@ export default function QuoteReview({
         <LinearGradient
           colors={
             tripType === 'Round Trip' 
-              ? ['#7C3AED', '#A855F7', '#C084FC']
-              : tripType === 'Multicity'
-              ? ['#DC2626', '#EF4444', '#F87171'] 
+              ? ['#FFF', '#FFF', '#C084FC']
+              : tripType === 'Multy City'
+              ? ['#dccdcdff', '#e5e3e3ff', '#4075d8ff'] 
               : ['#1E40AF', '...3B82F6', '#60A5FA']
           }
           style={styles.header}
         >
           <View style={styles.headerContent}>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <X size={24} color="#FFFFFF" />
+              <X size={24} color="#1E40AF" />
             </TouchableOpacity>
             <View style={styles.headerTitleContainer}>
               <Text style={styles.headerTitle}>Quote Review</Text>
@@ -385,8 +385,8 @@ export default function QuoteReview({
               colors={
                 tripType === 'Round Trip' 
                   ? ['#7C3AED', '#A855F7']
-                  : tripType === 'Multicity'
-                  ? ['#DC2626', '#EF4444'] 
+                  : tripType === 'Multy City'
+                  ? ['#5196dfff', '#4357cdff'] 
                   : ['#059669', '#10B981']
               }
               style={styles.gradientButton}
@@ -518,12 +518,12 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#FFFFFF',
+    color: '#1E40AF',
     marginBottom: 4,
   },
   headerSubtitle: {
     fontSize: 16,
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: 'rgba(13, 80, 205, 0.99)',
   },
   closeButton: {
     padding: 8,

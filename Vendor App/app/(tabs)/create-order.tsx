@@ -74,7 +74,7 @@ const carTypes = [
 const tripTypes = [
   { value: 'Oneway', label: 'One Way', minLocations: 2, maxLocations: 2, icon: Car },
   { value: 'Round Trip', label: 'Round Trip', minLocations: 3, maxLocations: 10, icon: Route },
-  { value: 'Multicity', label: 'Multi City', minLocations: 3, maxLocations: 10, icon: Truck },
+  { value: 'Multy City', label: 'Multi City', minLocations: 3, maxLocations: 10, icon: Truck },
 ];
 
 export default function CreateOrderScreen() {
@@ -261,6 +261,7 @@ export default function CreateOrderScreen() {
     try {
       // Format data using the service helper
       const apiData = formatOrderData(formData);
+      console.log('Formatted API Data:', apiData);
       
       // Use the API service to get quote
       const quoteResponse = await getQuoteAPI(apiData);

@@ -122,7 +122,7 @@ export const getQuote = async (quoteData: QuoteData) => {
       return getOnewayQuote(quoteData);
     case 'Round Trip':
       return getRoundTripQuote(quoteData);
-    case 'Multicity':
+    case 'Multy City':
       return getMulticityQuote(quoteData);
     default:
       throw new Error(`Unsupported trip type: ${trip_type}`);
@@ -137,7 +137,7 @@ export const confirmOrder = async (orderData: QuoteData) => {
       return confirmOnewayOrder(orderData);
     case 'Round Trip':
       return confirmRoundTripOrder(orderData);
-    case 'Multicity':
+    case 'Multy City':
       return confirmMulticityOrder(orderData);
     default:
       throw new Error(`Unsupported trip type: ${trip_type}`);
