@@ -54,7 +54,7 @@ export default function SignupSuccessScreen() {
           vendor_id: storedData.id,
           full_name: storedData.full_name,
           primary_number: storedData.primary_number,
-          password: 'your_password_here', // This should come from signup response
+          password: 'Your Password is Encrypted', // This should come from signup response
           account_status: storedData.account_status,
         });
       }
@@ -182,13 +182,13 @@ export default function SignupSuccessScreen() {
           <View style={styles.credentialField}>
             <View style={styles.fieldLabel}>
               <Lock size={20} color="#6B7280" />
-              <Text style={styles.fieldLabelText}>Password</Text>
+              <Text style={styles.fieldLabelText}>Account Status</Text>
             </View>
             <View style={styles.fieldValueContainer}>
-              <Text style={styles.fieldValue}>{successData.password}</Text>
+              <Text style={styles.fieldValue}>{successData.account_status}</Text>
               <TouchableOpacity 
                 style={styles.copyButton}
-                onPress={() => handleCopyField('password', successData.password)}
+                onPress={() => handleCopyField('password', successData.account_status)}
               >
                 <Copy size={16} color={copiedField === 'password' ? '#10B981' : '#6B7280'} />
               </TouchableOpacity>
