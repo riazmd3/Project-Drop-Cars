@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,47 +7,237 @@ import {
   TouchableOpacity,
   TextInput,
   Alert,
+  ActivityIndicator,
+  RefreshControl,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useWallet } from '@/contexts/WalletContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { IndianRupee, Plus, ArrowUpRight, ArrowDownLeft } from 'lucide-react-native';
-import RazorpayCheckout from 'react-native-razorpay';
+import { IndianRupee, Plus, ArrowUpRight, ArrowDownLeft, RefreshCw, AlertCircle } from 'lucide-react-native';
+// Import Razorpay with error handling
+let RazorpayCheckout: any = null;
+try {
+  if (Platform.OS === 'android' || Platform.OS === 'ios') {
+    RazorpayCheckout = require('react-native-razorpay').default;
+    console.log('✅ Razorpay SDK loaded successfully for', Platform.OS);
+  } else {
+    console.warn('⚠️ Razorpay SDK only supports Android and iOS, current platform:', Platform.OS);
+  }
+} catch (error) {
+  console.warn('⚠️ Razorpay SDK not available:', error);
+  RazorpayCheckout = null;
+}
+import { 
+  processWalletTopup,
+  handleRazorpayPaymentSuccess,
+  handleRazorpayPaymentFailure,
+  getRazorpayOptions
+} from '@/services/paymentService';
 
 export default function WalletScreen() {
-  const { balance, addMoney, transactions } = useWallet();
+  const { 
+    balance, 
+    transactions, 
+    loading, 
+    error, 
+    refreshBalance, 
+    refreshTransactions,
+    processWalletTopup: processTopup,
+    handlePaymentSuccess,
+    handlePaymentFailure,
+    syncWithBackend 
+  } = useWallet();
   const { colors } = useTheme();
   const { user } = useAuth();
   const [addAmount, setAddAmount] = useState('');
+  const [paymentLoading, setPaymentLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
-  const quickAmounts = [100, 500, 1000];
+  const quickAmounts = [100, 500, 1000, 2000];
 
-  const handleAddMoney = (amount) => {
-    const options = {
-      description: 'Add Wallet Balance',
-      image: 'https://i.imgur.com/3g7nmJC.png',
-      currency: 'INR',
-      key: 'rzp_test_1DP5mmOlF5G5ag', // Test key
-      amount: amount * 100, // Convert to paise
-      name: 'Drop Cars',
-      prefill: {
-        email: 'riaz@dropcars.com',
-        contact: '9876543210',
-        name: 'Riaz'
-      },
-      theme: { color: '#3B82F6' }
-    };
+  // Refresh wallet data
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([refreshBalance(), refreshTransactions()]);
+    } catch (error) {
+      console.error('❌ Refresh failed:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
-    RazorpayCheckout.open(options)
-      .then((data) => {
-        addMoney(amount);
-        Alert.alert('Success', `₹${amount} added to your wallet successfully!`);
-        setAddAmount('');
-      })
-      .catch((error) => {
-        Alert.alert('Payment Failed', 'Unable to process payment. Please try again.');
+  // Handle wallet top-up with Razorpay
+  const handleAddMoney = async (amount: number) => {
+    if (!user?.id) {
+      Alert.alert('Error', 'User information not available. Please login again.');
+      return;
+    }
+
+    try {
+      setPaymentLoading(true);
+      
+      console.log('💰 Starting wallet top-up process:', { amount, userId: user.id });
+
+      // Step 1: Create Razorpay order using the new API
+      const orderResponse = await processTopup(amount, {
+        name: user.fullName || 'Driver',
+        email: `${user.primaryMobile}@dropcars.com`, // Fallback email
+        contact: user.primaryMobile
       });
+      
+      if (!orderResponse.success || !orderResponse.razorpay_order_id) {
+        throw new Error('Failed to create Razorpay order');
+      }
+
+      console.log('✅ Razorpay order created:', orderResponse.razorpay_order_id);
+
+      // Check if Razorpay SDK is available
+      if (!RazorpayCheckout) {
+        console.log('🔧 Razorpay SDK not available, using mock payment...');
+        
+        // Simulate successful payment
+        const mockPaymentResponse = {
+          razorpay_payment_id: `mock_pay_${Date.now()}`,
+          razorpay_order_id: orderResponse.razorpay_order_id,
+          razorpay_signature: `mock_signature_${Date.now()}`
+        };
+
+        await handlePaymentSuccess(mockPaymentResponse);
+
+        Alert.alert(
+          'Payment Successful! 🎉 (Mock)',
+          `₹${amount} has been added to your wallet successfully.\n\nNote: Razorpay SDK is not available on this platform, so this is a mock payment for development.\n\nPayment ID: ${mockPaymentResponse.razorpay_payment_id}`,
+          [{ text: 'OK' }]
+        );
+        
+        setAddAmount('');
+        return;
+      }
+
+      // Check if we're using mock data (backend not available)
+      if (orderResponse.message.includes('mock') || orderResponse.message.includes('fallback')) {
+        // Simulate payment success with mock data
+        console.log('🔧 Using mock payment flow');
+        
+        // Simulate successful payment
+        const mockPaymentResponse = {
+          razorpay_payment_id: `mock_pay_${Date.now()}`,
+          razorpay_order_id: orderResponse.razorpay_order_id,
+          razorpay_signature: `mock_signature_${Date.now()}`
+        };
+
+        await handlePaymentSuccess(mockPaymentResponse);
+
+        Alert.alert(
+          'Payment Successful! 🎉 (Mock)',
+          `₹${amount} has been added to your wallet successfully.\n\nThis is a mock payment for development.\n\nPayment ID: ${mockPaymentResponse.razorpay_payment_id}`,
+          [{ text: 'OK' }]
+        );
+        
+        setAddAmount('');
+        return;
+      }
+
+      // Step 2: Prepare Razorpay options for real payment
+      const razorpayOptions = getRazorpayOptions(
+        orderResponse.razorpay_order_id,
+        amount,
+        `Wallet top-up of ₹${amount}`,
+        {
+          name: user.fullName || 'Driver',
+          email: `${user.primaryMobile}@dropcars.com`,
+          contact: user.primaryMobile
+        }
+      );
+
+      console.log('🔧 Razorpay options:', razorpayOptions);
+
+      // Step 3: Open Razorpay checkout
+      console.log('🔧 Opening Razorpay checkout...');
+      
+      // Check if RazorpayCheckout is available
+      if (!RazorpayCheckout || typeof RazorpayCheckout.open !== 'function') {
+        throw new Error('Razorpay SDK not available. Using mock payment instead.');
+      }
+      
+      const paymentData = await RazorpayCheckout.open(razorpayOptions);
+      
+      // Check if payment data is valid
+      if (!paymentData || !paymentData.razorpay_payment_id) {
+        throw new Error('Payment data is invalid or payment was cancelled.');
+      }
+      
+      console.log('✅ Payment successful:', paymentData);
+
+      // Step 4: Handle payment success
+      await handlePaymentSuccess(paymentData);
+
+      Alert.alert(
+        'Payment Successful! 🎉',
+        `₹${amount} has been added to your wallet successfully.\n\nPayment ID: ${paymentData.razorpay_payment_id}`,
+        [{ text: 'OK' }]
+      );
+      
+      setAddAmount('');
+
+    } catch (error: any) {
+      console.error('❌ Payment failed:', error);
+      
+      // Check if it's a Razorpay SDK issue and offer fallback
+      if (error.message.includes('Razorpay SDK not available') || 
+          error.message.includes('Cannot read property \'open\' of null')) {
+        
+        console.log('🔧 Razorpay SDK not available, using mock payment fallback...');
+        
+        try {
+          // Use mock payment as fallback
+          const mockPaymentResponse = {
+            razorpay_payment_id: `mock_pay_${Date.now()}`,
+            razorpay_order_id: orderResponse.razorpay_order_id,
+            razorpay_signature: `mock_signature_${Date.now()}`
+          };
+
+          await handlePaymentSuccess(mockPaymentResponse);
+
+          Alert.alert(
+            'Payment Successful! 🎉 (Mock)',
+            `₹${amount} has been added to your wallet successfully.\n\nNote: Razorpay SDK is not available, so this is a mock payment for development.\n\nPayment ID: ${mockPaymentResponse.razorpay_payment_id}`,
+            [{ text: 'OK' }]
+          );
+          
+          setAddAmount('');
+          return;
+        } catch (fallbackError: any) {
+          console.error('❌ Mock payment fallback also failed:', fallbackError);
+          Alert.alert('Payment Failed', 'Both Razorpay and mock payment failed. Please try again later.');
+          return;
+        }
+      }
+      
+      // Handle other payment failures
+      handlePaymentFailure(error);
+      
+      let errorMessage = 'Payment failed. Please try again.';
+      
+      if (error.code === 'PAYMENT_CANCELLED') {
+        errorMessage = 'Payment was cancelled by the user.';
+      } else if (error.code === 'NETWORK_ERROR') {
+        errorMessage = 'Network error. Please check your internet connection.';
+      } else if (error.message.includes('verification failed')) {
+        errorMessage = 'Payment verification failed. Please contact support.';
+      } else if (error.message.includes('order creation failed')) {
+        errorMessage = 'Unable to create payment order. Please try again.';
+      } else if (error.message.includes('Payment data is invalid')) {
+        errorMessage = 'Payment was cancelled or failed. Please try again.';
+      }
+      
+      Alert.alert('Payment Failed', errorMessage);
+    } finally {
+      setPaymentLoading(false);
+    }
   };
 
   const dynamicStyles = StyleSheet.create({
@@ -107,6 +297,20 @@ export default function WalletScreen() {
       color: '#FFFFFF',
       textAlign: 'center',
     },
+    errorBanner: {
+      backgroundColor: 'rgba(239, 68, 68, 0.1)',
+      borderRadius: 8,
+      padding: 12,
+      marginTop: 16,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    errorText: {
+      fontSize: 12,
+      fontFamily: 'Inter-Medium',
+      color: colors.error,
+      marginLeft: 8,
+    },
     addMoneySection: {
       backgroundColor: colors.surface,
       borderRadius: 16,
@@ -144,6 +348,7 @@ export default function WalletScreen() {
     },
     quickAmounts: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       justifyContent: 'space-between',
       marginBottom: 20,
     },
@@ -151,14 +356,17 @@ export default function WalletScreen() {
       backgroundColor: colors.background,
       borderRadius: 12,
       paddingVertical: 12,
-      paddingHorizontal: 20,
+      paddingHorizontal: 16,
       borderWidth: 1,
       borderColor: colors.border,
+      marginBottom: 8,
+      minWidth: '48%',
     },
     quickAmountText: {
       fontSize: 14,
       fontFamily: 'Inter-SemiBold',
       color: colors.text,
+      textAlign: 'center',
     },
     addMoneyButton: {
       backgroundColor: colors.success,
@@ -173,6 +381,9 @@ export default function WalletScreen() {
       fontSize: 16,
       fontFamily: 'Inter-SemiBold',
       marginLeft: 8,
+    },
+    loadingButton: {
+      opacity: 0.7,
     },
     transactionsSection: {
       marginTop: 24,
@@ -195,6 +406,7 @@ export default function WalletScreen() {
     transactionLeft: {
       flexDirection: 'row',
       alignItems: 'center',
+      flex: 1,
     },
     transactionIcon: {
       width: 32,
@@ -203,6 +415,9 @@ export default function WalletScreen() {
       alignItems: 'center',
       justifyContent: 'center',
       marginRight: 12,
+    },
+    transactionInfo: {
+      flex: 1,
     },
     transactionTitle: {
       fontSize: 14,
@@ -215,12 +430,29 @@ export default function WalletScreen() {
       color: colors.textSecondary,
       marginTop: 2,
     },
+    transactionStatus: {
+      fontSize: 10,
+      fontFamily: 'Inter-Medium',
+      marginTop: 2,
+    },
     transactionAmount: {
       fontSize: 16,
       fontFamily: 'Inter-Bold',
     },
+    emptyState: {
+      alignItems: 'center',
+      paddingVertical: 40,
+    },
+    emptyStateText: {
+      fontSize: 16,
+      fontFamily: 'Inter-Medium',
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginTop: 12,
+    },
   });
-  const TransactionCard = ({ transaction }) => (
+
+  const TransactionCard = ({ transaction }: { transaction: any }) => (
     <View style={dynamicStyles.transactionCard}>
       <View style={dynamicStyles.transactionLeft}>
         <View style={[
@@ -233,9 +465,20 @@ export default function WalletScreen() {
             <ArrowDownLeft color={colors.error} size={16} />
           )}
         </View>
-        <View>
+        <View style={dynamicStyles.transactionInfo}>
           <Text style={dynamicStyles.transactionTitle}>{transaction.description}</Text>
           <Text style={dynamicStyles.transactionDate}>{transaction.date}</Text>
+          {transaction.status && (
+            <Text style={[
+              dynamicStyles.transactionStatus,
+              { 
+                color: transaction.status === 'completed' ? colors.success : 
+                       transaction.status === 'pending' ? colors.warning : colors.error 
+              }
+            ]}>
+              {transaction.status.toUpperCase()}
+            </Text>
+          )}
         </View>
       </View>
       <Text style={[
@@ -251,13 +494,25 @@ export default function WalletScreen() {
     <SafeAreaView style={dynamicStyles.container}>
       <View style={dynamicStyles.header}>
         <Text style={dynamicStyles.headerTitle}>Wallet</Text>
-        <Text style={dynamicStyles.headerSubtitle}>Welcome back, {user?.name}!</Text>
+        <Text style={dynamicStyles.headerSubtitle}>
+          Welcome back, {user?.fullName || 'Driver'}!
+        </Text>
       </View>
 
-      <ScrollView style={dynamicStyles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={dynamicStyles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
+      >
         <View style={dynamicStyles.balanceCard}>
           <Text style={dynamicStyles.balanceLabel}>Available Balance</Text>
-          <Text style={dynamicStyles.balanceAmount}>₹{balance}</Text>
+          {loading ? (
+            <ActivityIndicator color="#FFFFFF" size="large" />
+          ) : (
+            <Text style={dynamicStyles.balanceAmount}>₹{balance}</Text>
+          )}
           {balance < 1000 && (
             <View style={dynamicStyles.lowBalanceWarning}>
               <Text style={dynamicStyles.warningText}>
@@ -266,6 +521,13 @@ export default function WalletScreen() {
             </View>
           )}
         </View>
+
+        {error && (
+          <View style={dynamicStyles.errorBanner}>
+            <AlertCircle color={colors.error} size={16} />
+            <Text style={dynamicStyles.errorText}>{error}</Text>
+          </View>
+        )}
 
         <View style={dynamicStyles.addMoneySection}>
           <Text style={dynamicStyles.sectionTitle}>Add Money</Text>
@@ -279,6 +541,7 @@ export default function WalletScreen() {
               onChangeText={setAddAmount}
               keyboardType="numeric"
               placeholderTextColor={colors.textSecondary}
+              editable={!paymentLoading}
             />
           </View>
 
@@ -288,6 +551,7 @@ export default function WalletScreen() {
                 key={amount}
                 style={dynamicStyles.quickAmountButton}
                 onPress={() => setAddAmount(amount.toString())}
+                disabled={paymentLoading}
               >
                 <Text style={dynamicStyles.quickAmountText}>₹{amount}</Text>
               </TouchableOpacity>
@@ -297,21 +561,47 @@ export default function WalletScreen() {
           <TouchableOpacity
             style={[
               dynamicStyles.addMoneyButton,
-              { opacity: addAmount && parseInt(addAmount) > 0 ? 1 : 0.5 }
+              { opacity: (addAmount && parseInt(addAmount) > 0 && !paymentLoading) ? 1 : 0.5 }
             ]}
             onPress={() => handleAddMoney(parseInt(addAmount))}
-            disabled={!addAmount || parseInt(addAmount) <= 0}
+            disabled={!addAmount || parseInt(addAmount) <= 0 || paymentLoading}
           >
-            <Plus color="#FFFFFF" size={20} />
-            <Text style={dynamicStyles.addMoneyButtonText}>Add Money</Text>
+            {paymentLoading ? (
+              <>
+                <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
+                <Text style={dynamicStyles.addMoneyButtonText}>Processing...</Text>
+              </>
+            ) : (
+              <>
+                <Plus color="#FFFFFF" size={20} />
+                <Text style={dynamicStyles.addMoneyButtonText}>Add Money</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
 
         <View style={dynamicStyles.transactionsSection}>
-          <Text style={dynamicStyles.sectionTitle}>Transaction History</Text>
-          {transactions.map((transaction) => (
-            <TransactionCard key={transaction.id} transaction={transaction} />
-          ))}
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <Text style={dynamicStyles.sectionTitle}>Transaction History</Text>
+            <TouchableOpacity onPress={refreshTransactions} disabled={loading}>
+              <RefreshCw color={colors.primary} size={20} />
+            </TouchableOpacity>
+          </View>
+          
+          {loading ? (
+            <View style={dynamicStyles.emptyState}>
+              <ActivityIndicator color={colors.primary} size="large" />
+              <Text style={dynamicStyles.emptyStateText}>Loading transactions...</Text>
+            </View>
+          ) : transactions.length === 0 ? (
+            <View style={dynamicStyles.emptyState}>
+              <Text style={dynamicStyles.emptyStateText}>No transactions yet</Text>
+            </View>
+          ) : (
+            transactions.map((transaction) => (
+              <TransactionCard key={transaction.id} transaction={transaction} />
+            ))
+          )}
         </View>
       </ScrollView>
     </SafeAreaView>

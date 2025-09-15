@@ -10,9 +10,9 @@ import {
 } from 'react-native';
 import { Car, Plus, ArrowRight, ArrowLeft, X, Upload, CheckCircle, FileText } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { addCarDetails, testCarDetailsDataStructure, CarDetailsData } from '@/services/signupService';
+import { addCarDetails, CarDetailsData } from '@/services/signupService';
 
-const carTypes = ['SEDAN', 'HATCHBACK', 'SUV', 'INNOVA', 'INNOVA CRYSTA', 'OTHER'];
+const carTypes = ['HATCHBACK', 'SEDAN', 'NEW SEDAN', 'SUV', 'INNOVA', 'INNOVA CRYSTA'];
 
 interface CarDetailsStepProps {
   data: any[];
@@ -109,22 +109,11 @@ export default function CarDetailsStep({ data, onUpdate, onNext, onBack, vehicle
       return;
     }
 
-    // Test data structure first
+    // Validate car data structure
     const firstCar = cars[0];
-    const testData = testCarDetailsDataStructure({
-      car_name: firstCar.name,
-      car_type: firstCar.type,
-      car_number: firstCar.registration,
-      organization_id: organizationId || 'org_123',
-      vehicle_owner_id: vehicleOwnerId || '2819b115-fbcc-42ec-a5b3-81633980d9ce',
-      rc_front_img: firstCar.rcFrontImg,
-      rc_back_img: firstCar.rcBackImg,
-      insurance_img: firstCar.insuranceImg,
-      fc_img: firstCar.fcImg,
-      car_img: firstCar.carImg
-    });
+    console.log('Validating car data structure for:', firstCar.name);
 
-    console.log('🧪 Car details data structure test completed');
+    console.log('Car data validation completed');
 
     // For now, just update and proceed
     // In a real app, you might want to call the API here

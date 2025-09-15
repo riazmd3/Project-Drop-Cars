@@ -1,138 +1,142 @@
-import React, { useState } from 'react';
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  StyleSheet,
-  Alert,
-} from 'react-native';
-import { testSignupConnection } from '@/services/signupService';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, StyleSheet } from 'react-native';
+import { useAuth } from '@/contexts/AuthContext';
+import { useDashboard } from '@/contexts/DashboardContext';
+import { useWallet } from '@/contexts/WalletContext';
+import { fetchPendingOrders, PendingOrder } from '@/services/dashboardService';
 
 export default function ConnectionTest() {
-  const [testing, setTesting] = useState(false);
-  const [lastResult, setLastResult] = useState<string>('');
+  const { user, isLoading: authLoading } = useAuth();
+  const { dashboardData, loading: dashboardLoading, error: dashboardError } = useDashboard();
+  const { balance } = useWallet();
+  const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([]);
 
-  const testConnection = async () => {
-    setTesting(true);
-    setLastResult('');
-    
+  useEffect(() => {
+    if (dashboardData && !dashboardLoading) {
+      fetchPendingOrdersData();
+    }
+  }, [dashboardData, dashboardLoading]);
+
+  const fetchPendingOrdersData = async () => {
     try {
-      console.log('🧪 Starting connection test...');
-      const result = await testSignupConnection();
-      
-      if (result) {
-        setLastResult('✅ Connection successful!');
-        Alert.alert('Success', 'API connection test passed!');
-      } else {
-        setLastResult('❌ Connection failed!');
-        Alert.alert('Error', 'API connection test failed. Check console for details.');
-      }
-    } catch (error: any) {
-      setLastResult(`❌ Error: ${error.message}`);
-      Alert.alert('Test Error', error.message);
-    } finally {
-      setTesting(false);
+      const orders = await fetchPendingOrders();
+      setPendingOrders(orders);
+    } catch (error) {
+      console.error('❌ Failed to fetch pending orders in ConnectionTest:', error);
     }
   };
 
   return (
-    <View style={styles.container}>
-      <Text style={styles.title}>API Connection Test</Text>
-      <Text style={styles.subtitle}>
-        Test if your backend server is accessible
-      </Text>
+    <ScrollView style={styles.container}>
+      <Text style={styles.title}>🔍 Connection Test & Debug Info</Text>
       
-      <TouchableOpacity 
-        style={[styles.testButton, testing && styles.testButtonDisabled]} 
-        onPress={testConnection}
-        disabled={testing}
-      >
-        <Text style={styles.testButtonText}>
-          {testing ? 'Testing...' : 'Test Connection'}
-        </Text>
-      </TouchableOpacity>
-      
-      {lastResult ? (
-        <View style={styles.resultContainer}>
-          <Text style={styles.resultText}>{lastResult}</Text>
-        </View>
-      ) : null}
-      
-      <View style={styles.infoContainer}>
-        <Text style={styles.infoTitle}>Debugging Tips:</Text>
-        <Text style={styles.infoText}>• Check if backend server is running on port 8000</Text>
-        <Text style={styles.infoText}>• Verify server URL in axiosInstance.tsx</Text>
-        <Text style={styles.infoText}>• Check console logs for detailed error info</Text>
-        <Text style={styles.infoText}>• Ensure firewall allows connections</Text>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>🔐 Auth Context</Text>
+        <Text style={styles.label}>Loading: {authLoading ? 'Yes' : 'No'}</Text>
+        <Text style={styles.label}>User ID: {user?.id || 'null'}</Text>
+        <Text style={styles.label}>Full Name: {user?.fullName || 'null'}</Text>
+        <Text style={styles.label}>Mobile: {user?.primaryMobile || 'null'}</Text>
+        <Text style={styles.label}>Address: {user?.address || 'null'}</Text>
+        <Text style={styles.label}>Languages: {user?.languages?.join(', ') || 'null'}</Text>
       </View>
-    </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>📊 Dashboard Context</Text>
+        <Text style={styles.label}>Loading: {dashboardLoading ? 'Yes' : 'No'}</Text>
+        <Text style={styles.label}>Error: {dashboardError || 'None'}</Text>
+        <Text style={styles.label}>Dashboard Data: {dashboardData ? 'Loaded' : 'null'}</Text>
+        {dashboardData && (
+          <>
+            <Text style={styles.label}>User ID: {dashboardData.user_info?.id || 'null'}</Text>
+            <Text style={styles.label}>Full Name: {dashboardData.user_info?.full_name || 'null'}</Text>
+            <Text style={styles.label}>Mobile: {dashboardData.user_info?.primary_number || 'null'}</Text>
+            <Text style={styles.label}>Address: {dashboardData.user_info?.address || 'null'}</Text>
+            <Text style={styles.label}>Wallet Balance: ₹{dashboardData.user_info?.wallet_balance || 0}</Text>
+            <Text style={styles.label}>Aadhar: {dashboardData.user_info?.aadhar_number || 'null'}</Text>
+            <Text style={styles.label}>Organization ID: {dashboardData.user_info?.organization_id || 'null'}</Text>
+            <Text style={styles.label}>Actual Cars: {dashboardData.cars?.length || 0}</Text>
+            <Text style={styles.label}>Actual Drivers: {dashboardData.drivers?.length || 0}</Text>
+            <Text style={styles.label}>Summary - Total Cars: {dashboardData.summary?.total_cars || 0}</Text>
+            <Text style={styles.label}>Summary - Total Drivers: {dashboardData.summary?.total_drivers || 0}</Text>
+            <Text style={styles.label}>Summary - Wallet: ₹{dashboardData.summary?.wallet_balance || 0}</Text>
+          </>
+        )}
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>📋 Pending Orders</Text>
+        <Text style={styles.label}>Orders Count: {pendingOrders?.length || 0}</Text>
+        {pendingOrders && pendingOrders.length > 0 && (
+          <>
+            <Text style={styles.label}>First Order ID: {pendingOrders[0]?.order_id || 'null'}</Text>
+            <Text style={styles.label}>First Order Pickup: {pendingOrders[0]?.pickup_drop_location?.pickup || 'null'}</Text>
+            <Text style={styles.label}>First Order Drop: {pendingOrders[0]?.pickup_drop_location?.drop || 'null'}</Text>
+            <Text style={styles.label}>First Order Customer: {pendingOrders[0]?.customer_name || 'null'}</Text>
+          </>
+        )}
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>💰 Wallet Context</Text>
+        <Text style={styles.label}>Balance: ₹{balance || 0}</Text>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>📱 Raw Data</Text>
+        <Text style={styles.code}>
+          {JSON.stringify({
+            auth: { user, loading: authLoading },
+            dashboard: { dashboardData, loading: dashboardLoading, error: dashboardError },
+            wallet: { balance }
+          }, null, 2)}
+        </Text>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
+    flex: 1,
     padding: 20,
-    backgroundColor: '#FFFFFF',
+    backgroundColor: '#f5f5f5',
   },
   title: {
     fontSize: 20,
-    fontFamily: 'Inter-Bold',
-    color: '#1F2937',
-    marginBottom: 8,
+    fontWeight: 'bold',
     textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    color: '#6B7280',
-    marginBottom: 24,
-    textAlign: 'center',
-  },
-  testButton: {
-    backgroundColor: '#3B82F6',
-    borderRadius: 12,
-    paddingVertical: 16,
-    alignItems: 'center',
     marginBottom: 20,
+    color: '#333',
   },
-  testButtonDisabled: {
-    backgroundColor: '#9CA3AF',
-  },
-  testButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-  },
-  resultContainer: {
-    backgroundColor: '#F3F4F6',
+  section: {
+    backgroundColor: 'white',
+    padding: 15,
+    marginBottom: 15,
     borderRadius: 8,
-    padding: 16,
-    marginBottom: 20,
-    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
   },
-  resultText: {
+  sectionTitle: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
-    color: '#1F2937',
+    fontWeight: 'bold',
+    marginBottom: 10,
+    color: '#333',
   },
-  infoContainer: {
-    backgroundColor: '#F0F9FF',
-    borderRadius: 8,
-    padding: 16,
-    borderLeftWidth: 4,
-    borderLeftColor: '#3B82F6',
-  },
-  infoTitle: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
-    color: '#1F2937',
-    marginBottom: 12,
-  },
-  infoText: {
+  label: {
     fontSize: 14,
-    fontFamily: 'Inter-Regular',
-    color: '#6B7280',
-    marginBottom: 4,
+    marginBottom: 5,
+    color: '#666',
+  },
+  code: {
+    fontSize: 12,
+    fontFamily: 'monospace',
+    backgroundColor: '#f0f0f0',
+    padding: 10,
+    borderRadius: 4,
+    color: '#333',
   },
 });
 

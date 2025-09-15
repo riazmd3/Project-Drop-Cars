@@ -4,6 +4,7 @@ import {
   Text,
   TouchableOpacity,
   StyleSheet,
+  ActivityIndicator,
 } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { MapPin, Clock, IndianRupee, User, Phone } from 'lucide-react-native';
@@ -23,9 +24,10 @@ interface BookingCardProps {
   booking: Booking;
   onAccept: (booking: Booking) => void;
   disabled?: boolean;
+  loading?: boolean;
 }
 
-export default function BookingCard({ booking, onAccept, disabled }: BookingCardProps) {
+export default function BookingCard({ booking, onAccept, disabled, loading }: BookingCardProps) {
   const { colors } = useTheme();
 
   const dynamicStyles = StyleSheet.create({
@@ -120,6 +122,8 @@ export default function BookingCard({ booking, onAccept, disabled }: BookingCard
       borderRadius: 12,
       paddingVertical: 14,
       alignItems: 'center',
+      flexDirection: 'row',
+      justifyContent: 'center',
     },
     acceptButtonText: {
       color: '#FFFFFF',
@@ -131,6 +135,10 @@ export default function BookingCard({ booking, onAccept, disabled }: BookingCard
     },
     disabledButtonText: {
       color: '#E5E7EB',
+    },
+    loadingButton: {
+      backgroundColor: colors.primary,
+      opacity: 0.8,
     },
   });
   return (
@@ -175,14 +183,22 @@ export default function BookingCard({ booking, onAccept, disabled }: BookingCard
       <TouchableOpacity
         style={[
           dynamicStyles.acceptButton,
-          disabled && dynamicStyles.disabledButton
+          disabled && dynamicStyles.disabledButton,
+          loading && dynamicStyles.loadingButton
         ]}
         onPress={() => onAccept(booking)}
-        disabled={disabled}
+        disabled={disabled || loading}
       >
-        <Text style={[dynamicStyles.acceptButtonText, disabled && dynamicStyles.disabledButtonText]}>
-          {disabled ? 'Insufficient Balance' : 'Accept Booking'}
-        </Text>
+        {loading ? (
+          <>
+            <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
+            <Text style={dynamicStyles.acceptButtonText}>Accepting...</Text>
+          </>
+        ) : (
+          <Text style={[dynamicStyles.acceptButtonText, disabled && dynamicStyles.disabledButtonText]}>
+            {disabled ? 'Insufficient Balance' : 'Accept Booking'}
+          </Text>
+        )}
       </TouchableOpacity>
     </View>
   );

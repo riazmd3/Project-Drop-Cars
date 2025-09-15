@@ -8,7 +8,6 @@ export interface SignupData {
   secondary_number?: string;
   password: string;
   address: string;
-  gpay_number: string;
   aadhar_number: string;
   organization_id: string;
   aadhar_front_img: any; // File object for FormData
@@ -28,105 +27,147 @@ export const signupAccount = async (personalData: any, documents: any): Promise<
   console.log('📤 Personal data received:', JSON.stringify(personalData, null, 2));
   console.log('📤 Documents received:', JSON.stringify(documents, null, 2));
   
-  try {
-    // Create FormData for multipart/form-data upload
-    const formData = new FormData();
-    
-    // Append the image file
-    if (documents.aadharFront) {
-      const imageUri = documents.aadharFront;
-      const imageName = imageUri.split('/').pop() || 'aadhar.jpg';
-      const imageType = imageUri.endsWith('.png') ? 'image/png' : 'image/jpeg';
+  const maxRetries = 3;
+  let lastError: any;
+  
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      console.log(`🔄 Attempt ${attempt}/${maxRetries}...`);
       
-      formData.append('aadhar_front_img', {
-        uri: imageUri,
-        type: imageType,
-        name: imageName
-      } as any);
+      // Create FormData for multipart/form-data upload
+      const formData = new FormData();
       
-      console.log('🖼️ Image appended to FormData:', { uri: imageUri, type: imageType, name: imageName });
-    }
-    
-    // Helper function to format phone numbers for backend
-    const formatPhoneForBackend = (phone: string): string => {
-      if (!phone) return '';
-      // Remove +91 prefix if present and ensure it's properly formatted
-      const cleanPhone = phone.replace(/^\+91/, '');
-      // Add +91 prefix back
-      return `+91${cleanPhone}`;
-    };
-
-    // Append all other fields
-    formData.append('full_name', personalData.fullName || '');
-    formData.append('primary_number', formatPhoneForBackend(personalData.primaryMobile || ''));
-    formData.append('secondary_number', personalData.secondaryMobile ? formatPhoneForBackend(personalData.secondaryMobile) : '');
-    formData.append('password', personalData.password || '');
-    formData.append('address', personalData.address || '');
-    formData.append('gpay_number', formatPhoneForBackend(personalData.paymentNumber || ''));
-    formData.append('aadhar_number', personalData.aadharNumber || '');
-    formData.append('organization_id', personalData.organizationId || 'org_001');
-    
-    console.log('📤 FormData created with fields:', {
-      full_name: personalData.fullName,
-      primary_number: personalData.primaryMobile,
-      secondary_number: personalData.secondaryMobile,
-      password: personalData.password,
-      address: personalData.address,
-      gpay_number: personalData.paymentNumber,
-      aadhar_number: personalData.aadharNumber,
-      organization_id: personalData.organizationId,
-      aadhar_front_img: documents.aadharFront ? 'File attached' : 'No file'
-    });
-    
-    // Make the API call with FormData
-    const response = await axiosInstance.post('/api/users/vehicleowner/signup', formData, {
-      headers: {
-        'Content-Type': 'multipart/form-data',
-      },
-    });
-    
-    console.log('✅ Signup API response received:', {
-      status: response.status,
-      data: response.data,
-      headers: response.headers
-    });
-    
-    return response.data;
-  } catch (error: any) {
-    console.error('❌ Signup failed with error:', {
-      message: error.message,
-      code: error.code,
-      status: error.response?.status,
-      statusText: error.response?.statusText,
-      data: error.response?.data,
-      config: {
-        url: error.config?.url,
-        method: error.config?.method,
-        baseURL: error.config?.baseURL,
-        timeout: error.config?.timeout
+      // Append the image file
+      if (documents.aadharFront) {
+        const imageUri = documents.aadharFront;
+        const imageName = imageUri.split('/').pop() || 'aadhar.jpg';
+        const imageType = imageUri.endsWith('.png') ? 'image/png' : 'image/jpeg';
+        
+        formData.append('aadhar_front_img', {
+          uri: imageUri,
+          type: imageType,
+          name: imageName
+        } as any);
+        
+        console.log('🖼️ Image appended to FormData:', { uri: imageUri, type: imageType, name: imageName });
       }
-    });
+      
+      // Helper function to format phone numbers for backend - send 10 digits only
+      const formatPhoneForBackend = (phone: string): string => {
+        if (!phone || !phone.trim()) return '';
+        // Remove +91 prefix and any non-digit characters, keep only 10 digits
+        const cleanPhone = phone.replace(/^\+91/, '').replace(/\D/g, '').trim();
+        if (!cleanPhone) return '';
+        // Return only the last 10 digits (in case there are more)
+        return cleanPhone.slice(-10);
+      };
 
-    // Provide specific error messages based on error type
-    if (error.code === 'ECONNABORTED') {
-      throw new Error('Request timeout - server is taking too long to respond. Please try again.');
-    } else if (error.code === 'ERR_NETWORK') {
-      throw new Error('Network error - please check your internet connection and try again.');
-    } else if (error.code === 'ENOTFOUND') {
-      throw new Error('Server not found - please check if the backend server is running.');
-    } else if (error.response?.status === 422) {
-      const errorDetails = error.response.data?.detail || error.response.data?.message || 'Invalid data provided';
-      console.error('🔍 422 Validation Error Details:', errorDetails);
-      throw new Error(`Validation error: ${errorDetails}. Check all required fields.`);
-    } else if (error.response?.status === 400) {
-      throw new Error(`Bad request: ${error.response.data?.message || 'Invalid data provided'}`);
-    } else if (error.response?.status === 500) {
-      throw new Error('Server error - please try again later or contact support.');
-    } else if (error.response?.data?.message) {
-      throw new Error(error.response.data.message);
-    } else {
-      throw new Error(`Signup failed: ${error.message || 'Unknown error occurred'}`);
+       // Append all other fields
+       formData.append('full_name', personalData.fullName || '');
+       formData.append('primary_number', formatPhoneForBackend(personalData.primaryMobile || ''));
+       // Only append secondary_number if it has a value, otherwise skip it entirely
+       const formattedSecondary = formatPhoneForBackend(personalData.secondaryMobile || '');
+       if (formattedSecondary) {
+         formData.append('secondary_number', formattedSecondary);
+       }
+       // Don't append anything if secondary number is empty - let backend handle it as optional
+       formData.append('password', personalData.password || '');
+       formData.append('address', personalData.address || '');
+       formData.append('aadhar_number', personalData.aadharNumber || '');
+       formData.append('organization_id', personalData.organizationId || 'org_001');
+      
+      console.log('📤 FormData created with fields:', {
+        full_name: personalData.fullName,
+        primary_number: formatPhoneForBackend(personalData.primaryMobile || ''),
+        secondary_number: formattedSecondary || 'Not provided (skipped)',
+        password: personalData.password,
+        address: personalData.address,
+        aadhar_number: personalData.aadharNumber,
+        organization_id: personalData.organizationId,
+        aadhar_front_img: documents.aadharFront ? 'File attached' : 'No file'
+      });
+      
+      // Make the API call with FormData
+      const response = await axiosInstance.post('/api/users/vehicleowner/signup', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+        timeout: 120000, // 2 minutes timeout for file uploads
+      });
+      
+      console.log('✅ Signup API response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        data: response.data,
+        headers: response.headers
+      });
+      
+      // Validate response data
+      if (!response.data || response.data.status !== 'success') {
+        throw new Error('Invalid response from server - missing or invalid status');
+      }
+      
+      return response.data;
+      
+    } catch (error: any) {
+      lastError = error;
+      console.error(`❌ Signup attempt ${attempt} failed:`, {
+        message: error.message,
+        code: error.code,
+        status: error.response?.status,
+        statusText: error.response?.statusText,
+        data: error.response?.data,
+        config: {
+          url: error.config?.url,
+          method: error.config?.method,
+          baseURL: error.config?.baseURL,
+          timeout: error.config?.timeout
+        }
+      });
+
+      // If we got a successful response but axios treated it as an error
+      if (error.response?.status >= 200 && error.response?.status < 300 && error.response?.data) {
+        console.log('🔄 Converting error response to success response');
+        return error.response.data;
+      }
+
+      // Don't retry on validation errors or client errors
+      if (error.response?.status >= 400 && error.response?.status < 500) {
+        console.log('🚫 Client error, not retrying');
+        break;
+      }
+
+      // Wait before retrying (exponential backoff)
+      if (attempt < maxRetries) {
+        const delay = Math.pow(2, attempt) * 1000; // 2s, 4s, 8s
+        console.log(`⏳ Waiting ${delay}ms before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
     }
+  }
+  
+  // All retries failed, throw the last error
+  console.error('❌ All signup attempts failed');
+  
+  // Provide specific error messages based on error type
+  if (lastError.code === 'ECONNABORTED') {
+    throw new Error('Request timeout - server is taking too long to respond. Please try again.');
+  } else if (lastError.code === 'ERR_NETWORK') {
+    throw new Error('Network error - please check your internet connection and try again.');
+  } else if (lastError.code === 'ENOTFOUND') {
+    throw new Error('Server not found - please check if the backend server is running.');
+  } else if (lastError.response?.status === 422) {
+    const errorDetails = lastError.response.data?.detail || lastError.response.data?.message || 'Invalid data provided';
+    console.error('🔍 422 Validation Error Details:', errorDetails);
+    throw new Error(`Validation error: ${errorDetails}. Check all required fields.`);
+  } else if (lastError.response?.status === 400) {
+    throw new Error(`Bad request: ${lastError.response.data?.message || 'Invalid data provided'}`);
+  } else if (lastError.response?.status === 500) {
+    throw new Error('Server error - please try again later or contact support.');
+  } else if (lastError.response?.data?.message) {
+    throw new Error(lastError.response.data.message);
+  } else {
+    throw new Error(`Signup failed: ${lastError.message || 'Unknown error occurred'}`);
   }
 };
 
@@ -153,7 +194,6 @@ export const testSignupDataStructure = (personalData: any, documents: any) => {
     secondary_number: personalData.secondaryMobile || '',
     password: personalData.password || '',
     address: personalData.address || '',
-    gpay_number: personalData.paymentNumber || '',
     aadhar_number: personalData.aadharNumber || '',
     organization_id: personalData.organizationId || 'org_001',
     aadhar_front_img: documents.aadharFront ? 'File will be attached' : 'No file',
@@ -165,7 +205,6 @@ export const testSignupDataStructure = (personalData: any, documents: any) => {
     primary_number: !!testData.primary_number,
     password: !!testData.password,
     address: !!testData.address,
-    gpay_number: !!testData.gpay_number,
     aadhar_number: !!testData.aadhar_number,
     organization_id: !!testData.organization_id,
     aadhar_front_img: !!documents.aadharFront,
@@ -189,7 +228,39 @@ export const testSignupDataStructure = (personalData: any, documents: any) => {
   return testData;
 };
 
-// Car Details API interface matching your Postman request
+// Convenience helper: perform signup then login to get JWT
+export const signupAndLogin = async (personalData: any, documents: any) => {
+  // First, perform signup
+  const signupResponse = await signupAccount(personalData, documents);
+  if (signupResponse.status !== 'success') {
+    throw new Error('Signup did not complete successfully');
+  }
+
+  // Use the SAME phone number format for login as used in signup - send 10 digits only
+  // Apply the same formatting function to ensure consistency
+  const formatPhoneForBackend = (phone: string): string => {
+    if (!phone || !phone.trim()) return '';
+    // Remove +91 prefix and any non-digit characters, keep only 10 digits
+    const cleanPhone = phone.replace(/^\+91/, '').replace(/\D/g, '').trim();
+    if (!cleanPhone) return '';
+    // Return only the last 10 digits (in case there are more)
+    return cleanPhone.slice(-10);
+  };
+  
+  const mobileForLogin = formatPhoneForBackend(personalData.primaryMobile || '');
+  
+  console.log('🔐 Using consistent phone format for login:', {
+    original: personalData.primaryMobile,
+    formatted: mobileForLogin
+  });
+
+  // Then, login to obtain JWT token
+  const loginResponse = await loginVehicleOwner(mobileForLogin, personalData.password);
+
+  return { signup: signupResponse, login: loginResponse };
+};
+
+// Car Details API interface matching your Postman request exactly
 export interface CarDetailsData {
   car_name: string;
   car_type: string;
@@ -253,11 +324,11 @@ export const loginVehicleOwner = async (mobileNumber: string, password: string):
     
     console.log('✅ Login successful:', response.data);
     
-          // Store the access token securely
-      if (response.data.access_token) {
-        await authService.setToken(response.data.access_token);
-        console.log('🔒 Access token stored securely');
-      }
+    // Store the access token securely
+    if (response.data.access_token) {
+      await authService.setToken(response.data.access_token);
+      console.log('🔒 Access token stored securely');
+    }
     
     return response.data;
   } catch (error: any) {
@@ -373,7 +444,7 @@ export const addCarDetails = async (carData: CarDetailsData): Promise<CarDetails
     appendImageFile('fc_img', carData.fc_img, 'fc.jpg');
     appendImageFile('car_img', carData.car_img, 'car.jpg');
     
-    // Append text fields
+    // Append text fields exactly as shown in Postman
     formData.append('car_name', carData.car_name || '');
     formData.append('car_type', carData.car_type || '');
     formData.append('car_number', carData.car_number || '');
@@ -394,7 +465,19 @@ export const addCarDetails = async (carData: CarDetailsData): Promise<CarDetails
     });
     
     // Make the API call with FormData and JWT authentication
+    // Endpoint: /api/users/cardetails/signup (matches Postman exactly)
     const authHeaders = await getAuthHeaders();
+    
+    console.log('🔍 Request details:', {
+      url: '/api/users/cardetails/signup',
+      method: 'POST',
+      headers: {
+        'Content-Type': 'multipart/form-data',
+        ...authHeaders
+      },
+      formDataKeys: ['car_name', 'car_type', 'car_number', 'organization_id', 'vehicle_owner_id', 'rc_front_img', 'rc_back_img', 'insurance_img', 'fc_img', 'car_img']
+    });
+    
     const response = await axiosInstance.post('/api/users/cardetails/signup', formData, {
       headers: {
         'Content-Type': 'multipart/form-data',
@@ -408,51 +491,55 @@ export const addCarDetails = async (carData: CarDetailsData): Promise<CarDetails
       headers: response.headers
     });
     
+    // Check if the response is successful before validating
+    if (response.status !== 200 && response.status !== 201) {
+      const errorDetails = response.data?.detail || response.data?.message || 'Backend validation failed';
+      console.error('🔍 Backend validation error:', {
+        status: response.status,
+        details: errorDetails,
+        fullResponse: response.data
+      });
+      throw new Error(`Backend validation failed: ${errorDetails}`);
+    }
+    
     // Validate response data - ensure values are meaningful
     const responseData = response.data;
     
-    // Validate car_id (should be a positive number or valid string)
-    if (!responseData.car_id || responseData.car_id <= 0) {
+    // Check if response has success status
+    if (responseData.status !== 'success') {
+      throw new Error(`Backend returned non-success status: ${responseData.status}`);
+    }
+    
+    // Validate car_id (should be a valid string)
+    if (!responseData.car_id || typeof responseData.car_id !== 'string' || responseData.car_id.trim().length === 0) {
       throw new Error('Invalid car ID received from server');
     }
     
-    // Validate car details exist and have valid values
-    if (!responseData.car_details) {
-      throw new Error('Car details not received from server');
+    // Validate image_urls object exists
+    if (!responseData.image_urls || typeof responseData.image_urls !== 'object') {
+      throw new Error('Image URLs not received from server');
     }
     
-    const carDetails = responseData.car_details;
+    const imageUrls = responseData.image_urls;
     
-    // Validate required fields have meaningful values
-    if (!carDetails.car_name || carDetails.car_name.trim().length === 0) {
-      throw new Error('Car name not received from server');
-    }
+    // Validate all required image URLs exist and are valid
+    const requiredImageFields = [
+      'rc_front_img_url', 
+      'rc_back_img_url', 
+      'insurance_img_url', 
+      'fc_img_url', 
+      'car_img_url'
+    ];
     
-    if (!carDetails.car_type || carDetails.car_type.trim().length === 0) {
-      throw new Error('Car type not received from server');
-    }
-    
-    if (!carDetails.car_number || carDetails.car_number.trim().length === 0) {
-      throw new Error('Car number not received from server');
-    }
-    
-    if (!carDetails.organization_id || carDetails.organization_id.trim().length === 0) {
-      throw new Error('Organization ID not received from server');
-    }
-    
-    if (!carDetails.vehicle_owner_id || carDetails.vehicle_owner_id.trim().length === 0) {
-      throw new Error('Vehicle owner ID not received from server');
-    }
-    
-    // Validate image URLs exist (they should be non-empty strings)
-    const imageFields = ['rc_front_img_url', 'rc_back_img_url', 'insurance_img_url', 'fc_img_url', 'car_img_url'];
-    for (const field of imageFields) {
-      if (!carDetails[field] || carDetails[field].trim().length === 0) {
-        throw new Error(`${field.replace('_', ' ')} URL not received from server`);
+    for (const field of requiredImageFields) {
+      if (!imageUrls[field] || typeof imageUrls[field] !== 'string' || imageUrls[field].trim().length === 0) {
+        throw new Error(`${field.replace(/_/g, ' ')} not received from server`);
       }
     }
     
     console.log('✅ All response values validated successfully');
+    console.log('✅ Car ID:', responseData.car_id);
+    console.log('✅ Image URLs received:', Object.keys(imageUrls));
     
     return responseData;
   } catch (error: any) {

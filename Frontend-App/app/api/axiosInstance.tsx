@@ -4,7 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import axios from 'axios';
 
 const axiosInstance = axios.create({
-  baseURL: 'http://127.0.0.1:8000/api', 
+  baseURL: 'http://127.0.0.1:8000', // Remove /api to match Driver-App structure
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',
@@ -12,13 +12,20 @@ const axiosInstance = axios.create({
   },
 });
 
-// Optional: Add interceptors (e.g., for auth tokens or logging)
+// Request interceptor with auth tokens and FormData support
 axiosInstance.interceptors.request.use(
   async (config) => {
     const token = await AsyncStorage.getItem('token');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    
+    // Ensure proper Content-Type for FormData (matches Postman form-data)
+    if (config.data instanceof FormData) {
+      config.headers['Content-Type'] = 'multipart/form-data';
+      console.log('📤 FormData detected, setting Content-Type to multipart/form-data');
+    }
+    
     return config;
   },
   (error) => Promise.reject(error)

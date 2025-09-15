@@ -1,103 +1,125 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  TextInput,
   Alert,
-  Modal,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
-import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowLeft, User, Phone, Plus, X, Upload, FileText, Languages } from 'lucide-react-native';
-import * as ImagePicker from 'expo-image-picker';
-
-const spokenLanguageOptions = [
-  'English', 'Hindi', 'Marathi', 'Gujarati', 'Bengali', 'Tamil', 
-  'Telugu', 'Kannada', 'Malayalam', 'Punjabi', 'Urdu', 'Other'
-];
-
-const dummyDrivers = [
-  {
-    id: '1',
-    name: 'Kumar',
-    mobile: '9876543211',
-    aadhar: null,
-    rcFront: null,
-    rcBack: null,
-    status: 'active'
-  },
-  {
-    id: '2',
-    name: 'Suresh',
-    mobile: '9876543212',
-    aadhar: 'uploaded',
-    rcFront: 'uploaded',
-    rcBack: 'uploaded',
-    status: 'active'
-  },
-];
+import { useTheme } from '@/contexts/ThemeContext';
+import { useDashboard } from '@/contexts/DashboardContext';
+import { useRouter } from 'expo-router';
+import { ArrowLeft, Users, Plus, Edit, Trash2, Phone, MapPin, CreditCard, RefreshCw } from 'lucide-react-native';
+import { fetchDashboardData } from '@/services/dashboardService';
 
 export default function MyDriversScreen() {
-  const { colors } = useTheme();
   const { user } = useAuth();
+  const { colors } = useTheme();
+  const { 
+    dashboardData, 
+    loading, 
+    error, 
+    fetchData,
+    availableDrivers,
+    availableDriversLoading,
+    availableDriversError,
+    fetchAvailableDriversData,
+    refreshAvailableDrivers
+  } = useDashboard();
   const router = useRouter();
-  const [drivers, setDrivers] = useState(dummyDrivers);
-  const [showAddModal, setShowAddModal] = useState(false);
-  const [newDriver, setNewDriver] = useState({
-    name: '',
-    mobile: '',
-    aadhar: null,
-    rcFront: null,
-    rcBack: null,
-    spokenLanguages: [] as string[],
-  });
+  const [refreshing, setRefreshing] = useState(false);
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState('ALL'); // Default to show all
 
-  const pickDocument = async (documentType) => {
+  // Auto-fetch available drivers when component mounts
+  useEffect(() => {
+    console.log('🚀 MyDriversScreen mounted, auto-fetching available drivers...');
+    fetchAvailableDriversData();
+  }, []);
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
     try {
-      const result = await ImagePicker.launchImageLibraryAsync({
-        mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
-        quality: 1,
-      });
-
-      if (!result.canceled) {
-        setNewDriver({
-          ...newDriver,
-          [documentType]: result.assets[0].uri
-        });
-      }
+      await fetchData();
+      await refreshAvailableDrivers();
     } catch (error) {
-      Alert.alert('Error', 'Failed to pick image');
+      console.error('Error refreshing drivers:', error);
+    } finally {
+      setRefreshing(false);
     }
   };
 
-  const addDriver = () => {
-    if (!newDriver.name || !newDriver.mobile) {
-      Alert.alert('Error', 'Please enter driver name and mobile number');
-      return;
-    }
 
-    if (newDriver.mobile.length !== 10) {
-      Alert.alert('Error', 'Please enter a valid 10-digit mobile number');
-      return;
-    }
+  const handleStatusFilterChange = (status: string) => {
+    setSelectedStatusFilter(status);
+  };
 
-    const driverToAdd = {
-      id: Date.now().toString(),
-      ...newDriver,
-      status: 'active'
+  // Filter available drivers based on selected status
+  const getFilteredAvailableDrivers = () => {
+    if (!availableDrivers || availableDrivers.length === 0) return [];
+    
+    if (selectedStatusFilter === 'ALL') {
+      return availableDrivers;
+    }
+    
+    return availableDrivers.filter(driver => 
+      driver.driver_status?.toUpperCase() === selectedStatusFilter
+    );
+  };
+
+  // Get status counts for tabs
+  const getStatusCounts = () => {
+    if (!availableDrivers || availableDrivers.length === 0) {
+      return { ALL: 0, ONLINE: 0, OFFLINE: 0, PROCESSING: 0 };
+    }
+    
+    return {
+      ALL: availableDrivers.length,
+      ONLINE: availableDrivers.filter(d => d.driver_status === 'ONLINE').length,
+      OFFLINE: availableDrivers.filter(d => d.driver_status === 'OFFLINE').length,
+      PROCESSING: availableDrivers.filter(d => d.driver_status === 'PROCESSING').length,
     };
+  };
 
-    setDrivers([...drivers, driverToAdd]);
-    setNewDriver({ name: '', mobile: '', aadhar: null, rcFront: null, rcBack: null, spokenLanguages: [] });
-    setShowAddModal(false);
-    Alert.alert('Success', 'Driver added successfully');
+  // Get readable status labels
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'ALL': return 'All';
+      case 'ONLINE': return 'Online';
+      case 'OFFLINE': return 'Offline';
+      case 'PROCESSING': return 'Verifying';
+      default: return status;
+    }
+  };
+
+  const handleAddDriver = () => {
+    router.push('/add-driver');
+  };
+
+  const handleEditDriver = (driverId: string) => {
+    // TODO: Implement edit driver functionality
+    Alert.alert('Edit Driver', 'Edit functionality coming soon!');
+  };
+
+  const handleDeleteDriver = (driverId: string) => {
+    Alert.alert(
+      'Delete Driver',
+      'Are you sure you want to delete this driver? This action cannot be undone.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { 
+          text: 'Delete', 
+          style: 'destructive',
+          onPress: () => {
+            // TODO: Implement delete driver functionality
+            Alert.alert('Delete Driver', 'Delete functionality coming soon!');
+          }
+        }
+      ]
+    );
   };
 
   const dynamicStyles = StyleSheet.create({
@@ -111,33 +133,67 @@ export default function MyDriversScreen() {
       justifyContent: 'space-between',
       paddingHorizontal: 20,
       paddingVertical: 16,
-      backgroundColor: colors.surface,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
     },
-    headerContent: {
+    headerLeft: {
+      flexDirection: 'row',
       alignItems: 'center',
     },
-    headerTitle: {
-      fontSize: 18,
-      fontFamily: 'Inter-SemiBold',
-      color: colors.text,
-      marginBottom: 2,
+    backButton: {
+      padding: 8,
+      marginRight: 16,
     },
-    headerSubtitle: {
-      fontSize: 12,
-      fontFamily: 'Inter-Medium',
-      color: colors.textSecondary,
+    headerTitle: {
+      fontSize: 20,
+      fontFamily: 'Inter-Bold',
+      color: colors.text,
+    },
+    addButton: {
+      backgroundColor: colors.primary,
+      borderRadius: 8,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    addButtonText: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontFamily: 'Inter-SemiBold',
+      marginLeft: 4,
     },
     content: {
       flex: 1,
-      paddingHorizontal: 20,
-      paddingTop: 20,
+      padding: 20,
+    },
+    emptyState: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: 60,
+    },
+    emptyIcon: {
+      marginBottom: 16,
+    },
+    emptyTitle: {
+      fontSize: 18,
+      fontFamily: 'Inter-SemiBold',
+      color: colors.text,
+      marginBottom: 8,
+      textAlign: 'center',
+    },
+    emptySubtitle: {
+      fontSize: 14,
+      fontFamily: 'Inter-Regular',
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginBottom: 24,
     },
     driverCard: {
       backgroundColor: colors.surface,
-      borderRadius: 16,
-      padding: 16,
+      borderRadius: 10,
+      padding: 20,
       marginBottom: 16,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
@@ -147,387 +203,558 @@ export default function MyDriversScreen() {
     },
     driverHeader: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 12,
+      justifyContent: 'space-between',
+      marginBottom: 16,
     },
-    driverName: {
+    driverTitle: {
       fontSize: 18,
-      fontFamily: 'Inter-SemiBold',
+      fontFamily: 'Inter-Bold',
       color: colors.text,
+      flex: 1,
     },
-    statusBadge: {
-      backgroundColor: colors.success,
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 8,
+    driverActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
     },
-    statusText: {
-      fontSize: 10,
-      fontFamily: 'Inter-SemiBold',
-      color: '#FFFFFF',
+    actionButton: {
+      padding: 8,
+      marginLeft: 8,
     },
-    driverDetails: {
+    driverInfo: {
+      marginBottom: 16,
+    },
+    driverRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
       marginBottom: 12,
     },
-    driverDetailRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: 8,
-    },
-    driverDetailText: {
-      marginLeft: 8,
+    driverLabel: {
       fontSize: 14,
       fontFamily: 'Inter-Medium',
       color: colors.textSecondary,
+      width: 100,
     },
-    documentsSection: {
-      backgroundColor: colors.background,
-      borderRadius: 12,
-      padding: 12,
-    },
-    documentsTitle: {
+    driverValue: {
       fontSize: 14,
-      fontFamily: 'Inter-SemiBold',
+      fontFamily: 'Inter-Regular',
       color: colors.text,
-      marginBottom: 8,
-    },
-    documentRow: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 4,
-    },
-    documentLabel: {
-      fontSize: 12,
-      fontFamily: 'Inter-Medium',
-      color: colors.textSecondary,
-    },
-    documentStatus: {
-      fontSize: 12,
-      fontFamily: 'Inter-SemiBold',
-      color: colors.success,
-    },
-    pendingStatus: {
-      color: colors.warning,
-    },
-    addButton: {
-      backgroundColor: colors.primary,
-      borderRadius: 16,
-      padding: 20,
-      alignItems: 'center',
-      marginTop: 20,
-    },
-    addButtonText: {
-      color: '#FFFFFF',
-      fontSize: 16,
-      fontFamily: 'Inter-SemiBold',
-      marginTop: 8,
-    },
-    modalOverlay: {
       flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    },
+    driverImages: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: 8,
+    },
+    imageItem: {
+      width: 80,
+      height: 60,
+      backgroundColor: colors.border,
+      borderRadius: 8,
       justifyContent: 'center',
       alignItems: 'center',
     },
-    modalContent: {
-      backgroundColor: colors.surface,
-      borderRadius: 16,
-      padding: 20,
-      width: '90%',
-      maxHeight: '80%',
+    imageText: {
+      fontSize: 10,
+      fontFamily: 'Inter-Regular',
+      color: colors.textSecondary,
+      textAlign: 'center',
     },
-    modalHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
       alignItems: 'center',
-      marginBottom: 20,
+      paddingVertical: 60,
     },
-    modalTitle: {
-      fontSize: 18,
-      fontFamily: 'Inter-SemiBold',
-      color: colors.text,
-    },
-    closeButton: {
-      padding: 8,
-    },
-    inputGroup: {
-      marginBottom: 16,
-    },
-    inputLabel: {
-      fontSize: 14,
-      fontFamily: 'Inter-SemiBold',
-      color: colors.text,
-      marginBottom: 8,
-    },
-    input: {
-      backgroundColor: colors.background,
-      borderRadius: 12,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
+    loadingText: {
       fontSize: 16,
       fontFamily: 'Inter-Medium',
-      color: colors.text,
-      borderWidth: 1,
-      borderColor: colors.border,
+      color: colors.textSecondary,
     },
-    documentSection: {
+    errorContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: 60,
+    },
+    errorText: {
+      fontSize: 16,
+      fontFamily: 'Inter-Medium',
+      color: colors.error,
+      textAlign: 'center',
       marginBottom: 16,
     },
-    documentButton: {
-      backgroundColor: colors.background,
-      borderRadius: 12,
-      padding: 16,
-      alignItems: 'center',
-      borderWidth: 2,
-      borderColor: colors.border,
-      borderStyle: 'dashed',
-      marginTop: 8,
-    },
-    uploadedButton: {
-      borderColor: colors.success,
-      backgroundColor: colors.success + '10',
-      borderStyle: 'solid',
-    },
-    documentButtonText: {
-      fontSize: 12,
-      fontFamily: 'Inter-Medium',
-      color: colors.textSecondary,
-      marginTop: 8,
-    },
-    uploadedText: {
-      color: colors.success,
-    },
-    submitButton: {
+    retryButton: {
       backgroundColor: colors.primary,
-      borderRadius: 12,
-      paddingVertical: 16,
-      alignItems: 'center',
-      marginTop: 20,
+      borderRadius: 8,
+      paddingHorizontal: 20,
+      paddingVertical: 12,
     },
-    submitButtonText: {
+    retryButtonText: {
       color: '#FFFFFF',
       fontSize: 16,
       fontFamily: 'Inter-SemiBold',
     },
-    languageSelector: {
+    statusBadge: {
       flexDirection: 'row',
-      flexWrap: 'wrap',
-      marginTop: 8,
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 12,
+      marginTop: 4,
     },
-    languageButton: {
-      backgroundColor: colors.background,
-      borderRadius: 8,
+    statusDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+      marginRight: 6,
+    },
+    statusText: {
+      fontSize: 12,
+      fontFamily: 'Inter-SemiBold',
+    },
+    sectionHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    sectionTitle: {
+      fontSize: 20,
+      fontFamily: 'Inter-Bold',
+      color: colors.text,
+    },
+    toggleButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: colors.primary + '20',
       paddingHorizontal: 12,
       paddingVertical: 8,
-      marginRight: 8,
-      marginBottom: 8,
+      borderRadius: 8,
+    },
+    toggleButtonText: {
+      fontSize: 14,
+      fontFamily: 'Inter-Medium',
+      color: colors.primary,
+      marginRight: 6,
+    },
+    availableDriversSection: {
+      marginTop: 0,
+      paddingHorizontal: 0,
+    },
+    availableDriversHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      marginBottom: 20,
+      paddingBottom: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    availableDriversTitleContainer: {
+      flex: 1,
+    },
+    sectionSubtitle: {
+      fontSize: 14,
+      fontFamily: 'Inter-Regular',
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
+    availableDriversActions: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    refreshButton: {
+      padding: 10,
+      borderRadius: 10,
+      backgroundColor: colors.primary + '15',
+      borderWidth: 1,
+      borderColor: colors.primary + '30',
+    },
+    statusTabsContainer: {
+      flexDirection: 'row',
+      marginBottom: 24,
+      backgroundColor: colors.background,
+      borderRadius: 20,
+      padding: 8,
       borderWidth: 1,
       borderColor: colors.border,
+      gap: 4,
     },
-    selectedLanguageButton: {
+    statusTab: {
+      flex: 1,
+      alignItems: 'center',
+      borderRadius: 16,
+      backgroundColor: 'transparent',
+      minHeight: 60,
+    },
+    statusTabSelected: {
       backgroundColor: colors.primary,
-      borderColor: colors.primary,
+      shadowColor: colors.primary,
+      shadowOffset: {
+        width: 0,
+        height: 2,
+      },
+      shadowOpacity: 0.2,
+      shadowRadius: 4,
+      elevation: 3,
     },
-    languageButtonText: {
-      fontSize: 12,
-      fontFamily: 'Inter-Medium',
+    statusTabText: {
+      fontSize: 16,
+      fontFamily: 'Inter-SemiBold',
       color: colors.textSecondary,
+      marginBottom: 6,
+      textAlign: 'center',
+      lineHeight: 20,
     },
-    selectedLanguageButtonText: {
+    statusTabTextSelected: {
+      color: '#FFFFFF',
+      fontFamily: 'Inter-Bold',
+      fontSize: 16,
+    },
+    statusTabCountContainer: {
+      backgroundColor: colors.surface,
+      paddingHorizontal: 10,
+      paddingVertical: 4,
+      borderRadius: 14,
+      minWidth: 28,
+      alignItems: 'center',
+    },
+    statusTabCountContainerSelected: {
+      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    },
+    statusTabCount: {
+      fontSize: 14,
+      fontFamily: 'Inter-Bold',
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    statusTabCountSelected: {
       color: '#FFFFFF',
     },
   });
 
-  const DriverCard = ({ driver }) => (
-    <View style={dynamicStyles.driverCard}>
-      <View style={dynamicStyles.driverHeader}>
-        <Text style={dynamicStyles.driverName}>{driver.name}</Text>
-        <View style={dynamicStyles.statusBadge}>
-          <Text style={dynamicStyles.statusText}>{driver.status.toUpperCase()}</Text>
+  if (loading) {
+    return (
+      <SafeAreaView style={dynamicStyles.container}>
+        <View style={dynamicStyles.loadingContainer}>
+          <Text style={dynamicStyles.loadingText}>Loading your drivers...</Text>
         </View>
-      </View>
+      </SafeAreaView>
+    );
+  }
 
-      <View style={dynamicStyles.driverDetails}>
-        <View style={dynamicStyles.driverDetailRow}>
-          <Phone color={colors.textSecondary} size={16} />
-          <Text style={dynamicStyles.driverDetailText}>{driver.mobile}</Text>
+  if (error) {
+    return (
+      <SafeAreaView style={dynamicStyles.container}>
+        <View style={dynamicStyles.errorContainer}>
+          <Text style={dynamicStyles.errorText}>Error: {error}</Text>
+          <TouchableOpacity style={dynamicStyles.retryButton} onPress={fetchData}>
+            <Text style={dynamicStyles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
         </View>
-      </View>
+      </SafeAreaView>
+    );
+  }
 
-      <View style={dynamicStyles.documentsSection}>
-        <Text style={dynamicStyles.documentsTitle}>Documents</Text>
-        <View style={dynamicStyles.documentRow}>
-          <Text style={dynamicStyles.documentLabel}>Aadhar:</Text>
-          <Text style={[
-            dynamicStyles.documentStatus,
-            !driver.aadhar && dynamicStyles.pendingStatus
-          ]}>
-            {driver.aadhar ? 'Uploaded' : 'Pending'}
-          </Text>
-        </View>
-        <View style={dynamicStyles.documentRow}>
-          <Text style={dynamicStyles.documentLabel}>RC Front:</Text>
-          <Text style={[
-            dynamicStyles.documentStatus,
-            !driver.rcFront && dynamicStyles.pendingStatus
-          ]}>
-            {driver.rcFront ? 'Uploaded' : 'Pending'}
-          </Text>
-        </View>
-        <View style={dynamicStyles.documentRow}>
-          <Text style={dynamicStyles.documentLabel}>RC Back:</Text>
-          <Text style={[
-            dynamicStyles.documentStatus,
-            !driver.rcBack && dynamicStyles.pendingStatus
-          ]}>
-            {driver.rcBack ? 'Uploaded' : 'Pending'}
-          </Text>
-        </View>
-      </View>
-    </View>
-  );
+  // Sort drivers by status priority: ONLINE, DRIVING, OFFLINE, BLOCKED, PROCESSING, OTHER
+  const getDriverStatusPriority = (status: string) => {
+    const statusUpper = status?.toUpperCase();
+    switch (statusUpper) {
+      case 'ONLINE': return 1;
+      case 'DRIVING': return 2;
+      case 'OFFLINE': return 3;
+      case 'BLOCKED': return 4;
+      case 'PROCESSING': return 5;
+      default: return 6;
+    }
+  };
 
-  const DocumentUpload = ({ label, documentKey }) => (
-    <View style={dynamicStyles.documentSection}>
-      <Text style={dynamicStyles.inputLabel}>{label}</Text>
-      <TouchableOpacity
-        style={[
-          dynamicStyles.documentButton,
-          newDriver[documentKey] && dynamicStyles.uploadedButton
-        ]}
-        onPress={() => pickDocument(documentKey)}
-      >
-        {newDriver[documentKey] ? (
-          <FileText color={colors.success} size={24} />
-        ) : (
-          <Upload color={colors.textSecondary} size={24} />
-        )}
-        <Text style={[
-          dynamicStyles.documentButtonText,
-          newDriver[documentKey] && dynamicStyles.uploadedText
-        ]}>
-          {newDriver[documentKey] ? 'Document Uploaded' : `Upload ${label}`}
-        </Text>
-      </TouchableOpacity>
-    </View>
-  );
+  const getStatusColor = (status: string) => {
+    const statusUpper = status?.toUpperCase();
+    switch (statusUpper) {
+      case 'ONLINE': return '#10B981'; // Green
+      case 'DRIVING': return '#3B82F6'; // Blue
+      case 'OFFLINE': return '#6B7280'; // Gray
+      case 'BLOCKED': return '#EF4444'; // Red
+      case 'PROCESSING': return '#F59E0B'; // Orange
+      default: return colors.textSecondary;
+    }
+  };
+
+  const getStatusText = (status: string) => {
+    const statusUpper = status?.toUpperCase();
+    switch (statusUpper) {
+      case 'ONLINE': return 'Online';
+      case 'DRIVING': return 'On Duty';
+      case 'OFFLINE': return 'Offline';
+      case 'BLOCKED': return 'Blocked';
+      case 'PROCESSING': return 'Verifying';
+      default: return status || 'Unknown';
+    }
+  };
+
+  const drivers = (dashboardData?.drivers || []).sort((a, b) => {
+    return getDriverStatusPriority(a.driver_status) - getDriverStatusPriority(b.driver_status);
+  });
 
   return (
     <SafeAreaView style={dynamicStyles.container}>
       <View style={dynamicStyles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <ArrowLeft color={colors.text} size={24} />
-        </TouchableOpacity>
-        <View style={dynamicStyles.headerContent}>
+        <View style={dynamicStyles.headerLeft}>
+          <TouchableOpacity onPress={() => router.back()} style={dynamicStyles.backButton}>
+            <ArrowLeft color={colors.text} size={24} />
+          </TouchableOpacity>
           <Text style={dynamicStyles.headerTitle}>My Drivers</Text>
-          <Text style={dynamicStyles.headerSubtitle}>Welcome back, {user?.name}!</Text>
         </View>
-        <View style={{ width: 24 }} />
+        <TouchableOpacity style={dynamicStyles.addButton} onPress={handleAddDriver}>
+          <Plus color="#FFFFFF" size={16} />
+          <Text style={dynamicStyles.addButtonText}>Add Driver</Text>
+        </TouchableOpacity>
       </View>
 
-      <ScrollView style={dynamicStyles.content} showsVerticalScrollIndicator={false}>
-        {drivers.map((driver) => (
-          <DriverCard key={driver.id} driver={driver} />
-        ))}
-
-        <TouchableOpacity 
-          style={dynamicStyles.addButton}
-          onPress={() => setShowAddModal(true)}
-        >
-          <Plus color="#FFFFFF" size={24} />
-          <Text style={dynamicStyles.addButtonText}>Add New Driver</Text>
-        </TouchableOpacity>
-      </ScrollView>
-
-      <Modal
-        visible={showAddModal}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={() => setShowAddModal(false)}
+      <ScrollView 
+        style={dynamicStyles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
       >
-        <View style={dynamicStyles.modalOverlay}>
-          <View style={dynamicStyles.modalContent}>
-            <View style={dynamicStyles.modalHeader}>
-              <Text style={dynamicStyles.modalTitle}>Add New Driver</Text>
-              <TouchableOpacity 
-                onPress={() => setShowAddModal(false)}
-                style={dynamicStyles.closeButton}
-              >
-                <X color={colors.textSecondary} size={24} />
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView showsVerticalScrollIndicator={false}>
-              <View style={dynamicStyles.inputGroup}>
-                <Text style={dynamicStyles.inputLabel}>Driver Name</Text>
-                <TextInput
-                  style={dynamicStyles.input}
-                  placeholder="Enter driver name"
-                  value={newDriver.name}
-                  onChangeText={(value) => setNewDriver({ ...newDriver, name: value })}
-                  placeholderTextColor={colors.textSecondary}
-                />
-              </View>
-
-              <View style={dynamicStyles.inputGroup}>
-                <Text style={dynamicStyles.inputLabel}>Mobile Number</Text>
-                <TextInput
-                  style={dynamicStyles.input}
-                  placeholder="Enter mobile number"
-                  value={newDriver.mobile}
-                  onChangeText={(value) => setNewDriver({ ...newDriver, mobile: value })}
-                  keyboardType="phone-pad"
-                  maxLength={10}
-                  placeholderTextColor={colors.textSecondary}
-                />
-              </View>
-
-              <View style={dynamicStyles.inputGroup}>
-                <Text style={dynamicStyles.inputLabel}>Spoken Languages</Text>
-                <View style={dynamicStyles.languageSelector}>
-                  {spokenLanguageOptions.map((language) => (
-                    <TouchableOpacity
-                      key={language}
-                      style={[
-                        dynamicStyles.languageButton,
-                        newDriver.spokenLanguages.includes(language) && dynamicStyles.selectedLanguageButton
-                      ]}
-                      onPress={() => {
-                        setNewDriver(prev => ({
-                          ...prev,
-                          spokenLanguages: prev.spokenLanguages.includes(language)
-                            ? prev.spokenLanguages.filter(lang => lang !== language)
-                            : [...prev.spokenLanguages, language]
-                        }));
-                      }}
-                    >
-                      <Text style={[
-                        dynamicStyles.languageButtonText,
-                        newDriver.spokenLanguages.includes(language) && dynamicStyles.selectedLanguageButtonText
-                      ]}>
-                        {language}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+{/* 
+        {drivers.length === 0 ? (
+          <View style={dynamicStyles.emptyState}>
+            <Users color={colors.textSecondary} size={64} style={dynamicStyles.emptyIcon} />
+            <Text style={dynamicStyles.emptyTitle}>No Drivers Added Yet</Text>
+            <Text style={dynamicStyles.emptySubtitle}>
+              Add your first driver to start earning with Drop Cars
+            </Text>
+            <TouchableOpacity style={dynamicStyles.addButton} onPress={handleAddDriver}>
+              <Plus color="#FFFFFF" size={16} />
+              <Text style={dynamicStyles.addButtonText}>Add Your First Driver</Text>
+            </TouchableOpacity>
+          </View>
+        ) : (
+          drivers.map((driver) => (
+            <View key={driver.id} style={dynamicStyles.driverCard}>
+              <View style={dynamicStyles.driverHeader}>
+                <View style={{ flex: 1 }}>
+                  <Text style={dynamicStyles.driverTitle}>
+                    {driver.full_name}
+                  </Text>
+                  <View style={[dynamicStyles.statusBadge, { backgroundColor: getStatusColor(driver.driver_status) + '20' }]}>
+                    <View style={[dynamicStyles.statusDot, { backgroundColor: getStatusColor(driver.driver_status) }]} />
+                    <Text style={[dynamicStyles.statusText, { color: getStatusColor(driver.driver_status) }]}>
+                      {getStatusText(driver.driver_status)}
+                    </Text>
+                  </View>
+                </View>
+                <View style={dynamicStyles.driverActions}>
+                  <TouchableOpacity 
+                    style={dynamicStyles.actionButton}
+                    onPress={() => handleEditDriver(driver.id)}
+                  >
+                    <Edit color={colors.primary} size={20} />
+                  </TouchableOpacity>
+                  <TouchableOpacity 
+                    style={dynamicStyles.actionButton}
+                    onPress={() => handleDeleteDriver(driver.id)}
+                  >
+                    <Trash2 color={colors.error} size={20} />
+                  </TouchableOpacity>
                 </View>
               </View>
 
-              <Text style={[dynamicStyles.inputLabel, { marginBottom: 16 }]}>
-                Optional Documents
+              <View style={dynamicStyles.driverInfo}>
+                <View style={dynamicStyles.driverRow}>
+                  <Phone color={colors.textSecondary} size={16} />
+                  <Text style={dynamicStyles.driverLabel}>Primary:</Text>
+                  <Text style={dynamicStyles.driverValue}>{driver.primary_number}</Text>
+                </View>
+                {driver.secondary_number && (
+                  <View style={dynamicStyles.driverRow}>
+                    <Phone color={colors.textSecondary} size={16} />
+                    <Text style={dynamicStyles.driverLabel}>Secondary:</Text>
+                    <Text style={dynamicStyles.driverValue}>{driver.secondary_number}</Text>
+                  </View>
+                )}
+                <View style={dynamicStyles.driverRow}>
+                  <CreditCard color={colors.textSecondary} size={16} />
+                  <Text style={dynamicStyles.driverLabel}>Licence:</Text>
+                  <Text style={dynamicStyles.driverValue}>{driver.licence_number}</Text>
+                </View>
+                <View style={dynamicStyles.driverRow}>
+                  <MapPin color={colors.textSecondary} size={16} />
+                  <Text style={dynamicStyles.driverLabel}>Address:</Text>
+                  <Text style={dynamicStyles.driverValue}>{driver.adress}</Text>
+                </View>
+                <View style={dynamicStyles.driverRow}>
+                  <Text style={dynamicStyles.driverLabel}>Organization:</Text>
+                  <Text style={dynamicStyles.driverValue}>{driver.organization_id}</Text>
+                </View>
+              </View>
+
+              <View style={dynamicStyles.driverImages}>
+                <View style={dynamicStyles.imageItem}>
+                  <CreditCard color={colors.textSecondary} size={20} />
+                  <Text style={dynamicStyles.imageText}>Licence</Text>
+                </View>
+              </View>
+            </View>
+          ))
+        )} */}
+
+        {/* Drivers Section */}
+        <View style={dynamicStyles.availableDriversSection}>
+          <View style={dynamicStyles.availableDriversHeader}>
+            <View style={dynamicStyles.availableDriversTitleContainer}>
+              <Text style={dynamicStyles.sectionSubtitle}>
+                {availableDrivers.length} drivers available
               </Text>
-
-              <DocumentUpload label="Aadhar Card" documentKey="aadhar" />
-              <DocumentUpload label="RC Front" documentKey="rcFront" />
-              <DocumentUpload label="RC Back" documentKey="rcBack" />
-
-              <TouchableOpacity style={dynamicStyles.submitButton} onPress={addDriver}>
-                <Text style={dynamicStyles.submitButtonText}>Add Driver</Text>
-              </TouchableOpacity>
-            </ScrollView>
+            </View>
+            <TouchableOpacity 
+              style={dynamicStyles.refreshButton} 
+              onPress={refreshAvailableDrivers}
+            >
+              <RefreshCw color={colors.primary} size={16} />
+            </TouchableOpacity>
           </View>
+
+          {/* Status Filter Tabs */}
+          <View style={dynamicStyles.statusTabsContainer}>
+            {['ALL', 'ONLINE', 'OFFLINE', 'PROCESSING'].map((status) => {
+              const counts = getStatusCounts();
+              const isSelected = selectedStatusFilter === status;
+              return (
+                <TouchableOpacity
+                  key={status}
+                  style={[
+                    dynamicStyles.statusTab,
+                    isSelected && dynamicStyles.statusTabSelected
+                  ]}
+                  onPress={() => handleStatusFilterChange(status)}
+                >
+                  <Text style={[
+                    dynamicStyles.statusTabText,
+                    isSelected && dynamicStyles.statusTabTextSelected
+                  ]}>
+                    {getStatusLabel(status)}
+                  </Text>
+                  <View style={[
+                    dynamicStyles.statusTabCountContainer,
+                    isSelected && dynamicStyles.statusTabCountContainerSelected
+                  ]}>
+                    <Text style={[
+                      dynamicStyles.statusTabCount,
+                      isSelected && dynamicStyles.statusTabCountSelected
+                    ]}>
+                      {counts[status as keyof typeof counts]}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+          
+          {availableDriversLoading ? (
+            <View style={dynamicStyles.loadingContainer}>
+              <Text style={dynamicStyles.loadingText}>Loading available drivers...</Text>
+            </View>
+          ) : availableDriversError ? (
+            <View style={dynamicStyles.errorContainer}>
+              <Text style={dynamicStyles.errorText}>{availableDriversError}</Text>
+              <TouchableOpacity style={dynamicStyles.retryButton} onPress={refreshAvailableDrivers}>
+                <Text style={dynamicStyles.retryButtonText}>Retry</Text>
+              </TouchableOpacity>
+            </View>
+          ) : getFilteredAvailableDrivers().length === 0 ? (
+            <View style={dynamicStyles.emptyState}>
+              <Users color={colors.textSecondary} size={64} style={dynamicStyles.emptyIcon} />
+              <Text style={dynamicStyles.emptyTitle}>
+                {selectedStatusFilter === 'ALL' ? 'No Drivers Found' : `No ${getStatusLabel(selectedStatusFilter)}`}
+              </Text>
+              <Text style={dynamicStyles.emptySubtitle}>
+                {selectedStatusFilter === 'ALL' 
+                  ? 'There are no drivers available at the moment.'
+                  : `No drivers with ${getStatusLabel(selectedStatusFilter).toLowerCase()} status found.`
+                }
+              </Text>
+            </View>
+          ) : (
+            getFilteredAvailableDrivers().map((driver) => (
+                <View key={driver.id} style={dynamicStyles.driverCard}>
+                  <View style={dynamicStyles.driverHeader}>
+                    <View style={{ flex: 1 }}>
+                      <Text style={dynamicStyles.driverTitle}>
+                        {driver.full_name}
+                      </Text>
+                      <View style={[dynamicStyles.statusBadge, { backgroundColor: getStatusColor(driver.driver_status) + '20' }]}>
+                        <View style={[dynamicStyles.statusDot, { backgroundColor: getStatusColor(driver.driver_status) }]} />
+                        <Text style={[dynamicStyles.statusText, { color: getStatusColor(driver.driver_status) }]}>
+                          {getStatusText(driver.driver_status)}
+                        </Text>
+                      </View>
+                    </View>
+                    <View style={dynamicStyles.driverActions}>
+                      <TouchableOpacity 
+                        style={dynamicStyles.actionButton}
+                        onPress={() => handleEditDriver(driver.id)}
+                      >
+                        <Edit color={colors.primary} size={20} />
+                      </TouchableOpacity>
+                      <TouchableOpacity 
+                        style={dynamicStyles.actionButton}
+                        onPress={() => handleDeleteDriver(driver.id)}
+                      >
+                        <Trash2 color={colors.error} size={20} />
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+
+                  <View style={dynamicStyles.driverInfo}>
+                    <View style={dynamicStyles.driverRow}>
+                      <Phone color={colors.textSecondary} size={16} />
+                      <Text style={dynamicStyles.driverLabel}>Primary:</Text>
+                      <Text style={dynamicStyles.driverValue}>{driver.primary_number}</Text>
+                    </View>
+                    {driver.secondary_number && (
+                      <View style={dynamicStyles.driverRow}>
+                        <Phone color={colors.textSecondary} size={16} />
+                        <Text style={dynamicStyles.driverLabel}>Secondary:</Text>
+                        <Text style={dynamicStyles.driverValue}>{driver.secondary_number}</Text>
+                      </View>
+                    )}
+                    <View style={dynamicStyles.driverRow}>
+                      <CreditCard color={colors.textSecondary} size={16} />
+                      <Text style={dynamicStyles.driverLabel}>Licence:</Text>
+                      <Text style={dynamicStyles.driverValue}>{driver.licence_number}</Text>
+                    </View>
+                    <View style={dynamicStyles.driverRow}>
+                      <MapPin color={colors.textSecondary} size={16} />
+                      <Text style={dynamicStyles.driverLabel}>Address:</Text>
+                      <Text style={dynamicStyles.driverValue}>{driver.adress}</Text>
+                    </View>
+                    <View style={dynamicStyles.driverRow}>
+                      <Text style={dynamicStyles.driverLabel}>Organization:</Text>
+                      <Text style={dynamicStyles.driverValue}>{driver.organization_id}</Text>
+                    </View>
+                  </View>
+
+                  <View style={dynamicStyles.driverImages}>
+                    <View style={dynamicStyles.imageItem}>
+                      <CreditCard color={colors.textSecondary} size={20} />
+                      <Text style={dynamicStyles.imageText}>Licence</Text>
+                    </View>
+                  </View>
+                </View>
+              ))
+            )}
         </View>
-      </Modal>
+      </ScrollView>
     </SafeAreaView>
   );
 }

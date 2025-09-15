@@ -12,12 +12,12 @@ import {
 import { useRouter } from 'expo-router';
 import { Car, Plus, ArrowLeft, Upload, CheckCircle, FileText, Save, Lock, User } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { addCarDetailsWithLogin, testCarDetailsDataStructure, CarDetailsData, loginVehicleOwner } from '@/services/signupService';
+import { addCarDetailsWithLogin, CarDetailsData, loginVehicleOwner } from '@/services/signupService';
 import { authService, getCompleteUserData } from '@/services/authService';
 import { useAuth } from '@/contexts/AuthContext';
 import * as SecureStore from 'expo-secure-store';
 
-const carTypes = ['SEDAN', 'HATCHBACK', 'SUV', 'INNOVA', 'INNOVA CRYSTA', 'OTHER'];
+const carTypes = ['HATCHBACK', 'SEDAN', 'NEW SEDAN', 'SUV', 'INNOVA', 'INNOVA CRYSTA', 'OTHER'];
 
 export default function AddCarPage() {
   const router = useRouter();
@@ -186,9 +186,8 @@ export default function AddCarPage() {
     try {
       console.log('🚗 Starting car details submission with JWT verification...');
       
-      // Test data structure first
-      const testData = testCarDetailsDataStructure(carData);
-      console.log('🧪 Car details data structure test completed');
+      // Validate car data structure
+      console.log('Validating car data structure...');
       
       // Get real user data for login
       const userData = await getCompleteUserData();

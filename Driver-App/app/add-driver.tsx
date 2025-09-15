@@ -8,34 +8,115 @@ import {
   Alert,
   ScrollView,
   SafeAreaView,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, User, Phone, MapPin, Hash, Upload, Save } from 'lucide-react-native';
+import { ArrowLeft, User, Save, Upload, CheckCircle, FileText, Image, Phone, Lock, MapPin, CreditCard } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
+import { addDriverDetails, DriverDetails } from '@/services/driverService';
 import * as ImagePicker from 'expo-image-picker';
-
-
+import axiosInstance from '@/app/api/axiosInstance';
 
 export default function AddDriverScreen() {
   const [driverData, setDriverData] = useState({
-    name: '',
-    mobile: '',
-    address: '',
-    aadharNumber: '',
-    licenseNumber: '',
-    experience: '',
+    full_name: '',
+    primary_number: '',
+    secondary_number: '',
+    password: '',
+    licence_number: '',
+    adress: '',
   });
-  const [documents, setDocuments] = useState({
-    aadharFront: '',
-    aadharBack: '',
-    licenseFront: '',
-    licenseBack: '',
-    profilePhoto: '',
+  
+  const [driverImages, setDriverImages] = useState({
+    licence_front_img: '',
+    rc_front_img: '',
+    rc_back_img: '',
+    insurance_img: '',
+    fc_img: '',
+    car_img: '',
   });
+
+  const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  
   const router = useRouter();
   const { user } = useAuth();
 
-  const pickDocument = async (documentKey: string) => {
+  // Function to check account status and redirect accordingly
+  const checkAccountStatusAndRedirect = async () => {
+    try {
+      // Get current user data to check account status
+      const response = await axiosInstance.post('/api/users/vehicleowner/login', {
+        mobile_number: user?.primaryMobile || '',
+        password: user?.password || ''
+      });
+
+      const accountStatus = response.data.account_status;
+      const carCount = response.data.car_details_count ?? 0;
+      const driverCount = response.data.car_driver_count ?? 0;
+
+      console.log('🔍 After driver addition - Account status:', accountStatus);
+      console.log('🔍 After driver addition - Car count:', carCount);
+      console.log('🔍 After driver addition - Driver count:', driverCount);
+
+      // Check if user needs to add more documents
+      if (carCount === 0) {
+        // No cars - redirect to add car
+        console.log('🚗 No cars, redirecting to add car page');
+        router.replace('/add-car');
+        return;
+      }
+
+      if (driverCount === 0) {
+        // Still no drivers (shouldn't happen, but just in case)
+        console.log('👤 Still no drivers, staying on add driver page');
+        return;
+      }
+
+      // Both cars and drivers are added, check account status
+      if (accountStatus?.toLowerCase() !== 'active') {
+        // Documents uploaded but account is not active - show verification page
+        console.log('⏳ Documents uploaded but account not active, redirecting to verification');
+        router.replace('/login');
+        return;
+      }
+
+      // Everything is ready - go to dashboard
+      console.log('✅ Everything ready, proceeding to dashboard');
+      router.replace('/(tabs)');
+    } catch (error) {
+      console.error('❌ Error checking account status:', error);
+      // Fallback to dashboard if check fails
+      router.replace('/(tabs)');
+    }
+  };
+
+  // Simple input handlers
+  const handleInputChange = (field: string, value: string) => {
+    // Clear error if exists
+    if (errors[field]) {
+      setErrors(prev => ({ ...prev, [field]: '' }));
+    }
+    
+    setDriverData(prev => ({ ...prev, [field]: value }));
+  };
+
+  // Simple validation - just check if fields are not empty
+  const validateAllFields = (): boolean => {
+    const newErrors: {[key: string]: string} = {};
+    
+    if (!driverData.full_name.trim()) newErrors.full_name = 'Full name is required';
+    if (!driverData.primary_number.trim()) newErrors.primary_number = 'Primary phone number is required';
+    if (!driverData.password.trim()) newErrors.password = 'Password is required';
+    if (!driverData.licence_number.trim()) newErrors.licence_number = 'Driving licence number is required';
+    if (!driverData.adress.trim()) newErrors.adress = 'Address is required';
+    
+    setErrors(newErrors);
+    
+    return Object.keys(newErrors).length === 0;
+  };
+
+  const pickImage = async (imageKey: string) => {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
@@ -45,9 +126,9 @@ export default function AddDriverScreen() {
       });
 
       if (!result.canceled) {
-        setDocuments(prev => ({
+        setDriverImages(prev => ({
           ...prev,
-          [documentKey]: result.assets[0].uri
+          [imageKey]: result.assets[0].uri
         }));
       }
     } catch (error) {
@@ -55,62 +136,121 @@ export default function AddDriverScreen() {
     }
   };
 
-  const handleSave = () => {
-    if (!driverData.name || !driverData.mobile || !driverData.address || !driverData.aadharNumber) {
-      Alert.alert('Error', 'Please fill all required fields');
-      return;
-    }
-
-
-
-    if (!documents.aadharFront || !documents.licenseFront) {
-      Alert.alert('Error', 'Please upload required documents');
-      return;
-    }
-
-    // Here you would typically save to API
-    // For now, we'll just navigate to the next step
-    Alert.alert(
-      'Success', 
-      'Driver added successfully! Your documents are now under review.',
-      [
-        {
-          text: 'OK',
-          onPress: () => router.push('/documents-review')
-        }
-      ]
-    );
-  };
-
-  const DocumentUpload = ({ docType, required = false }: { 
-    docType: { key: keyof typeof documents; label: string }; 
-    required?: boolean; 
+  const ImageUploadField = ({ 
+    title, 
+    description, 
+    imageKey, 
+    isRequired = true 
+  }: { 
+    title: string; 
+    description: string; 
+    imageKey: string; 
+    isRequired?: boolean;
   }) => {
-    const isUploaded = documents[docType.key];
+    const imageUri = driverImages[imageKey as keyof typeof driverImages];
+    const isUploaded = !!imageUri;
     
     return (
       <TouchableOpacity
-        style={[styles.documentCard, isUploaded && styles.uploadedCard]}
-        onPress={() => pickDocument(docType.key)}
+        style={[styles.imageUploadField, isUploaded && styles.uploadedField]}
+        onPress={() => pickImage(imageKey)}
       >
-        <View style={styles.documentLeft}>
-          <View style={[styles.documentIcon, isUploaded && styles.uploadedIcon]}>
+        <View style={styles.imageUploadLeft}>
+          <View style={[styles.imageUploadIcon, isUploaded && styles.uploadedIcon]}>
             {isUploaded ? (
-              <Upload color="#FFFFFF" size={20} />
+              <CheckCircle color="#FFFFFF" size={20} />
             ) : (
-              <Upload color="#6B7280" size={20} />
+              <Image color="#6B7280" size={20} />
             )}
           </View>
-          <View>
-            <Text style={styles.documentTitle}>{docType.label}</Text>
-            <Text style={styles.documentStatus}>
-              {isUploaded ? 'Uploaded' : required ? 'Required' : 'Optional'}
+          <View style={styles.imageUploadText}>
+            <Text style={styles.imageUploadTitle}>
+              {title} {isRequired && <Text style={styles.required}>*</Text>}
             </Text>
+            <Text style={styles.imageUploadDescription}>{description}</Text>
           </View>
         </View>
         <Upload color={isUploaded ? "#10B981" : "#6B7280"} size={20} />
       </TouchableOpacity>
     );
+  };
+
+  const handleSave = async () => {
+    // Prevent duplicate submissions
+    if (isSubmitting) {
+      console.log('⚠️ Driver registration already in progress, ignoring duplicate submission');
+      return;
+    }
+
+    // Clear previous errors
+    setErrors({});
+
+    // Simple validation - just check if fields are not empty
+    if (!validateAllFields()) {
+      Alert.alert('Validation Error', 'Please fill all required fields');
+      return;
+    }
+
+    // Check required images
+    if (!driverImages.licence_front_img || !driverImages.rc_front_img || !driverImages.rc_back_img || !driverImages.insurance_img || !driverImages.fc_img || !driverImages.car_img) {
+      Alert.alert('Error', 'Please upload all required images (Licence Front, RC Front, RC Back, Insurance, FC, Car Image)');
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      console.log('🚀 Starting driver registration (preventing duplicates)...');
+
+      const payload: DriverDetails = {
+        full_name: driverData.full_name.trim(),
+        primary_number: driverData.primary_number.trim(), // Send as entered
+        secondary_number: driverData.secondary_number.trim(),
+        password: driverData.password.trim(),
+        licence_number: driverData.licence_number.trim(), // Send as entered
+        adress: driverData.adress.trim(),
+        organization_id: user?.organizationId || 'org_001',
+        vehicle_owner_id: user?.id || 'e5b9edb1-b4bb-48b8-a662-f7fd00abb6eb',
+        licence_front_img: driverImages.licence_front_img,
+        rc_front_img: driverImages.rc_front_img,
+        rc_back_img: driverImages.rc_back_img,
+        insurance_img: driverImages.insurance_img,
+        fc_img: driverImages.fc_img,
+        car_img: driverImages.car_img
+      };
+
+      await addDriverDetails(payload);
+
+      Alert.alert(
+        'Success',
+        'Driver details added successfully!',
+        [
+          {
+            text: 'OK',
+            onPress: () => checkAccountStatusAndRedirect()
+          }
+        ]
+      );
+    } catch (error: any) {
+      console.error('Error adding driver:', error);
+      
+      // Check if it's a duplicate registration error
+      if (error.message && error.message.includes('already registered')) {
+        Alert.alert(
+          'Driver Already Exists',
+          'This driver is already registered. Redirecting to dashboard...',
+          [
+            {
+              text: 'OK',
+              onPress: () => checkAccountStatusAndRedirect()
+            }
+          ]
+        );
+      } else {
+        Alert.alert('Error', error.message || 'Failed to add driver details');
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -127,111 +267,155 @@ export default function AddDriverScreen() {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.welcomeSection}>
-          <Text style={styles.welcomeTitle}>Driver Profile Setup</Text>
+          <Text style={styles.welcomeTitle}>Driver Registration</Text>
           <Text style={styles.welcomeSubtitle}>
-            Now let's add your first driver. This person will be driving your car.
+            Hi {user?.fullName}, let's add your first driver to complete the setup.
           </Text>
         </View>
 
         <View style={styles.form}>
-          <Text style={styles.sectionTitle}>Driver Personal Details</Text>
+          <Text style={styles.sectionTitle}>Driver Details</Text>
           
           <View style={styles.inputGroup}>
             <User color="#6B7280" size={20} />
             <TextInput
-              style={styles.input}
-              placeholder="Driver Full Name"
-              value={driverData.name}
-              onChangeText={(text) => setDriverData(prev => ({ ...prev, name: text }))}
+              style={[styles.input, errors.full_name && styles.inputError]}
+              placeholder="Full Name (e.g., John Doe)"
+              value={driverData.full_name}
+              onChangeText={(text) => handleInputChange('full_name', text)}
             />
           </View>
+          {errors.full_name && <Text style={styles.errorText}>{errors.full_name}</Text>}
 
           <View style={styles.inputGroup}>
             <Phone color="#6B7280" size={20} />
             <TextInput
-              style={styles.input}
-              placeholder="Driver Mobile Number"
-              value={driverData.mobile}
-              onChangeText={(text) => setDriverData(prev => ({ ...prev, mobile: text }))}
+              style={[styles.input, errors.primary_number && styles.inputError]}
+              placeholder="Primary Mobile Number (+91XXXXXXXXXX)"
+              value={driverData.primary_number}
+              onChangeText={(text) => handleInputChange('primary_number', text)}
               keyboardType="phone-pad"
-              maxLength={10}
             />
           </View>
+          {errors.primary_number && <Text style={styles.errorText}>{errors.primary_number}</Text>}
+          <Text style={styles.helpText}>
+            Enter your mobile number exactly as you want it stored
+          </Text>
+
+          <View style={styles.inputGroup}>
+            <Phone color="#6B7280" size={20} />
+            <TextInput
+              style={[styles.input, errors.secondary_number && styles.inputError]}
+              placeholder="Secondary Mobile Number (Optional)"
+              value={driverData.secondary_number}
+              onChangeText={(text) => handleInputChange('secondary_number', text)}
+              keyboardType="phone-pad"
+            />
+          </View>
+
+          <View style={styles.inputGroup}>
+            <Lock color="#6B7280" size={20} />
+            <TextInput
+              style={[styles.input, errors.password && styles.inputError]}
+              placeholder="Password"
+              value={driverData.password}
+              onChangeText={(text) => handleInputChange('password', text)}
+              secureTextEntry
+            />
+          </View>
+          {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
+
+          <View style={styles.inputGroup}>
+            <CreditCard color="#6B7280" size={20} />
+            <TextInput
+              style={[styles.input, errors.licence_number && styles.inputError]}
+              placeholder="Driving Licence Number (e.g., MH-12-1990-1234567)"
+              value={driverData.licence_number}
+              onChangeText={(text) => handleInputChange('licence_number', text)}
+              autoCapitalize="characters"
+            />
+          </View>
+          {errors.licence_number && <Text style={styles.errorText}>{errors.licence_number}</Text>}
+          <Text style={styles.helpText}>
+            Enter your driving licence number exactly as it appears on your licence
+          </Text>
 
           <View style={styles.inputGroup}>
             <MapPin color="#6B7280" size={20} />
             <TextInput
-              style={styles.input}
-              placeholder="Driver Address"
-              value={driverData.address}
-              onChangeText={(text) => setDriverData(prev => ({ ...prev, address: text }))}
+              style={[styles.input, errors.adress && styles.inputError]}
+              placeholder="Address (e.g., 123 Main Street, Mumbai, Maharashtra)"
+              value={driverData.adress}
+              onChangeText={(text) => handleInputChange('adress', text)}
               multiline
               numberOfLines={3}
             />
           </View>
+          {errors.adress && <Text style={styles.errorText}>{errors.adress}</Text>}
 
-          <View style={styles.inputGroup}>
-            <Hash color="#6B7280" size={20} />
-            <TextInput
-              style={styles.input}
-              placeholder="Driver Aadhar Number"
-              value={driverData.aadharNumber}
-              onChangeText={(text) => setDriverData(prev => ({ ...prev, aadharNumber: text }))}
-              keyboardType="numeric"
-              maxLength={12}
-            />
-          </View>
+          <Text style={styles.sectionTitle}>Required Documents & Images</Text>
+          <Text style={styles.sectionSubtitle}>
+            Please upload clear images of all required documents
+          </Text>
 
-          <View style={styles.inputGroup}>
-            <Hash color="#6B7280" size={20} />
-            <TextInput
-              style={styles.input}
-              placeholder="Driver License Number"
-              value={driverData.licenseNumber}
-              onChangeText={(text) => setDriverData(prev => ({ ...prev, licenseNumber: text }))}
-            />
-          </View>
-
-          <View style={styles.inputGroup}>
-            <User color="#6B7280" size={20} />
-            <TextInput
-              style={styles.input}
-              placeholder="Years of Driving Experience"
-              value={driverData.experience}
-              onChangeText={(text) => setDriverData(prev => ({ ...prev, experience: text }))}
-              keyboardType="numeric"
-              maxLength={2}
-            />
-          </View>
-
-
-
-          <Text style={styles.sectionTitle}>Required Documents</Text>
-          
-          <DocumentUpload 
-            docType={{ key: 'aadharFront', label: 'Aadhar Front Image' }} 
-            required={true} 
-          />
-          <DocumentUpload 
-            docType={{ key: 'aadharBack', label: 'Aadhar Back Image' }} 
-            required={true} 
-          />
-          <DocumentUpload 
-            docType={{ key: 'licenseFront', label: 'Driving License Front' }} 
-            required={true} 
-          />
-          <DocumentUpload 
-            docType={{ key: 'licenseBack', label: 'Driving License Back' }} 
-            required={false} 
-          />
-          <DocumentUpload 
-            docType={{ key: 'profilePhoto', label: 'Driver Profile Photo' }} 
-            required={false} 
+          <ImageUploadField
+            title="Driving Licence Front Image"
+            description="Front side of driving licence"
+            imageKey="licence_front_img"
+            isRequired={true}
           />
 
-          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-            <Save color="#FFFFFF" size={20} />
-            <Text style={styles.saveButtonText}>Save Driver & Continue</Text>
+          <ImageUploadField
+            title="RC Front Image"
+            description="Registration Certificate front side (Optional)"
+            imageKey="rc_front_img"
+            isRequired={false}
+          />
+
+          <ImageUploadField
+            title="RC Back Image"
+            description="Registration Certificate back side (Optional)"
+            imageKey="rc_back_img"
+            isRequired={false}
+          />
+
+          <ImageUploadField
+            title="Insurance Image"
+            description="Valid insurance certificate (Optional)"
+            imageKey="insurance_img"
+            isRequired={false}
+          />
+
+          <ImageUploadField
+            title="FC Image"
+            description="Fitness Certificate (Optional)"
+            imageKey="fc_img"
+            isRequired={false}
+          />
+
+          <ImageUploadField
+            title="Car Image"
+            description="Clear photo of your car (Optional)"
+            imageKey="car_img"
+            isRequired={false}
+          />
+
+          <TouchableOpacity 
+            style={[styles.saveButton, isSubmitting && styles.saveButtonDisabled]} 
+            onPress={handleSave}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <ActivityIndicator color="#FFFFFF" size={20} />
+                <Text style={styles.saveButtonText}>Saving Driver...</Text>
+              </>
+            ) : (
+              <>
+                <Save color="#FFFFFF" size={20} />
+                <Text style={styles.saveButtonText}>Save Driver & Continue</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -305,7 +489,12 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-SemiBold',
     color: '#1F2937',
     marginBottom: 20,
-    marginTop: 24,
+  },
+  sectionSubtitle: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: '#6B7280',
+    marginBottom: 16,
   },
   inputGroup: {
     flexDirection: 'row',
@@ -330,14 +519,31 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Medium',
     color: '#1F2937',
   },
-  documentCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 12,
+  inputError: {
+    borderColor: '#EF4444',
+    borderWidth: 1,
+  },
+  errorText: {
+    color: '#EF4444',
+    fontSize: 12,
+    marginTop: 4,
+    fontFamily: 'Inter-Regular',
+  },
+  helpText: {
+    color: '#6B7280',
+    fontSize: 12,
+    marginTop: 4,
+    fontFamily: 'Inter-Regular',
+  },
+  imageUploadField: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 16,
+    marginBottom: 16,
     borderWidth: 1,
     borderColor: '#E5E7EB',
     shadowColor: '#000',
@@ -346,37 +552,38 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
     elevation: 2,
   },
-  uploadedCard: {
+  uploadedField: {
     borderColor: '#10B981',
-    backgroundColor: '#F0FDF4',
+    borderWidth: 2,
   },
-  documentLeft: {
+  imageUploadLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    flex: 1,
   },
-  documentIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 12,
+  imageUploadIcon: {
+    backgroundColor: '#E5E7EB',
+    borderRadius: 10,
+    padding: 8,
   },
   uploadedIcon: {
     backgroundColor: '#10B981',
   },
-  documentTitle: {
+  imageUploadText: {
+    marginLeft: 12,
+  },
+  imageUploadTitle: {
     fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    fontFamily: 'Inter-Medium',
     color: '#1F2937',
   },
-  documentStatus: {
+  required: {
+    color: '#EF4444',
+  },
+  imageUploadDescription: {
     fontSize: 12,
     fontFamily: 'Inter-Regular',
     color: '#6B7280',
-    marginTop: 2,
+    marginTop: 4,
   },
   saveButton: {
     backgroundColor: '#10B981',
@@ -388,13 +595,16 @@ const styles = StyleSheet.create({
     marginTop: 24,
     marginBottom: 20,
   },
+  saveButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+    opacity: 0.7,
+  },
   saveButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
     marginLeft: 8,
   },
-
 });
 
 

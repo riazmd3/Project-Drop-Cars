@@ -8,7 +8,7 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
-import { User, Phone, MapPin, ArrowRight, CreditCard, Lock, Hash } from 'lucide-react-native';
+import { User, Phone, MapPin, ArrowRight, Lock, Hash } from 'lucide-react-native';
 
 interface PersonalDetailsStepProps {
   data: any;
@@ -17,7 +17,6 @@ interface PersonalDetailsStepProps {
 }
 
 
-const paymentMethods = ["GPay", "PhonePe"];
 
 // Helper function to validate Indian mobile numbers
 const validateIndianMobile = (phone: string): boolean => {
@@ -52,8 +51,6 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
   const [fullName, setFullName] = useState(data.fullName || '');
   const [primaryMobile, setPrimaryMobile] = useState(data.primaryMobile || '');
   const [secondaryMobile, setSecondaryMobile] = useState(data.secondaryMobile || '');
-  const [selectedPaymentMethod, setSelectedPaymentMethod] = useState(data.paymentMethod || '');
-  const [paymentNumber, setPaymentNumber] = useState(data.paymentNumber || '');
   const [password, setPassword] = useState(data.password || '');
   const [address, setAddress] = useState(data.address || '');
   const [aadharNumber, setAadharNumber] = useState(data.aadharNumber || '');
@@ -63,42 +60,11 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
 
 
   const handleNext = () => {
-    if (!fullName || !primaryMobile || !password || !address || !aadharNumber) {
-      Alert.alert('Error', 'Please fill all required fields');
-      return;
-    }
-
-    if (!validateIndianMobile(primaryMobile)) {
-      Alert.alert('Error', 'Please enter a valid primary mobile number starting with 6, 7, 8, or 9');
-      return;
-    }
-
-    if (secondaryMobile && !validateIndianMobile(secondaryMobile)) {
-      Alert.alert('Error', 'Please enter a valid secondary mobile number starting with 6, 7, 8, or 9');
-      return;
-    }
-
-    if (aadharNumber.length !== 12) {
-      Alert.alert('Error', 'Please enter a valid 12-digit Aadhar number');
-      return;
-    }
-
-    if (!selectedPaymentMethod || !paymentNumber) {
-      Alert.alert('Error', 'Please select payment method and enter payment number');
-      return;
-    }
-
-    if (!validateIndianMobile(paymentNumber)) {
-      Alert.alert('Error', 'Please enter a valid payment number starting with 6, 7, 8, or 9');
-      return;
-    }
-
+    // Remove blocking client-side validations to allow signup without constraints
     const personalData = {
       fullName,
       primaryMobile,
       secondaryMobile,
-      paymentMethod: selectedPaymentMethod,
-      paymentNumber,
       password,
       address,
       aadharNumber,
@@ -137,7 +103,7 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
             onChangeText={(text) => {
               // Allow only digits and +91 prefix
               const cleanText = text.replace(/[^\d+]/g, '');
-              if (cleanText.startsWith('+91') || cleanText.length <= 10) {
+              if (cleanText.startsWith('+91') || cleanText.length <= 13) {
                 setPrimaryMobile(cleanText);
               }
             }}
@@ -145,10 +111,7 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
             maxLength={13}
           />
         </View>
-        <Text style={styles.helperText}>Enter 10-digit mobile number starting with 6, 7, 8, or 9</Text>
-        {primaryMobile && !validateIndianMobile(primaryMobile) && (
-          <Text style={styles.errorText}>Must start with 6, 7, 8, or 9</Text>
-        )}
+        {/* Helper/error hints removed to avoid blocking UX */}
 
         {/* Secondary Mobile */}
         <View style={styles.inputGroup}>
@@ -158,9 +121,8 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
             placeholder="Secondary Mobile Number (Optional)"
             value={secondaryMobile}
             onChangeText={(text) => {
-              // Allow only digits and +91 prefix
               const cleanText = text.replace(/[^\d+]/g, '');
-              if (cleanText.startsWith('+91') || cleanText.length <= 10) {
+              if (cleanText.startsWith('+91') || cleanText.length <= 13) {
                 setSecondaryMobile(cleanText);
               }
             }}
@@ -168,57 +130,6 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
             maxLength={13}
           />
         </View>
-        {secondaryMobile && (
-          <Text style={styles.helperText}>Enter 10-digit mobile number starting with 6, 7, 8, or 9</Text>
-        )}
-        {secondaryMobile && !validateIndianMobile(secondaryMobile) && (
-          <Text style={styles.errorText}>Must start with 6, 7, 8, or 9</Text>
-        )}
-
-        {/* Payment Method Selection */}
-        <Text style={styles.label}>Select Payment Method *</Text>
-        <View style={styles.paymentMethodContainer}>
-          {paymentMethods.map((method) => (
-            <TouchableOpacity
-              key={method}
-              style={[
-                styles.paymentOption, 
-                selectedPaymentMethod === method && styles.selectedPayment
-              ]}
-              onPress={() => setSelectedPaymentMethod(method)}
-            >
-              <Text style={[
-                styles.paymentOptionText,
-                selectedPaymentMethod === method && styles.selectedPaymentText
-              ]}>
-                {selectedPaymentMethod === method ? '✔ ' : ''}{method}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Payment Number */}
-        <View style={styles.inputGroup}>
-          <CreditCard color="#6B7280" size={20} />
-          <TextInput
-            style={styles.input}
-            placeholder={`${selectedPaymentMethod || 'GPay/PhonePe'} Number *`}
-            value={paymentNumber}
-            onChangeText={(text) => {
-              // Allow only digits and +91 prefix
-              const cleanText = text.replace(/[^\d+]/g, '');
-              if (cleanText.startsWith('+91') || cleanText.length <= 10) {
-                setPaymentNumber(cleanText);
-              }
-            }}
-            keyboardType="phone-pad"
-            maxLength={13}
-          />
-        </View>
-        <Text style={styles.helperText}>Enter 10-digit mobile number starting with 6, 7, 8, or 9</Text>
-        {paymentNumber && !validateIndianMobile(paymentNumber) && (
-          <Text style={styles.errorText}>Must start with 6, 7, 8, or 9</Text>
-        )}
 
         {/* Password */}
         <View style={styles.inputGroup}>

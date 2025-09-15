@@ -10,7 +10,7 @@ import {
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Upload, CheckCircle, FileText } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
-import { signupAccount, testSignupDataStructure } from '@/services/signupService';
+import { signupAccount, signupAndLogin } from '@/services/signupService';
 import * as ImagePicker from 'expo-image-picker';
 
 interface DocumentsStepProps {
@@ -18,13 +18,16 @@ interface DocumentsStepProps {
   onUpdate: (data: any) => void;
   onBack: () => void;
   formData: any;
+  onSignupSuccess: (response: any) => void;
 }
 
 const documentTypes = [
   { key: 'aadharFront', label: 'Aadhar Front Image', required: true },
 ];
 
-export default function DocumentsStep({ data, onUpdate, onBack, formData }: DocumentsStepProps) {
+const normalizeLocalUri = (uri: string) => (uri ? uri.replace('/useer/', '/user/') : uri);
+
+export default function DocumentsStep({ data, onUpdate, onBack, formData, onSignupSuccess }: DocumentsStepProps) {
   const [documents, setDocuments] = useState(data);
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
@@ -40,10 +43,13 @@ export default function DocumentsStep({ data, onUpdate, onBack, formData }: Docu
       });
 
       if (!result.canceled) {
+        const rawUri = result.assets[0].uri;
+        const fixedUri = normalizeLocalUri(rawUri);
         const updatedDocuments = {
           ...documents,
-          [documentKey]: result.assets[0].uri
+          [documentKey]: fixedUri
         };
+        console.log('🖼️ Document selected:', { rawUri, fixedUri });
         setDocuments(updatedDocuments);
         onUpdate(updatedDocuments);
       }
@@ -78,44 +84,43 @@ export default function DocumentsStep({ data, onUpdate, onBack, formData }: Docu
     try {
       console.log('📤 Starting signup process...');
       
-      // Test data structure first
-      const testData = testSignupDataStructure(formData.personalDetails, documents);
-      console.log('🧪 Data structure test completed');
+      // Ensure URI normalization just before submit
+      const normalizedDocs = {
+        ...documents,
+        aadharFront: normalizeLocalUri(documents.aadharFront)
+      };
+      console.log('🧭 Normalized docs for submit:', normalizedDocs);
       
-      // Call the signup API
-      const response = await signupAccount(formData.personalDetails, documents);
+      // Validate data structure before signup
+      console.log('Validating signup data structure...');
       
-      if (response.status === 'success') {
+      // Signup then login to obtain JWT token per API docs
+      const { signup, login: loginResp } = await signupAndLogin(formData.personalDetails, normalizedDocs);
+
+      if (signup.status === 'success') {
         // Create user object for local auth
         const userData = {
-          id: response.user_id,
+          id: signup.user_id,
           fullName: formData.personalDetails.fullName,
           primaryMobile: formData.personalDetails.primaryMobile,
           secondaryMobile: formData.personalDetails.secondaryMobile,
-          paymentMethod: formData.personalDetails.paymentMethod,
-          paymentNumber: formData.personalDetails.paymentNumber,
           password: formData.personalDetails.password,
           address: formData.personalDetails.address,
           aadharNumber: formData.personalDetails.aadharNumber,
           organizationId: formData.personalDetails.organizationId,
-          languages: formData.personalDetails.languages,
-          documents: documents,
+          languages: formData.personalDetails.languages || [],
+          documents: normalizedDocs,
         };
 
-        // Login with the new user data
-        await login(userData, 'registration-token');
-        
-        // Show success message and redirect to car add page
-        Alert.alert(
-          'Account Created Successfully!',
-          'Welcome to Drop Cars! Now let\'s add your first car.',
-          [
-            {
-              text: 'Continue',
-              onPress: () => router.replace('/add-car')
-            }
-          ]
-        );
+        // Save user and real token
+        await login(userData, loginResp.access_token);
+
+        // Call the success callback with the response data
+        onSignupSuccess({
+          signup,
+          login: loginResp,
+          userData
+        });
       }
     } catch (error: any) {
       console.error('❌ Signup failed:', error);

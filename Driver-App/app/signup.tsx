@@ -9,17 +9,30 @@ import {
 import { useRouter } from 'expo-router';
 import PersonalDetailsStep from '@/components/signup/PersonalDetailsStep';
 import DocumentsStep from '@/components/signup/DocumentsStep';
-import ConnectionTest from '@/components/ConnectionTest';
+import SuccessScreen from '@/components/SuccessScreen';
 import { ArrowLeft } from 'lucide-react-native';
 import { TouchableOpacity } from 'react-native';
+import { loginVehicleOwner } from '@/services/signupService';
 
 export default function SignupScreen() {
   const [currentStep, setCurrentStep] = useState(1);
-  const [showConnectionTest, setShowConnectionTest] = useState(false);
-  const [formData, setFormData] = useState({
+  const [formData, setFormData] = useState<{
+    personalDetails: {
+      fullName?: string;
+      primaryMobile?: string;
+      secondaryMobile?: string;
+      password?: string;
+      address?: string;
+      aadharNumber?: string;
+      organizationId?: string;
+      languages?: string[];
+    };
+    documents: any;
+  }>({
     personalDetails: {},
     documents: {},
   });
+  const [signupResponse, setSignupResponse] = useState<any>(null);
   const router = useRouter();
 
   const updateFormData = (step: string, data: any) => {
@@ -27,7 +40,7 @@ export default function SignupScreen() {
   };
 
   const nextStep = () => {
-    if (currentStep < 2) {
+    if (currentStep < 3) {
       setCurrentStep(currentStep + 1);
     }
   };
@@ -38,11 +51,44 @@ export default function SignupScreen() {
     }
   };
 
-  const renderStep = () => {
-    if (showConnectionTest) {
-      return <ConnectionTest />;
-    }
+  const handleSignupSuccess = (response: any) => {
+    setSignupResponse(response);
+    nextStep();
+  };
 
+  const handleContinue = async () => {
+    try {
+      // Call login API to get the counts
+      const cleanMobile = String(formData.personalDetails.primaryMobile || '').replace(/^\+91/, '');
+      const loginResponse = await loginVehicleOwner(cleanMobile, formData.personalDetails.password || '');
+
+      // Decide next step based on counts from login response
+      const carCount = loginResponse.car_details_count ?? 0;
+      const driverCount = loginResponse.car_driver_count ?? 0;
+
+      let nextRoute = '/(tabs)';
+      if (carCount === 0) {
+        nextRoute = '/add-car';
+      } else if (driverCount === 0) {
+        nextRoute = '/add-driver';
+      }
+
+      // Navigate to the appropriate page
+      if (nextRoute === '/add-car') {
+        router.replace('/add-car');
+      } else if (nextRoute === '/add-driver') {
+        router.replace('/add-driver');
+      } else {
+        router.replace('/(tabs)');
+      }
+    } catch (error) {
+      console.error('❌ Login failed:', error);
+      // If login fails, still navigate to add-car as fallback
+      router.replace('/add-car');
+    }
+  };
+
+  const renderStep = () => {
     switch (currentStep) {
       case 1:
         return (
@@ -59,6 +105,14 @@ export default function SignupScreen() {
             onUpdate={(data) => updateFormData('documents', data)}
             onBack={previousStep}
             formData={formData}
+            onSignupSuccess={handleSignupSuccess}
+          />
+        );
+      case 3:
+        return (
+          <SuccessScreen
+            message="Your account has been created successfully! Now let's set up your vehicle and driver details."
+            onContinue={handleContinue}
           />
         );
       default:
@@ -74,25 +128,17 @@ export default function SignupScreen() {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Driver Registration</Text>
         <View style={styles.headerRight}>
-          <TouchableOpacity 
-            onPress={() => setShowConnectionTest(!showConnectionTest)}
-            style={styles.debugButton}
-          >
-            <Text style={styles.debugButtonText}>
-              {showConnectionTest ? 'Hide Debug' : 'Debug API'}
-            </Text>
-          </TouchableOpacity>
-          {!showConnectionTest && (
+          {currentStep < 3 && (
             <View style={styles.stepIndicator}>
-              <Text style={styles.stepText}>{currentStep}/2</Text>
+              <Text style={styles.stepText}>{currentStep}/3</Text>
             </View>
           )}
         </View>
       </View>
 
-      {!showConnectionTest && (
+      {currentStep < 3 && (
         <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: `${(currentStep / 2) * 100}%` }]} />
+          <View style={[styles.progressFill, { width: `${(currentStep / 3) * 100}%` }]} />
         </View>
       )}
 
@@ -129,12 +175,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-  },
-  debugButton: {
-    backgroundColor: '#F59E0B',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
   },
   debugButtonText: {
     color: '#FFFFFF',

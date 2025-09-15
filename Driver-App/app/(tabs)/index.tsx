@@ -6,51 +6,264 @@ import {
   StyleSheet,
   TouchableOpacity,
   Alert,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWallet } from '@/contexts/WalletContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useDashboard, FutureRide } from '@/contexts/DashboardContext';
+import { useNotifications } from '@/contexts/NotificationContext';
 import { useRouter } from 'expo-router';
-import { Menu, Wallet, MapPin, Clock, User, Phone, Car } from 'lucide-react-native';
+import { Menu, Wallet, MapPin, Clock, User, Phone, Car, RefreshCw } from 'lucide-react-native';
 import BookingCard from '@/components/BookingCard';
 import DrawerNavigation from '@/components/DrawerNavigation';
+import { fetchDashboardData, DashboardData, fetchPendingOrders, PendingOrder, forceRefreshDashboardData, debugCarDriverEndpoints, debugDriverCountIssue } from '@/services/dashboardService';
+import { acceptOrder, testOrderAcceptanceAPI, checkOrderAvailability, getAvailableBookings } from '@/services/assignmentService';
 
-const dummyBookings = [
-  {
-    booking_id: 'B123',
-    pickup: 'Chennai Central',
-    drop: 'Tiruvannamalai',
-    customer_name: 'Arun Kumar',
-    customer_mobile: '9876567890',
-    fare_per_km: 10,
-    distance_km: 150,
-    total_fare: 1500,
-    status: 'available'
-  },
-  {
-    booking_id: 'B124',
-    pickup: 'Guindy',
-    drop: 'Pondicherry',
-    customer_name: 'Priya Sharma',
-    customer_mobile: '9887766554',
-    fare_per_km: 12,
-    distance_km: 120,
-    total_fare: 1440,
-    status: 'available'
-  },
-];
+interface Booking {
+  booking_id: string;
+  pickup: string;
+  drop: string;
+  customer_name: string;
+  customer_mobile: string;
+  fare_per_km: number;
+  distance_km: number;
+  total_fare: number;
+  status?: string; // Make status optional to match both interfaces
+}
 
 export default function DashboardScreen() {
   const { user } = useAuth();
   const { balance } = useWallet();
   const { colors } = useTheme();
+  const { dashboardData, loading, error, fetchData, refreshData } = useDashboard();
+  const { sendNewOrderNotification, sendOrderAssignedNotification } = useNotifications();
   const router = useRouter();
   const [showDrawer, setShowDrawer] = useState(false);
-  const [bookings, setBookings] = useState(dummyBookings);
-  const [currentTrip, setCurrentTrip] = useState(null);
+  const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [processingOrderId, setProcessingOrderId] = useState<string | null>(null);
+  // Remove currentTrip concept from owner dashboard
+  const [refreshing, setRefreshing] = useState(false);
+  const [previousOrderCount, setPreviousOrderCount] = useState(0);
+  const [debugMode, setDebugMode] = useState(false);
 
   const canAcceptBookings = balance >= 1000;
+
+  // Helper function to extract pickup and drop locations from the API response
+  const getPickupDropLocations = (pickupDropLocation: any) => {
+    if (!pickupDropLocation) return { pickup: 'Unknown', drop: 'Unknown' };
+    
+    // Handle array format: { "0": "Chennai", "1": "Gingee" }
+    if (typeof pickupDropLocation === 'object' && pickupDropLocation['0'] && pickupDropLocation['1']) {
+      return {
+        pickup: pickupDropLocation['0'],
+        drop: pickupDropLocation['1']
+      };
+    }
+    
+    // Handle object format: { pickup: "Chennai", drop: "Gingee" }
+    if (pickupDropLocation.pickup && pickupDropLocation.drop) {
+      return {
+        pickup: pickupDropLocation.pickup,
+        drop: pickupDropLocation.drop
+      };
+    }
+    
+    // Fallback
+    return { pickup: 'Unknown', drop: 'Unknown' };
+  };
+
+  // Debug logging
+  useEffect(() => {
+    console.log('🔍 DashboardScreen mounted with:', {
+      user: user ? { id: user.id, fullName: user.fullName, primaryMobile: user.primaryMobile } : null,
+      dashboardData: dashboardData ? {
+        user_info: dashboardData.user_info,
+        carCount: dashboardData.cars?.length || 0,
+        driverCount: dashboardData.drivers?.length || 0
+      } : null,
+      loading,
+      error,
+      pendingOrders: pendingOrders.length
+    });
+  }, [user, dashboardData, loading, error, pendingOrders]);
+
+  // Fetch dashboard data on component mount
+  useEffect(() => {
+    console.log('📱 DashboardScreen: fetchData called');
+    fetchData();
+  }, []);
+
+  // Fetch pending orders when dashboard data is loaded
+  useEffect(() => {
+    if (dashboardData && !loading) {
+      fetchPendingOrdersData();
+    }
+  }, [dashboardData, loading]);
+
+  // Check for new orders and send notifications
+  useEffect(() => {
+    if (pendingOrders.length > 0 && previousOrderCount === 0) {
+      // First time loading orders, just update count
+      setPreviousOrderCount(pendingOrders.length);
+    } else if (pendingOrders.length > previousOrderCount && previousOrderCount > 0) {
+      // New orders received
+      const newOrders = pendingOrders.slice(previousOrderCount);
+      newOrders.forEach(order => {
+        const locations = getPickupDropLocations(order.pickup_drop_location);
+        sendNewOrderNotification({
+          orderId: order.order_id.toString(),
+          pickup: locations.pickup,
+          drop: locations.drop,
+          customerName: order.customer_name,
+          customerMobile: order.customer_number,
+          distance: order.trip_distance,
+          fare: (order.cost_per_km * order.trip_distance) + order.driver_allowance + order.permit_charges + order.hill_charges + order.toll_charges,
+          orderType: 'new'
+        });
+      });
+      setPreviousOrderCount(pendingOrders.length);
+    } else if (pendingOrders.length !== previousOrderCount) {
+      // Update count if it changed
+      setPreviousOrderCount(pendingOrders.length);
+    }
+  }, [pendingOrders, previousOrderCount, sendNewOrderNotification]);
+
+  const fetchPendingOrdersData = async () => {
+    try {
+      setOrdersLoading(true);
+      console.log('📋 Fetching available bookings for dashboard...');
+      
+      // Try the new API endpoint first
+      let orders;
+      try {
+        orders = await getAvailableBookings();
+        console.log('✅ Available bookings loaded from new API:', orders.length);
+      } catch (newApiError) {
+        console.log('⚠️ New API failed, falling back to old API:', newApiError);
+        // Fallback to old API if new one fails
+        orders = await fetchPendingOrders();
+        console.log('✅ Pending orders loaded from fallback API:', orders.length);
+      }
+      
+      setPendingOrders(orders);
+    } catch (error) {
+      console.error('❌ Failed to fetch pending orders:', error);
+      // Don't show error alert, just log it
+    } finally {
+      setOrdersLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    try {
+      setRefreshing(true);
+      console.log('🔄 Manual refresh triggered...');
+      
+      // Force refresh dashboard data to get latest cars and drivers
+      await forceRefreshDashboardData();
+      await refreshData();
+      await fetchPendingOrdersData(); // Also refresh orders
+      
+      console.log('✅ Manual refresh completed successfully');
+    } catch (error) {
+      console.error('❌ Refresh failed:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  };
+
+  const handleDebugAPI = async () => {
+    try {
+      console.log('🧪 Starting API debug test...');
+      
+      // Test order acceptance API
+      const orderResult = await testOrderAcceptanceAPI();
+      console.log('📊 Order acceptance debug result:', orderResult);
+      
+      // Test car and driver endpoints
+      const carDriverResult = await debugCarDriverEndpoints();
+      console.log('📊 Car/Driver endpoints debug result:', carDriverResult);
+      
+      // Test new available bookings API
+      let availableBookingsResult: { success: boolean; error?: string; count?: number; data?: any[] } = { success: false, error: 'Not tested' };
+      try {
+        const bookings = await getAvailableBookings();
+        availableBookingsResult = { success: true, count: bookings.length, data: bookings };
+        console.log('📊 Available bookings debug result:', availableBookingsResult);
+      } catch (bookingsError: any) {
+        availableBookingsResult = { success: false, error: bookingsError.message };
+        console.log('❌ Available bookings debug failed:', bookingsError);
+      }
+      
+      // Show summary
+      const successfulCarEndpoints = carDriverResult.cars.filter((r: any) => r.success).length;
+      const successfulDriverEndpoints = carDriverResult.drivers.filter((r: any) => r.success).length;
+      
+      // Debug driver status specifically
+      console.log('🔍 Current dashboard data drivers:', dashboardData?.drivers);
+      console.log('🔍 Driver count:', dashboardData?.drivers?.length || 0);
+      if (dashboardData?.drivers) {
+        dashboardData.drivers.forEach((driver, index) => {
+          console.log(`🔍 Driver ${index + 1}:`, {
+            name: driver.full_name,
+            status: driver.driver_status,
+            id: driver.id
+          });
+        });
+      }
+      
+      Alert.alert(
+        'API Debug Test',
+        `Test completed!\n\nResults logged to console.\n\nOrder API: ${orderResult.success ? 'OK' : 'Failed'}\nAvailable Bookings: ${availableBookingsResult.success ? `OK (${availableBookingsResult.count} bookings)` : 'Failed'}\nCar endpoints: ${successfulCarEndpoints}/6 working\nDriver endpoints: ${successfulDriverEndpoints}/6 working\n\nCurrent drivers: ${dashboardData?.drivers?.length || 0}`,
+        [{ text: 'OK' }]
+      );
+    } catch (error: any) {
+      console.error('❌ Debug test failed:', error);
+      Alert.alert('Debug Test Failed', error.message);
+    }
+  };
+
+  const handleDebugDriverCount = async () => {
+    try {
+      console.log('🧪 Starting driver count debug test...');
+      
+      const result = await debugDriverCountIssue();
+      console.log('👥 Driver count debug result:', result);
+      
+      const successfulEndpoints = result.drivers.filter((d: any) => d.success);
+      const totalDrivers = successfulEndpoints.reduce((sum: number, d: any) => sum + (d.dataLength || 0), 0);
+      
+      Alert.alert(
+        'Driver Count Debug Complete',
+        `Total drivers found: ${totalDrivers}\nSuccessful endpoints: ${successfulEndpoints.length}\nCheck console for detailed breakdown.`,
+        [{ text: 'OK' }]
+      );
+    } catch (error: any) {
+      console.error('❌ Driver count debug failed:', error);
+      Alert.alert('Driver Count Debug Failed', error.message || 'Unknown error');
+    }
+  };
+
+  const handleTestAvailableBookings = async () => {
+    try {
+      console.log('🧪 Testing available bookings API...');
+      
+      const bookings = await getAvailableBookings();
+      console.log('📊 Available bookings result:', bookings);
+      
+      Alert.alert(
+        'Available Bookings Test',
+        `Test completed!\n\nFound ${bookings.length} available bookings.\n\nResults logged to console.`,
+        [{ text: 'OK' }]
+      );
+    } catch (error: any) {
+      console.error('❌ Available bookings test failed:', error);
+      Alert.alert('Available Bookings Test Failed', error.message);
+    }
+  };
 
   const dynamicStyles = StyleSheet.create({
     container: {
@@ -88,6 +301,14 @@ export default function DashboardScreen() {
       fontSize: 18,
       fontFamily: 'Inter-Bold',
       color: colors.text,
+    },
+    headerRight: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    refreshButton: {
+      padding: 8,
+      marginRight: 8,
     },
     walletButton: {
       padding: 8,
@@ -250,8 +471,50 @@ export default function DashboardScreen() {
       fontFamily: 'Inter-Regular',
       color: colors.textSecondary,
     },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: 60,
+    },
+    loadingText: {
+      fontSize: 16,
+      fontFamily: 'Inter-Medium',
+      color: colors.textSecondary,
+    },
+    debugButton: {
+      backgroundColor: colors.error,
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 6,
+      marginLeft: 8,
+    },
+    debugButtonText: {
+      color: '#FFFFFF',
+      fontSize: 12,
+      fontWeight: 'bold',
+    },
+    debugSection: {
+      backgroundColor: '#F3F4F6',
+      borderRadius: 8,
+      padding: 12,
+      marginTop: 16,
+      marginBottom: 16,
+    },
+    debugTitle: {
+      fontSize: 14,
+      fontFamily: 'Inter-Bold',
+      color: '#374151',
+      marginBottom: 8,
+    },
+    debugText: {
+      fontSize: 12,
+      fontFamily: 'Inter-Regular',
+      color: '#6B7280',
+      marginBottom: 4,
+    },
   });
-  const handleAcceptBooking = (booking) => {
+  const handleAcceptBooking = (order: PendingOrder) => {
     if (!canAcceptBookings) {
       Alert.alert(
         'Insufficient Balance',
@@ -261,25 +524,124 @@ export default function DashboardScreen() {
       return;
     }
 
+    const locations = getPickupDropLocations(order.pickup_drop_location);
     Alert.alert(
       'Accept Booking',
-      `Accept trip from ${booking.pickup} to ${booking.drop}?`,
+      `Accept trip from ${locations.pickup} to ${locations.drop}?`,
       [
         { text: 'Cancel', style: 'cancel' },
-        { text: 'Accept', onPress: () => acceptBooking(booking) }
+        { text: 'Accept', onPress: () => acceptBooking(order) }
       ]
     );
   };
 
-  const acceptBooking = (booking) => {
-    setCurrentTrip({ ...booking, status: 'accepted' });
-    setBookings(prev => prev.filter(b => b.booking_id !== booking.booking_id));
-    
-    // Simulate SMS sending
-    Alert.alert(
-      'Booking Accepted',
-      `SMS sent to customer: "DropCars: Your driver ${user?.name} (${user?.cars?.[0]?.name} - ${user?.cars?.[0]?.registration}) has accepted your booking."`
-    );
+  const { addFutureRide } = useDashboard();
+
+  const acceptBooking = async (order: PendingOrder) => {
+    try {
+      // Show loading state for this specific order
+      setProcessingOrderId(order.order_id.toString());
+      
+      // First check if the order is still available
+      const isAvailable = await checkOrderAvailability(order.order_id.toString());
+      
+      if (!isAvailable) {
+        Alert.alert(
+          'Order No Longer Available',
+          'This order has already been taken by another vehicle owner. Refreshing available orders...',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Refresh the orders list to remove already assigned orders
+                fetchPendingOrdersData();
+              }
+            }
+          ]
+        );
+        return;
+      }
+      
+      // Call the new API to accept the order
+      const acceptResponse = await acceptOrder({
+        order_id: order.order_id.toString(),
+        vehicle_owner_id: user?.id || '',
+        acceptance_notes: `Order accepted by vehicle owner ${user?.fullName || 'Driver'}`
+      });
+
+      if (acceptResponse.success) {
+        // Remove order from pending list
+        setPendingOrders(prev => prev.filter(o => o.order_id !== order.order_id));
+
+        const locations = getPickupDropLocations(order.pickup_drop_location);
+        const ride: FutureRide = {
+          id: order.order_id.toString(),
+          booking_id: `B${order.order_id}`,
+          pickup: locations.pickup,
+          drop: locations.drop,
+          customer_name: order.customer_name,
+          customer_mobile: order.customer_number,
+          date: new Date().toISOString().slice(0, 10),
+          time: new Date().toTimeString().slice(0,5),
+          distance: order.trip_distance,
+          fare_per_km: order.cost_per_km,
+          total_fare: (order.cost_per_km * order.trip_distance) + order.driver_allowance + order.permit_charges + order.hill_charges + order.toll_charges,
+          status: 'confirmed',
+          assigned_driver: null,
+          assigned_vehicle: null,
+        };
+
+        addFutureRide(ride);
+
+        // Send notification for accepted order
+        sendOrderAssignedNotification({
+          orderId: order.order_id.toString(),
+          pickup: locations.pickup,
+          drop: locations.drop,
+          customerName: order.customer_name,
+          customerMobile: order.customer_number,
+          distance: order.trip_distance,
+          fare: (order.cost_per_km * order.trip_distance) + order.driver_allowance + order.permit_charges + order.hill_charges + order.toll_charges,
+          orderType: 'assigned'
+        });
+
+        Alert.alert(
+          'Booking Accepted',
+          `Order accepted successfully! SMS sent to customer: "DropCars: Your driver ${user?.fullName || 'Driver'} (${dashboardData?.cars?.[0]?.car_brand || 'Vehicle'} ${dashboardData?.cars?.[0]?.car_model || ''} - ${dashboardData?.cars?.[0]?.car_number || 'Number'}) has accepted your booking."`
+        );
+      } else {
+        throw new Error(acceptResponse.message || 'Failed to accept order');
+      }
+    } catch (error: any) {
+      console.error('❌ Error accepting order:', error);
+      
+      // Check if it's an "already assigned" error
+      if (error.message.includes('already been accepted') || 
+          error.message.includes('already assigned') ||
+          error.message.includes('active assignment')) {
+        
+        Alert.alert(
+          'Order Already Taken',
+          'This order has already been accepted by another vehicle owner. Refreshing available orders...',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Refresh the orders list to remove already assigned orders
+                fetchPendingOrdersData();
+              }
+            }
+          ]
+        );
+      } else {
+        Alert.alert(
+          'Error',
+          error.message || 'Failed to accept order. Please try again.'
+        );
+      }
+    } finally {
+      setProcessingOrderId(null);
+    }
   };
 
   return (
@@ -289,15 +651,35 @@ export default function DashboardScreen() {
           <Menu color={colors.text} size={24} />
         </TouchableOpacity>
         
-        <View style={dynamicStyles.balanceContainer}>
-          <Text style={dynamicStyles.welcomeText}>Welcome back, {user?.name}!</Text>
+        <TouchableOpacity 
+          style={dynamicStyles.balanceContainer}
+          onLongPress={() => setDebugMode(!debugMode)}
+        >
+          <Text style={dynamicStyles.welcomeText}>
+            Welcome back, {dashboardData?.user_info?.full_name || user?.fullName || 'Driver'}!
+          </Text>
           <Text style={dynamicStyles.balanceLabel}>Available Balance</Text>
-          <Text style={dynamicStyles.balanceAmount}>₹{balance}</Text>
-        </View>
-
-        <TouchableOpacity onPress={() => router.push('/(tabs)/wallet')} style={dynamicStyles.walletButton}>
-          <Wallet color={colors.primary} size={24} />
+          <Text style={dynamicStyles.balanceAmount}>₹{dashboardData?.user_info?.wallet_balance || balance || 0}</Text>
         </TouchableOpacity>
+
+        <View style={dynamicStyles.headerRight}>
+          <TouchableOpacity onPress={handleRefresh} style={dynamicStyles.refreshButton} disabled={refreshing}>
+            <RefreshCw color={colors.primary} size={20} style={refreshing ? { transform: [{ rotate: '180deg' }] } : {}} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => router.push('/(tabs)/wallet')} style={dynamicStyles.walletButton}>
+            <Wallet color={colors.primary} size={24} />
+          </TouchableOpacity>
+          {debugMode && (
+            <>
+              <TouchableOpacity onPress={handleDebugAPI} style={dynamicStyles.debugButton}>
+                <Text style={dynamicStyles.debugButtonText}>Debug</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleDebugDriverCount} style={[dynamicStyles.debugButton, { backgroundColor: colors.primary }]}>
+                <Text style={dynamicStyles.debugButtonText}>Driver Count</Text>
+              </TouchableOpacity>
+            </>
+          )}
+        </View>
       </View>
 
       {!canAcceptBookings && (
@@ -308,88 +690,108 @@ export default function DashboardScreen() {
         </View>
       )}
 
-      <ScrollView style={dynamicStyles.content} showsVerticalScrollIndicator={false}>
-        {/* Welcome Banner */}
-        <View style={dynamicStyles.welcomeBanner}>
-          <Text style={dynamicStyles.welcomeBannerTitle}>
-            🚗 Welcome to Drop Cars, {user?.name}!
-          </Text>
-          <Text style={dynamicStyles.welcomeBannerSubtitle}>
-            Your {user?.cars?.[0]?.name} is ready for service. Start earning today!
-          </Text>
-        </View>
-
-        {/* Quick Stats */}
-        <View style={dynamicStyles.statsContainer}>
-          <View style={dynamicStyles.statCard}>
-            <Text style={dynamicStyles.statNumber}>₹{balance}</Text>
-            <Text style={dynamicStyles.statLabel}>Wallet Balance</Text>
+      <ScrollView 
+        style={dynamicStyles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
+        }
+      >
+        {loading ? (
+          <View style={dynamicStyles.loadingContainer}>
+            <Text style={dynamicStyles.loadingText}>Loading your dashboard...</Text>
           </View>
-          <View style={dynamicStyles.statCard}>
-            <Text style={dynamicStyles.statNumber}>{user?.cars?.length || 0}</Text>
-            <Text style={dynamicStyles.statLabel}>Vehicles</Text>
-          </View>
-          <View style={dynamicStyles.statCard}>
-            <Text style={dynamicStyles.statNumber}>{user?.languages?.length || 0}</Text>
-            <Text style={dynamicStyles.statLabel}>Languages</Text>
-          </View>
-        </View>
-
-        {currentTrip ? (
-          <View style={dynamicStyles.currentTripSection}>
-            <Text style={dynamicStyles.sectionTitle}>Current Trip</Text>
-            <View style={dynamicStyles.currentTripCard}>
-              <View style={dynamicStyles.tripHeader}>
-                <Text style={dynamicStyles.tripStatus}>Trip In Progress</Text>
-                <View style={dynamicStyles.statusDot} />
-              </View>
-              
-              <View style={dynamicStyles.tripDetails}>
-                <View style={dynamicStyles.tripRow}>
-                  <MapPin color={colors.success} size={16} />
-                  <Text style={dynamicStyles.tripText}>{currentTrip.pickup}</Text>
-                </View>
-                <View style={dynamicStyles.tripRow}>
-                  <MapPin color={colors.error} size={16} />
-                  <Text style={dynamicStyles.tripText}>{currentTrip.drop}</Text>
-                </View>
-                <View style={dynamicStyles.tripRow}>
-                  <User color={colors.textSecondary} size={16} />
-                  <Text style={dynamicStyles.tripText}>{currentTrip.customer_name}</Text>
-                </View>
-                <View style={dynamicStyles.tripRow}>
-                  <Phone color={colors.textSecondary} size={16} />
-                  <Text style={dynamicStyles.tripText}>{currentTrip.customer_mobile}</Text>
-                </View>
-              </View>
-
-              <TouchableOpacity 
-                style={dynamicStyles.endTripButton}
-                onPress={() => router.push('/trip/end')}
-              >
-                <Text style={dynamicStyles.endTripButtonText}>End Trip</Text>
-              </TouchableOpacity>
-            </View>
+        ) : error ? (
+          <View style={dynamicStyles.loadingContainer}>
+            <Text style={dynamicStyles.loadingText}>Error: {error}</Text>
+            <TouchableOpacity 
+              style={[dynamicStyles.endTripButton, { marginTop: 16 }]}
+              onPress={fetchData}
+            >
+              <Text style={dynamicStyles.endTripButtonText}>Retry</Text>
+            </TouchableOpacity>
           </View>
         ) : (
-          <View style={dynamicStyles.bookingsSection}>
-            <Text style={dynamicStyles.sectionTitle}>Available Bookings</Text>
-            {bookings.length > 0 ? (
-              bookings.map((booking) => (
-                <BookingCard
-                  key={booking.booking_id}
-                  booking={booking}
-                  onAccept={handleAcceptBooking}
-                  disabled={!canAcceptBookings}
-                />
-              ))
-            ) : (
-              <View style={dynamicStyles.noBookings}>
-                <Text style={dynamicStyles.noBookingsText}>No bookings available</Text>
-                <Text style={dynamicStyles.noBookingsSubtext}>New bookings will appear here</Text>
+          <>
+            {/* Welcome Banner */}
+            <View style={dynamicStyles.welcomeBanner}>
+              <Text style={dynamicStyles.welcomeBannerTitle}>
+                🚗 Welcome to Drop Cars, {dashboardData?.user_info?.full_name || user?.fullName || 'Driver'}!
+              </Text>
+              <Text style={dynamicStyles.welcomeBannerSubtitle}>
+                {dashboardData?.cars && dashboardData.cars.length > 0 
+                  ? `Your ${dashboardData.cars[0].car_brand} ${dashboardData.cars[0].car_model} (${dashboardData.cars[0].car_number}) is ready for service. Start earning today!`
+                  : 'Complete your profile setup to start earning!'
+                }
+              </Text>
+            </View>
+
+            {/* Quick Stats */}
+            <View style={dynamicStyles.statsContainer}>
+              <View style={dynamicStyles.statCard}>
+                <Text style={dynamicStyles.statNumber}>₹{dashboardData?.user_info?.wallet_balance || balance || 0}</Text>
+                <Text style={dynamicStyles.statLabel}>Wallet Balance</Text>
+              </View>
+              <View style={dynamicStyles.statCard}>
+                <Text style={dynamicStyles.statNumber}>{dashboardData?.cars?.length || 0}</Text>
+                <Text style={dynamicStyles.statLabel}>Vehicles</Text>
+              </View>
+              <View style={dynamicStyles.statCard}>
+                <Text style={dynamicStyles.statNumber}>{dashboardData?.drivers?.length || 0}</Text>
+                <Text style={dynamicStyles.statLabel}>Drivers</Text>
+              </View>
+            </View>
+
+            {/* Debug Driver Status */}
+            {debugMode && dashboardData?.drivers && dashboardData.drivers.length > 0 && (
+              <View style={dynamicStyles.debugSection}>
+                <Text style={dynamicStyles.debugTitle}>Driver Status Debug:</Text>
+                {dashboardData.drivers.map((driver, index) => (
+                  <Text key={index} style={dynamicStyles.debugText}>
+                    {driver.full_name}: {driver.driver_status}
+                  </Text>
+                ))}
               </View>
             )}
-          </View>
+
+            {
+              <View style={dynamicStyles.bookingsSection}>
+                <Text style={dynamicStyles.sectionTitle}>Available Bookings</Text>
+                {ordersLoading ? (
+                  <View style={dynamicStyles.loadingContainer}>
+                    <Text style={dynamicStyles.loadingText}>Loading pending orders...</Text>
+                  </View>
+                ) : pendingOrders.length > 0 ? (
+                  pendingOrders.map((order) => {
+                    const locations = getPickupDropLocations(order.pickup_drop_location);
+                    return (
+                      <BookingCard
+                        key={order.order_id}
+                        booking={{
+                          booking_id: order.order_id.toString(),
+                          pickup: locations.pickup,
+                          drop: locations.drop,
+                          customer_name: order.customer_name,
+                          customer_mobile: order.customer_number,
+                          fare_per_km: order.cost_per_km,
+                          distance_km: order.trip_distance,
+                          total_fare: (order.cost_per_km * order.trip_distance) + order.driver_allowance + order.permit_charges + order.hill_charges + order.toll_charges
+                        }}
+                        onAccept={() => handleAcceptBooking(order)}
+                        disabled={!canAcceptBookings}
+                        loading={processingOrderId === order.order_id.toString()}
+                      />
+                    );
+                  })
+                ) : (
+                  <View style={dynamicStyles.noBookings}>
+                    <Text style={dynamicStyles.noBookingsText}>No pending bookings available</Text>
+                    <Text style={dynamicStyles.noBookingsSubtext}>New bookings will appear here</Text>
+                  </View>
+                )}
+              </View>
+            }
+          </>
         )}
       </ScrollView>
 

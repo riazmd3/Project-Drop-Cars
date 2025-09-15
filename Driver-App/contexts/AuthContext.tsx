@@ -7,14 +7,13 @@ interface User {
   fullName: string;
   primaryMobile: string;
   secondaryMobile?: string;
-  paymentMethod?: string;
-  paymentNumber?: string;
   password: string;
   address: string;
   aadharNumber: string;
   organizationId: string;
   languages: string[];
   documents: any;
+  driver_status?: string; // Add driver status for drivers
 }
 
 interface AuthContextType {
@@ -50,8 +49,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             fullName: userData.fullName,
             primaryMobile: userData.primaryMobile,
             secondaryMobile: userData.secondaryMobile,
-            paymentMethod: '',
-            paymentNumber: '',
             password: '',
             address: userData.address,
             aadharNumber: userData.aadharNumber,
@@ -99,8 +96,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           fullName: userData.fullName,
           primaryMobile: userData.primaryMobile,
           secondaryMobile: userData.secondaryMobile,
-          paymentMethod: '',
-          paymentNumber: '',
           password: '',
           address: userData.address,
           aadharNumber: userData.aadharNumber,

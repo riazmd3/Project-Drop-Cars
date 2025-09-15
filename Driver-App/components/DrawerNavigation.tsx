@@ -12,6 +12,7 @@ import { BlurView } from 'expo-blur';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWallet } from '@/contexts/WalletContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useDashboard } from '@/contexts/DashboardContext';
 import { useRouter } from 'expo-router';
 import { 
   X, 
@@ -24,7 +25,8 @@ import {
   Phone,
   MapPin,
   Languages,
-  Users
+  Users,
+  Wallet
 } from 'lucide-react-native';
 
 interface DrawerNavigationProps {
@@ -33,9 +35,10 @@ interface DrawerNavigationProps {
 }
 
 export default function DrawerNavigation({ visible, onClose }: DrawerNavigationProps) {
-  const { user, logout } = useAuth();
+  const { user, refreshUserData, logout } = useAuth();
   const { balance } = useWallet();
   const { colors } = useTheme();
+  const { dashboardData } = useDashboard();
   const router = useRouter();
 
   const handleLogout = () => {
@@ -55,6 +58,71 @@ export default function DrawerNavigation({ visible, onClose }: DrawerNavigationP
         }
       ]
     );
+  };
+
+  const handleRefreshUserData = async () => {
+    try {
+      await refreshUserData();
+      Alert.alert('Success', 'User data refreshed successfully');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to refresh user data');
+    }
+  };
+
+  const getDriverStatusSummary = () => {
+    if (!dashboardData?.drivers || dashboardData.drivers.length === 0) {
+      console.log('🔍 No drivers found in dashboard data');
+      return '0 drivers';
+    }
+
+    const drivers = dashboardData.drivers;
+    console.log('🔍 Driver status summary - Total drivers:', drivers.length);
+    console.log('🔍 Driver statuses:', drivers.map(d => ({ name: d.full_name, status: d.driver_status })));
+
+    const statusCounts = {
+      ONLINE: 0,
+      OFFLINE: 0,
+      DRIVING: 0,
+      BLOCKED: 0,
+      PROCESSING: 0,
+      OTHER: 0
+    };
+
+    drivers.forEach(driver => {
+      const status = driver.driver_status?.toUpperCase();
+      console.log(`🔍 Processing driver ${driver.full_name} with status: ${status}`);
+      if (statusCounts.hasOwnProperty(status)) {
+        statusCounts[status]++;
+      } else {
+        statusCounts.OTHER++;
+      }
+    });
+
+    console.log('🔍 Status counts:', statusCounts);
+
+    const total = drivers.length;
+    const onlineCount = statusCounts.ONLINE;
+    const offlineCount = statusCounts.OFFLINE;
+    const drivingCount = statusCounts.DRIVING;
+    const blockedCount = statusCounts.BLOCKED;
+    const processingCount = statusCounts.PROCESSING;
+
+    // Show online and offline drivers prominently
+    if (onlineCount > 0 && offlineCount > 0) {
+      return `${total} drivers • ${onlineCount} online • ${offlineCount} offline`;
+    } else if (onlineCount > 0) {
+      return `${total} drivers • ${onlineCount} online`;
+    } else if (offlineCount > 0) {
+      return `${total} drivers • ${offlineCount} offline`;
+    } else if (drivingCount > 0) {
+      return `${total} drivers • ${drivingCount} on duty`;
+    } else if (blockedCount > 0) {
+      return `${total} drivers • ${blockedCount} blocked`;
+    } else if (processingCount > 0) {
+      return `${total} drivers • ${processingCount} verifying`;
+    } else {
+      return `${total} drivers`;
+    }
   };
 
   const dynamicStyles = StyleSheet.create({
@@ -189,7 +257,14 @@ export default function DrawerNavigation({ visible, onClose }: DrawerNavigationP
       paddingTop: 20,
     },
   });
-  const MenuItem = ({ icon, title, subtitle, onPress, danger = false, rightComponent }) => (
+  const MenuItem = ({ icon, title, subtitle, onPress, danger = false, rightComponent }: {
+    icon: React.ReactElement;
+    title: string;
+    subtitle?: string;
+    onPress: () => void;
+    danger?: boolean;
+    rightComponent?: React.ReactElement;
+  }) => (
     <TouchableOpacity style={dynamicStyles.menuItem} onPress={onPress}>
       <View style={dynamicStyles.menuLeft}>
         <View style={[dynamicStyles.menuIcon, danger && dynamicStyles.dangerIcon]}>
@@ -232,19 +307,31 @@ export default function DrawerNavigation({ visible, onClose }: DrawerNavigationP
                   <User color="#FFFFFF" size={24} />
                 </View>
                 <View style={dynamicStyles.profileDetails}>
-                  <Text style={dynamicStyles.profileName}>{user?.name}</Text>
+                  <Text style={dynamicStyles.profileName}>
+                    {dashboardData?.user_info?.full_name || user?.fullName || 'Driver'}
+                  </Text>
                   <View style={dynamicStyles.profileRow}>
                     <Phone color={colors.textSecondary} size={14} />
-                    <Text style={dynamicStyles.profileText}>{user?.mobile}</Text>
+                    <Text style={dynamicStyles.profileText}>
+                      {dashboardData?.user_info?.primary_number || user?.primaryMobile || 'No mobile number'}
+                    </Text>
                   </View>
                   <View style={dynamicStyles.profileRow}>
                     <MapPin color={colors.textSecondary} size={14} />
-                    <Text style={dynamicStyles.profileText}>{user?.address}</Text>
+                    <Text style={dynamicStyles.profileText}>
+                      {dashboardData?.user_info?.address || user?.address || 'No address'}
+                    </Text>
                   </View>
                   <View style={dynamicStyles.profileRow}>
                     <Languages color={colors.textSecondary} size={14} />
                     <Text style={dynamicStyles.profileText}>
-                      {user?.languages?.join(', ')}
+                      {user?.languages && user.languages.length > 0 ? user.languages.join(', ') : 'No languages'}
+                    </Text>
+                  </View>
+                  <View style={dynamicStyles.profileRow}>
+                    <Wallet color={colors.textSecondary} size={14} />
+                    <Text style={dynamicStyles.profileText}>
+                      ₹{dashboardData?.user_info?.wallet_balance || 0}
                     </Text>
                   </View>
                 </View>
@@ -253,36 +340,45 @@ export default function DrawerNavigation({ visible, onClose }: DrawerNavigationP
 
             {/* Menu Items */}
             <View style={dynamicStyles.menuSection}>
-
-
               <MenuItem
                 icon={<Car color={colors.textSecondary} size={20} />}
                 title="My Cars"
-                subtitle={`${user?.cars?.length || 0} vehicles registered`}
+                subtitle={`${dashboardData?.cars?.length || 0} vehicles`}
                 onPress={() => {
                   onClose();
-                  router.push('/my-cars');
+                  if (dashboardData?.cars && dashboardData.cars.length > 0) {
+                    router.push('/my-cars');
+                  } else {
+                    router.push('/add-car');
+                  }
                 }}
+                rightComponent={<ChevronRight color={colors.textSecondary} size={20} />}
               />
 
               <MenuItem
                 icon={<Users color={colors.textSecondary} size={20} />}
                 title="My Drivers"
-                subtitle="Manage your drivers"
+                subtitle={getDriverStatusSummary()}
                 onPress={() => {
                   onClose();
-                  router.push('/my-drivers');
+                  if (dashboardData?.drivers && dashboardData.drivers.length > 0) {
+                    router.push('/my-drivers');
+                  } else {
+                    router.push('/add-driver');
+                  }
                 }}
+                rightComponent={<ChevronRight color={colors.textSecondary} size={20} />}
               />
 
               <MenuItem
                 icon={<History color={colors.textSecondary} size={20} />}
-                title="My Rides"
-                subtitle="View trip history"
+                title="Trip History"
+                subtitle="View completed trips"
                 onPress={() => {
                   onClose();
                   router.push('/(tabs)/rides');
                 }}
+                rightComponent={<ChevronRight color={colors.textSecondary} size={20} />}
               />
 
               <MenuItem
@@ -293,6 +389,15 @@ export default function DrawerNavigation({ visible, onClose }: DrawerNavigationP
                   onClose();
                   router.push('/(tabs)/settings');
                 }}
+                rightComponent={<ChevronRight color={colors.textSecondary} size={20} />}
+              />
+
+              <MenuItem
+                icon={<User color={colors.textSecondary} size={20} />}
+                title="Refresh Data"
+                subtitle="Update user information"
+                onPress={handleRefreshUserData}
+                rightComponent={<ChevronRight color={colors.textSecondary} size={20} />}
               />
             </View>
 

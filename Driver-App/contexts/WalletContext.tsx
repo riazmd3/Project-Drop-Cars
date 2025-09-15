@@ -1,4 +1,15 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { 
+  getWalletBalance, 
+  getWalletLedger, 
+  addToWallet, 
+  deductFromWallet,
+  processWalletTopup,
+  handleRazorpayPaymentSuccess,
+  handleRazorpayPaymentFailure,
+  WalletBalance,
+  WalletTransaction 
+} from '@/services/paymentService';
 
 interface Transaction {
   id: string;
@@ -6,85 +17,275 @@ interface Transaction {
   amount: number;
   description: string;
   date: string;
+  payment_id?: string;
+  order_id?: string;
+  status: 'pending' | 'completed' | 'failed' | 'refunded';
+  metadata?: Record<string, any>;
 }
 
 interface WalletContextType {
   balance: number;
   transactions: Transaction[];
-  addMoney: (amount: number) => void;
-  deductMoney: (amount: number, description: string) => void;
+  loading: boolean;
+  error: string | null;
+  refreshBalance: () => Promise<void>;
+  refreshTransactions: () => Promise<void>;
+  addMoney: (amount: number, description?: string, metadata?: Record<string, any>) => Promise<void>;
+  deductMoney: (amount: number, description: string, metadata?: Record<string, any>) => Promise<void>;
+  processWalletTopup: (amount: number, userData: { name: string; email: string; contact: string }) => Promise<any>;
+  handlePaymentSuccess: (razorpayResponse: any) => Promise<void>;
+  handlePaymentFailure: (error: any) => void;
+  syncWithBackend: () => Promise<void>;
 }
 
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export function WalletProvider({ children }: { children: ReactNode }) {
-  const [balance, setBalance] = useState(1500);
-  const [transactions, setTransactions] = useState<Transaction[]>([
-    {
-      id: '1',
-      type: 'credit',
-      amount: 2000,
-      description: 'Initial Balance',
-      date: '2025-01-20 10:30 AM'
-    },
-    {
-      id: '2',
-      type: 'debit',
-      amount: 50,
-      description: 'Trip Commission',
-      date: '2025-01-19 05:45 PM'
-    },
-    {
-      id: '3',
-      type: 'debit',
-      amount: 450,
-      description: 'Trip Earnings Payout',
-      date: '2025-01-19 05:45 PM'
+  const [balance, setBalance] = useState(0);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Load initial data
+  useEffect(() => {
+    syncWithBackend();
+  }, []);
+
+  const syncWithBackend = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Fetch balance and transactions in parallel
+      const [balanceData, transactionsData] = await Promise.all([
+        getWalletBalance(),
+        getWalletLedger()
+      ]);
+
+      setBalance(balanceData.balance);
+      setTransactions(transactionsData);
+      
+      console.log('✅ Wallet synced with backend:', {
+        balance: balanceData.balance,
+        transactions: transactionsData.length
+      });
+    } catch (error: any) {
+      console.error('❌ Failed to sync wallet with backend:', error);
+      setError(error.message);
+      
+      // Fallback to local data if backend fails
+      setBalance(1500);
+      setTransactions([
+        {
+          id: '1',
+          type: 'credit',
+          amount: 2000,
+          description: 'Initial Balance',
+          date: '2025-01-20 10:30 AM',
+          status: 'completed'
+        },
+        {
+          id: '2',
+          type: 'debit',
+          amount: 50,
+          description: 'Trip Commission',
+          date: '2025-01-19 05:45 PM',
+          status: 'completed'
+        },
+        {
+          id: '3',
+          type: 'debit',
+          amount: 450,
+          description: 'Trip Earnings Payout',
+          date: '2025-01-19 05:45 PM',
+          status: 'completed'
+        }
+      ]);
+    } finally {
+      setLoading(false);
     }
-  ]);
-
-  const addMoney = (amount: number) => {
-    const newTransaction: Transaction = {
-      id: Date.now().toString(),
-      type: 'credit',
-      amount,
-      description: 'Wallet Top-up',
-      date: new Date().toLocaleString('en-IN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      })
-    };
-
-    setBalance(prev => prev + amount);
-    setTransactions(prev => [newTransaction, ...prev]);
   };
 
-  const deductMoney = (amount: number, description: string) => {
-    const newTransaction: Transaction = {
-      id: Date.now().toString(),
-      type: 'debit',
-      amount,
-      description,
-      date: new Date().toLocaleString('en-IN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true
-      })
-    };
+  const refreshBalance = async () => {
+    try {
+      const balanceData = await getWalletBalance();
+      setBalance(balanceData.balance);
+      console.log('✅ Balance refreshed:', balanceData.balance);
+    } catch (error: any) {
+      console.error('❌ Failed to refresh balance:', error);
+      setError(error.message);
+    }
+  };
 
-    setBalance(prev => prev - amount);
-    setTransactions(prev => [newTransaction, ...prev]);
+  const refreshTransactions = async () => {
+    try {
+      const transactionsData = await getWalletLedger();
+      setTransactions(transactionsData);
+      console.log('✅ Transactions refreshed:', transactionsData.length);
+    } catch (error: any) {
+      console.error('❌ Failed to refresh transactions:', error);
+      setError(error.message);
+    }
+  };
+
+  const addMoney = async (amount: number, description: string = 'Wallet Top-up', metadata?: Record<string, any>) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Call backend API to add money
+      const response = await addToWallet(amount, description, metadata);
+      
+      if (response.success) {
+        // Update local state
+        const newTransaction: Transaction = {
+          id: response.payment_id || Date.now().toString(),
+          type: 'credit',
+          amount,
+          description,
+          date: new Date().toLocaleString('en-IN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+          }),
+          payment_id: response.payment_id,
+          order_id: response.order_id,
+          status: 'completed',
+          metadata
+        };
+
+        setBalance(prev => prev + amount);
+        setTransactions(prev => [newTransaction, ...prev]);
+        
+        console.log('✅ Money added successfully:', { amount, newBalance: balance + amount });
+      } else {
+        throw new Error(response.message || 'Failed to add money');
+      }
+    } catch (error: any) {
+      console.error('❌ Failed to add money:', error);
+      setError(error.message);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deductMoney = async (amount: number, description: string, metadata?: Record<string, any>) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Call backend API to deduct money
+      const response = await deductFromWallet(amount, description, metadata);
+      
+      if (response.success) {
+        // Update local state
+        const newTransaction: Transaction = {
+          id: response.payment_id || Date.now().toString(),
+          type: 'debit',
+          amount,
+          description,
+          date: new Date().toLocaleString('en-IN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: true
+          }),
+          payment_id: response.payment_id,
+          order_id: response.order_id,
+          status: 'completed',
+          metadata
+        };
+
+        setBalance(prev => prev - amount);
+        setTransactions(prev => [newTransaction, ...prev]);
+        
+        console.log('✅ Money deducted successfully:', { amount, newBalance: balance - amount });
+      } else {
+        throw new Error(response.message || 'Failed to deduct money');
+      }
+    } catch (error: any) {
+      console.error('❌ Failed to deduct money:', error);
+      setError(error.message);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const processWalletTopupWithRazorpay = async (amount: number, userData: { name: string; email: string; contact: string }) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Create Razorpay order
+      const orderResponse = await processWalletTopup(amount, userData);
+      
+      if (orderResponse.success) {
+        console.log('✅ Razorpay order created for wallet top-up:', orderResponse.razorpay_order_id);
+        return orderResponse;
+      } else {
+        throw new Error('Failed to create Razorpay order');
+      }
+    } catch (error: any) {
+      console.error('❌ Failed to process wallet top-up:', error);
+      setError(error.message);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePaymentSuccess = async (razorpayResponse: any) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Verify payment and update wallet
+      const verificationResponse = await handleRazorpayPaymentSuccess(razorpayResponse);
+      
+      if (verificationResponse.success) {
+        // Refresh wallet data after successful payment
+        await syncWithBackend();
+        console.log('✅ Payment successful and wallet updated');
+      } else {
+        throw new Error('Payment verification failed');
+      }
+    } catch (error: any) {
+      console.error('❌ Failed to handle payment success:', error);
+      setError(error.message);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePaymentFailure = (error: any) => {
+    const failureResponse = handleRazorpayPaymentFailure(error);
+    setError(failureResponse.message);
+    console.error('❌ Payment failed:', failureResponse.message);
   };
 
   return (
-    <WalletContext.Provider value={{ balance, transactions, addMoney, deductMoney }}>
+    <WalletContext.Provider value={{ 
+      balance, 
+      transactions, 
+      loading, 
+      error,
+      refreshBalance,
+      refreshTransactions,
+      addMoney, 
+      deductMoney,
+      processWalletTopup: processWalletTopupWithRazorpay,
+      handlePaymentSuccess,
+      handlePaymentFailure,
+      syncWithBackend
+    }}>
       {children}
     </WalletContext.Provider>
   );
