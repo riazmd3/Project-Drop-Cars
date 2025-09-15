@@ -134,7 +134,8 @@ export default function SignUp() {
         router.push('/(auth)/signup-success');
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to create account. Please try again.');
+      // Alert.alert('Error', 'Failed to create account. Please try again.');
+      console.log("Error to Signup")
     }
   };
 
@@ -354,10 +355,6 @@ export default function SignUp() {
     </View>
   );
 
-  // Show error if any
-  if (error) {
-    Alert.alert('Error', error);
-  }
 
   return (
     <KeyboardAvoidingView 
