@@ -12,8 +12,9 @@ import {
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Car, Save, Upload, CheckCircle, FileText, Image, ChevronDown } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
-import { addCarDetails, testCarDetailsDataStructure } from '@/services/signupService';
+import { addCarDetails } from '@/services/signupService';
 import * as ImagePicker from 'expo-image-picker';
+import * as SecureStore from 'expo-secure-store';
 import axiosInstance from '@/app/api/axiosInstance';
 
 export default function AddCarScreen() {
@@ -42,52 +43,20 @@ export default function AddCarScreen() {
 
   const carTypes = ['HATCHBACK', 'SEDAN', 'NEW SEDAN', 'SUV', 'INNOVA', 'INNOVA CRYSTA'];
 
-  // Function to check account status and redirect accordingly
-  const checkAccountStatusAndRedirect = async () => {
+  // Function to redirect after successful car addition
+  const redirectAfterCarAddition = async () => {
     try {
-      // Get current user data to check account status
-      const response = await axiosInstance.post('/api/users/vehicleowner/login', {
-        mobile_number: user?.primaryMobile || '',
-        password: user?.password || ''
-      });
-
-      const accountStatus = response.data.account_status;
-      const carCount = response.data.car_details_count ?? 0;
-      const driverCount = response.data.car_driver_count ?? 0;
-
-      console.log('🔍 After car addition - Account status:', accountStatus);
-      console.log('🔍 After car addition - Car count:', carCount);
-      console.log('🔍 After car addition - Driver count:', driverCount);
-
-      // Check if user needs to add more documents
-      if (carCount === 0) {
-        // Still no cars (shouldn't happen, but just in case)
-        console.log('🚗 Still no cars, staying on add car page');
-        return;
-      }
-
-      if (driverCount === 0) {
-        // Cars added but no drivers - redirect to add driver
-        console.log('👤 Cars added but no drivers, redirecting to add driver page');
-        router.replace('/add-driver');
-        return;
-      }
-
-      // Both cars and drivers are added, check account status
-      if (accountStatus?.toLowerCase() !== 'active') {
-        // Documents uploaded but account is not active - show verification page
-        console.log('⏳ Documents uploaded but account not active, redirecting to verification');
-        router.replace('/login');
-        return;
-      }
-
-      // Everything is ready - go to dashboard
-      console.log('✅ Everything ready, proceeding to dashboard');
-      router.replace('/(tabs)');
+      console.log('🚗 Car added successfully, determining next step...');
+      
+      // Since we just successfully added a car, we know the user has at least 1 car
+      // The typical flow is: Add Car → Add Driver → Dashboard
+      // So let's redirect to add driver page
+      console.log('👤 Redirecting to add driver page...');
+      router.replace('/add-driver');
     } catch (error) {
-      console.error('❌ Error checking account status:', error);
-      // Fallback to dashboard if check fails
-      router.replace('/(tabs)');
+      console.error('❌ Error during redirect:', error);
+      // Fallback to add driver page
+      router.replace('/add-driver');
     }
   };
 
@@ -190,7 +159,6 @@ export default function AddCarScreen() {
         car_img: carImages.carImage
       };
 
-      testCarDetailsDataStructure(payload);
       await addCarDetails(payload);
 
       Alert.alert(
@@ -199,7 +167,7 @@ export default function AddCarScreen() {
         [
           {
             text: 'OK',
-            onPress: () => checkAccountStatusAndRedirect()
+            onPress: () => redirectAfterCarAddition()
           }
         ]
       );

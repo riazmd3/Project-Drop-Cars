@@ -29,7 +29,7 @@ export interface CarDriverResponse {
   address: string;
   aadhar_number: string;
   organization_id: string;
-  status: 'online' | 'offline' | 'busy' | 'inactive';
+  status: 'ONLINE' | 'DRIVING' | 'BLOCKED' | 'PROCESSING' | 'offline'| 'inactive';
   email?: string;
   license_number?: string;
   experience_years?: number;
@@ -110,7 +110,7 @@ export const signupCarDriver = async (request: CarDriverSignupRequest): Promise<
         address: request.address,
         aadhar_number: request.aadhar_number,
         organization_id: request.organization_id,
-        status: 'offline',
+        status: 'PROCESSING', // New drivers should be in PROCESSING status for verification
         email: request.email,
         license_number: request.license_number,
         experience_years: request.experience_years,
@@ -390,6 +390,44 @@ export const getCarDriver = async (driverId: string): Promise<CarDriverResponse>
 };
 
 /**
+ * Get drivers by vehicle owner ID
+ */
+export const getDriversByVehicleOwner = async (vehicleOwnerId: string): Promise<CarDriverResponse[]> => {
+  try {
+    console.log('👥 Fetching drivers by vehicle owner ID:', vehicleOwnerId);
+
+    const authHeaders = await getAuthHeaders();
+    const response = await axiosInstance.get(`/api/users/cardriver/vehicle-owner/${vehicleOwnerId}`, {
+      headers: authHeaders
+    });
+
+    if (response.data) {
+      console.log('✅ Drivers fetched by vehicle owner successfully:', response.data.length, 'drivers');
+      return response.data;
+    }
+
+    return [];
+  } catch (error: any) {
+    console.error('❌ Failed to fetch drivers by vehicle owner:', error);
+    
+    if (error.response?.status === 401) {
+      throw new Error('Authentication failed. Please login again.');
+    } else if (error.response?.status === 404) {
+      console.log('⚠️ No drivers found for vehicle owner:', vehicleOwnerId);
+      return [];
+    } else if (error.response?.status === 500) {
+      throw new Error('Server error. Please try again later.');
+    } else if (error.code === 'ECONNABORTED') {
+      throw new Error('Request timeout. Please check your connection.');
+    } else if (error.code === 'ERR_NETWORK') {
+      throw new Error('Network error. Please check your internet connection.');
+    } else {
+      throw new Error(error.message || 'Failed to fetch drivers by vehicle owner');
+    }
+  }
+};
+
+/**
  * Get drivers by organization
  */
 export const getDriversByOrganization = async (organizationId: string): Promise<CarDriverResponse[]> => {
@@ -555,7 +593,7 @@ export const deleteCarDriver = async (driverId: string): Promise<{ success: bool
  */
 export const searchDrivers = async (filters: {
   organization_id?: string;
-  status?: 'online' | 'offline' | 'busy' | 'inactive';
+  status?: 'online' | 'offline'| 'inactive';
   vehicle_type?: string;
   experience_min?: number;
   experience_max?: number;

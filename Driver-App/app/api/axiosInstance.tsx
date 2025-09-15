@@ -2,7 +2,7 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
 // For React Native, use machine IP instead of localhost
-const API_BASE_URL = 'http://10.250.253.145:8000'; // Physical Emulator
+const API_BASE_URL = 'http://10.100.155.145:8000'; // Physical Emulator
 
 console.log('🔧 API Config:', { baseURL: API_BASE_URL });
 
@@ -85,6 +85,12 @@ axiosInstance.interceptors.response.use(
     if (error.response?.status >= 200 && error.response?.status < 300) {
       console.log('🔄 Converting partial success response to success');
       return Promise.resolve(error.response);
+    }
+    
+    // Don't convert 4xx and 5xx errors to success
+    if (error.response?.status >= 400) {
+      console.log('❌ HTTP error response, not converting to success:', error.response.status);
+      return Promise.reject(error);
     }
     
     return Promise.reject(error);

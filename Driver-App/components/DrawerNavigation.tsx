@@ -69,6 +69,62 @@ export default function DrawerNavigation({ visible, onClose }: DrawerNavigationP
     }
   };
 
+  const getDriverStatusSummary = () => {
+    if (!dashboardData?.drivers || dashboardData.drivers.length === 0) {
+      console.log('🔍 No drivers found in dashboard data');
+      return '0 drivers';
+    }
+
+    const drivers = dashboardData.drivers;
+    console.log('🔍 Driver status summary - Total drivers:', drivers.length);
+    console.log('🔍 Driver statuses:', drivers.map(d => ({ name: d.full_name, status: d.driver_status })));
+
+    const statusCounts = {
+      ONLINE: 0,
+      OFFLINE: 0,
+      DRIVING: 0,
+      BLOCKED: 0,
+      PROCESSING: 0,
+      OTHER: 0
+    };
+
+    drivers.forEach(driver => {
+      const status = driver.driver_status?.toUpperCase();
+      console.log(`🔍 Processing driver ${driver.full_name} with status: ${status}`);
+      if (statusCounts.hasOwnProperty(status)) {
+        statusCounts[status]++;
+      } else {
+        statusCounts.OTHER++;
+      }
+    });
+
+    console.log('🔍 Status counts:', statusCounts);
+
+    const total = drivers.length;
+    const onlineCount = statusCounts.ONLINE;
+    const offlineCount = statusCounts.OFFLINE;
+    const drivingCount = statusCounts.DRIVING;
+    const blockedCount = statusCounts.BLOCKED;
+    const processingCount = statusCounts.PROCESSING;
+
+    // Show online and offline drivers prominently
+    if (onlineCount > 0 && offlineCount > 0) {
+      return `${total} drivers • ${onlineCount} online • ${offlineCount} offline`;
+    } else if (onlineCount > 0) {
+      return `${total} drivers • ${onlineCount} online`;
+    } else if (offlineCount > 0) {
+      return `${total} drivers • ${offlineCount} offline`;
+    } else if (drivingCount > 0) {
+      return `${total} drivers • ${drivingCount} on duty`;
+    } else if (blockedCount > 0) {
+      return `${total} drivers • ${blockedCount} blocked`;
+    } else if (processingCount > 0) {
+      return `${total} drivers • ${processingCount} verifying`;
+    } else {
+      return `${total} drivers`;
+    }
+  };
+
   const dynamicStyles = StyleSheet.create({
     overlay: {
       flex: 1,
@@ -302,7 +358,7 @@ export default function DrawerNavigation({ visible, onClose }: DrawerNavigationP
               <MenuItem
                 icon={<Users color={colors.textSecondary} size={20} />}
                 title="My Drivers"
-                subtitle={`${dashboardData?.drivers?.length || 0} drivers`}
+                subtitle={getDriverStatusSummary()}
                 onPress={() => {
                   onClose();
                   if (dashboardData?.drivers && dashboardData.drivers.length > 0) {

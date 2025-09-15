@@ -52,28 +52,34 @@ export const signupAccount = async (personalData: any, documents: any): Promise<
         console.log('🖼️ Image appended to FormData:', { uri: imageUri, type: imageType, name: imageName });
       }
       
-      // Helper function to format phone numbers for backend
+      // Helper function to format phone numbers for backend - send 10 digits only
       const formatPhoneForBackend = (phone: string): string => {
-        if (!phone) return '';
-        // Remove +91 prefix if present and ensure it's properly formatted
-        const cleanPhone = phone.replace(/^\+91/, '');
-        // Add +91 prefix back
-        return `+91${cleanPhone}`;
+        if (!phone || !phone.trim()) return '';
+        // Remove +91 prefix and any non-digit characters, keep only 10 digits
+        const cleanPhone = phone.replace(/^\+91/, '').replace(/\D/g, '').trim();
+        if (!cleanPhone) return '';
+        // Return only the last 10 digits (in case there are more)
+        return cleanPhone.slice(-10);
       };
 
-      // Append all other fields
-      formData.append('full_name', personalData.fullName || '');
-      formData.append('primary_number', formatPhoneForBackend(personalData.primaryMobile || ''));
-      formData.append('secondary_number', personalData.secondaryMobile ? formatPhoneForBackend(personalData.secondaryMobile) : '');
-      formData.append('password', personalData.password || '');
-      formData.append('address', personalData.address || '');
-      formData.append('aadhar_number', personalData.aadharNumber || '');
-      formData.append('organization_id', personalData.organizationId || 'org_001');
+       // Append all other fields
+       formData.append('full_name', personalData.fullName || '');
+       formData.append('primary_number', formatPhoneForBackend(personalData.primaryMobile || ''));
+       // Only append secondary_number if it has a value, otherwise skip it entirely
+       const formattedSecondary = formatPhoneForBackend(personalData.secondaryMobile || '');
+       if (formattedSecondary) {
+         formData.append('secondary_number', formattedSecondary);
+       }
+       // Don't append anything if secondary number is empty - let backend handle it as optional
+       formData.append('password', personalData.password || '');
+       formData.append('address', personalData.address || '');
+       formData.append('aadhar_number', personalData.aadharNumber || '');
+       formData.append('organization_id', personalData.organizationId || 'org_001');
       
       console.log('📤 FormData created with fields:', {
         full_name: personalData.fullName,
-        primary_number: personalData.primaryMobile,
-        secondary_number: personalData.secondaryMobile,
+        primary_number: formatPhoneForBackend(personalData.primaryMobile || ''),
+        secondary_number: formattedSecondary || 'Not provided (skipped)',
         password: personalData.password,
         address: personalData.address,
         aadhar_number: personalData.aadharNumber,
@@ -230,14 +236,15 @@ export const signupAndLogin = async (personalData: any, documents: any) => {
     throw new Error('Signup did not complete successfully');
   }
 
-  // Use the SAME phone number format for login as used in signup
+  // Use the SAME phone number format for login as used in signup - send 10 digits only
   // Apply the same formatting function to ensure consistency
   const formatPhoneForBackend = (phone: string): string => {
-    if (!phone) return '';
-    // Remove +91 prefix if present and ensure it's properly formatted
-    const cleanPhone = phone.replace(/^\+91/, '');
-    // Add +91 prefix back
-    return `+91${cleanPhone}`;
+    if (!phone || !phone.trim()) return '';
+    // Remove +91 prefix and any non-digit characters, keep only 10 digits
+    const cleanPhone = phone.replace(/^\+91/, '').replace(/\D/g, '').trim();
+    if (!cleanPhone) return '';
+    // Return only the last 10 digits (in case there are more)
+    return cleanPhone.slice(-10);
   };
   
   const mobileForLogin = formatPhoneForBackend(personalData.primaryMobile || '');
@@ -317,11 +324,11 @@ export const loginVehicleOwner = async (mobileNumber: string, password: string):
     
     console.log('✅ Login successful:', response.data);
     
-          // Store the access token securely
-      if (response.data.access_token) {
-        await authService.setToken(response.data.access_token);
-        console.log('🔒 Access token stored securely');
-      }
+    // Store the access token securely
+    if (response.data.access_token) {
+      await authService.setToken(response.data.access_token);
+      console.log('🔒 Access token stored securely');
+    }
     
     return response.data;
   } catch (error: any) {

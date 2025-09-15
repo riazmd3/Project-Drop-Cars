@@ -82,23 +82,17 @@ const MOCK_DATA = {
   ] as WalletTransaction[]
 };
 
-// Check if backend is available
+// Check if backend is available (no longer calls /api/health)
 const isBackendAvailable = async (): Promise<boolean> => {
-  try {
-    const response = await axiosInstance.get('/api/health', { timeout: 3000 });
-    return response.status === 200;
-  } catch (error) {
-    console.log('🔧 Backend not available, using mock data');
-    return false;
-  }
+  return true;
 };
 
 /**
- * Create a payment order on the backend
+ * Create a Razorpay order on the backend
  */
-export const createPaymentOrder = async (request: PaymentRequest): Promise<PaymentResponse> => {
+export const createRazorpayOrder = async (amount: number, currency: string = 'INR', notes: Record<string, any> = {}): Promise<PaymentResponse> => {
   try {
-    console.log('💰 Creating payment order:', request);
+    console.log('💰 Creating Razorpay order:', { amount, currency, notes });
     
     // Check if backend is available
     const backendAvailable = await isBackendAvailable();
@@ -106,100 +100,129 @@ export const createPaymentOrder = async (request: PaymentRequest): Promise<Payme
     if (!backendAvailable) {
       // Mock response for development
       const mockOrderId = `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      console.log('🔧 Using mock payment order:', mockOrderId);
+      console.log('🔧 Using mock Razorpay order:', mockOrderId);
       
       return {
         success: true,
-        message: 'Payment order created successfully (mock)',
+        message: 'Razorpay order created successfully (mock)',
         order_id: mockOrderId,
-        amount: request.amount,
-        currency: request.currency,
+        razorpay_order_id: mockOrderId,
+        amount: amount,
+        currency: currency,
         status: 'created'
       };
     }
     
     const authHeaders = await getAuthHeaders();
-    const response = await axiosInstance.post('/api/payments/create-order', request, {
+    const response = await axiosInstance.post('/api/wallet/razorpay/order', {
+      amount: amount * 100, // Convert to paise
+      currency,
+      notes
+    }, {
       headers: authHeaders
     });
 
     if (response.data) {
-      console.log('✅ Payment order created:', response.data);
-      return response.data;
+      console.log('✅ Razorpay order created:', response.data);
+      return {
+        success: true,
+        message: 'Razorpay order created successfully',
+        order_id: response.data.rp_order_id,
+        razorpay_order_id: response.data.rp_order_id,
+        amount: response.data.amount / 100, // Convert back from paise
+        currency: response.data.currency,
+        status: 'created'
+      };
     }
 
-    throw new Error('No response data received from payment order creation');
+    throw new Error('No response data received from Razorpay order creation');
   } catch (error: any) {
-    console.error('❌ Failed to create payment order:', error);
+    console.error('❌ Failed to create Razorpay order:', error);
     
     // Return mock response if backend fails
     const mockOrderId = `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    console.log('🔧 Fallback to mock payment order:', mockOrderId);
+    console.log('🔧 Fallback to mock Razorpay order:', mockOrderId);
     
     return {
       success: true,
-      message: 'Payment order created successfully (fallback)',
+      message: 'Razorpay order created successfully (fallback)',
       order_id: mockOrderId,
-      amount: request.amount,
-      currency: request.currency,
+      razorpay_order_id: mockOrderId,
+      amount: amount,
+      currency: currency,
       status: 'created'
     };
   }
 };
 
 /**
- * Verify payment signature and update wallet
+ * Verify Razorpay payment signature and update wallet
  */
-export const verifyPayment = async (
-  paymentId: string,
-  orderId: string,
-  signature: string
+export const verifyRazorpayPayment = async (
+  rpOrderId: string,
+  rpPaymentId: string,
+  rpSignature: string
 ): Promise<PaymentResponse> => {
   try {
-    console.log('🔍 Verifying payment:', { paymentId, orderId });
+    console.log('🔍 Verifying Razorpay payment:', { rpOrderId, rpPaymentId });
     
     // Check if backend is available
     const backendAvailable = await isBackendAvailable();
     
     if (!backendAvailable) {
       // Mock verification for development
-      console.log('🔧 Using mock payment verification');
+      console.log('🔧 Using mock Razorpay payment verification');
       
       return {
         success: true,
-        message: 'Payment verified successfully (mock)',
-        payment_id: paymentId,
-        order_id: orderId,
+        message: 'Razorpay payment verified successfully (mock)',
+        payment_id: rpPaymentId,
+        order_id: rpOrderId,
+        razorpay_payment_id: rpPaymentId,
+        razorpay_order_id: rpOrderId,
+        razorpay_signature: rpSignature,
         status: 'captured'
       };
     }
     
     const authHeaders = await getAuthHeaders();
-    const response = await axiosInstance.post('/api/payments/verify', {
-      razorpay_payment_id: paymentId,
-      razorpay_order_id: orderId,
-      razorpay_signature: signature
+    const response = await axiosInstance.post('/api/wallet/razorpay/verify', {
+      rp_order_id: rpOrderId,
+      rp_payment_id: rpPaymentId,
+      rp_signature: rpSignature
     }, {
       headers: authHeaders
     });
 
     if (response.data) {
-      console.log('✅ Payment verified successfully:', response.data);
-      return response.data;
+      console.log('✅ Razorpay payment verified successfully:', response.data);
+      return {
+        success: true,
+        message: 'Razorpay payment verified successfully',
+        payment_id: rpPaymentId,
+        order_id: rpOrderId,
+        razorpay_payment_id: rpPaymentId,
+        razorpay_order_id: rpOrderId,
+        razorpay_signature: rpSignature,
+        status: 'captured'
+      };
     }
 
-    throw new Error('No response data received from payment verification');
+    throw new Error('No response data received from Razorpay payment verification');
   } catch (error: any) {
-    console.error('❌ Failed to verify payment:', error);
+    console.error('❌ Failed to verify Razorpay payment:', error);
     
     // Return mock response if backend fails
-    console.log('🔧 Fallback to mock payment verification');
+    console.log('🔧 Fallback to mock Razorpay payment verification');
     
     return {
       success: true,
-      message: 'Payment verified successfully (fallback)',
-      payment_id: paymentId,
-      order_id: orderId,
+      message: 'Razorpay payment verified successfully (fallback)',
+      payment_id: rpPaymentId,
+      order_id: rpOrderId,
+      razorpay_payment_id: rpPaymentId,
+      razorpay_order_id: rpOrderId,
+      razorpay_signature: rpSignature,
       status: 'captured'
     };
   }
@@ -233,7 +256,11 @@ export const getWalletBalance = async (): Promise<WalletBalance> => {
 
     if (response.data) {
       console.log('✅ Wallet balance fetched:', response.data);
-      return response.data;
+      return {
+        balance: response.data.current_balance,
+        currency: 'INR',
+        last_updated: new Date().toISOString()
+      };
     }
 
     throw new Error('No response data received from wallet balance fetch');
@@ -252,37 +279,37 @@ export const getWalletBalance = async (): Promise<WalletBalance> => {
 };
 
 /**
- * Get wallet transactions from backend
+ * Get wallet ledger from backend
  */
-export const getWalletTransactions = async (): Promise<WalletTransaction[]> => {
+export const getWalletLedger = async (): Promise<WalletTransaction[]> => {
   try {
-    console.log('📋 Fetching wallet transactions...');
+    console.log('📋 Fetching wallet ledger...');
     
     // Check if backend is available
     const backendAvailable = await isBackendAvailable();
     
     if (!backendAvailable) {
       // Return mock transactions for development
-      console.log('🔧 Using mock wallet transactions:', MOCK_DATA.transactions.length);
+      console.log('🔧 Using mock wallet ledger:', MOCK_DATA.transactions.length);
       return MOCK_DATA.transactions;
     }
     
     const authHeaders = await getAuthHeaders();
-    const response = await axiosInstance.get('/api/wallet/transactions', {
+    const response = await axiosInstance.get('/api/wallet/ledger', {
       headers: authHeaders
     });
 
     if (response.data) {
-      console.log('✅ Wallet transactions fetched:', response.data.length, 'transactions');
+      console.log('✅ Wallet ledger fetched:', response.data.length, 'entries');
       return response.data;
     }
 
     return [];
   } catch (error: any) {
-    console.error('❌ Failed to fetch wallet transactions:', error);
+    console.error('❌ Failed to fetch wallet ledger:', error);
     
     // Return mock transactions if backend fails
-    console.log('🔧 Fallback to mock wallet transactions:', MOCK_DATA.transactions.length);
+    console.log('🔧 Fallback to mock wallet ledger:', MOCK_DATA.transactions.length);
     return MOCK_DATA.transactions;
   }
 };
@@ -503,6 +530,96 @@ export const getRazorpayOptions = (
         console.log('Payment modal dismissed');
       }
     }
+  };
+};
+
+/**
+ * Process wallet top-up with Razorpay
+ */
+export const processWalletTopup = async (
+  amount: number,
+  userData: {
+    name: string;
+    email: string;
+    contact: string;
+  }
+): Promise<PaymentResponse> => {
+  try {
+    console.log('💰 Processing wallet top-up:', { amount, userData });
+    
+    // Step 1: Create Razorpay order
+    const orderResponse = await createRazorpayOrder(amount, 'INR', { purpose: 'wallet_topup' });
+    
+    if (!orderResponse.success || !orderResponse.razorpay_order_id) {
+      throw new Error('Failed to create Razorpay order');
+    }
+    
+    console.log('✅ Razorpay order created:', orderResponse.razorpay_order_id);
+    
+    // Step 2: Return order details for Razorpay checkout
+    return {
+      success: true,
+      message: 'Razorpay order created successfully',
+      order_id: orderResponse.razorpay_order_id,
+      razorpay_order_id: orderResponse.razorpay_order_id,
+      amount: amount,
+      currency: 'INR',
+      status: 'created'
+    };
+    
+  } catch (error: any) {
+    console.error('❌ Failed to process wallet top-up:', error);
+    throw error;
+  }
+};
+
+/**
+ * Handle Razorpay payment success callback
+ */
+export const handleRazorpayPaymentSuccess = async (
+  razorpayResponse: {
+    razorpay_payment_id: string;
+    razorpay_order_id: string;
+    razorpay_signature: string;
+  }
+): Promise<PaymentResponse> => {
+  try {
+    console.log('🎉 Handling Razorpay payment success:', razorpayResponse);
+    
+    // Verify payment with backend
+    const verificationResponse = await verifyRazorpayPayment(
+      razorpayResponse.razorpay_order_id,
+      razorpayResponse.razorpay_payment_id,
+      razorpayResponse.razorpay_signature
+    );
+    
+    if (verificationResponse.success) {
+      console.log('✅ Payment verified and wallet updated successfully');
+      return verificationResponse;
+    } else {
+      throw new Error('Payment verification failed');
+    }
+    
+  } catch (error: any) {
+    console.error('❌ Failed to handle payment success:', error);
+    throw error;
+  }
+};
+
+/**
+ * Handle Razorpay payment failure
+ */
+export const handleRazorpayPaymentFailure = (error: any) => {
+  console.error('❌ Razorpay payment failed:', error);
+  
+  // You can add additional error handling here
+  // For example, show user-friendly error messages
+  const errorMessage = error.error?.description || 'Payment failed. Please try again.';
+  
+  return {
+    success: false,
+    message: errorMessage,
+    status: 'failed'
   };
 };
 

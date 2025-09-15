@@ -1,9 +1,10 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { DashboardData, fetchDashboardData } from '@/services/dashboardService';
+import { DashboardData, fetchDashboardData, fetchAvailableDrivers, DriverDetail } from '@/services/dashboardService';
 
 export interface FutureRide {
   id: string;
   booking_id: string;
+  assignment_id?: string; // Add assignment_id for assignment operations
   pickup: string;
   drop: string;
   customer_name: string;
@@ -28,6 +29,11 @@ interface DashboardContextType {
   futureRides: FutureRide[];
   addFutureRide: (ride: FutureRide) => void;
   updateFutureRide: (ride: FutureRide) => void;
+  availableDrivers: DriverDetail[];
+  availableDriversLoading: boolean;
+  availableDriversError: string | null;
+  fetchAvailableDriversData: () => Promise<void>;
+  refreshAvailableDrivers: () => Promise<void>;
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
@@ -37,6 +43,9 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [futureRides, setFutureRides] = useState<FutureRide[]>([]);
+  const [availableDrivers, setAvailableDrivers] = useState<DriverDetail[]>([]);
+  const [availableDriversLoading, setAvailableDriversLoading] = useState(false);
+  const [availableDriversError, setAvailableDriversError] = useState<string | null>(null);
 
   // Auto-fetch data when context is created
   useEffect(() => {
@@ -92,6 +101,32 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
     setFutureRides(prev => prev.map(r => (r.id === ride.id ? ride : r)));
   };
 
+  const fetchAvailableDriversData = async () => {
+    try {
+      setAvailableDriversLoading(true);
+      setAvailableDriversError(null);
+      console.log('👥 Fetching available drivers data from context...');
+      const drivers = await fetchAvailableDrivers();
+      setAvailableDrivers(drivers);
+      console.log('✅ Available drivers data loaded in context:', drivers.length, 'drivers');
+    } catch (error: any) {
+      console.error('❌ Failed to fetch available drivers data in context:', error);
+      const errorMessage = error.message || 'Failed to load available drivers data';
+      setAvailableDriversError(errorMessage);
+      
+      // If it's an authentication error, we might want to redirect to login
+      if (error.message?.includes('Authentication failed') || error.message?.includes('401')) {
+        console.log('🔐 Authentication error detected for available drivers, user may need to login again');
+      }
+    } finally {
+      setAvailableDriversLoading(false);
+    }
+  };
+
+  const refreshAvailableDrivers = async () => {
+    await fetchAvailableDriversData();
+  };
+
   return (
     <DashboardContext.Provider value={{
       dashboardData,
@@ -102,7 +137,12 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       clearError,
       futureRides,
       addFutureRide,
-      updateFutureRide
+      updateFutureRide,
+      availableDrivers,
+      availableDriversLoading,
+      availableDriversError,
+      fetchAvailableDriversData,
+      refreshAvailableDrivers
     }}>
       {children}
     </DashboardContext.Provider>

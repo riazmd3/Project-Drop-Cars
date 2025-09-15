@@ -8,6 +8,7 @@ import {
   Alert,
   ScrollView,
   SafeAreaView,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, User, Save, Upload, CheckCircle, FileText, Image, Phone, Lock, MapPin, CreditCard } from 'lucide-react-native';
@@ -36,6 +37,7 @@ export default function AddDriverScreen() {
   });
 
   const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const router = useRouter();
   const { user } = useAuth();
@@ -174,6 +176,12 @@ export default function AddDriverScreen() {
   };
 
   const handleSave = async () => {
+    // Prevent duplicate submissions
+    if (isSubmitting) {
+      console.log('⚠️ Driver registration already in progress, ignoring duplicate submission');
+      return;
+    }
+
     // Clear previous errors
     setErrors({});
 
@@ -190,6 +198,9 @@ export default function AddDriverScreen() {
     }
 
     try {
+      setIsSubmitting(true);
+      console.log('🚀 Starting driver registration (preventing duplicates)...');
+
       const payload: DriverDetails = {
         full_name: driverData.full_name.trim(),
         primary_number: driverData.primary_number.trim(), // Send as entered
@@ -221,7 +232,24 @@ export default function AddDriverScreen() {
       );
     } catch (error: any) {
       console.error('Error adding driver:', error);
-      Alert.alert('Error', error.message || 'Failed to add driver details');
+      
+      // Check if it's a duplicate registration error
+      if (error.message && error.message.includes('already registered')) {
+        Alert.alert(
+          'Driver Already Exists',
+          'This driver is already registered. Redirecting to dashboard...',
+          [
+            {
+              text: 'OK',
+              onPress: () => checkAccountStatusAndRedirect()
+            }
+          ]
+        );
+      } else {
+        Alert.alert('Error', error.message || 'Failed to add driver details');
+      }
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -372,9 +400,22 @@ export default function AddDriverScreen() {
             isRequired={false}
           />
 
-          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-            <Save color="#FFFFFF" size={20} />
-            <Text style={styles.saveButtonText}>Save Driver & Continue</Text>
+          <TouchableOpacity 
+            style={[styles.saveButton, isSubmitting && styles.saveButtonDisabled]} 
+            onPress={handleSave}
+            disabled={isSubmitting}
+          >
+            {isSubmitting ? (
+              <>
+                <ActivityIndicator color="#FFFFFF" size={20} />
+                <Text style={styles.saveButtonText}>Saving Driver...</Text>
+              </>
+            ) : (
+              <>
+                <Save color="#FFFFFF" size={20} />
+                <Text style={styles.saveButtonText}>Save Driver & Continue</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -553,6 +594,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 24,
     marginBottom: 20,
+  },
+  saveButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+    opacity: 0.7,
   },
   saveButtonText: {
     color: '#FFFFFF',

@@ -18,8 +18,8 @@ import { useRouter } from 'expo-router';
 import { Menu, Wallet, MapPin, Clock, User, Phone, Car, RefreshCw } from 'lucide-react-native';
 import BookingCard from '@/components/BookingCard';
 import DrawerNavigation from '@/components/DrawerNavigation';
-import { fetchDashboardData, DashboardData, fetchPendingOrders, PendingOrder, forceRefreshDashboardData, debugCarDriverEndpoints } from '@/services/dashboardService';
-import { acceptOrder, testOrderAcceptanceAPI, checkOrderAvailability } from '@/services/assignmentService';
+import { fetchDashboardData, DashboardData, fetchPendingOrders, PendingOrder, forceRefreshDashboardData, debugCarDriverEndpoints, debugDriverCountIssue } from '@/services/dashboardService';
+import { acceptOrder, testOrderAcceptanceAPI, checkOrderAvailability, getAvailableBookings } from '@/services/assignmentService';
 
 interface Booking {
   booking_id: string;
@@ -50,6 +50,30 @@ export default function DashboardScreen() {
   const [debugMode, setDebugMode] = useState(false);
 
   const canAcceptBookings = balance >= 1000;
+
+  // Helper function to extract pickup and drop locations from the API response
+  const getPickupDropLocations = (pickupDropLocation: any) => {
+    if (!pickupDropLocation) return { pickup: 'Unknown', drop: 'Unknown' };
+    
+    // Handle array format: { "0": "Chennai", "1": "Gingee" }
+    if (typeof pickupDropLocation === 'object' && pickupDropLocation['0'] && pickupDropLocation['1']) {
+      return {
+        pickup: pickupDropLocation['0'],
+        drop: pickupDropLocation['1']
+      };
+    }
+    
+    // Handle object format: { pickup: "Chennai", drop: "Gingee" }
+    if (pickupDropLocation.pickup && pickupDropLocation.drop) {
+      return {
+        pickup: pickupDropLocation.pickup,
+        drop: pickupDropLocation.drop
+      };
+    }
+    
+    // Fallback
+    return { pickup: 'Unknown', drop: 'Unknown' };
+  };
 
   // Debug logging
   useEffect(() => {
@@ -88,10 +112,11 @@ export default function DashboardScreen() {
       // New orders received
       const newOrders = pendingOrders.slice(previousOrderCount);
       newOrders.forEach(order => {
+        const locations = getPickupDropLocations(order.pickup_drop_location);
         sendNewOrderNotification({
           orderId: order.order_id.toString(),
-          pickup: order.pickup_drop_location.pickup,
-          drop: order.pickup_drop_location.drop,
+          pickup: locations.pickup,
+          drop: locations.drop,
           customerName: order.customer_name,
           customerMobile: order.customer_number,
           distance: order.trip_distance,
@@ -109,10 +134,21 @@ export default function DashboardScreen() {
   const fetchPendingOrdersData = async () => {
     try {
       setOrdersLoading(true);
-      console.log('📋 Fetching pending orders for dashboard...');
-      const orders = await fetchPendingOrders();
+      console.log('📋 Fetching available bookings for dashboard...');
+      
+      // Try the new API endpoint first
+      let orders;
+      try {
+        orders = await getAvailableBookings();
+        console.log('✅ Available bookings loaded from new API:', orders.length);
+      } catch (newApiError) {
+        console.log('⚠️ New API failed, falling back to old API:', newApiError);
+        // Fallback to old API if new one fails
+        orders = await fetchPendingOrders();
+        console.log('✅ Pending orders loaded from fallback API:', orders.length);
+      }
+      
       setPendingOrders(orders);
-      console.log('✅ Pending orders loaded:', orders.length);
     } catch (error) {
       console.error('❌ Failed to fetch pending orders:', error);
       // Don't show error alert, just log it
@@ -151,18 +187,81 @@ export default function DashboardScreen() {
       const carDriverResult = await debugCarDriverEndpoints();
       console.log('📊 Car/Driver endpoints debug result:', carDriverResult);
       
+      // Test new available bookings API
+      let availableBookingsResult: { success: boolean; error?: string; count?: number; data?: any[] } = { success: false, error: 'Not tested' };
+      try {
+        const bookings = await getAvailableBookings();
+        availableBookingsResult = { success: true, count: bookings.length, data: bookings };
+        console.log('📊 Available bookings debug result:', availableBookingsResult);
+      } catch (bookingsError: any) {
+        availableBookingsResult = { success: false, error: bookingsError.message };
+        console.log('❌ Available bookings debug failed:', bookingsError);
+      }
+      
       // Show summary
       const successfulCarEndpoints = carDriverResult.cars.filter((r: any) => r.success).length;
       const successfulDriverEndpoints = carDriverResult.drivers.filter((r: any) => r.success).length;
       
+      // Debug driver status specifically
+      console.log('🔍 Current dashboard data drivers:', dashboardData?.drivers);
+      console.log('🔍 Driver count:', dashboardData?.drivers?.length || 0);
+      if (dashboardData?.drivers) {
+        dashboardData.drivers.forEach((driver, index) => {
+          console.log(`🔍 Driver ${index + 1}:`, {
+            name: driver.full_name,
+            status: driver.driver_status,
+            id: driver.id
+          });
+        });
+      }
+      
       Alert.alert(
         'API Debug Test',
-        `Test completed!\n\nResults logged to console.\n\nOrder API: ${orderResult.success ? 'OK' : 'Failed'}\nCar endpoints: ${successfulCarEndpoints}/6 working\nDriver endpoints: ${successfulDriverEndpoints}/6 working`,
+        `Test completed!\n\nResults logged to console.\n\nOrder API: ${orderResult.success ? 'OK' : 'Failed'}\nAvailable Bookings: ${availableBookingsResult.success ? `OK (${availableBookingsResult.count} bookings)` : 'Failed'}\nCar endpoints: ${successfulCarEndpoints}/6 working\nDriver endpoints: ${successfulDriverEndpoints}/6 working\n\nCurrent drivers: ${dashboardData?.drivers?.length || 0}`,
         [{ text: 'OK' }]
       );
     } catch (error: any) {
       console.error('❌ Debug test failed:', error);
       Alert.alert('Debug Test Failed', error.message);
+    }
+  };
+
+  const handleDebugDriverCount = async () => {
+    try {
+      console.log('🧪 Starting driver count debug test...');
+      
+      const result = await debugDriverCountIssue();
+      console.log('👥 Driver count debug result:', result);
+      
+      const successfulEndpoints = result.drivers.filter((d: any) => d.success);
+      const totalDrivers = successfulEndpoints.reduce((sum: number, d: any) => sum + (d.dataLength || 0), 0);
+      
+      Alert.alert(
+        'Driver Count Debug Complete',
+        `Total drivers found: ${totalDrivers}\nSuccessful endpoints: ${successfulEndpoints.length}\nCheck console for detailed breakdown.`,
+        [{ text: 'OK' }]
+      );
+    } catch (error: any) {
+      console.error('❌ Driver count debug failed:', error);
+      Alert.alert('Driver Count Debug Failed', error.message || 'Unknown error');
+    }
+  };
+
+  const handleTestAvailableBookings = async () => {
+    try {
+      console.log('🧪 Testing available bookings API...');
+      
+      const bookings = await getAvailableBookings();
+      console.log('📊 Available bookings result:', bookings);
+      
+      Alert.alert(
+        'Available Bookings Test',
+        `Test completed!\n\nFound ${bookings.length} available bookings.\n\nResults logged to console.`,
+        [{ text: 'OK' }]
+      );
+    } catch (error: any) {
+      console.error('❌ Available bookings test failed:', error);
+      Alert.alert('Available Bookings Test Failed', error.message);
     }
   };
 
@@ -395,6 +494,25 @@ export default function DashboardScreen() {
       fontSize: 12,
       fontWeight: 'bold',
     },
+    debugSection: {
+      backgroundColor: '#F3F4F6',
+      borderRadius: 8,
+      padding: 12,
+      marginTop: 16,
+      marginBottom: 16,
+    },
+    debugTitle: {
+      fontSize: 14,
+      fontFamily: 'Inter-Bold',
+      color: '#374151',
+      marginBottom: 8,
+    },
+    debugText: {
+      fontSize: 12,
+      fontFamily: 'Inter-Regular',
+      color: '#6B7280',
+      marginBottom: 4,
+    },
   });
   const handleAcceptBooking = (order: PendingOrder) => {
     if (!canAcceptBookings) {
@@ -406,9 +524,10 @@ export default function DashboardScreen() {
       return;
     }
 
+    const locations = getPickupDropLocations(order.pickup_drop_location);
     Alert.alert(
       'Accept Booking',
-      `Accept trip from ${order.pickup_drop_location.pickup} to ${order.pickup_drop_location.drop}?`,
+      `Accept trip from ${locations.pickup} to ${locations.drop}?`,
       [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Accept', onPress: () => acceptBooking(order) }
@@ -454,11 +573,12 @@ export default function DashboardScreen() {
         // Remove order from pending list
         setPendingOrders(prev => prev.filter(o => o.order_id !== order.order_id));
 
+        const locations = getPickupDropLocations(order.pickup_drop_location);
         const ride: FutureRide = {
           id: order.order_id.toString(),
           booking_id: `B${order.order_id}`,
-          pickup: order.pickup_drop_location.pickup,
-          drop: order.pickup_drop_location.drop,
+          pickup: locations.pickup,
+          drop: locations.drop,
           customer_name: order.customer_name,
           customer_mobile: order.customer_number,
           date: new Date().toISOString().slice(0, 10),
@@ -476,8 +596,8 @@ export default function DashboardScreen() {
         // Send notification for accepted order
         sendOrderAssignedNotification({
           orderId: order.order_id.toString(),
-          pickup: order.pickup_drop_location.pickup,
-          drop: order.pickup_drop_location.drop,
+          pickup: locations.pickup,
+          drop: locations.drop,
           customerName: order.customer_name,
           customerMobile: order.customer_number,
           distance: order.trip_distance,
@@ -550,9 +670,14 @@ export default function DashboardScreen() {
             <Wallet color={colors.primary} size={24} />
           </TouchableOpacity>
           {debugMode && (
-            <TouchableOpacity onPress={handleDebugAPI} style={dynamicStyles.debugButton}>
-              <Text style={dynamicStyles.debugButtonText}>Debug</Text>
-            </TouchableOpacity>
+            <>
+              <TouchableOpacity onPress={handleDebugAPI} style={dynamicStyles.debugButton}>
+                <Text style={dynamicStyles.debugButtonText}>Debug</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={handleDebugDriverCount} style={[dynamicStyles.debugButton, { backgroundColor: colors.primary }]}>
+                <Text style={dynamicStyles.debugButtonText}>Driver Count</Text>
+              </TouchableOpacity>
+            </>
           )}
         </View>
       </View>
@@ -617,6 +742,18 @@ export default function DashboardScreen() {
               </View>
             </View>
 
+            {/* Debug Driver Status */}
+            {debugMode && dashboardData?.drivers && dashboardData.drivers.length > 0 && (
+              <View style={dynamicStyles.debugSection}>
+                <Text style={dynamicStyles.debugTitle}>Driver Status Debug:</Text>
+                {dashboardData.drivers.map((driver, index) => (
+                  <Text key={index} style={dynamicStyles.debugText}>
+                    {driver.full_name}: {driver.driver_status}
+                  </Text>
+                ))}
+              </View>
+            )}
+
             {
               <View style={dynamicStyles.bookingsSection}>
                 <Text style={dynamicStyles.sectionTitle}>Available Bookings</Text>
@@ -625,24 +762,27 @@ export default function DashboardScreen() {
                     <Text style={dynamicStyles.loadingText}>Loading pending orders...</Text>
                   </View>
                 ) : pendingOrders.length > 0 ? (
-                  pendingOrders.map((order) => (
-                    <BookingCard
-                      key={order.order_id}
-                      booking={{
-                        booking_id: order.order_id.toString(),
-                        pickup: order.pickup_drop_location.pickup,
-                        drop: order.pickup_drop_location.drop,
-                        customer_name: order.customer_name,
-                        customer_mobile: order.customer_number,
-                        fare_per_km: order.cost_per_km,
-                        distance_km: order.trip_distance,
-                        total_fare: (order.cost_per_km * order.trip_distance) + order.driver_allowance + order.permit_charges + order.hill_charges + order.toll_charges
-                      }}
-                      onAccept={() => handleAcceptBooking(order)}
-                      disabled={!canAcceptBookings}
-                      loading={processingOrderId === order.order_id.toString()}
-                    />
-                  ))
+                  pendingOrders.map((order) => {
+                    const locations = getPickupDropLocations(order.pickup_drop_location);
+                    return (
+                      <BookingCard
+                        key={order.order_id}
+                        booking={{
+                          booking_id: order.order_id.toString(),
+                          pickup: locations.pickup,
+                          drop: locations.drop,
+                          customer_name: order.customer_name,
+                          customer_mobile: order.customer_number,
+                          fare_per_km: order.cost_per_km,
+                          distance_km: order.trip_distance,
+                          total_fare: (order.cost_per_km * order.trip_distance) + order.driver_allowance + order.permit_charges + order.hill_charges + order.toll_charges
+                        }}
+                        onAccept={() => handleAcceptBooking(order)}
+                        disabled={!canAcceptBookings}
+                        loading={processingOrderId === order.order_id.toString()}
+                      />
+                    );
+                  })
                 ) : (
                   <View style={dynamicStyles.noBookings}>
                     <Text style={dynamicStyles.noBookingsText}>No pending bookings available</Text>

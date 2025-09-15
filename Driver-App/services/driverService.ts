@@ -24,6 +24,19 @@ export interface DriverResponse {
   status: string;
 }
 
+const getMimeTypeFromUri = (uri: string): string => {
+  const lower = (uri || '').toLowerCase();
+  if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+  if (lower.endsWith('.png')) return 'image/png';
+  if (lower.endsWith('.webp')) return 'image/webp';
+  if (lower.endsWith('.gif')) return 'image/gif';
+  if (lower.endsWith('.bmp')) return 'image/bmp';
+  if (lower.endsWith('.heic')) return 'image/heic';
+  if (lower.endsWith('.heif')) return 'image/heif';
+  if (lower.endsWith('.tif') || lower.endsWith('.tiff')) return 'image/tiff';
+  return 'application/octet-stream';
+};
+
 export const addDriverDetails = async (driverData: DriverDetails): Promise<DriverResponse> => {
   try {
     console.log('🚗 Starting driver details registration...');
@@ -32,11 +45,21 @@ export const addDriverDetails = async (driverData: DriverDetails): Promise<Drive
     // Create FormData for file uploads
     const formData = new FormData();
 
-    // Add text fields
+    // Helper function to format phone numbers for backend - send 10 digits only
+    const formatPhoneForBackend = (phone: string): string => {
+      if (!phone || !phone.trim()) return '';
+      // Remove +91 prefix and any non-digit characters, keep only 10 digits
+      const cleanPhone = phone.replace(/^\+91/, '').replace(/\D/g, '').trim();
+      if (!cleanPhone) return '';
+      // Return only the last 10 digits (in case there are more)
+      return cleanPhone.slice(-10);
+    };
+
+    // Add text fields with proper phone number formatting
     formData.append('full_name', driverData.full_name);
-    formData.append('primary_number', driverData.primary_number);
+    formData.append('primary_number', formatPhoneForBackend(driverData.primary_number));
     if (driverData.secondary_number) {
-      formData.append('secondary_number', driverData.secondary_number);
+      formData.append('secondary_number', formatPhoneForBackend(driverData.secondary_number));
     }
     formData.append('password', driverData.password);
     formData.append('licence_number', driverData.licence_number);
@@ -48,8 +71,8 @@ export const addDriverDetails = async (driverData: DriverDetails): Promise<Drive
     if (driverData.licence_front_img) {
       formData.append('licence_front_img', {
         uri: driverData.licence_front_img,
-        type: 'image/jpeg',
-        name: 'licence_front.jpg'
+        type: getMimeTypeFromUri(driverData.licence_front_img),
+        name: 'licence_front'
       } as any);
       console.log('🖼️ licence_front_img appended to FormData');
     }
@@ -57,8 +80,8 @@ export const addDriverDetails = async (driverData: DriverDetails): Promise<Drive
     if (driverData.rc_front_img) {
       formData.append('rc_front_img', {
         uri: driverData.rc_front_img,
-        type: 'image/jpeg',
-        name: 'rc_front.jpg'
+        type: getMimeTypeFromUri(driverData.rc_front_img),
+        name: 'rc_front'
       } as any);
       console.log('🖼️ rc_front_img appended to FormData');
     }
@@ -66,8 +89,8 @@ export const addDriverDetails = async (driverData: DriverDetails): Promise<Drive
     if (driverData.rc_back_img) {
       formData.append('rc_back_img', {
         uri: driverData.rc_back_img,
-        type: 'image/jpeg',
-        name: 'rc_back.jpg'
+        type: getMimeTypeFromUri(driverData.rc_back_img),
+        name: 'rc_back'
       } as any);
       console.log('🖼️ rc_back_img appended to FormData');
     }
@@ -75,8 +98,8 @@ export const addDriverDetails = async (driverData: DriverDetails): Promise<Drive
     if (driverData.insurance_img) {
       formData.append('insurance_img', {
         uri: driverData.insurance_img,
-        type: 'image/jpeg',
-        name: 'insurance.jpg'
+        type: getMimeTypeFromUri(driverData.insurance_img),
+        name: 'insurance'
       } as any);
       console.log('🖼️ insurance_img appended to FormData');
     }
@@ -84,8 +107,8 @@ export const addDriverDetails = async (driverData: DriverDetails): Promise<Drive
     if (driverData.fc_img) {
       formData.append('fc_img', {
         uri: driverData.fc_img,
-        type: 'image/jpeg',
-        name: 'fc.jpg'
+        type: getMimeTypeFromUri(driverData.fc_img),
+        name: 'fc'
       } as any);
       console.log('🖼️ fc_img appended to FormData');
     }
@@ -93,8 +116,8 @@ export const addDriverDetails = async (driverData: DriverDetails): Promise<Drive
     if (driverData.car_img) {
       formData.append('car_img', {
         uri: driverData.car_img,
-        type: 'image/jpeg',
-        name: 'car.jpg'
+        type: getMimeTypeFromUri(driverData.car_img),
+        name: 'car'
       } as any);
       console.log('🖼️ car_img appended to FormData');
     }
@@ -116,40 +139,12 @@ export const addDriverDetails = async (driverData: DriverDetails): Promise<Drive
 
     // Get authentication headers
     const authHeaders = await getAuthHeaders();
-    console.log('🔐 Using JWT token:', authHeaders.Authorization?.substring(0, 20) + '...');
-
-    // Log the exact request being sent
-    console.log('📤 Sending request to backend:', {
-      url: '/api/users/cardriver/signup',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'multipart/form-data',
-        Authorization: authHeaders.Authorization?.substring(0, 20) + '...'
-      },
-      formDataSummary: {
-        textFields: {
-          full_name: driverData.full_name,
-          primary_number: driverData.primary_number,
-          licence_number: driverData.licence_number,
-          adress: driverData.adress,
-          organization_id: driverData.organization_id,
-          vehicle_owner_id: driverData.vehicle_owner_id
-        },
-        imageFiles: {
-          licence_front_img: !!driverData.licence_front_img,
-          rc_front_img: !!driverData.rc_front_img,
-          rc_back_img: !!driverData.rc_back_img,
-          insurance_img: !!driverData.insurance_img,
-          fc_img: !!driverData.fc_img,
-          car_img: !!driverData.car_img
-        }
-      }
-    });
+    console.log('🔐 Using JWT token');
 
     // Make API call
     const response = await axiosInstance.post('/api/users/cardriver/signup', formData, {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        // Let Axios set multipart boundary
         ...authHeaders
       },
     });
@@ -169,13 +164,11 @@ export const addDriverDetails = async (driverData: DriverDetails): Promise<Drive
         headers: response.headers
       });
       
-      // Log the actual error detail content
       if (response.data?.detail) {
         console.log('❌ Error detail content:', JSON.stringify(response.data.detail, null, 2));
       }
     }
 
-    // Check if response is successful
     if (response.status >= 200 && response.status < 300) {
       const responseData = response.data;
       
@@ -184,13 +177,11 @@ export const addDriverDetails = async (driverData: DriverDetails): Promise<Drive
         throw new Error('Invalid response from server');
       }
 
-      // Validate response structure - be more flexible with success conditions
       if (responseData.status === 'success' || responseData.driver_id || responseData.message) {
         console.log('✅ Driver details registration successful');
         return responseData;
       } else {
         console.log('⚠️ Response structure unexpected, but status is successful');
-        // Return a success response even if structure is unexpected
         return {
           status: 'success',
           message: 'Driver registered successfully',
@@ -205,14 +196,11 @@ export const addDriverDetails = async (driverData: DriverDetails): Promise<Drive
     console.error('❌ Driver details registration failed with error:', error);
     
     if (error.response?.status === 400 || error.response?.status === 422) {
-      // Handle validation errors
       const errorData = error.response.data;
       console.log('🔍 Processing validation error:', JSON.stringify(errorData, null, 2));
       
       if (errorData?.detail) {
-        // Handle different detail formats
         if (Array.isArray(errorData.detail)) {
-          // Extract field-specific errors
           const fieldErrors = errorData.detail.map((err: any) => {
             if (err.loc && err.msg) {
               return `${err.loc.join('.')}: ${err.msg}`;
@@ -221,6 +209,10 @@ export const addDriverDetails = async (driverData: DriverDetails): Promise<Drive
           }).join(', ');
           throw new Error(`Validation Error: ${fieldErrors}`);
         } else if (typeof errorData.detail === 'string') {
+          // Check if it's a duplicate registration error
+          if (errorData.detail.includes('already registered')) {
+            throw new Error(`Driver with primary number ${driverData.primary_number} is already registered. Please use a different number.`);
+          }
           throw new Error(`Validation Error: ${errorData.detail}`);
         } else {
           throw new Error(`Validation Error: ${JSON.stringify(errorData.detail)}`);
@@ -284,35 +276,33 @@ export interface DriverLoginResponse {
   primary_number: string;
   status: string;
   message: string;
+  driver_status?: string; // Add driver status
 }
 
 // Driver login function
 export const loginDriver = async (mobileNumber: string, password: string): Promise<DriverLoginResponse> => {
   try {
     console.log('🚗 Starting driver login...');
-    console.log('📱 Mobile:', mobileNumber);
+    console.log('📱 Mobile (input):', mobileNumber);
     
-    // Format phone number for backend (add +91 prefix if not present)
+    // Format phone number for backend - send 10 digits only
     const formatPhoneForBackend = (phone: string): string => {
-      if (!phone) return '';
-      // Remove +91 prefix if present and ensure it's properly formatted
-      const cleanPhone = phone.replace(/^\+91/, '');
-      // Add +91 prefix back
-      return `+91${cleanPhone}`;
+      if (!phone || !phone.trim()) return '';
+      // Remove +91 prefix and any non-digit characters, keep only 10 digits
+      const cleanPhone = phone.replace(/^\+91/, '').replace(/\D/g, '').trim();
+      if (!cleanPhone) return '';
+      // Return only the last 10 digits (in case there are more)
+      return cleanPhone.slice(-10);
     };
-    
-    const formattedPhone = formatPhoneForBackend(mobileNumber);
-    
-    console.log('🔐 Attempting driver login with:', {
-      mobile_number: formattedPhone,
-      password: password
-    });
 
-    // Make API call to driver login endpoint
-    const response = await axiosInstance.post('/api/users/cardriver/login', {
-      mobile_number: formattedPhone,
-      password: password
-    });
+    const payload = {
+      primary_number: formatPhoneForBackend(mobileNumber),
+      password,
+    };
+
+    console.log('🔐 Attempting driver login with payload:', { ...payload, password: '***' });
+
+    const response = await axiosInstance.post('/api/users/cardriver/signin', payload);
 
     console.log('✅ Driver login successful:', response.data);
     return response.data;
