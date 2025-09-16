@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import {
   View,
   Text,
@@ -79,11 +80,20 @@ export default function SignIn() {
       <ScrollView contentContainerStyle={styles.scrollContainer} showsVerticalScrollIndicator={false}>
         {/* Header Section */}
         <View style={styles.headerSection}>
-          <View style={styles.logoContainer}></View>
+        <View style={styles.headerSection}>
+          <LinearGradient
+            colors={['#3B82F6', '#1D4ED8']}
+            style={styles.headerGradient}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+          />
+          
+          {/* Your existing content */}
           <View style={styles.welcomeContainer}>
             <Text style={styles.welcomeTitle}>Welcome Back!</Text>
             <Text style={styles.welcomeSubtitle}>Sign in to your vendor account to continue</Text>
           </View>
+        </View>
         </View>
 
         {/* Form Section */}
@@ -182,15 +192,28 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#FFFFFF',
   },
+  headerGradient: {
+  position: 'absolute',
+  top: 0,
+  left: -width * 0.25,
+  width: width * 1.5,
+  height: 200,
+  borderBottomLeftRadius: 200,
+  borderBottomRightRadius: 200,
+  transform: [{ scaleX: 1.2 }],
+  zIndex: -1,
+},
   scrollContainer: {
     flexGrow: 1,
     paddingHorizontal: 24,
   },
-  headerSection: {
-    paddingTop: height * 0.08,
-    paddingBottom: 40,
-    alignItems: 'center',
-  },
+headerSection: {
+  paddingTop: height * 0.08,
+  paddingBottom: 40,
+  alignItems: 'center',
+  position: 'relative',
+  overflow: 'visible',
+},
   logoContainer: {
     alignItems: 'center',
     marginBottom: 40,
@@ -223,15 +246,23 @@ const styles = StyleSheet.create({
   welcomeContainer: {
     alignItems: 'center',
   },
+  topBar: {
+  height: 8,
+  width: '100%',
+  backgroundColor: '#3B82F6',
+  borderBottomLeftRadius: 16,
+  borderBottomRightRadius: 16,
+  marginBottom: 16,
+},
   welcomeTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1F2937',
+    color: '#FFF',
     marginBottom: 8,
   },
   welcomeSubtitle: {
     fontSize: 16,
-    color: '#6B7280',
+    color: '#FFF',
     textAlign: 'center',
     lineHeight: 24,
   },
@@ -298,6 +329,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
+  
   buttonText: {
     color: '#FFFFFF',
     fontSize: 18,

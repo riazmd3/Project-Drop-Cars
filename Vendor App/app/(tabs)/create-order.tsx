@@ -936,7 +936,7 @@ const styles = StyleSheet.create({
   textArea: {
     height: 100,
     textAlignVertical: 'top',
-    paddingTop: 16,
+    paddingTop:35,
   },
   row: {
     flexDirection: 'row',
