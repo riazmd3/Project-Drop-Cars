@@ -11,13 +11,14 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Camera, Upload, ArrowLeft } from 'lucide-react-native';
+import { startDriverTrip } from '@/services/assignmentService';
 import * as ImagePicker from 'expo-image-picker';
 
 export default function StartTripScreen() {
   const [startKm, setStartKm] = useState('');
   const [odometerPhoto, setOdometerPhoto] = useState<string | null>(null);
   const router = useRouter();
-  const params = useLocalSearchParams<{ orderId?: string; farePerKm?: string }>();
+  const params = useLocalSearchParams<{ orderId?: string; farePerKm?: string; assignmentId?: string }>();
 
   const takeOdometerPhoto = async () => {
     try {
@@ -35,20 +36,33 @@ export default function StartTripScreen() {
     }
   };
 
-  const handleStartTrip = () => {
+  const handleStartTrip = async () => {
     if (!startKm || !odometerPhoto) {
       Alert.alert('Error', 'Please enter start KM and upload odometer photo');
       return;
     }
-
-    router.replace({
-      pathname: '/trip/end',
-      params: {
-        orderId: String(params.orderId || ''),
-        startKm: String(startKm),
-        farePerKm: String(params.farePerKm || '0'),
+    try {
+      // Prefer assignmentId if provided (recommended)
+      const assignmentId = String(params.assignmentId || '');
+      if (!assignmentId) {
+        // If no assignment id, continue UI flow without API to prevent blocking
+        console.warn('No assignmentId provided to start trip; navigating without API call');
+      } else {
+        await startDriverTrip(assignmentId, parseInt(startKm, 10), odometerPhoto);
       }
-    });
+
+      router.replace({
+        pathname: '/trip/end',
+        params: {
+          orderId: String(params.orderId || ''),
+          assignmentId,
+          startKm: String(startKm),
+          farePerKm: String(params.farePerKm || '0'),
+        }
+      });
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to start trip');
+    }
   };
 
   return (

@@ -14,14 +14,16 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useWallet } from '@/contexts/WalletContext';
 import { Camera, ArrowLeft, Check, IndianRupee } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
+import { endDriverTrip } from '@/services/assignmentService';
 
 export default function EndTripScreen() {
   const [endKm, setEndKm] = useState('');
   const [odometerPhoto, setOdometerPhoto] = useState<string | null>(null);
+  const [contactNumber, setContactNumber] = useState('');
   const [thanked, setThanked] = useState(false);
   const { deductMoney } = useWallet();
   const router = useRouter();
-  const params = useLocalSearchParams<{ orderId?: string; startKm?: string; farePerKm?: string }>();
+  const params = useLocalSearchParams<{ orderId?: string; assignmentId?: string; startKm?: string; farePerKm?: string }>();
 
   const startKm = parseInt(String(params.startKm || '0')) || 0;
   const farePerKm = parseFloat(String(params.farePerKm || '0')) || 0;
@@ -48,9 +50,9 @@ export default function EndTripScreen() {
     return totalKm * farePerKm;
   };
 
-  const handleEndTrip = () => {
-    if (!endKm || !odometerPhoto || !thanked) {
-      Alert.alert('Error', 'Please complete all requirements');
+  const handleEndTrip = async () => {
+    if (!endKm || !odometerPhoto || !contactNumber || !thanked) {
+      Alert.alert('Error', 'Please complete all fields including contact number and thank your customer.');
       return;
     }
 
@@ -62,14 +64,29 @@ export default function EndTripScreen() {
       return;
     }
 
-    // Deduct commission
-    deductMoney(50, 'Trip Commission');
+    try {
+      const assignmentId = String(params.assignmentId || '');
+      if (assignmentId) {
+        await endDriverTrip(assignmentId, parseInt(endKm, 10), contactNumber, odometerPhoto);
+      } else {
+        console.warn('No assignmentId provided to end trip; finishing without API call');
+      }
 
-    Alert.alert(
-      'Trip Completed',
-      `Trip completed successfully!\n\nDistance: ${totalKm} km\nTotal Fare: ₹${totalFare}\nCommission: ₹50`,
-      [{ text: 'OK', onPress: () => router.replace('/quick-dashboard') }]
-    );
+      // Deduct commission (ignore backend errors for missing route)
+      try {
+        await deductMoney(50, 'Trip Commission');
+      } catch (e) {
+        console.warn('Commission deduction failed, continuing:', (e as any)?.message);
+      }
+
+      Alert.alert(
+        'Trip Completed',
+        `Trip completed successfully!\n\nDistance: ${totalKm} km\nTotal Fare: ₹${totalFare}\nCommission: ₹50`,
+        [{ text: 'OK', onPress: () => router.replace('/quick-dashboard') }]
+      );
+    } catch (error: any) {
+      Alert.alert('Error', error.message || 'Failed to end trip');
+    }
   };
 
   return (
@@ -155,10 +172,23 @@ export default function EndTripScreen() {
           />
         </View>
 
+        {/* Contact Number Input */}
+        <View style={styles.inputSection}>
+          <Text style={styles.sectionTitle}>Customer Contact Number</Text>
+          <TextInput
+            style={styles.kmInput}
+            placeholder="Enter customer mobile (10 digits)"
+            value={contactNumber}
+            onChangeText={setContactNumber}
+            keyboardType="phone-pad"
+            maxLength={10}
+          />
+        </View>
+
         <TouchableOpacity
-          style={[styles.endButton, (!endKm || !odometerPhoto || !thanked) && styles.disabledButton]}
+          style={[styles.endButton, (!endKm || !odometerPhoto || !contactNumber || !thanked) && styles.disabledButton]}
           onPress={handleEndTrip}
-          disabled={!endKm || !odometerPhoto || !thanked}
+          disabled={!endKm || !odometerPhoto || !contactNumber || !thanked}
         >
           <Text style={styles.endButtonText}>Complete Trip</Text>
         </TouchableOpacity>

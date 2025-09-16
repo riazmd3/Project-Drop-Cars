@@ -346,9 +346,19 @@ export const acceptOrder = async (request: AcceptOrderRequest): Promise<AcceptOr
       if (response.data.detail && response.data.detail.includes('Could not validate credentials')) {
         throw new Error('Authentication failed. Please login again.');
       }
-      
+
       console.log('✅ Order accepted successfully:', response.data);
-      return response.data;
+
+      // Normalize backend response to UI-expected format
+      const assignmentId = response.data.assignment_id || response.data.id;
+      return {
+        success: true,
+        message: 'Order accepted successfully',
+        order_id: request.order_id,
+        accepted_at: new Date().toISOString(),
+        assignment_id: assignmentId,
+        id: assignmentId,
+      } as AcceptOrderResponse;
     }
 
     throw new Error('No response data received from order acceptance');
@@ -413,6 +423,82 @@ export const updateAssignmentStatus = async (
     } else {
       throw new Error(error.message || 'Failed to update assignment status');
     }
+  }
+};
+
+/**
+ * Driver starts a trip with odometer photo
+ * POST /api/assignments/driver/start-trip/{assignment_id}
+ */
+export const startDriverTrip = async (
+  assignmentId: string,
+  startKm: number,
+  speedometerImageUri: string
+): Promise<{ message: string; start_km?: number; speedometer_img_url?: string; end_record_id?: number }> => {
+  try {
+    console.log('🚦 Starting trip for assignment:', assignmentId, 'startKm:', startKm);
+
+    const authHeaders = await getAuthHeaders();
+
+    const formData = new FormData();
+    formData.append('start_km', String(startKm));
+    formData.append('speedometer_img', {
+      uri: speedometerImageUri,
+      name: 'speedometer.jpg',
+      type: 'image/jpeg'
+    } as any);
+
+    const response = await axiosInstance.post(
+      `/api/assignments/driver/start-trip/${assignmentId}`,
+      formData,
+      { headers: { ...authHeaders } }
+    );
+
+    console.log('✅ Start trip response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ Failed to start trip:', error);
+    if (error.response?.status === 401) throw new Error('Authentication failed. Please login again.');
+    throw new Error(error.message || 'Failed to start trip');
+  }
+};
+
+/**
+ * Driver ends a trip with odometer photo and contact number
+ * POST /api/assignments/driver/end-trip/{assignment_id}
+ */
+export const endDriverTrip = async (
+  assignmentId: string,
+  endKm: number,
+  contactNumber: string,
+  closeSpeedometerImageUri: string
+): Promise<{ message: string; end_km?: number; total_km?: number; calculated_fare?: number; driver_amount?: number; vehicle_owner_amount?: number; close_speedometer_img_url?: string; end_record_id?: number }> => {
+  try {
+    console.log('🛑 Ending trip for assignment:', assignmentId, 'endKm:', endKm);
+
+    const authHeaders = await getAuthHeaders();
+
+    const formData = new FormData();
+    formData.append('end_km', String(endKm));
+    formData.append('contact_number', String(contactNumber));
+    formData.append('close_speedometer_img', {
+      uri: closeSpeedometerImageUri,
+      name: 'close_speedometer.jpg',
+      type: 'image/jpeg'
+    } as any);
+
+    const response = await axiosInstance.post(
+      `/api/assignments/driver/end-trip/${assignmentId}`,
+      formData,
+      { headers: { ...authHeaders } }
+    );
+
+    console.log('✅ End trip response:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ Failed to end trip:', error);
+    if (error.response?.status === 401) throw new Error('Authentication failed. Please login again.');
+    throw new Error(error.message || 'Failed to end trip');
   }
 };
 
