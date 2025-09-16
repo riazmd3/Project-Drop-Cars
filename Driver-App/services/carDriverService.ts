@@ -430,40 +430,7 @@ export const getDriversByVehicleOwner = async (vehicleOwnerId: string): Promise<
 /**
  * Get drivers by organization
  */
-export const getDriversByOrganization = async (organizationId: string): Promise<CarDriverResponse[]> => {
-  try {
-    console.log('👥 Fetching drivers by organization:', organizationId);
-
-    const authHeaders = await getAuthHeaders();
-    const response = await axiosInstance.get(`/api/users/cardriver/organization/${organizationId}`, {
-      headers: authHeaders
-    });
-
-    if (response.data) {
-      console.log('✅ Drivers fetched successfully:', response.data.length, 'drivers');
-      return response.data;
-    }
-
-    return [];
-  } catch (error: any) {
-    console.error('❌ Failed to fetch drivers by organization:', error);
-    
-    if (error.response?.status === 401) {
-      throw new Error('Authentication failed. Please login again.');
-    } else if (error.response?.status === 404) {
-      console.log('⚠️ No drivers found for organization:', organizationId);
-      return [];
-    } else if (error.response?.status === 500) {
-      throw new Error('Server error. Please try again later.');
-    } else if (error.code === 'ECONNABORTED') {
-      throw new Error('Request timeout. Please check your connection.');
-    } else if (error.code === 'ERR_NETWORK') {
-      throw new Error('Network error. Please check your internet connection.');
-    } else {
-      throw new Error(error.message || 'Failed to fetch drivers by organization');
-    }
-  }
-};
+// Removed: getDriversByOrganization - organization APIs are not supported
 
 /**
  * Get car driver by mobile number

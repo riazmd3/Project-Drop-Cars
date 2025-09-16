@@ -982,38 +982,10 @@ export const acceptOrderLegacy = async (request: AcceptOrderRequest): Promise<Ac
       if (availableDrivers.length > 0) {
         // Find a driver that belongs to this vehicle owner
         const ownerDriver = availableDrivers.find(driver => 
-          driver.organization_id === request.vehicle_owner_id || 
           driver.id === request.vehicle_owner_id
         );
         driverId = ownerDriver?.id || availableDrivers[0].id;
         console.log('🔍 Selected driver from available drivers:', driverId);
-      } else {
-        console.log('⚠️ No available drivers found, trying organization drivers...');
-        
-        // Fallback: Get drivers from organization endpoint
-        try {
-          const orgDriversResponse = await axiosInstance.get(`/api/users/cardriver/organization/${request.vehicle_owner_id}`, {
-            headers: authHeaders
-          });
-          
-          if (orgDriversResponse.data && orgDriversResponse.data.length > 0) {
-            // Find an ONLINE driver
-            const onlineDriver = orgDriversResponse.data.find((driver: any) => 
-              driver.driver_status === 'ONLINE' || driver.status === 'ONLINE'
-            );
-            
-            if (onlineDriver) {
-              driverId = onlineDriver.id;
-              console.log('🔍 Selected ONLINE driver from organization:', driverId);
-            } else {
-              // Use any driver as fallback
-              driverId = orgDriversResponse.data[0].id;
-              console.log('🔍 Selected any driver from organization as fallback:', driverId);
-            }
-          }
-        } catch (orgError) {
-          console.log('⚠️ Could not fetch organization drivers:', orgError);
-        }
       }
       
       // Get available cars
@@ -1025,22 +997,6 @@ export const acceptOrderLegacy = async (request: AcceptOrderRequest): Promise<Ac
         );
         carId = ownerCar?.id || availableCars[0].id;
         console.log('🔍 Selected car from available cars:', carId);
-      } else {
-        console.log('⚠️ No available cars found, trying organization cars...');
-        
-        // Fallback: Get cars from organization endpoint
-        try {
-          const orgCarsResponse = await axiosInstance.get(`/api/users/cardetails/organization/${request.vehicle_owner_id}`, {
-            headers: authHeaders
-          });
-          
-          if (orgCarsResponse.data && orgCarsResponse.data.length > 0) {
-            carId = orgCarsResponse.data[0].id;
-            console.log('🔍 Selected car from organization:', carId);
-          }
-        } catch (orgError) {
-          console.log('⚠️ Could not fetch organization cars:', orgError);
-        }
       }
     } catch (error) {
       console.log('⚠️ Could not fetch available drivers/cars, proceeding with fallback');

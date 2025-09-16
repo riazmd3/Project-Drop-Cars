@@ -77,15 +77,15 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
     const ownerDetails: VehicleOwnerDetails = ownerResponse.data;
     console.log('✅ Vehicle owner details received:', ownerDetails);
 
-    // 2. Fetch all cars for the vehicle owner (prioritize org endpoint, then available-cars fallback)
+    // 2. Fetch all cars for the vehicle owner (organization endpoints removed)
     let cars: CarDetail[] = [];
     try {
       console.log('🚗 Fetching all cars for vehicle owner...');
       
       const carEndpoints = [
-        `/api/users/cardetails/organization/${ownerDetails.organization_id}`, // 200 OK in logs
-        `/api/assignments/available-cars`, // fallback, 200 OK
-        `/api/users/vehicle-owner/${ownerDetails.id}/cars`, // may be 404 depending on backend version
+        `/api/assignments/available-cars`,
+        `/api/users/vehicle-owner/${ownerDetails.id}/cars`,
+        `/api/users/cardetails/all`
       ];
       
       for (const endpoint of carEndpoints) {
@@ -113,16 +113,15 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
       console.error('❌ All car endpoints failed:', error);
     }
 
-    // 3. Fetch all drivers for the vehicle owner (using organization endpoint - only available option)
+    // 3. Fetch all drivers for the vehicle owner (organization endpoints removed)
     let drivers: DriverDetail[] = [];
     try {
       console.log('👤 Fetching all drivers for vehicle owner...');
       
       const driverEndpoints = [
-        `/api/users/cardriver/organization/${ownerDetails.organization_id}`, // Organization drivers
-        `/api/users/cardriver/all`, // All drivers (no status filter)
-        `/api/assignments/available-drivers`, // Available drivers
-        `/api/users/cardriver/vehicle-owner/${ownerDetails.id}`, // Vehicle owner drivers
+        `/api/users/cardriver/all`,
+        `/api/assignments/available-drivers`,
+        `/api/users/cardriver/vehicle-owner/${ownerDetails.id}`
       ];
       
       for (const endpoint of driverEndpoints) {

@@ -11,7 +11,7 @@ import {
   setDriverOnline,
   setDriverOffline,
   getCarDriver,
-  getDriversByOrganization,
+  // getDriversByOrganization, // removed: organization APIs not supported
   getCarDriverByMobile,
   updateCarDriverProfile,
   deleteCarDriver,
@@ -40,7 +40,7 @@ interface CarDriverContextType {
   
   // Data fetching
   refreshDriverData: () => Promise<void>;
-  getDriversForOrganization: (organizationId: string) => Promise<CarDriverResponse[]>;
+  getDriversForOrganization: (organizationId: string) => Promise<CarDriverResponse[]>; // deprecated
   searchDriversByFilters: (filters: any) => Promise<CarDriverResponse[]>;
   
   // Utility methods
@@ -308,16 +308,9 @@ export const CarDriverProvider: React.FC<CarDriverProviderProps> = ({ children }
     }
   };
 
-  const getDriversForOrganization = async (organizationId: string): Promise<CarDriverResponse[]> => {
-    try {
-      console.log('👥 Fetching drivers for organization:', organizationId);
-      const drivers = await getDriversByOrganization(organizationId);
-      console.log('✅ Drivers fetched successfully:', drivers.length);
-      return drivers;
-    } catch (error: any) {
-      console.error('❌ Failed to fetch drivers for organization:', error);
-      throw error;
-    }
+  const getDriversForOrganization = async (_organizationId: string): Promise<CarDriverResponse[]> => {
+    console.warn('getDriversForOrganization is deprecated: organization APIs are not available');
+    return [];
   };
 
   const searchDriversByFilters = async (filters: any): Promise<CarDriverResponse[]> => {
