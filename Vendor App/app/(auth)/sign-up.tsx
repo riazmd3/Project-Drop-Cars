@@ -30,7 +30,6 @@ export default function SignUp() {
     address: '',
     aadhar_number: '',
     gpay_number: '',
-    organization_id: '',
     password: '',
     confirmPassword: '',
   });
@@ -222,17 +221,6 @@ export default function SignUp() {
             onChangeText={(value) => handleInputChange('address', value)}
             multiline
             numberOfLines={3}
-            placeholderTextColor="#9CA3AF"
-          />
-        </View>
-
-        <View style={styles.inputContainer}>
-          <FileText size={20} color="#6B7280" style={styles.inputIcon} />
-          <TextInput
-            style={styles.input}
-            placeholder="Organization ID (Optional)"
-            value={formData.organization_id}
-            onChangeText={(value) => handleInputChange('organization_id', value)}
             placeholderTextColor="#9CA3AF"
           />
         </View>

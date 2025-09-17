@@ -7,6 +7,7 @@ import {
   Dimensions,
   ScrollView,
 } from 'react-native';
+import { useLocalSearchParams } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
 import { Clock, CircleCheck as CheckCircle, Phone, Mail, ArrowLeft, Shield, FileText, RefreshCw, MessageCircle } from 'lucide-react-native';
@@ -18,10 +19,8 @@ interface AccountStatusProps {
   message?: string;
 }
 
-export default function AccountStatusScreen({ 
-  status = 'INACTIVE', 
-  message 
-}: AccountStatusProps) {
+export default function AccountStatusScreen() {
+  const { status = 'INACTIVE', message } = useLocalSearchParams();
   const handleGoBack = () => {
     router.back();
   };
@@ -38,20 +37,23 @@ export default function AccountStatusScreen({
 
   const isInactive = status === 'INACTIVE';
   const isPending = status === 'PENDING';
+  console.log('Account status:', isInactive);
+  console.log('Account status:', isPending);
+
 
   // Dynamic colors based on status
   const getStatusColors = () => {
     if (isInactive) {
       return {
-        primary: ['#DC2626', '#B91C1C'], // Deep red gradient for danger
-        secondary: '#DC2626',
+        primary: ['#3b2a23ff', '#e91c1ce0'], // Deep red gradient for danger
+        secondary: '#82645eff',
         accent: 'rgba(220, 38, 38, 0.1)'
       };
     } else {
       return {
-        primary: ['#F59E0B', '#D97706'], // Amber gradient for pending/waiting
-        secondary: '#F59E0B',
-        accent: 'rgba(245, 158, 11, 0.1)'
+        primary: ['#2d3f7fff', '#0c171eff'], // Amber gradient for pending/waiting
+        secondary: '#78b636ff',
+        accent: 'rgba(85, 72, 50, 0.1)'
       };
     }
   };
@@ -93,14 +95,14 @@ export default function AccountStatusScreen({
             </View>
             <View style={[styles.statusBadge, { backgroundColor: colors.secondary }]}>
               <Text style={styles.statusBadgeText}>
-                {isPending ? 'PENDING' : 'INACTIVE'}
+                {!isInactive ? 'PENDING' : 'BLOCKED'}
               </Text>
             </View>
           </View>
 
           {/* Status Title */}
           <Text style={styles.statusTitle}>
-            {isPending ? 'Verification Pending' : 'Account Inactive'}
+            {!isInactive ? 'Verification Pending' : 'Account BLOCKED'}
           </Text>
 
           {/* Status Message */}
