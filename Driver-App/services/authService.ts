@@ -1,5 +1,6 @@
 import axiosInstance from '@/app/api/axiosInstance';
 import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // Authentication interfaces matching your backend
 export interface LoginRequest {
@@ -246,6 +247,16 @@ class AuthService {
     };
   }
 
+  // Prefer driver token if present; fallback to default token
+  async getDriverAuthHeaders(): Promise<{ Authorization: string }> {
+    const driverToken = await AsyncStorage.getItem('carDriverToken');
+    const token = driverToken || (await this.getToken());
+    if (!token) {
+      throw new Error('No authentication token found. Please login first.');
+    }
+    return { Authorization: `Bearer ${token}` };
+  }
+
   // Refresh token if needed (for future implementation)
   async refreshToken(): Promise<boolean> {
     try {
@@ -333,6 +344,7 @@ export const loginVehicleOwner = (mobileNumber: string, password: string) =>
 export const verifyJWTToken = (token: string) => authService.verifyToken();
 export const isAuthenticated = () => authService.isAuthenticated();
 export const getAuthHeaders = () => authService.getAuthHeaders();
+export const getDriverAuthHeaders = () => authService.getDriverAuthHeaders();
 export const logout = () => authService.logout();
 export const getUserProfile = () => authService.getUserProfile();
 export const getCompleteUserData = () => authService.getCompleteUserData();

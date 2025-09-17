@@ -19,6 +19,7 @@ import { endDriverTrip } from '@/services/assignmentService';
 export default function EndTripScreen() {
   const [endKm, setEndKm] = useState('');
   const [odometerPhoto, setOdometerPhoto] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const [contactNumber, setContactNumber] = useState('');
   const [thanked, setThanked] = useState(false);
   const { deductMoney } = useWallet();
@@ -55,6 +56,7 @@ export default function EndTripScreen() {
       Alert.alert('Error', 'Please complete all fields including contact number and thank your customer.');
       return;
     }
+    if (submitting) return;
 
     const totalKm = parseInt(endKm) - startKm;
     const totalFare = calculateFare();
@@ -65,6 +67,7 @@ export default function EndTripScreen() {
     }
 
     try {
+      setSubmitting(true);
       const assignmentId = String(params.assignmentId || '');
       if (assignmentId) {
         await endDriverTrip(assignmentId, parseInt(endKm, 10), contactNumber, odometerPhoto);
@@ -86,6 +89,8 @@ export default function EndTripScreen() {
       );
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to end trip');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -188,7 +193,7 @@ export default function EndTripScreen() {
         <TouchableOpacity
           style={[styles.endButton, (!endKm || !odometerPhoto || !contactNumber || !thanked) && styles.disabledButton]}
           onPress={handleEndTrip}
-          disabled={!endKm || !odometerPhoto || !contactNumber || !thanked}
+          disabled={!endKm || !odometerPhoto || !contactNumber || !thanked || submitting}
         >
           <Text style={styles.endButtonText}>Complete Trip</Text>
         </TouchableOpacity>

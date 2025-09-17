@@ -70,7 +70,7 @@ export default function CarDriverDashboardScreen() {
       setStatusLoading(true);
       clearError();
 
-      if (driver.driver_status === 'ONLINE') {
+      if (driver.status === 'online') {
         await goOffline();
         Alert.alert('Status Updated', 'You are now offline');
       } else {
@@ -388,7 +388,7 @@ export default function CarDriverDashboardScreen() {
         <Text style={dynamicStyles.headerTitle}>Driver Dashboard</Text>
         <View style={dynamicStyles.headerActions}>
           <TouchableOpacity 
-            onPress={() => router.push('/car-driver/profile')}
+            onPress={() => router.push('/car-driver/profile' as any)}
             style={dynamicStyles.headerButton}
           >
             <Settings color={colors.text} size={24} />
@@ -484,7 +484,7 @@ export default function CarDriverDashboardScreen() {
             
             <View style={dynamicStyles.detailRow}>
               <MapPin color={colors.textSecondary} size={16} style={dynamicStyles.detailIcon} />
-              <Text style={dynamicStyles.detailText}>{driver.adress}</Text>
+              <Text style={dynamicStyles.detailText}>{driver.address}</Text>
             </View>
             
             {driver.email && (

@@ -1,5 +1,5 @@
 import axiosInstance from '@/app/api/axiosInstance';
-import { getAuthHeaders } from '@/services/authService';
+import { getAuthHeaders, getDriverAuthHeaders } from '@/services/authService';
 import { extractUserIdFromJWT, isJWTExpired } from '@/utils/jwtDecoder';
 import { getWalletBalance } from '@/services/paymentService';
 
@@ -395,7 +395,7 @@ export const updateAssignmentStatus = async (
   try {
     console.log('📝 Updating assignment status:', assignmentId, 'to', status);
     
-    const authHeaders = await getAuthHeaders();
+    const authHeaders = await getDriverAuthHeaders();
     const response = await axiosInstance.patch(`/api/assignments/${assignmentId}/status`, {
       assignment_status: status
     }, {
@@ -438,7 +438,7 @@ export const startDriverTrip = async (
   try {
     console.log('🚦 Starting trip for assignment:', assignmentId, 'startKm:', startKm);
 
-    const authHeaders = await getAuthHeaders();
+    const authHeaders = await getDriverAuthHeaders();
 
     const formData = new FormData();
     formData.append('start_km', String(startKm));
@@ -451,7 +451,7 @@ export const startDriverTrip = async (
     const response = await axiosInstance.post(
       `/api/assignments/driver/start-trip/${assignmentId}`,
       formData,
-      { headers: { ...authHeaders } }
+      { headers: { ...authHeaders, 'Content-Type': 'multipart/form-data' } }
     );
 
     console.log('✅ Start trip response:', response.data);
@@ -476,7 +476,7 @@ export const endDriverTrip = async (
   try {
     console.log('🛑 Ending trip for assignment:', assignmentId, 'endKm:', endKm);
 
-    const authHeaders = await getAuthHeaders();
+    const authHeaders = await getDriverAuthHeaders();
 
     const formData = new FormData();
     formData.append('end_km', String(endKm));
@@ -490,7 +490,7 @@ export const endDriverTrip = async (
     const response = await axiosInstance.post(
       `/api/assignments/driver/end-trip/${assignmentId}`,
       formData,
-      { headers: { ...authHeaders } }
+      { headers: { ...authHeaders, 'Content-Type': 'multipart/form-data' } }
     );
 
     console.log('✅ End trip response:', response.data);

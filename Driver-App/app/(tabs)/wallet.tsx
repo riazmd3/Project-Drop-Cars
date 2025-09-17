@@ -153,7 +153,13 @@ export default function WalletScreen() {
         }
       );
 
-      console.log('🔧 Razorpay options:', razorpayOptions);
+      console.warn('Razorpay debug: options prepared', {
+        hasKey: !!razorpayOptions?.key,
+        amount: razorpayOptions?.amount,
+        currency: razorpayOptions?.currency,
+        orderId: razorpayOptions?.order_id,
+        platform: Platform.OS
+      });
 
       // Step 3: Open Razorpay checkout
       console.log('🔧 Opening Razorpay checkout...');
@@ -185,6 +191,23 @@ export default function WalletScreen() {
 
     } catch (error: any) {
       console.error('❌ Payment failed:', error);
+
+      // Razorpay detailed error parsing
+      try {
+        const rawDescription = error?.description || error?.error?.description;
+        const parsed = rawDescription ? JSON.parse(rawDescription) : null;
+        const rzpErr = parsed?.error || error?.error || {};
+        console.warn('Razorpay debug: failure details', {
+          code: rzpErr.code,
+          step: rzpErr.step,
+          reason: rzpErr.reason,
+          source: rzpErr.source,
+          description: rzpErr.description,
+          metadata: rzpErr.metadata,
+        });
+      } catch (parseErr) {
+        console.warn('Razorpay debug: could not parse error description JSON', parseErr);
+      }
       
       // Check if it's a Razorpay SDK issue and offer fallback
       if (error.message.includes('Razorpay SDK not available') || 
@@ -232,6 +255,8 @@ export default function WalletScreen() {
         errorMessage = 'Unable to create payment order. Please try again.';
       } else if (error.message.includes('Payment data is invalid')) {
         errorMessage = 'Payment was cancelled or failed. Please try again.';
+      } else if (error?.error?.reason === 'payment_cancelled') {
+        errorMessage = 'UPI app cancelled the payment or timed out. Please retry.';
       }
       
       Alert.alert('Payment Failed', errorMessage);

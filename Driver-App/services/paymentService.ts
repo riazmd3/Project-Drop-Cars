@@ -186,10 +186,11 @@ export const verifyRazorpayPayment = async (
     }
     
     const authHeaders = await getAuthHeaders();
+    // Send field names expected by backend (as per provided HTML test)
     const response = await axiosInstance.post('/api/wallet/razorpay/verify', {
-      rp_order_id: rpOrderId,
-      rp_payment_id: rpPaymentId,
-      rp_signature: rpSignature
+      razorpay_order_id: rpOrderId,
+      razorpay_payment_id: rpPaymentId,
+      razorpay_signature: rpSignature
     }, {
       headers: authHeaders
     });
@@ -525,6 +526,7 @@ export const getRazorpayOptions = (
       name: userData.name
     },
     theme: { color: '#3B82F6' },
+    retry: { enabled: false },
     modal: {
       ondismiss: () => {
         console.log('Payment modal dismissed');

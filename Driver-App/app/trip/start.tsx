@@ -17,6 +17,7 @@ import * as ImagePicker from 'expo-image-picker';
 export default function StartTripScreen() {
   const [startKm, setStartKm] = useState('');
   const [odometerPhoto, setOdometerPhoto] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
   const params = useLocalSearchParams<{ orderId?: string; farePerKm?: string; assignmentId?: string }>();
 
@@ -41,7 +42,9 @@ export default function StartTripScreen() {
       Alert.alert('Error', 'Please enter start KM and upload odometer photo');
       return;
     }
+    if (submitting) return;
     try {
+      setSubmitting(true);
       // Prefer assignmentId if provided (recommended)
       const assignmentId = String(params.assignmentId || '');
       if (!assignmentId) {
@@ -62,6 +65,8 @@ export default function StartTripScreen() {
       });
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to start trip');
+    } finally {
+      setSubmitting(false);
     }
   };
 
