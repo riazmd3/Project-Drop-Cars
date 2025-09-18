@@ -10,7 +10,7 @@ import {
   SafeAreaView,
   StatusBar,
 } from 'react-native';
-import { CircleCheck as CheckCircle, Copy, ArrowLeft } from 'lucide-react-native';
+import { CircleCheck as CheckCircle, Copy, ArrowLeft, Timer } from 'lucide-react-native';
 
 interface OrderSuccessProps {
   visible: boolean;
@@ -70,6 +70,8 @@ const OrderSuccess: React.FC<OrderSuccessProps> = ({ visible, onClose, orderData
     return null;
   }
 
+  const isHourlyRental = orderData.trip_type === 'Hourly Rental';
+
   const getOrderStatus = () => {
     return orderData.trip_status || orderData.order_status || 'PENDING';
   };
@@ -84,6 +86,15 @@ const OrderSuccess: React.FC<OrderSuccessProps> = ({ visible, onClose, orderData
 
   const formatAmount = (amount: number | string) => {
     return `₹${amount}`;
+  };
+
+  const getDisplayAmount = () => {
+    if (isHourlyRental) {
+      return orderData.estimated_price ? formatAmount(orderData.estimated_price) : '₹0.00';
+    }
+    return hasFareDetails() && orderData.fare.total_amount 
+      ? formatAmount(orderData.fare.total_amount)
+      : '₹0.00';
   };
 
   return (
@@ -120,6 +131,9 @@ const OrderSuccess: React.FC<OrderSuccessProps> = ({ visible, onClose, orderData
             </Animated.View>
 
             <Text style={styles.successTitle}>Order Successful</Text>
+            {isHourlyRental && (
+              <Text style={styles.successSubtitle}>Your hourly rental has been booked</Text>
+            )}
           </View>
 
           {/* Content */}
@@ -136,10 +150,7 @@ const OrderSuccess: React.FC<OrderSuccessProps> = ({ visible, onClose, orderData
             <View style={styles.amountCard}>
               <View style={styles.amountHeader}>
                 <Text style={styles.amountValue}>
-                  {hasFareDetails() && orderData.fare.total_amount 
-                    ? formatAmount(orderData.fare.total_amount)
-                    : '₹0.00'
-                  }
+                  {getDisplayAmount()}
                 </Text>
                 <TouchableOpacity style={styles.expandButton}>
                   <Text style={styles.expandIcon}>^</Text>
@@ -175,76 +186,78 @@ const OrderSuccess: React.FC<OrderSuccessProps> = ({ visible, onClose, orderData
 
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>Order Status</Text>
-                <Text style={[styles.detailValue, styles.statusSuccess]}>{orderData.trip_status}</Text>
+                <Text style={[styles.detailValue, styles.statusSuccess]}>{getOrderStatus()}</Text>
+              </View>
+
+              <View style={styles.detailRow}>
+                <Text style={styles.detailLabel}>Trip Type</Text>
+                <Text style={styles.detailValue}>
+                  {orderData.trip_type || 'STANDARD RENTAL'}
+                </Text>
               </View>
 
               <View style={styles.detailRow}>
                 <Text style={styles.detailLabel}>SEND TO</Text>
                 <Text style={styles.detailValue}>
-                  {getPickupCity() !== 'N/A' ? getPickupCity() : 'XXXXXXXXX4567'}
+                  {getPickupCity() !== 'N/A' ? getPickupCity() : 'ALL DRIVERS'}
                 </Text>
               </View>
 
-              {/* <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Credited to</Text>
-                <Text style={styles.detailValue}>IDFC FIRST Bank ••••4567</Text>
-              </View> */}
-
-              {/* Trip Details if available */}
-              {hasFareDetails() && (
+              {/* Trip Details based on type */}
+              {isHourlyRental ? (
                 <>
                   <View style={styles.sectionDivider} />
                   
-                  {orderData.fare.total_km && (
+                  {orderData.trip_time && (
                     <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Distance</Text>
-                      <Text style={styles.detailValue}>{orderData.fare.total_km} km</Text>
+                      <Text style={styles.detailLabel}>Package Duration</Text>
+                      <Text style={styles.detailValue}>{orderData.trip_time} hours</Text>
                     </View>
                   )}
 
-                  {orderData.fare.trip_time && (
+                  {orderData.vendor_price && (
                     <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Duration</Text>
-                      <Text style={styles.detailValue}>{orderData.fare.trip_time}</Text>
+                      <Text style={styles.detailLabel}>Vendor Amount</Text>
+                      <Text style={styles.detailValue}>₹{orderData.vendor_price}</Text>
                     </View>
                   )}
 
-                  {orderData.fare.base_km_amount && (
+                  {orderData.estimated_price && (
                     <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Base Fare</Text>
-                      <Text style={styles.detailValue}>₹{orderData.fare.base_km_amount}</Text>
+                      <Text style={styles.detailLabel}>Customer Price</Text>
+                      <Text style={styles.detailValue}>₹{orderData.estimated_price}</Text>
                     </View>
                   )}
-{/* 
-                  {orderData.fare.driver_allowance > 0 && (
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Driver Allowance</Text>
-                      <Text style={styles.detailValue}>₹{orderData.fare.driver_allowance}</Text>
-                    </View>
-                  )}
-
-                  {orderData.fare.permit_charges > 0 && (
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Permit Charges</Text>
-                      <Text style={styles.detailValue}>₹{orderData.fare.permit_charges}</Text>
-                    </View>
-                  )}
-
-                  {orderData.fare.toll_charges > 0 && (
-                    <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Toll Charges</Text>
-                      <Text style={styles.detailValue}>₹{orderData.fare.toll_charges}</Text>
-                    </View>
-                  )} */}
                 </>
+              ) : (
+                /* Regular Trip Details */
+                hasFareDetails() && (
+                  <>
+                    <View style={styles.sectionDivider} />
+                    
+                    {orderData.fare.total_km && (
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Distance</Text>
+                        <Text style={styles.detailValue}>{orderData.fare.total_km} km</Text>
+                      </View>
+                    )}
+
+                    {orderData.fare.trip_time && (
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Duration</Text>
+                        <Text style={styles.detailValue}>{orderData.fare.trip_time}</Text>
+                      </View>
+                    )}
+
+                    {orderData.fare.base_km_amount && (
+                      <View style={styles.detailRow}>
+                        <Text style={styles.detailLabel}>Base Fare</Text>
+                        <Text style={styles.detailValue}>₹{orderData.fare.base_km_amount}</Text>
+                      </View>
+                    )}
+                  </>
+                )
               )}
-{/* 
-              <View style={styles.detailRow}>
-                <Text style={styles.detailLabel}>Status</Text>
-                <Text style={[styles.detailValue, styles.statusSuccess]}>
-                  {getOrderStatus()}
-                </Text>
-              </View> */}
             </View>
 
             {/* Action Buttons */}
@@ -307,6 +320,12 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#000000',
     textAlign: 'center',
+  },
+  successSubtitle: {
+    fontSize: 16,
+    color: '#666666',
+    textAlign: 'center',
+    marginTop: 8,
   },
   contentContainer: {
     paddingHorizontal: 20,
