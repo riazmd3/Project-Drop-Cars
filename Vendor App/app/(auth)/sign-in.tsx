@@ -47,6 +47,7 @@ export default function SignIn() {
           router.replace('/(tabs)');
         } else if (accountStatus === 'Pending') {
           // Account is inactive, show inactive screen
+          console.log('pending account status:');
           router.push('/(auth)/account-status?status=Pending&message=Your account is currently inactive and requires verification. It will be activated within 24 hours after verification.');
         } else if (accountStatus === 'Blocked') {
           // Account is blocked, show blocked screen
@@ -54,7 +55,8 @@ export default function SignIn() {
 
         } else {
           // Unknown status, show inactive screen
-          router.push('/(auth)/account-status?status=Pending&message=Your account status is unclear. Please contact support for assistance.');
+          console.log('Unknown account status:');
+          router.push('/(auth)/account-status?status=INACTIVE&message=Your account status is BLOCKED. Please contact support for assistance.');
         }
       }
     } catch (error) {
