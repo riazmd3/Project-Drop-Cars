@@ -427,14 +427,7 @@ export const getDriversByVehicleOwner = async (vehicleOwnerId: string): Promise<
   }
 };
 
-/**
- * Get drivers by organization
- */
-// Removed: getDriversByOrganization - organization APIs are not supported
 
-/**
- * Get car driver by mobile number
- */
 export const getCarDriverByMobile = async (mobileNumber: string): Promise<CarDriverResponse> => {
   try {
     console.log('📱 Fetching car driver by mobile:', mobileNumber);

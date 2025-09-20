@@ -57,7 +57,7 @@ export const getCars = async (): Promise<CarDetails[]> => {
     
     try {
       // First try the list endpoint with common query parameters
-      endpointUsed = '/api/users/cardetails/list';
+      endpointUsed = '/api/users/available-cars';
       response = await axiosInstance.get(endpointUsed, {
         headers: {
           'Authorization': `Bearer ${token}`
@@ -73,7 +73,8 @@ export const getCars = async (): Promise<CarDetails[]> => {
       
       try {
         // Try alternative endpoint without /list
-        endpointUsed = '/api/users/cardetails';
+        endpointUsed = '/api/users/available-drivers';
+        console.log("New Available drivers api used in try ")
         response = await axiosInstance.get(endpointUsed, {
           headers: {
             'Authorization': `Bearer ${token}`
