@@ -44,7 +44,7 @@ export interface WalletBalance {
 
 // Razorpay configuration
 const RAZORPAY_CONFIG = {
-  key_id: 'rzp_test_1DP5mmOlF5G5ag', // Replace with your actual key
+  key_id: 'rzp_test_RGj0EDXZq8QnUS', // Using the working test key from HTML
   key_secret: 'your_razorpay_secret_key', // This should be on backend only
   currency: 'INR',
   company_name: 'Drop Cars',
@@ -116,8 +116,10 @@ export const createRazorpayOrder = async (amount: number, currency: string = 'IN
     const authHeaders = await getAuthHeaders();
     const response = await axiosInstance.post('/api/wallet/razorpay/order', {
       amount: amount * 100, // Convert to paise
-      currency,
-      notes
+      currency: currency,
+      receipt: `receipt_${Date.now()}`,
+      payment_capture: 1,
+      notes: notes
     }, {
       headers: authHeaders
     });
@@ -360,10 +362,14 @@ export const deductFromWallet = async (
     }
     
     const authHeaders = await getAuthHeaders();
-    const response = await axiosInstance.post('/api/wallet/deduct', {
-      amount,
-      description,
-      metadata
+    const response = await axiosInstance.post('/api/wallet/balance', {
+      amount: -(amount * 100), // Negative amount in paise for deduction
+      currency: 'INR',
+      notes: {
+        purpose: 'wallet_deduction',
+        description: description,
+        ...metadata
+      }
     }, {
       headers: authHeaders
     });
@@ -452,10 +458,14 @@ export const addToWallet = async (
     }
     
     const authHeaders = await getAuthHeaders();
-    const response = await axiosInstance.post('/api/wallet/add', {
-      amount,
-      description,
-      metadata
+    const response = await axiosInstance.post('/api/wallet/balance', {
+      amount: amount * 100, // Convert to paise as per your reference
+      currency: 'INR',
+      notes: {
+        purpose: 'wallet_topup',
+        description: description,
+        ...metadata
+      }
     }, {
       headers: authHeaders
     });
@@ -517,7 +527,7 @@ export const getRazorpayOptions = (
     image: RAZORPAY_CONFIG.company_logo,
     currency: RAZORPAY_CONFIG.currency,
     key: RAZORPAY_CONFIG.key_id,
-    amount: amount * 100, // Convert to paise
+    amount: amount * 100, // Convert rupees to paise for Razorpay
     name: RAZORPAY_CONFIG.company_name,
     order_id: orderId,
     prefill: {
@@ -527,6 +537,12 @@ export const getRazorpayOptions = (
     },
     theme: { color: '#3B82F6' },
     retry: { enabled: false },
+    method: {
+      netbanking: true,
+      card: true,
+      upi: true,
+      wallet: true
+    },
     modal: {
       ondismiss: () => {
         console.log('Payment modal dismissed');

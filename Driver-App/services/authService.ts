@@ -1,8 +1,7 @@
 import axiosInstance from '@/app/api/axiosInstance';
 import * as SecureStore from 'expo-secure-store';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Authentication interfaces matching your backend
+// Authentication interfaces
 export interface LoginRequest {
   mobile_number: string;
   password: string;
@@ -24,14 +23,6 @@ export interface LoginResponse {
     organization_id: string;
     languages: string[];
   };
-}
-
-export interface JWTVerificationResponse {
-  verified: boolean;
-  user_id: string;
-  organization_id: string;
-  token: string;
-  message: string;
 }
 
 // User data interface
@@ -192,50 +183,6 @@ class AuthService {
     }
   }
 
-  // Verify JWT token by making an authenticated request
-  async verifyToken(): Promise<JWTVerificationResponse> {
-    try {
-      console.log('🔐 Verifying JWT token...');
-      
-      const token = await this.getToken();
-      if (!token) {
-        throw new Error('No authentication token found');
-      }
-
-      // Make an authenticated request to verify the token
-      // Using a protected endpoint to validate the token
-      const response = await axiosInstance.get('/api/users/cardetails/organization/test', {
-        headers: {
-          'Authorization': `Bearer ${token}`
-        }
-      });
-      
-      // If we get here, the token is valid
-      // Get user data from stored data
-      const userData = await this.getUserData();
-      
-      return {
-        verified: true,
-        user_id: userData?.id || '',
-        organization_id: userData?.organizationId || '',
-        token: token,
-        message: 'Token verified successfully'
-      };
-    } catch (error: any) {
-      console.error('❌ JWT verification failed:', error);
-      
-      if (error.response?.status === 401) {
-        // Token is invalid, clear it
-        await this.clearToken();
-        throw new Error('JWT token is invalid or expired');
-      } else if (error.response?.status === 403) {
-        throw new Error('Access denied - insufficient permissions');
-      } else {
-        throw new Error(`JWT verification failed: ${error.message || 'Unknown error'}`);
-      }
-    }
-  }
-
   // Get authenticated headers for API requests
   async getAuthHeaders(): Promise<{ Authorization: string }> {
     const token = await this.getToken();
@@ -245,29 +192,6 @@ class AuthService {
     return {
       'Authorization': `Bearer ${token}`
     };
-  }
-
-  // Prefer driver token if present; fallback to default token
-  async getDriverAuthHeaders(): Promise<{ Authorization: string }> {
-    const driverToken = await AsyncStorage.getItem('carDriverToken');
-    const token = driverToken || (await this.getToken());
-    if (!token) {
-      throw new Error('No authentication token found. Please login first.');
-    }
-    return { Authorization: `Bearer ${token}` };
-  }
-
-  // Refresh token if needed (for future implementation)
-  async refreshToken(): Promise<boolean> {
-    try {
-      // This would call a refresh endpoint if your backend supports it
-      // For now, we'll just verify the current token
-      await this.verifyToken();
-      return true;
-    } catch (error) {
-      console.error('❌ Token refresh failed:', error);
-      return false;
-    }
   }
 
   // Logout user
@@ -280,15 +204,32 @@ class AuthService {
     }
   }
 
-  // Get user profile information
+  // Get user profile information - using only /api/users/vehicle-owner/me
   async getUserProfile(): Promise<any> {
     try {
-      const headers = await this.getAuthHeaders();
-      const response = await axiosInstance.get('/api/users/vehicleowner/profile', { headers });
+      const token = await this.getToken();
+      if (!token) {
+        throw new Error('No authentication token found. Please login first.');
+      }
+
+      const response = await axiosInstance.get('/api/users/vehicle-owner/me', {
+        headers: {
+          'Authorization': `Bearer ${token}`
+        }
+      });
+      
+      console.log('✅ User profile fetched successfully:', response.data);
       return response.data;
     } catch (error: any) {
       console.error('❌ Failed to get user profile:', error);
-      throw new Error('Failed to retrieve user profile');
+      
+      if (error.response?.status === 401) {
+        throw new Error('Authentication failed. Please login again.');
+      } else if (error.response?.status === 404) {
+        throw new Error('User profile not found. Please check your account.');
+      } else {
+        throw new Error(`Failed to retrieve user profile: ${error.message}`);
+      }
     }
   }
 
@@ -301,12 +242,12 @@ class AuthService {
     return userData;
   }
 
-  // Fetch complete user profile from backend
+  // Fetch complete user profile from backend - using only /api/users/vehicle-owner/me
   private async fetchUserProfileFromBackend(token: string): Promise<Partial<UserData>> {
     try {
       console.log('🔍 Fetching complete user profile from backend...');
       
-      const response = await axiosInstance.get('/api/users/vehicleowner/profile', {
+      const response = await axiosInstance.get('/api/users/vehicle-owner/me', {
         headers: {
           'Authorization': `Bearer ${token}`
         }
@@ -341,10 +282,8 @@ export const authService = AuthService.getInstance();
 export const loginVehicleOwner = (mobileNumber: string, password: string) => 
   authService.loginVehicleOwner(mobileNumber, password);
 
-export const verifyJWTToken = (token: string) => authService.verifyToken();
 export const isAuthenticated = () => authService.isAuthenticated();
 export const getAuthHeaders = () => authService.getAuthHeaders();
-export const getDriverAuthHeaders = () => authService.getDriverAuthHeaders();
 export const logout = () => authService.logout();
 export const getUserProfile = () => authService.getUserProfile();
 export const getCompleteUserData = () => authService.getCompleteUserData();

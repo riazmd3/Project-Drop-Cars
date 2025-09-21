@@ -205,6 +205,7 @@ export default function AddCarScreen() {
             <TextInput
               style={[styles.input, errors.name && styles.inputError]}
               placeholder="Car Name (e.g., Toyota Camry)"
+              placeholderTextColor="#9CA3AF"
               value={carData.name}
               onChangeText={(text) => handleInputChange('name', text)}
             />
@@ -247,6 +248,7 @@ export default function AddCarScreen() {
             <TextInput
               style={[styles.input, errors.registration && styles.inputError]}
               placeholder="Registration Number (e.g., MH 12 AB 1234)"
+              placeholderTextColor="#9CA3AF"
               value={carData.registration}
               onChangeText={(text) => handleInputChange('registration', text)}
               autoCapitalize="characters"
@@ -262,6 +264,7 @@ export default function AddCarScreen() {
             <TextInput
               style={[styles.input, errors.year && styles.inputError]}
               placeholder="Model Year (e.g., 2023)"
+              placeholderTextColor="#9CA3AF"
               value={carData.year}
               onChangeText={(text) => handleInputChange('year', text)}
               keyboardType="numeric"
@@ -275,6 +278,7 @@ export default function AddCarScreen() {
             <TextInput
               style={styles.input}
               placeholder="Color (e.g., White, Black, Red)"
+              placeholderTextColor="#9CA3AF"
               value={carData.color}
               onChangeText={(text) => handleInputChange('color', text)}
             />
@@ -425,6 +429,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-Medium',
     color: '#1F2937',
+    textAlign: 'left'
   },
   inputError: {
     borderColor: '#EF4444',

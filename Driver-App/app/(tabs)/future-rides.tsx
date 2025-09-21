@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/contexts/AuthContext'; 
 import { useDashboard, FutureRide } from '@/contexts/DashboardContext';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { MapPin, Clock, IndianRupee, User, Phone, Car, X, CheckCircle, AlertCircle } from 'lucide-react-native';
@@ -74,8 +74,11 @@ export default function FutureRidesScreen() {
       // Get future rides with complete order details
       const ridesWithDetails = await getFutureRidesWithDetails();
 
+      // Ensure we have an array to work with
+      const ridesArray = Array.isArray(ridesWithDetails) ? ridesWithDetails : [];
+
       // Convert to FutureRide format
-      const processedRides: FutureRide[] = ridesWithDetails.map((ride: any) => ({
+      const processedRides: FutureRide[] = ridesArray.map((ride: any) => ({
         id: ride.id,
         booking_id: ride.booking_id,
         pickup: ride.pickup,

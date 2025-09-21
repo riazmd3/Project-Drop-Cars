@@ -84,7 +84,7 @@ export default function WalletScreen() {
       // Step 1: Create Razorpay order using the new API
       const orderResponse = await processTopup(amount, {
         name: user.fullName || 'Driver',
-        email: `${user.primaryMobile}@dropcars.com`, // Fallback email
+        email: `${user.primaryMobile}@dropcars.com`, // Fallback email 
         contact: user.primaryMobile
       });
       
@@ -618,7 +618,7 @@ export default function WalletScreen() {
               <ActivityIndicator color={colors.primary} size="large" />
               <Text style={dynamicStyles.emptyStateText}>Loading transactions...</Text>
             </View>
-          ) : transactions.length === 0 ? (
+          ) : !transactions || transactions.length === 0 ? (
             <View style={dynamicStyles.emptyState}>
               <Text style={dynamicStyles.emptyStateText}>No transactions yet</Text>
             </View>

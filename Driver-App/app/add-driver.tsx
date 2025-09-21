@@ -281,6 +281,7 @@ export default function AddDriverScreen() {
             <TextInput
               style={[styles.input, errors.full_name && styles.inputError]}
               placeholder="Full Name (e.g., John Doe)"
+              placeholderTextColor="#9CA3AF"
               value={driverData.full_name}
               onChangeText={(text) => handleInputChange('full_name', text)}
             />
@@ -292,6 +293,7 @@ export default function AddDriverScreen() {
             <TextInput
               style={[styles.input, errors.primary_number && styles.inputError]}
               placeholder="Primary Mobile Number (+91XXXXXXXXXX)"
+              placeholderTextColor="#9CA3AF"
               value={driverData.primary_number}
               onChangeText={(text) => handleInputChange('primary_number', text)}
               keyboardType="phone-pad"
@@ -307,6 +309,7 @@ export default function AddDriverScreen() {
             <TextInput
               style={[styles.input, errors.secondary_number && styles.inputError]}
               placeholder="Secondary Mobile Number (Optional)"
+              placeholderTextColor="#9CA3AF"
               value={driverData.secondary_number}
               onChangeText={(text) => handleInputChange('secondary_number', text)}
               keyboardType="phone-pad"
@@ -318,6 +321,7 @@ export default function AddDriverScreen() {
             <TextInput
               style={[styles.input, errors.password && styles.inputError]}
               placeholder="Password"
+              placeholderTextColor="#9CA3AF"
               value={driverData.password}
               onChangeText={(text) => handleInputChange('password', text)}
               secureTextEntry
@@ -330,6 +334,7 @@ export default function AddDriverScreen() {
             <TextInput
               style={[styles.input, errors.licence_number && styles.inputError]}
               placeholder="Driving Licence Number (e.g., MH-12-1990-1234567)"
+              placeholderTextColor="#9CA3AF"
               value={driverData.licence_number}
               onChangeText={(text) => handleInputChange('licence_number', text)}
               autoCapitalize="characters"
@@ -345,6 +350,7 @@ export default function AddDriverScreen() {
             <TextInput
               style={[styles.input, errors.adress && styles.inputError]}
               placeholder="Address (e.g., 123 Main Street, Mumbai, Maharashtra)"
+              placeholderTextColor="#9CA3AF"
               value={driverData.adress}
               onChangeText={(text) => handleInputChange('adress', text)}
               multiline
@@ -518,6 +524,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-Medium',
     color: '#1F2937',
+    textAlign: 'left'
   },
   inputError: {
     borderColor: '#EF4444',

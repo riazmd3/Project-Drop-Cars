@@ -1,5 +1,5 @@
 import axiosInstance from '@/app/api/axiosInstance';
-import { authService, getAuthHeaders } from './authService';
+import { authService, getAuthHeaders, loginVehicleOwner as authLoginVehicleOwner } from './authService';
 
 // Single API call interface matching your working Postman request
 export interface SignupData {
@@ -255,7 +255,7 @@ export const signupAndLogin = async (personalData: any, documents: any) => {
   });
 
   // Then, login to obtain JWT token
-  const loginResponse = await loginVehicleOwner(mobileForLogin, personalData.password);
+  const loginResponse = await authLoginVehicleOwner(mobileForLogin, personalData.password);
 
   return { signup: signupResponse, login: loginResponse };
 };
@@ -312,37 +312,6 @@ export interface CarDetailsResponse {
   jwt_verification?: JWTVerificationResponse;
 }
 
-// Login function to get JWT token (required before car registration)
-export const loginVehicleOwner = async (mobileNumber: string, password: string): Promise<LoginResponse> => {
-  console.log('🔐 Starting vehicle owner login...');
-  
-  try {
-    const response = await axiosInstance.post('/api/users/vehicleowner/login', {
-      mobile_number: mobileNumber,
-      password: password
-    });
-    
-    console.log('✅ Login successful:', response.data);
-    
-    // Store the access token securely
-    if (response.data.access_token) {
-      await authService.setToken(response.data.access_token);
-      console.log('🔒 Access token stored securely');
-    }
-    
-    return response.data;
-  } catch (error: any) {
-    console.error('❌ Login failed:', error);
-    
-    if (error.response?.status === 401) {
-      throw new Error('Invalid mobile number or password');
-    } else if (error.response?.status === 400) {
-      throw new Error(error.response.data?.detail || 'Login failed');
-    } else {
-      throw new Error(`Login failed: ${error.message || 'Unknown error occurred'}`);
-    }
-  }
-};
 
 // JWT verification function (now properly integrated with your backend)
 export const verifyJWTToken = async (token: string): Promise<JWTVerificationResponse> => {

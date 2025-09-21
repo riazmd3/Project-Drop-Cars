@@ -88,6 +88,7 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
           <TextInput
             style={styles.input}
             placeholder="Full Name"
+            placeholderTextColor="#9CA3AF"
             value={fullName}
             onChangeText={setFullName}
           />
@@ -99,6 +100,7 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
           <TextInput
             style={styles.input}
             placeholder="Primary Mobile Number (10 digits)"
+            placeholderTextColor="#9CA3AF"
             value={primaryMobile}
             onChangeText={(text) => {
               // Allow only digits and +91 prefix
@@ -119,6 +121,7 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
           <TextInput
             style={styles.input}
             placeholder="Secondary Mobile Number (Optional)"
+            placeholderTextColor="#9CA3AF"
             value={secondaryMobile}
             onChangeText={(text) => {
               const cleanText = text.replace(/[^\d+]/g, '');
@@ -137,6 +140,7 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
           <TextInput
             style={styles.input}
             placeholder="Password"
+            placeholderTextColor="#9CA3AF"
             value={password}
             onChangeText={setPassword}
             secureTextEntry
@@ -149,6 +153,7 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
           <TextInput
             style={styles.input}
             placeholder="Address"
+            placeholderTextColor="#9CA3AF"
             value={address}
             onChangeText={setAddress}
             multiline
@@ -162,6 +167,7 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
           <TextInput
             style={styles.input}
             placeholder="Aadhar Number"
+            placeholderTextColor="#9CA3AF"
             value={aadharNumber}
             onChangeText={setAadharNumber}
             keyboardType="numeric"
@@ -175,6 +181,7 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
           <TextInput
             style={styles.input}
             placeholder="Organization ID"
+            placeholderTextColor="#9CA3AF"
             value={organizationId}
             onChangeText={setOrganizationId}
           />
@@ -233,7 +240,8 @@ const styles = StyleSheet.create({
     marginLeft: 12, 
     fontSize: 16, 
     fontFamily: 'Inter-Medium', 
-    color: '#1F2937' 
+    color: '#1F2937',
+    textAlign: 'left'
   },
   label: { 
     fontSize: 16, 

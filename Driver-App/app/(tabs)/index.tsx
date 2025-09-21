@@ -18,8 +18,8 @@ import { useRouter } from 'expo-router';
 import { Menu, Wallet, MapPin, Clock, User, Phone, Car, RefreshCw } from 'lucide-react-native';
 import BookingCard from '@/components/BookingCard';
 import DrawerNavigation from '@/components/DrawerNavigation';
-import { fetchDashboardData, DashboardData, fetchPendingOrders, PendingOrder, forceRefreshDashboardData, debugCarDriverEndpoints, debugDriverCountIssue } from '@/services/dashboardService';
-import { acceptOrder, testOrderAcceptanceAPI, checkOrderAvailability, getAvailableBookings } from '@/services/assignmentService';
+import { fetchDashboardData, DashboardData, forceRefreshDashboardData } from '@/services/dashboardService';
+import { getPendingOrders } from '@/services/assignmentService';
 
 interface Booking {
   booking_id: string;
@@ -47,7 +47,6 @@ export default function DashboardScreen() {
   // Remove currentTrip concept from owner dashboard
   const [refreshing, setRefreshing] = useState(false);
   const [previousOrderCount, setPreviousOrderCount] = useState(0);
-  const [debugMode, setDebugMode] = useState(false);
 
   const canAcceptBookings = balance >= 1000;
 
@@ -134,19 +133,10 @@ export default function DashboardScreen() {
   const fetchPendingOrdersData = async () => {
     try {
       setOrdersLoading(true);
-      console.log('📋 Fetching available bookings for dashboard...');
+      console.log('📋 Fetching pending orders for dashboard...');
       
-      // Try the new API endpoint first
-      let orders;
-      try {
-        orders = await getAvailableBookings();
-        console.log('✅ Available bookings loaded from new API:', orders.length);
-      } catch (newApiError) {
-        console.log('⚠️ New API failed, falling back to old API:', newApiError);
-        // Fallback to old API if new one fails
-        orders = await fetchPendingOrders();
-        console.log('✅ Pending orders loaded from fallback API:', orders.length);
-      }
+      const orders = await getPendingOrders();
+      console.log('✅ Pending orders loaded:', orders.length);
       
       setPendingOrders(orders);
     } catch (error) {
@@ -175,95 +165,8 @@ export default function DashboardScreen() {
     }
   };
 
-  const handleDebugAPI = async () => {
-    try {
-      console.log('🧪 Starting API debug test...');
-      
-      // Test order acceptance API
-      const orderResult = await testOrderAcceptanceAPI();
-      console.log('📊 Order acceptance debug result:', orderResult);
-      
-      // Test car and driver endpoints
-      const carDriverResult = await debugCarDriverEndpoints();
-      console.log('📊 Car/Driver endpoints debug result:', carDriverResult);
-      
-      // Test new available bookings API
-      let availableBookingsResult: { success: boolean; error?: string; count?: number; data?: any[] } = { success: false, error: 'Not tested' };
-      try {
-        const bookings = await getAvailableBookings();
-        availableBookingsResult = { success: true, count: bookings.length, data: bookings };
-        console.log('📊 Available bookings debug result:', availableBookingsResult);
-      } catch (bookingsError: any) {
-        availableBookingsResult = { success: false, error: bookingsError.message };
-        console.log('❌ Available bookings debug failed:', bookingsError);
-      }
-      
-      // Show summary
-      const successfulCarEndpoints = carDriverResult.cars.filter((r: any) => r.success).length;
-      const successfulDriverEndpoints = carDriverResult.drivers.filter((r: any) => r.success).length;
-      
-      // Debug driver status specifically
-      console.log('🔍 Current dashboard data drivers:', dashboardData?.drivers);
-      console.log('🔍 Driver count:', dashboardData?.drivers?.length || 0);
-      if (dashboardData?.drivers) {
-        dashboardData.drivers.forEach((driver, index) => {
-          console.log(`🔍 Driver ${index + 1}:`, {
-            name: driver.full_name,
-            status: driver.driver_status,
-            id: driver.id
-          });
-        });
-      }
-      
-      Alert.alert(
-        'API Debug Test',
-        `Test completed!\n\nResults logged to console.\n\nOrder API: ${orderResult.success ? 'OK' : 'Failed'}\nAvailable Bookings: ${availableBookingsResult.success ? `OK (${availableBookingsResult.count} bookings)` : 'Failed'}\nCar endpoints: ${successfulCarEndpoints}/6 working\nDriver endpoints: ${successfulDriverEndpoints}/6 working\n\nCurrent drivers: ${dashboardData?.drivers?.length || 0}`,
-        [{ text: 'OK' }]
-      );
-    } catch (error: any) {
-      console.error('❌ Debug test failed:', error);
-      Alert.alert('Debug Test Failed', error.message);
-    }
-  };
 
-  const handleDebugDriverCount = async () => {
-    try {
-      console.log('🧪 Starting driver count debug test...');
-      
-      const result = await debugDriverCountIssue();
-      console.log('👥 Driver count debug result:', result);
-      
-      const successfulEndpoints = result.drivers.filter((d: any) => d.success);
-      const totalDrivers = successfulEndpoints.reduce((sum: number, d: any) => sum + (d.dataLength || 0), 0);
-      
-      Alert.alert(
-        'Driver Count Debug Complete',
-        `Total drivers found: ${totalDrivers}\nSuccessful endpoints: ${successfulEndpoints.length}\nCheck console for detailed breakdown.`,
-        [{ text: 'OK' }]
-      );
-    } catch (error: any) {
-      console.error('❌ Driver count debug failed:', error);
-      Alert.alert('Driver Count Debug Failed', error.message || 'Unknown error');
-    }
-  };
 
-  const handleTestAvailableBookings = async () => {
-    try {
-      console.log('🧪 Testing available bookings API...');
-      
-      const bookings = await getAvailableBookings();
-      console.log('📊 Available bookings result:', bookings);
-      
-      Alert.alert(
-        'Available Bookings Test',
-        `Test completed!\n\nFound ${bookings.length} available bookings.\n\nResults logged to console.`,
-        [{ text: 'OK' }]
-      );
-    } catch (error: any) {
-      console.error('❌ Available bookings test failed:', error);
-      Alert.alert('Available Bookings Test Failed', error.message);
-    }
-  };
 
   const dynamicStyles = StyleSheet.create({
     container: {
@@ -653,7 +556,6 @@ export default function DashboardScreen() {
         
         <TouchableOpacity 
           style={dynamicStyles.balanceContainer}
-          onLongPress={() => setDebugMode(!debugMode)}
         >
           <Text style={dynamicStyles.welcomeText}>
             Welcome back, {dashboardData?.user_info?.full_name || user?.fullName || 'Driver'}!
@@ -669,16 +571,6 @@ export default function DashboardScreen() {
           <TouchableOpacity onPress={() => router.push('/(tabs)/wallet')} style={dynamicStyles.walletButton}>
             <Wallet color={colors.primary} size={24} />
           </TouchableOpacity>
-          {debugMode && (
-            <>
-              <TouchableOpacity onPress={handleDebugAPI} style={dynamicStyles.debugButton}>
-                <Text style={dynamicStyles.debugButtonText}>Debug</Text>
-              </TouchableOpacity>
-              <TouchableOpacity onPress={handleDebugDriverCount} style={[dynamicStyles.debugButton, { backgroundColor: colors.primary }]}>
-                <Text style={dynamicStyles.debugButtonText}>Driver Count</Text>
-              </TouchableOpacity>
-            </>
-          )}
         </View>
       </View>
 
@@ -742,17 +634,6 @@ export default function DashboardScreen() {
               </View>
             </View>
 
-            {/* Debug Driver Status */}
-            {debugMode && dashboardData?.drivers && dashboardData.drivers.length > 0 && (
-              <View style={dynamicStyles.debugSection}>
-                <Text style={dynamicStyles.debugTitle}>Driver Status Debug:</Text>
-                {dashboardData.drivers.map((driver, index) => (
-                  <Text key={index} style={dynamicStyles.debugText}>
-                    {driver.full_name}: {driver.driver_status}
-                  </Text>
-                ))}
-              </View>
-            )}
 
             {
               <View style={dynamicStyles.bookingsSection}>
