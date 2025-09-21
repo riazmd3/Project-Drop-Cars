@@ -1,6 +1,9 @@
 import axiosInstance from '@/app/api/axiosInstance';
 import { authService, getAuthHeaders, loginVehicleOwner as authLoginVehicleOwner } from './authService';
 
+// Re-export for compatibility
+export const loginVehicleOwner = authLoginVehicleOwner;
+
 // Single API call interface matching your working Postman request
 export interface SignupData {
   full_name: string;

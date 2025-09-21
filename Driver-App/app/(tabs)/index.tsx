@@ -19,7 +19,7 @@ import { Menu, Wallet, MapPin, Clock, User, Phone, Car, RefreshCw } from 'lucide
 import BookingCard from '@/components/BookingCard';
 import DrawerNavigation from '@/components/DrawerNavigation';
 import { fetchDashboardData, DashboardData, forceRefreshDashboardData } from '@/services/dashboardService';
-import { getPendingOrders } from '@/services/assignmentService';
+import { getPendingOrders, PendingOrder, checkOrderAvailability, acceptOrder } from '@/services/assignmentService';
 
 interface Booking {
   booking_id: string;
@@ -468,8 +468,7 @@ export default function DashboardScreen() {
       // Call the new API to accept the order
       const acceptResponse = await acceptOrder({
         order_id: order.order_id.toString(),
-        vehicle_owner_id: user?.id || '',
-        acceptance_notes: `Order accepted by vehicle owner ${user?.fullName || 'Driver'}`
+        vehicle_owner_id: user?.id || ''
       });
 
       if (acceptResponse.success) {

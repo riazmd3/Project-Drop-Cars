@@ -14,7 +14,8 @@ import { useRouter } from 'expo-router';
 import { MapPin, User, Phone, Car, ArrowRight, LogOut, RefreshCw } from 'lucide-react-native';
 import axiosInstance from '@/app/api/axiosInstance';
 import { getAuthHeaders } from '@/services/authService';
-import { getPendingOrders } from '@/services/assignmentService';
+import { getPendingOrders, getDriverAssignmentsWithDetails, fetchAssignmentsForDriver, updateAssignmentStatus } from '@/services/assignmentService';
+import { setDriverOnline, setDriverOffline } from '@/services/carDriverService';
 
 export default function QuickDashboardScreen() {
   const { user, logout } = useAuth();

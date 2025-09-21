@@ -9,6 +9,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import { DashboardProvider } from '@/contexts/DashboardContext';
 import { NotificationProvider } from '@/contexts/NotificationContext';
 import { CarDriverProvider } from '@/contexts/CarDriverContext';
+import FirebaseInitializer from '@/components/FirebaseInitializer';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 import * as SplashScreen from 'expo-splash-screen';
 
@@ -35,27 +36,29 @@ export default function RootLayout() {
   }
 
   return (
-    <ThemeProvider>
-      <AuthProvider>
-        <WalletProvider>
-          <DashboardProvider>
-            <NotificationProvider>
-              <CarDriverProvider>
-                <Stack screenOptions={{ headerShown: false }}>
-                  <Stack.Screen name="index" />
-                  <Stack.Screen name="login" />
-                  <Stack.Screen name="signup" />
-                  <Stack.Screen name="quick-login" />
-                  <Stack.Screen name="(tabs)" />
-                  <Stack.Screen name="car-driver" />
-                  <Stack.Screen name="+not-found" />
-                </Stack>
-                <StatusBar style="auto" />
-              </CarDriverProvider>
-            </NotificationProvider>
-          </DashboardProvider>
-        </WalletProvider>
-      </AuthProvider>
-    </ThemeProvider>
+    <FirebaseInitializer>
+      <ThemeProvider>
+        <AuthProvider>
+          <WalletProvider>
+            <DashboardProvider>
+              <NotificationProvider>
+                <CarDriverProvider>
+                  <Stack screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name="index" />
+                    <Stack.Screen name="login" />
+                    <Stack.Screen name="signup" />
+                    <Stack.Screen name="quick-login" />
+                    <Stack.Screen name="(tabs)" />
+                    <Stack.Screen name="car-driver" />
+                    <Stack.Screen name="+not-found" />
+                  </Stack>
+                  <StatusBar style="auto" />
+                </CarDriverProvider>
+              </NotificationProvider>
+            </DashboardProvider>
+          </WalletProvider>
+        </AuthProvider>
+      </ThemeProvider>
+    </FirebaseInitializer>
   );
 }

@@ -44,8 +44,8 @@ export interface WalletBalance {
 
 // Razorpay configuration
 const RAZORPAY_CONFIG = {
-  key_id: 'rzp_test_RGj0EDXZq8QnUS', // Using the working test key from HTML
-  key_secret: 'your_razorpay_secret_key', // This should be on backend only
+  key_id: 'rzp_test_RGj0EDXZq8QnUS', // Test key - safe to use in frontend
+  // key_secret: REMOVED - Never put secret keys in frontend code!
   currency: 'INR',
   company_name: 'Drop Cars',
   company_logo: 'https://i.imgur.com/3g7nmJC.png',
@@ -114,13 +114,17 @@ export const createRazorpayOrder = async (amount: number, currency: string = 'IN
     }
     
     const authHeaders = await getAuthHeaders();
-    const response = await axiosInstance.post('/api/wallet/razorpay/order', {
+    const orderPayload = {
       amount: amount * 100, // Convert to paise
       currency: currency,
       receipt: `receipt_${Date.now()}`,
       payment_capture: 1,
       notes: notes
-    }, {
+    };
+    
+    console.log('💰 Creating Razorpay order with payload:', orderPayload);
+    
+    const response = await axiosInstance.post('/api/wallet/razorpay/order', orderPayload, {
       headers: authHeaders
     });
 
@@ -189,16 +193,26 @@ export const verifyRazorpayPayment = async (
     
     const authHeaders = await getAuthHeaders();
     // Send field names expected by backend (as per provided HTML test)
-    const response = await axiosInstance.post('/api/wallet/razorpay/verify', {
-      razorpay_order_id: rpOrderId,
-      razorpay_payment_id: rpPaymentId,
-      razorpay_signature: rpSignature
-    }, {
+    const verificationPayload = {
+      rp_order_id: rpOrderId,
+      rp_payment_id: rpPaymentId,
+      rp_signature: rpSignature
+    };
+    
+    console.log('🔍 Sending payment verification with payload:', verificationPayload);
+    
+    const response = await axiosInstance.post('/api/wallet/razorpay/verify', verificationPayload, {
       headers: authHeaders
     });
 
     if (response.data) {
       console.log('✅ Razorpay payment verified successfully:', response.data);
+      console.log('💰 Payment verification response:', {
+        success: response.data.success,
+        message: response.data.message,
+        wallet_updated: response.data.wallet_updated,
+        new_balance: response.data.new_balance
+      });
       return {
         success: true,
         message: 'Razorpay payment verified successfully',
@@ -207,7 +221,9 @@ export const verifyRazorpayPayment = async (
         razorpay_payment_id: rpPaymentId,
         razorpay_order_id: rpOrderId,
         razorpay_signature: rpSignature,
-        status: 'captured'
+        status: 'captured',
+        wallet_updated: response.data.wallet_updated,
+        new_balance: response.data.new_balance
       };
     }
 

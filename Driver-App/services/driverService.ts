@@ -1,5 +1,5 @@
 import axiosInstance from '@/app/api/axiosInstance';
-import authService from './authService';
+import authService, { getAuthHeaders } from './authService';
 
 // Driver details interface for listing
 export interface DriverDetails {
@@ -20,6 +20,7 @@ export interface DriverDetails {
   status: string;
   created_at: string;
   updated_at: string;
+  password?: string; // Added for compatibility
 }
 
 // Driver login interfaces
@@ -125,5 +126,23 @@ export const loginDriver = async (mobileNumber: string, password: string): Promi
     } else {
       throw new Error(`Login failed: ${error.message || 'Unknown error occurred'}`);
     }
+  }
+};
+
+// Add driver details function
+export const addDriverDetails = async (driverData: DriverDetails): Promise<any> => {
+  try {
+    console.log('👤 Adding driver details:', driverData);
+    const authHeaders = await getAuthHeaders();
+    
+    const response = await axiosInstance.post('/api/drivers', driverData, {
+      headers: authHeaders
+    });
+
+    console.log('✅ Driver details added successfully:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ Failed to add driver details:', error);
+    throw error;
   }
 };

@@ -1,26 +1,36 @@
 {
   "project_info": {
-    "project_number": "123456789",
-    "project_id": "dropcars-driver-app",
-    "storage_bucket": "dropcars-driver-app.appspot.com"
+    "project_number": "74990666899",
+    "project_id": "drop-cars-697fa",
+    "storage_bucket": "drop-cars-697fa.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:123456789:android:abcdef123456",
+        "mobilesdk_app_id": "1:74990666899:android:0afa260818635c9395f966",
         "android_client_info": {
           "package_name": "com.dropcars.driverapp"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "74990666899-abcdefghijklmnopqrstuvwxyz123456.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
-          "current_key": "placeholder-api-key"
+          "current_key": "AIzaSyC9-gqpC4W4wZxVT_p_EEvG324fVCPGAfU"
         }
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "74990666899-abcdefghijklmnopqrstuvwxyz123456.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
         }
       }
     }

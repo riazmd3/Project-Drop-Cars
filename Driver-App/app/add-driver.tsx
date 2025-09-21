@@ -210,7 +210,7 @@ export default function AddDriverScreen() {
         adress: driverData.adress.trim(),
         organization_id: user?.organizationId || 'org_001',
         vehicle_owner_id: user?.id || 'e5b9edb1-b4bb-48b8-a662-f7fd00abb6eb',
-        licence_front_img: driverImages.licence_front_img,
+        licence_front_img_url: driverImages.licence_front_img,
         rc_front_img: driverImages.rc_front_img,
         rc_back_img: driverImages.rc_back_img,
         insurance_img: driverImages.insurance_img,
