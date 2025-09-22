@@ -155,7 +155,8 @@ export default function WalletScreen() {
 
       console.warn('Razorpay debug: options prepared', {
         hasKey: !!razorpayOptions?.key,
-        amount: razorpayOptions?.amount,
+        originalAmount: amount, // Amount in rupees (what user entered)
+        razorpayAmount: razorpayOptions?.amount, // Amount in paise (for Razorpay)
         currency: razorpayOptions?.currency,
         orderId: razorpayOptions?.order_id,
         platform: Platform.OS

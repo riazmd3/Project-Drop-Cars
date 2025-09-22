@@ -18,6 +18,15 @@ const axiosInstance = axios.create({
   validateStatus: (status) => status < 500, // Don't treat 4xx as errors
 });
 
+// Mask sensitive values in logs
+const mask = (key: string, value: any) => {
+  const k = (key || '').toLowerCase();
+  if (k.includes('password') || k.includes('token') || k.includes('authorization')) {
+    return '***';
+  }
+  return value;
+};
+
 // Request interceptor with logging
 axiosInstance.interceptors.request.use(
   async (config: any) => {
@@ -40,6 +49,21 @@ axiosInstance.interceptors.request.use(
       // Increase timeout for file uploads
       config.timeout = 120000; // 2 minutes for file uploads
       console.log('📤 FormData detected, setting Content-Type to multipart/form-data and timeout to 120s');
+
+      // React Native FormData does not expose entries(); it keeps an internal _parts array
+      // We will log keys and basic meta only (masking sensitive text)
+      const parts = (config.data as any)?._parts;
+      if (Array.isArray(parts)) {
+        const debugParts = parts.map((p: any) => {
+          const [key, value] = p || [];
+          if (!key) return null;
+          if (value && typeof value === 'object' && (value.uri || value.name)) {
+            return { key, value: { uri: !!value.uri, name: value.name || 'file', type: value.type || 'binary' } };
+          }
+          return { key, value: mask(key, value) };
+        }).filter(Boolean);
+        console.log('🧾 FormData fields:', debugParts);
+      }
     }
     
     return config;

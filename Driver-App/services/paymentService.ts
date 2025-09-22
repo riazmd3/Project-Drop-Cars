@@ -22,6 +22,8 @@ export interface PaymentResponse {
   razorpay_payment_id?: string;
   razorpay_order_id?: string;
   razorpay_signature?: string;
+  wallet_updated?: boolean;
+  new_balance?: number;
 }
 
 export interface WalletTransaction {
@@ -51,36 +53,7 @@ const RAZORPAY_CONFIG = {
   company_logo: 'https://i.imgur.com/3g7nmJC.png',
 };
 
-// Mock data for development/testing
-const MOCK_DATA = {
-  wallet_balance: 1500,
-  transactions: [
-    {
-      id: '1',
-      type: 'credit' as const,
-      amount: 2000,
-      description: 'Initial Balance',
-      date: '2025-01-20 10:30 AM',
-      status: 'completed' as const
-    },
-    {
-      id: '2',
-      type: 'debit' as const,
-      amount: 50,
-      description: 'Trip Commission',
-      date: '2025-01-19 05:45 PM',
-      status: 'completed' as const
-    },
-    {
-      id: '3',
-      type: 'debit' as const,
-      amount: 450,
-      description: 'Trip Earnings Payout',
-      date: '2025-01-19 05:45 PM',
-      status: 'completed' as const
-    }
-  ] as WalletTransaction[]
-};
+// Mock data removed - using real API data only
 
 // Check if backend is available (no longer calls /api/health)
 const isBackendAvailable = async (): Promise<boolean> => {
@@ -192,6 +165,11 @@ export const verifyRazorpayPayment = async (
     }
     
     const authHeaders = await getAuthHeaders();
+    // Validate Razorpay parameters
+    if (!rpOrderId || !rpPaymentId || !rpSignature) {
+      throw new Error('Missing required Razorpay parameters for verification');
+    }
+    
     // Send field names expected by backend (as per provided HTML test)
     const verificationPayload = {
       rp_order_id: rpOrderId,
@@ -200,6 +178,7 @@ export const verifyRazorpayPayment = async (
     };
     
     console.log('🔍 Sending payment verification with payload:', verificationPayload);
+    console.log('🔍 Auth headers:', authHeaders);
     
     const response = await axiosInstance.post('/api/wallet/razorpay/verify', verificationPayload, {
       headers: authHeaders
@@ -231,6 +210,20 @@ export const verifyRazorpayPayment = async (
   } catch (error: any) {
     console.error('❌ Failed to verify Razorpay payment:', error);
     
+    // Log detailed error information
+    if (error.response) {
+      console.error('❌ Backend error response:', {
+        status: error.response.status,
+        statusText: error.response.statusText,
+        data: error.response.data,
+        headers: error.response.headers
+      });
+    } else if (error.request) {
+      console.error('❌ No response received:', error.request);
+    } else {
+      console.error('❌ Request setup error:', error.message);
+    }
+    
     // Return mock response if backend fails
     console.log('🔧 Fallback to mock Razorpay payment verification');
     
@@ -258,11 +251,11 @@ export const getWalletBalance = async (): Promise<WalletBalance> => {
     const backendAvailable = await isBackendAvailable();
     
     if (!backendAvailable) {
-      // Return mock balance for development
-      console.log('🔧 Using mock wallet balance:', MOCK_DATA.wallet_balance);
+      // Backend unavailable, return zero balance
+      console.log('🔧 Backend unavailable, returning zero balance');
       
       return {
-        balance: MOCK_DATA.wallet_balance,
+        balance: 0,
         currency: 'INR',
         last_updated: new Date().toISOString()
       };
@@ -276,7 +269,7 @@ export const getWalletBalance = async (): Promise<WalletBalance> => {
     if (response.data) {
       console.log('✅ Wallet balance fetched:', response.data);
       return {
-        balance: response.data.current_balance,
+        balance: response.data.balance || response.data.current_balance || 0,
         currency: 'INR',
         last_updated: new Date().toISOString()
       };
@@ -286,11 +279,11 @@ export const getWalletBalance = async (): Promise<WalletBalance> => {
   } catch (error: any) {
     console.error('❌ Failed to fetch wallet balance:', error);
     
-    // Return mock balance if backend fails
-    console.log('🔧 Fallback to mock wallet balance:', MOCK_DATA.wallet_balance);
+    // Return zero balance if backend fails
+    console.log('🔧 Backend failed, returning zero balance');
     
     return {
-      balance: MOCK_DATA.wallet_balance,
+      balance: 0,
       currency: 'INR',
       last_updated: new Date().toISOString()
     };
@@ -308,9 +301,9 @@ export const getWalletLedger = async (): Promise<WalletTransaction[]> => {
     const backendAvailable = await isBackendAvailable();
     
     if (!backendAvailable) {
-      // Return mock transactions for development
-      console.log('🔧 Using mock wallet ledger:', MOCK_DATA.transactions.length);
-      return MOCK_DATA.transactions;
+      // Backend unavailable, return empty transactions
+      console.log('🔧 Backend unavailable, returning empty transactions');
+      return [];
     }
     
     const authHeaders = await getAuthHeaders();
@@ -327,9 +320,9 @@ export const getWalletLedger = async (): Promise<WalletTransaction[]> => {
   } catch (error: any) {
     console.error('❌ Failed to fetch wallet ledger:', error);
     
-    // Return mock transactions if backend fails
-    console.log('🔧 Fallback to mock wallet ledger:', MOCK_DATA.transactions.length);
-    return MOCK_DATA.transactions;
+    // Return empty transactions if backend fails
+    console.log('🔧 Backend failed, returning empty transactions');
+    return [];
   }
 };
 
@@ -348,32 +341,15 @@ export const deductFromWallet = async (
     const backendAvailable = await isBackendAvailable();
     
     if (!backendAvailable) {
-      // Mock deduction for development
-      const mockPaymentId = `pay_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      console.log('🔧 Using mock wallet deduction:', mockPaymentId);
-      
-      // Update mock balance
-      MOCK_DATA.wallet_balance -= amount;
-      
-      // Add transaction to mock data
-      const newTransaction: WalletTransaction = {
-        id: Date.now().toString(),
-        type: 'debit',
-        amount,
-        description,
-        date: new Date().toLocaleString('en-IN'),
-        payment_id: mockPaymentId,
-        status: 'completed',
-        metadata
-      };
-      MOCK_DATA.transactions.unshift(newTransaction);
+      // Backend unavailable, cannot process deduction
+      console.log('🔧 Backend unavailable, cannot process wallet deduction');
       
       return {
-        success: true,
-        message: 'Amount deducted successfully (mock)',
-        payment_id: mockPaymentId,
-        amount,
-        status: 'completed'
+        success: false,
+        message: 'Backend unavailable - cannot process wallet deduction',
+        payment_id: undefined,
+        amount: 0,
+        status: 'failed'
       };
     }
     
@@ -399,32 +375,15 @@ export const deductFromWallet = async (
   } catch (error: any) {
     console.error('❌ Failed to deduct from wallet:', error);
     
-    // Return mock response if backend fails
-    const mockPaymentId = `pay_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    console.log('🔧 Fallback to mock wallet deduction:', mockPaymentId);
-    
-    // Update mock balance
-    MOCK_DATA.wallet_balance -= amount;
-    
-    // Add transaction to mock data
-    const newTransaction: WalletTransaction = {
-      id: Date.now().toString(),
-      type: 'debit',
-      amount,
-      description,
-      date: new Date().toLocaleString('en-IN'),
-      payment_id: mockPaymentId,
-      status: 'completed',
-      metadata
-    };
-    MOCK_DATA.transactions.unshift(newTransaction);
+    // Return error response if backend fails
+    console.log('🔧 Backend failed, cannot process wallet deduction');
     
     return {
-      success: true,
-      message: 'Amount deducted successfully (fallback)',
-      payment_id: mockPaymentId,
-      amount,
-      status: 'completed'
+      success: false,
+      message: 'Backend failed - cannot process wallet deduction',
+      payment_id: undefined,
+      amount: 0,
+      status: 'failed'
     };
   }
 };
@@ -444,32 +403,15 @@ export const addToWallet = async (
     const backendAvailable = await isBackendAvailable();
     
     if (!backendAvailable) {
-      // Mock addition for development
-      const mockPaymentId = `pay_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      console.log('🔧 Using mock wallet addition:', mockPaymentId);
-      
-      // Update mock balance
-      MOCK_DATA.wallet_balance += amount;
-      
-      // Add transaction to mock data
-      const newTransaction: WalletTransaction = {
-        id: Date.now().toString(),
-        type: 'credit',
-        amount,
-        description,
-        date: new Date().toLocaleString('en-IN'),
-        payment_id: mockPaymentId,
-        status: 'completed',
-        metadata
-      };
-      MOCK_DATA.transactions.unshift(newTransaction);
+      // Backend unavailable, cannot process addition
+      console.log('🔧 Backend unavailable, cannot process wallet addition');
       
       return {
-        success: true,
-        message: 'Amount added successfully (mock)',
-        payment_id: mockPaymentId,
-        amount,
-        status: 'completed'
+        success: false,
+        message: 'Backend unavailable - cannot process wallet addition',
+        payment_id: undefined,
+        amount: 0,
+        status: 'failed'
       };
     }
     
@@ -495,32 +437,15 @@ export const addToWallet = async (
   } catch (error: any) {
     console.error('❌ Failed to add to wallet:', error);
     
-    // Return mock response if backend fails
-    const mockPaymentId = `pay_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    console.log('🔧 Fallback to mock wallet addition:', mockPaymentId);
-    
-    // Update mock balance
-    MOCK_DATA.wallet_balance += amount;
-    
-    // Add transaction to mock data
-    const newTransaction: WalletTransaction = {
-      id: Date.now().toString(),
-      type: 'credit',
-      amount,
-      description,
-      date: new Date().toLocaleString('en-IN'),
-      payment_id: mockPaymentId,
-      status: 'completed',
-      metadata
-    };
-    MOCK_DATA.transactions.unshift(newTransaction);
+    // Return error response if backend fails
+    console.log('🔧 Backend failed, cannot process wallet addition');
     
     return {
-      success: true,
-      message: 'Amount added successfully (fallback)',
-      payment_id: mockPaymentId,
-      amount,
-      status: 'completed'
+      success: false,
+      message: 'Backend failed - cannot process wallet addition',
+      payment_id: undefined,
+      amount: 0,
+      status: 'failed'
     };
   }
 };
@@ -677,35 +602,15 @@ export const processTripPayment = async (
     const backendAvailable = await isBackendAvailable();
     
     if (!backendAvailable) {
-      // Mock trip payment for development
-      const mockPaymentId = `pay_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-      console.log('🔧 Using mock trip payment:', mockPaymentId);
-      
-      // Update mock balance
-      MOCK_DATA.wallet_balance -= amount;
-      
-      // Add transaction to mock data
-      const newTransaction: WalletTransaction = {
-        id: Date.now().toString(),
-        type: 'debit',
-        amount,
-        description: `Trip payment: ${tripDetails.pickup} to ${tripDetails.drop}`,
-        date: new Date().toLocaleString('en-IN'),
-        payment_id: mockPaymentId,
-        status: 'completed',
-        metadata: {
-          trip_id: tripId,
-          ...tripDetails
-        }
-      };
-      MOCK_DATA.transactions.unshift(newTransaction);
+      // Backend unavailable, cannot process trip payment
+      console.log('🔧 Backend unavailable, cannot process trip payment');
       
       return {
-        success: true,
-        message: 'Trip payment processed successfully (mock)',
-        payment_id: mockPaymentId,
-        amount,
-        status: 'completed'
+        success: false,
+        message: 'Backend unavailable - cannot process trip payment',
+        payment_id: undefined,
+        amount: 0,
+        status: 'failed'
       };
     }
     
@@ -727,35 +632,15 @@ export const processTripPayment = async (
   } catch (error: any) {
     console.error('❌ Failed to process trip payment:', error);
     
-    // Return mock response if backend fails
-    const mockPaymentId = `pay_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    console.log('🔧 Fallback to mock trip payment:', mockPaymentId);
-    
-    // Update mock balance
-    MOCK_DATA.wallet_balance -= amount;
-    
-    // Add transaction to mock data
-    const newTransaction: WalletTransaction = {
-      id: Date.now().toString(),
-      type: 'debit',
-      amount,
-      description: `Trip payment: ${tripDetails.pickup} to ${tripDetails.drop}`,
-      date: new Date().toLocaleString('en-IN'),
-      payment_id: mockPaymentId,
-      status: 'completed',
-      metadata: {
-        trip_id: tripId,
-        ...tripDetails
-      }
-    };
-    MOCK_DATA.transactions.unshift(newTransaction);
+    // Return error response if backend fails
+    console.log('🔧 Backend failed, cannot process trip payment');
     
     return {
-      success: true,
-      message: 'Trip payment processed successfully (fallback)',
-      payment_id: mockPaymentId,
-      amount,
-      status: 'completed'
+      success: false,
+      message: 'Backend failed - cannot process trip payment',
+      payment_id: undefined,
+      amount: 0,
+      status: 'failed'
     };
   }
 };
@@ -805,57 +690,62 @@ export const getPaymentHistory = async (): Promise<PaymentResponse[]> => {
   } catch (error: any) {
     console.error('❌ Failed to fetch payment history:', error);
     
-    // Return mock payment history if backend fails
-    console.log('🔧 Fallback to mock payment history');
-    return [
-      {
-        success: true,
-        message: 'Mock payment 1 (fallback)',
-        payment_id: 'pay_mock_1',
-        amount: 500,
-        status: 'completed'
-      },
-      {
-        success: true,
-        message: 'Mock payment 2 (fallback)',
-        payment_id: 'pay_mock_2',
-        amount: 1000,
-        status: 'completed'
-      }
-    ];
+    // Return empty payment history if backend fails
+    console.log('🔧 Backend failed, returning empty payment history');
+    return [];
   }
 };
 
 /**
- * Reset mock data (for testing purposes)
+ * Refresh wallet balance after payment
  */
-export const resetMockData = () => {
-  MOCK_DATA.wallet_balance = 1500;
-  MOCK_DATA.transactions = [
-    {
-      id: '1',
-      type: 'credit',
-      amount: 2000,
-      description: 'Initial Balance',
-      date: '2025-01-20 10:30 AM',
-      status: 'completed'
-    },
-    {
-      id: '2',
-      type: 'debit',
-      amount: 50,
-      description: 'Trip Commission',
-      date: '2025-01-19 05:45 PM',
-      status: 'completed'
-    },
-    {
-      id: '3',
-      type: 'debit',
-      amount: 450,
-      description: 'Trip Earnings Payout',
-      date: '2025-01-19 05:45 PM',
-      status: 'completed'
+export const refreshWalletBalance = async (): Promise<WalletBalance> => {
+  try {
+    console.log('🔄 Refreshing wallet balance after payment...');
+    
+    const balance = await getWalletBalance();
+    console.log('✅ Wallet balance refreshed:', balance);
+    return balance;
+  } catch (error: any) {
+    console.error('❌ Failed to refresh wallet balance:', error);
+    throw error;
+  }
+};
+
+/**
+ * Complete payment flow with wallet refresh
+ */
+export const completePaymentFlow = async (
+  rpOrderId: string,
+  rpPaymentId: string,
+  rpSignature: string
+): Promise<{ payment: PaymentResponse; wallet: WalletBalance }> => {
+  try {
+    console.log('💳 Starting complete payment flow...');
+    
+    // Step 1: Verify payment
+    const paymentResult = await verifyRazorpayPayment(rpOrderId, rpPaymentId, rpSignature);
+    
+    if (!paymentResult.success) {
+      throw new Error('Payment verification failed');
     }
-  ];
-  console.log('🔧 Mock data reset to initial state');
+    
+    console.log('✅ Payment verified successfully');
+    
+    // Step 2: Refresh wallet balance
+    const walletBalance = await refreshWalletBalance();
+    
+    console.log('✅ Complete payment flow finished:', {
+      payment: paymentResult,
+      wallet: walletBalance
+    });
+    
+    return {
+      payment: paymentResult,
+      wallet: walletBalance
+    };
+  } catch (error: any) {
+    console.error('❌ Complete payment flow failed:', error);
+    throw error;
+  }
 };

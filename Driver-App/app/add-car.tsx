@@ -132,35 +132,40 @@ export default function AddCarScreen() {
   const handleSave = async () => {
     // Clear previous errors
     setErrors({});
-
+  
     // Simple validation - just check if fields are not empty
     if (!carData.name || !carData.type || !carData.registration || !carData.year) {
       Alert.alert('Validation Error', 'Please fill all required fields');
       return;
     }
-
+  
     // Check required images
     if (!carImages.rcFront || !carImages.rcBack || !carImages.insurance || !carImages.fc || !carImages.carImage) {
       Alert.alert('Error', 'Please upload all required images (RC Front, RC Back, Insurance, FC, Car Image)');
       return;
     }
-
+  
     try {
       const payload = {
         car_name: carData.name.trim(),
         car_type: carData.type,
-        car_number: carData.registration.trim(), // Send as entered
+        car_number: carData.registration.trim().toUpperCase(), // Convert to uppercase
         organization_id: user?.organizationId || 'org_001',
         vehicle_owner_id: user?.id || 'e5b9edb1-b4bb-48b8-a662-f7fd00abb6eb',
         rc_front_img: carImages.rcFront,
         rc_back_img: carImages.rcBack,
         insurance_img: carImages.insurance,
         fc_img: carImages.fc,
-        car_img: carImages.carImage
+        car_img: carImages.carImage,
+        model: carData.model || carData.name, // Add model field
+        year: parseInt(carData.year), // Convert to number
+        color: carData.color || 'Unknown' // Default color
       };
-
+  
+      console.log('Sending payload:', JSON.stringify(payload, null, 2));
+  
       await addCarDetails(payload);
-
+  
       Alert.alert(
         'Success',
         'Car details added successfully!',
@@ -173,6 +178,45 @@ export default function AddCarScreen() {
       );
     } catch (error: any) {
       console.error('Error adding car:', error);
+      
+      // Improved error handling
+      if (error.response) {
+        // The request was made and the server responded with a status code
+        console.error('Response data:', error.response.data);
+        console.error('Response status:', error.response.status);
+        
+        if (error.response.status === 422) {
+          // Handle validation errors
+          const validationErrors = error.response.data;
+          if (typeof validationErrors === 'object') {
+            // Convert backend validation errors to frontend error messages
+            const fieldErrors: {[key: string]: string} = {};
+            
+            Object.keys(validationErrors).forEach(key => {
+              if (Array.isArray(validationErrors[key])) {
+                fieldErrors[key] = validationErrors[key].join(', ');
+              } else {
+                fieldErrors[key] = validationErrors[key];
+              }
+            });
+            
+            // Set errors for specific fields
+            if (fieldErrors.car_number) {
+              setErrors(prev => ({...prev, registration: fieldErrors.car_number}));
+            }
+            if (fieldErrors.car_type) {
+              setErrors(prev => ({...prev, type: fieldErrors.car_type}));
+            }
+            if (fieldErrors.car_name) {
+              setErrors(prev => ({...prev, name: fieldErrors.car_name}));
+            }
+            
+            Alert.alert('Validation Error', 'Please check the highlighted fields');
+            return;
+          }
+        }
+      }
+      
       Alert.alert('Error', error.message || 'Failed to add car details');
     }
   };

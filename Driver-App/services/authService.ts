@@ -57,8 +57,25 @@ class AuthService {
     try {
       console.log('🔐 Starting vehicle owner login...');
       
+      // Format mobile number to 10 digits only (remove +91 prefix)
+      const formatMobileNumber = (phone: string): string => {
+        if (!phone || !phone.trim()) return '';
+        // Remove +91 prefix and any non-digit characters, keep only 10 digits
+        const cleanPhone = phone.replace(/^\+91/, '').replace(/\D/g, '').trim();
+        if (!cleanPhone) return '';
+        // Return only the last 10 digits (in case there are more)
+        return cleanPhone.slice(-10);
+      };
+      
+      const formattedMobileNumber = formatMobileNumber(mobileNumber);
+      
+      console.log('📱 Mobile number formatting:', {
+        original: mobileNumber,
+        formatted: formattedMobileNumber
+      });
+      
       const response = await axiosInstance.post('/api/users/vehicleowner/login', {
-        mobile_number: mobileNumber,
+        mobile_number: formattedMobileNumber,
         password: password
       });
       
@@ -89,9 +106,20 @@ class AuthService {
       console.error('❌ Login failed:', error);
       
       if (error.response?.status === 401) {
-        throw new Error('Invalid mobile number or password');
+        throw new Error('Invalid mobile number or password. Please check your credentials and try again.');
       } else if (error.response?.status === 400) {
-        throw new Error(error.response.data?.detail || 'Login failed');
+        const errorData = error.response.data;
+        const errorMessage = errorData?.detail || errorData?.message || errorData?.error || 'Login failed';
+        
+        if (errorMessage.toLowerCase().includes('mobile') && errorMessage.toLowerCase().includes('not found')) {
+          throw new Error('Mobile number not found. Please check your mobile number or sign up first.');
+        } else if (errorMessage.toLowerCase().includes('password')) {
+          throw new Error('Invalid password. Please check your password and try again.');
+        } else {
+          throw new Error(errorMessage);
+        }
+      } else if (error.response?.status === 404) {
+        throw new Error('Account not found. Please check your mobile number or sign up first.');
       } else {
         throw new Error(`Login failed: ${error.message || 'Unknown error occurred'}`);
       }

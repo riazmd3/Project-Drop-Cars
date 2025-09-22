@@ -8,7 +8,6 @@ import {
   Alert,
   ScrollView,
   SafeAreaView,
-  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, User, Save, Upload, CheckCircle, FileText, Image, Phone, Lock, MapPin, CreditCard } from 'lucide-react-native';
@@ -37,7 +36,6 @@ export default function AddDriverScreen() {
   });
 
   const [errors, setErrors] = useState<{[key: string]: string}>({});
-  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const router = useRouter();
   const { user } = useAuth();
@@ -176,12 +174,6 @@ export default function AddDriverScreen() {
   };
 
   const handleSave = async () => {
-    // Prevent duplicate submissions
-    if (isSubmitting) {
-      console.log('⚠️ Driver registration already in progress, ignoring duplicate submission');
-      return;
-    }
-
     // Clear previous errors
     setErrors({});
 
@@ -198,9 +190,6 @@ export default function AddDriverScreen() {
     }
 
     try {
-      setIsSubmitting(true);
-      console.log('🚀 Starting driver registration (preventing duplicates)...');
-
       const payload: DriverDetails = {
         full_name: driverData.full_name.trim(),
         primary_number: driverData.primary_number.trim(), // Send as entered
@@ -210,7 +199,7 @@ export default function AddDriverScreen() {
         adress: driverData.adress.trim(),
         organization_id: user?.organizationId || 'org_001',
         vehicle_owner_id: user?.id || 'e5b9edb1-b4bb-48b8-a662-f7fd00abb6eb',
-        licence_front_img_url: driverImages.licence_front_img,
+        licence_front_img: driverImages.licence_front_img,
         rc_front_img: driverImages.rc_front_img,
         rc_back_img: driverImages.rc_back_img,
         insurance_img: driverImages.insurance_img,
@@ -232,24 +221,7 @@ export default function AddDriverScreen() {
       );
     } catch (error: any) {
       console.error('Error adding driver:', error);
-      
-      // Check if it's a duplicate registration error
-      if (error.message && error.message.includes('already registered')) {
-        Alert.alert(
-          'Driver Already Exists',
-          'This driver is already registered. Redirecting to dashboard...',
-          [
-            {
-              text: 'OK',
-              onPress: () => checkAccountStatusAndRedirect()
-            }
-          ]
-        );
-      } else {
-        Alert.alert('Error', error.message || 'Failed to add driver details');
-      }
-    } finally {
-      setIsSubmitting(false);
+      Alert.alert('Error', error.message || 'Failed to add driver details');
     }
   };
 
@@ -281,7 +253,6 @@ export default function AddDriverScreen() {
             <TextInput
               style={[styles.input, errors.full_name && styles.inputError]}
               placeholder="Full Name (e.g., John Doe)"
-              placeholderTextColor="#9CA3AF"
               value={driverData.full_name}
               onChangeText={(text) => handleInputChange('full_name', text)}
             />
@@ -293,7 +264,6 @@ export default function AddDriverScreen() {
             <TextInput
               style={[styles.input, errors.primary_number && styles.inputError]}
               placeholder="Primary Mobile Number (+91XXXXXXXXXX)"
-              placeholderTextColor="#9CA3AF"
               value={driverData.primary_number}
               onChangeText={(text) => handleInputChange('primary_number', text)}
               keyboardType="phone-pad"
@@ -309,7 +279,6 @@ export default function AddDriverScreen() {
             <TextInput
               style={[styles.input, errors.secondary_number && styles.inputError]}
               placeholder="Secondary Mobile Number (Optional)"
-              placeholderTextColor="#9CA3AF"
               value={driverData.secondary_number}
               onChangeText={(text) => handleInputChange('secondary_number', text)}
               keyboardType="phone-pad"
@@ -321,7 +290,6 @@ export default function AddDriverScreen() {
             <TextInput
               style={[styles.input, errors.password && styles.inputError]}
               placeholder="Password"
-              placeholderTextColor="#9CA3AF"
               value={driverData.password}
               onChangeText={(text) => handleInputChange('password', text)}
               secureTextEntry
@@ -334,7 +302,6 @@ export default function AddDriverScreen() {
             <TextInput
               style={[styles.input, errors.licence_number && styles.inputError]}
               placeholder="Driving Licence Number (e.g., MH-12-1990-1234567)"
-              placeholderTextColor="#9CA3AF"
               value={driverData.licence_number}
               onChangeText={(text) => handleInputChange('licence_number', text)}
               autoCapitalize="characters"
@@ -350,7 +317,6 @@ export default function AddDriverScreen() {
             <TextInput
               style={[styles.input, errors.adress && styles.inputError]}
               placeholder="Address (e.g., 123 Main Street, Mumbai, Maharashtra)"
-              placeholderTextColor="#9CA3AF"
               value={driverData.adress}
               onChangeText={(text) => handleInputChange('adress', text)}
               multiline
@@ -406,22 +372,9 @@ export default function AddDriverScreen() {
             isRequired={false}
           />
 
-          <TouchableOpacity 
-            style={[styles.saveButton, isSubmitting && styles.saveButtonDisabled]} 
-            onPress={handleSave}
-            disabled={isSubmitting}
-          >
-            {isSubmitting ? (
-              <>
-                <ActivityIndicator color="#FFFFFF" size={20} />
-                <Text style={styles.saveButtonText}>Saving Driver...</Text>
-              </>
-            ) : (
-              <>
-                <Save color="#FFFFFF" size={20} />
-                <Text style={styles.saveButtonText}>Save Driver & Continue</Text>
-              </>
-            )}
+          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+            <Save color="#FFFFFF" size={20} />
+            <Text style={styles.saveButtonText}>Save Driver & Continue</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -524,7 +477,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-Medium',
     color: '#1F2937',
-    textAlign: 'left'
   },
   inputError: {
     borderColor: '#EF4444',
@@ -602,10 +554,6 @@ const styles = StyleSheet.create({
     marginTop: 24,
     marginBottom: 20,
   },
-  saveButtonDisabled: {
-    backgroundColor: '#9CA3AF',
-    opacity: 0.7,
-  },
   saveButtonText: {
     color: '#FFFFFF',
     fontSize: 16,
@@ -613,5 +561,4 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 });
-
 

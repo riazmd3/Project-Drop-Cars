@@ -30,17 +30,17 @@ const validateIndianMobile = (phone: string): boolean => {
 
 // Helper function to format phone number for display
 const formatPhoneNumber = (phone: string): string => {
-  // Remove any non-digit characters
-  const cleanPhone = phone.replace(/\D/g, '');
+  // Remove any non-digit characters and +91 prefix
+  const cleanPhone = phone.replace(/^\+91/, '').replace(/\D/g, '');
   
-  // If it's 10 digits, add +91 prefix
+  // Return only 10 digits (no +91 prefix)
   if (cleanPhone.length === 10) {
-    return `+91${cleanPhone}`;
+    return cleanPhone;
   }
   
-  // If it already has +91 and 10 digits, return as is
-  if (phone.startsWith('+91') && cleanPhone.length === 13) {
-    return phone;
+  // If it's more than 10 digits, return the last 10
+  if (cleanPhone.length > 10) {
+    return cleanPhone.slice(-10);
   }
   
   // Otherwise return the cleaned number
@@ -103,14 +103,14 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
             placeholderTextColor="#9CA3AF"
             value={primaryMobile}
             onChangeText={(text) => {
-              // Allow only digits and +91 prefix
-              const cleanText = text.replace(/[^\d+]/g, '');
-              if (cleanText.startsWith('+91') || cleanText.length <= 13) {
+              // Allow only digits, max 10 digits
+              const cleanText = text.replace(/\D/g, '');
+              if (cleanText.length <= 10) {
                 setPrimaryMobile(cleanText);
               }
             }}
             keyboardType="phone-pad"
-            maxLength={13}
+            maxLength={10}
           />
         </View>
         {/* Helper/error hints removed to avoid blocking UX */}
@@ -124,13 +124,14 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
             placeholderTextColor="#9CA3AF"
             value={secondaryMobile}
             onChangeText={(text) => {
-              const cleanText = text.replace(/[^\d+]/g, '');
-              if (cleanText.startsWith('+91') || cleanText.length <= 13) {
+              // Allow only digits, max 10 digits
+              const cleanText = text.replace(/\D/g, '');
+              if (cleanText.length <= 10) {
                 setSecondaryMobile(cleanText);
               }
             }}
             keyboardType="phone-pad"
-            maxLength={13}
+            maxLength={10}
           />
         </View>
 

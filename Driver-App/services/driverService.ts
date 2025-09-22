@@ -11,15 +11,23 @@ export interface DriverDetails {
   adress: string;
   organization_id: string;
   vehicle_owner_id: string;
+  // Image fields for file uploads (matching Postman request)
+  licence_front_img?: any; // File object for FormData
+  rc_front_img?: any; // File object for FormData
+  rc_back_img?: any; // File object for FormData
+  insurance_img?: any; // File object for FormData
+  fc_img?: any; // File object for FormData
+  car_img?: any; // File object for FormData
+  // URL fields for display (after upload)
   licence_front_img_url?: string;
   rc_front_img_url?: string;
   rc_back_img_url?: string;
   insurance_img_url?: string;
   fc_img_url?: string;
   car_img_url?: string;
-  status: string;
-  created_at: string;
-  updated_at: string;
+  status?: string;
+  created_at?: string;
+  updated_at?: string;
   password?: string; // Added for compatibility
 }
 
@@ -133,16 +141,117 @@ export const loginDriver = async (mobileNumber: string, password: string): Promi
 export const addDriverDetails = async (driverData: DriverDetails): Promise<any> => {
   try {
     console.log('👤 Adding driver details:', driverData);
+    
+    // Format phone numbers for backend - send 10 digits only
+    const formatPhoneForBackend = (phone: string): string => {
+      if (!phone || !phone.trim()) return '';
+      // Remove +91 prefix and any non-digit characters, keep only 10 digits
+      const cleanPhone = phone.replace(/^\+91/, '').replace(/\D/g, '').trim();
+      if (!cleanPhone) return '';
+      // Return only the last 10 digits (in case there are more)
+      return cleanPhone.slice(-10);
+    };
+    
+    // Create FormData for multipart/form-data upload (matching Postman request)
+    const formData = new FormData();
+    
+    // Add text fields (matching the Postman request exactly)
+    formData.append('full_name', driverData.full_name || '');
+    formData.append('primary_number', formatPhoneForBackend(driverData.primary_number));
+    
+    // Only add secondary_number if it has a value
+    const formattedSecondary = formatPhoneForBackend(driverData.secondary_number || '');
+    if (formattedSecondary) {
+      formData.append('secondary_number', formattedSecondary);
+    }
+    
+    formData.append('password', driverData.password || '');
+    formData.append('licence_number', driverData.licence_number || '');
+    formData.append('adress', driverData.adress || '');
+    formData.append('organization_id', driverData.organization_id || 'org_123');
+    formData.append('vehicle_owner_id', driverData.vehicle_owner_id || '');
+    
+    // Add image files if they exist
+    if (driverData.licence_front_img) {
+      formData.append('licence_front_img', driverData.licence_front_img);
+    }
+    if (driverData.rc_front_img) {
+      formData.append('rc_front_img', driverData.rc_front_img);
+    }
+    if (driverData.rc_back_img) {
+      formData.append('rc_back_img', driverData.rc_back_img);
+    }
+    if (driverData.insurance_img) {
+      formData.append('insurance_img', driverData.insurance_img);
+    }
+    if (driverData.fc_img) {
+      formData.append('fc_img', driverData.fc_img);
+    }
+    if (driverData.car_img) {
+      formData.append('car_img', driverData.car_img);
+    }
+    
+    console.log('📱 Driver phone number formatting:', {
+      original_primary: driverData.primary_number,
+      formatted_primary: formatPhoneForBackend(driverData.primary_number),
+      original_secondary: driverData.secondary_number,
+      formatted_secondary: formattedSecondary || 'Not provided'
+    });
+    
+    console.log('📤 FormData created for driver signup:', {
+      full_name: driverData.full_name,
+      primary_number: formatPhoneForBackend(driverData.primary_number),
+      secondary_number: formattedSecondary || 'Not provided',
+      password: driverData.password,
+      licence_number: driverData.licence_number,
+      adress: driverData.adress,
+      organization_id: driverData.organization_id,
+      vehicle_owner_id: driverData.vehicle_owner_id,
+      images: {
+        licence_front_img: driverData.licence_front_img ? 'File attached' : 'No file',
+        rc_front_img: driverData.rc_front_img ? 'File attached' : 'No file',
+        rc_back_img: driverData.rc_back_img ? 'File attached' : 'No file',
+        insurance_img: driverData.insurance_img ? 'File attached' : 'No file',
+        fc_img: driverData.fc_img ? 'File attached' : 'No file',
+        car_img: driverData.car_img ? 'File attached' : 'No file'
+      }
+    });
+    
     const authHeaders = await getAuthHeaders();
     
-    const response = await axiosInstance.post('/api/drivers', driverData, {
-      headers: authHeaders
+    const response = await axiosInstance.post('/api/users/cardriver/signup', formData, {
+      headers: {
+        ...authHeaders,
+        'Content-Type': 'multipart/form-data',
+      },
+      timeout: 120000, // 2 minutes timeout for file uploads
     });
 
     console.log('✅ Driver details added successfully:', response.data);
     return response.data;
   } catch (error: any) {
     console.error('❌ Failed to add driver details:', error);
+    
+    // Provide user-friendly error messages
+    if (error.response?.status === 400) {
+      const errorData = error.response.data;
+      const errorMessage = errorData?.detail || errorData?.message || errorData?.error || '';
+      
+      if (errorMessage.toLowerCase().includes('mobile') && errorMessage.toLowerCase().includes('exist')) {
+        throw new Error('This mobile number is already registered for a driver. Please use a different mobile number.');
+      } else if (errorMessage.toLowerCase().includes('licence') && errorMessage.toLowerCase().includes('exist')) {
+        throw new Error('This licence number is already registered. Please use a different licence number.');
+      } else if (errorMessage.toLowerCase().includes('validation') || errorMessage.toLowerCase().includes('required')) {
+        throw new Error(`Please check driver information: ${errorMessage}`);
+      } else if (errorMessage) {
+        throw new Error(errorMessage);
+      }
+    } else if (error.response?.status === 404) {
+      throw new Error('Driver registration service is not available. Please try again later.');
+    } else if (error.response?.status === 401) {
+      throw new Error('Authentication failed. Please login again and try adding the driver.');
+    }
+    
     throw error;
   }
 };

@@ -32,10 +32,9 @@ const validateIndianMobile = (phone: string): boolean => {
 
 // Helper function to format phone number for backend
 const formatForBackend = (phone: string) => {
-  const digitsOnly = (phone || '').replace(/\D/g, '');
+  const digitsOnly = (phone || '').replace(/^\+91/, '').replace(/\D/g, '');
   const ten = digitsOnly.slice(-10);
-  const withPlus = phone.startsWith('+') ? phone : `+91${ten}`;
-  return { withPlus, ten };
+  return { ten }; // Only return 10 digits, no +91
 };
 
 export default function LoginScreen() {
@@ -376,14 +375,14 @@ export default function LoginScreen() {
                 placeholderTextColor="#9CA3AF"
                 value={phoneNumber}
                 onChangeText={(text) => {
-                  // Allow only digits and +91 prefix
-                  const cleanText = text.replace(/[^\d+]/g, '');
-                  if (cleanText.startsWith('+91') || cleanText.length <= 10) {
+                  // Allow only digits, max 10 digits
+                  const cleanText = text.replace(/\D/g, '');
+                  if (cleanText.length <= 10) {
                     setPhoneNumber(cleanText);
                   }
                 }}
                 keyboardType="phone-pad"
-                maxLength={13}
+                maxLength={10}
               />
             </View>
             <Text style={styles.helperText}>Enter 10-digit mobile number starting with 6, 7, 8, or 9</Text>

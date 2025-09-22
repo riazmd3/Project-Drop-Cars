@@ -1,59 +1,80 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
+  RefreshControl,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { MapPin, Clock, IndianRupee, Car } from 'lucide-react-native';
+import { getDriverAssignmentsWithDetails } from '@/services/assignmentService';
 
-const dummyRideHistory = [
-  {
-    id: '1',
-    booking_id: 'B120',
-    pickup: 'Chennai Airport',
-    drop: 'Mahabalipuram',
-    customer_name: 'Rajesh Kumar',
-    date: '2025-01-20',
-    time: '14:30',
-    distance: 75,
-    fare: 750,
-    status: 'completed'
-  },
-  {
-    id: '2',
-    booking_id: 'B119',
-    pickup: 'T Nagar',
-    drop: 'Kanchipuram',
-    customer_name: 'Meera Devi',
-    date: '2025-01-19',
-    time: '09:15',
-    distance: 65,
-    fare: 650,
-    status: 'completed'
-  },
-  {
-    id: '3',
-    booking_id: 'B118',
-    pickup: 'Velachery',
-    drop: 'Chengalpattu',
-    customer_name: 'Suresh Babu',
-    date: '2025-01-18',
-    time: '16:45',
-    distance: 45,
-    fare: 450,
-    status: 'completed'
-  },
-];
+interface RideHistory {
+  id: string;
+  booking_id: string;
+  pickup: string;
+  drop: string;
+  customer_name: string;
+  date: string;
+  time: string;
+  distance: number;
+  fare: number;
+  status: string;
+}
 
 export default function RidesScreen() {
-  const [rides] = useState(dummyRideHistory);
+  const [rides, setRides] = useState<RideHistory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const { colors } = useTheme();
   const { user } = useAuth();
+
+  // Fetch ride history from API
+  const fetchRideHistory = async () => {
+    try {
+      setLoading(true);
+      const assignments = await getDriverAssignmentsWithDetails();
+      
+      // Filter completed rides and transform data
+      const completedRides: RideHistory[] = assignments
+        .filter(assignment => assignment.status === 'completed')
+        .map(assignment => ({
+          id: assignment.id || assignment.order_id,
+          booking_id: assignment.order_id || assignment.id,
+          pickup: assignment.pickup_location || 'Pickup Location',
+          drop: assignment.drop_location || 'Drop Location',
+          customer_name: assignment.customer_name || 'Customer',
+          date: assignment.start_date_time ? new Date(assignment.start_date_time).toLocaleDateString() : 'N/A',
+          time: assignment.start_date_time ? new Date(assignment.start_date_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A',
+          distance: assignment.distance || assignment.trip_distance || 0,
+          fare: assignment.estimated_price || 0,
+          status: assignment.status || 'completed'
+        }));
+      
+      setRides(completedRides);
+    } catch (error) {
+      console.error('Error fetching ride history:', error);
+      setRides([]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Refresh function
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await fetchRideHistory();
+    setRefreshing(false);
+  };
+
+  // Load data on component mount
+  useEffect(() => {
+    fetchRideHistory();
+  }, []);
 
   const dynamicStyles = StyleSheet.create({
     container: {
@@ -162,6 +183,37 @@ export default function RidesScreen() {
       fontFamily: 'Inter-SemiBold',
       color: colors.text,
     },
+    loadingContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: 40,
+    },
+    loadingText: {
+      fontSize: 16,
+      fontFamily: 'Inter-Medium',
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
+    emptyContainer: {
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
+      paddingVertical: 40,
+    },
+    emptyText: {
+      fontSize: 16,
+      fontFamily: 'Inter-Medium',
+      color: colors.textSecondary,
+      textAlign: 'center',
+      marginBottom: 8,
+    },
+    emptySubtext: {
+      fontSize: 14,
+      fontFamily: 'Inter-Regular',
+      color: colors.textSecondary,
+      textAlign: 'center',
+    },
   });
   const RideCard = ({ ride }) => (
     <View style={dynamicStyles.rideCard}>
@@ -212,10 +264,34 @@ export default function RidesScreen() {
         <Text style={dynamicStyles.headerSubtitle}>Welcome back, {user?.name}! • Trip History</Text>
       </View>
 
-      <ScrollView style={dynamicStyles.content} showsVerticalScrollIndicator={false}>
-        {rides.map((ride) => (
-          <RideCard key={ride.id} ride={ride} />
-        ))}
+      <ScrollView 
+        style={dynamicStyles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }
+      >
+        {loading ? (
+          <View style={dynamicStyles.loadingContainer}>
+            <Text style={dynamicStyles.loadingText}>Loading ride history...</Text>
+          </View>
+        ) : rides.length > 0 ? (
+          rides.map((ride) => (
+            <RideCard key={ride.id} ride={ride} />
+          ))
+        ) : (
+          <View style={dynamicStyles.emptyContainer}>
+            <Text style={dynamicStyles.emptyText}>No completed rides yet</Text>
+            <Text style={dynamicStyles.emptySubtext}>
+              Your completed rides will appear here
+            </Text>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );

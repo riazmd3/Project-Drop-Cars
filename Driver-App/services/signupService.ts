@@ -58,37 +58,84 @@ export const signupAccount = async (personalData: any, documents: any): Promise<
       // Helper function to format phone numbers for backend - send 10 digits only
       const formatPhoneForBackend = (phone: string): string => {
         if (!phone || !phone.trim()) return '';
-        // Remove +91 prefix and any non-digit characters, keep only 10 digits
-        const cleanPhone = phone.replace(/^\+91/, '').replace(/\D/g, '').trim();
+        
+        console.log('📱 Original phone number:', phone);
+        
+        // Remove +91 prefix and any non-digit characters, keep only digits
+        let cleanPhone = phone.replace(/^\+91/, '').replace(/\D/g, '').trim();
+        
+        console.log('📱 After removing +91 and non-digits:', cleanPhone);
+        
         if (!cleanPhone) return '';
+        
         // Return only the last 10 digits (in case there are more)
-        return cleanPhone.slice(-10);
+        const finalPhone = cleanPhone.slice(-10);
+        
+        console.log('📱 Final formatted phone (10 digits):', finalPhone);
+        
+        return finalPhone;
       };
 
+       // Validate required fields before sending
+       const fullName = personalData.fullName?.trim();
+       const primaryNumber = formatPhoneForBackend(personalData.primaryMobile || '');
+       const password = personalData.password?.trim();
+       const address = personalData.address?.trim();
+       const aadharNumber = personalData.aadharNumber?.trim();
+       
+       if (!fullName) {
+         throw new Error('Full name is required');
+       }
+       if (!primaryNumber || primaryNumber.length !== 10) {
+         throw new Error('Valid 10-digit primary mobile number is required');
+       }
+       if (!password || password.length < 6) {
+         throw new Error('Password must be at least 6 characters long');
+       }
+       if (!address) {
+         throw new Error('Address is required');
+       }
+       if (!aadharNumber || aadharNumber.length !== 12) {
+         throw new Error('Valid 12-digit Aadhar number is required');
+       }
+
        // Append all other fields
-       formData.append('full_name', personalData.fullName || '');
-       formData.append('primary_number', formatPhoneForBackend(personalData.primaryMobile || ''));
+       formData.append('full_name', fullName);
+       formData.append('primary_number', primaryNumber);
        // Only append secondary_number if it has a value, otherwise skip it entirely
        const formattedSecondary = formatPhoneForBackend(personalData.secondaryMobile || '');
-       if (formattedSecondary) {
+       if (formattedSecondary && formattedSecondary.length === 10) {
          formData.append('secondary_number', formattedSecondary);
        }
        // Don't append anything if secondary number is empty - let backend handle it as optional
-       formData.append('password', personalData.password || '');
-       formData.append('address', personalData.address || '');
-       formData.append('aadhar_number', personalData.aadharNumber || '');
+       formData.append('password', password);
+       formData.append('address', address);
+       formData.append('aadhar_number', aadharNumber);
        formData.append('organization_id', personalData.organizationId || 'org_001');
       
       console.log('📤 FormData created with fields:', {
-        full_name: personalData.fullName,
-        primary_number: formatPhoneForBackend(personalData.primaryMobile || ''),
+        full_name: fullName,
+        primary_number: primaryNumber,
         secondary_number: formattedSecondary || 'Not provided (skipped)',
-        password: personalData.password,
-        address: personalData.address,
-        aadhar_number: personalData.aadharNumber,
-        organization_id: personalData.organizationId,
+        password: password,
+        address: address,
+        aadhar_number: aadharNumber,
+        organization_id: personalData.organizationId || 'org_001',
         aadhar_front_img: documents.aadharFront ? 'File attached' : 'No file'
       });
+      
+      console.log('📱 Phone number validation:', {
+        original_primary: personalData.primaryMobile,
+        formatted_primary: primaryNumber,
+        original_secondary: personalData.secondaryMobile,
+        formatted_secondary: formattedSecondary || 'Not provided'
+      });
+      
+      // Log the actual FormData entries for debugging
+      console.log('🔍 FormData entries:');
+      for (let [key, value] of formData.entries()) {
+        console.log(`  ${key}:`, value);
+      }
       
       // Make the API call with FormData
       const response = await axiosInstance.post('/api/users/vehicleowner/signup', formData, {
@@ -127,6 +174,34 @@ export const signupAccount = async (personalData: any, documents: any): Promise<
           timeout: error.config?.timeout
         }
       });
+      
+      // Log detailed backend error for 400 status
+      if (error.response?.status === 400) {
+        console.error('❌ Backend validation error details:', {
+          status: error.response.status,
+          statusText: error.response.statusText,
+          data: error.response.data,
+          headers: error.response.headers
+        });
+        
+        // Check for specific error messages and provide user-friendly messages
+        const errorData = error.response.data;
+        if (errorData && typeof errorData === 'object') {
+          const errorMessage = errorData.detail || errorData.message || errorData.error || '';
+          
+          if (errorMessage.toLowerCase().includes('mobile') && errorMessage.toLowerCase().includes('exist')) {
+            throw new Error('This mobile number is already registered. Please use a different mobile number or try logging in.');
+          } else if (errorMessage.toLowerCase().includes('aadhar') && errorMessage.toLowerCase().includes('exist')) {
+            throw new Error('This Aadhar number is already registered. Please use a different Aadhar number.');
+          } else if (errorMessage.toLowerCase().includes('email') && errorMessage.toLowerCase().includes('exist')) {
+            throw new Error('This email is already registered. Please use a different email.');
+          } else if (errorMessage.toLowerCase().includes('validation') || errorMessage.toLowerCase().includes('required')) {
+            throw new Error(`Please check your information: ${errorMessage}`);
+          } else if (errorMessage) {
+            throw new Error(errorMessage);
+          }
+        }
+      }
 
       // If we got a successful response but axios treated it as an error
       if (error.response?.status >= 200 && error.response?.status < 300 && error.response?.data) {
