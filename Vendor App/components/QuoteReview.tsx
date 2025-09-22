@@ -24,7 +24,8 @@ import {
   Mountain,
   ChevronDown,
   Truck,
-  Route
+  Route,
+  Timer
 } from 'lucide-react-native';
 
 const { width } = Dimensions.get('window');
@@ -66,7 +67,7 @@ export default function QuoteReview({
   const [showNearCityPicker, setShowNearCityPicker] = useState(false);
   const [sendTo, setSendTo] = useState<'ALL' | 'NEAR_CITY'>('ALL');
   const [nearCity, setNearCity] = useState('');
-
+  console.log('Quote Data:', quoteData);
   const handleConfirmOrder = async () => {
     if (sendTo === 'NEAR_CITY' && !nearCity) {
       Alert.alert('Error', 'Please select a near city when sending to NEAR_CITY');
@@ -98,13 +99,17 @@ export default function QuoteReview({
 
   if (!quoteData) return null;
 
+  const isHourlyRental = quoteData.echo?.trip_type === 'Hourly Rental';
+
   const getLocationEntries = () => {
     return Object.entries(quoteData.echo.pickup_drop_location)
       .sort(([a], [b]) => parseInt(a) - parseInt(b));
   };
-
+  console.log('Data For Houry Rental :',quoteData);
+  console.log('Trip Type :',isHourlyRental);
   const getLocationLabel = (index: string, isLast: boolean, tripType: string) => {
     const position = parseInt(index);
+    if (tripType === 'Hourly Rental') return 'Pickup Location';
     if (position === 0) return 'Pickup Location';
     if (tripType === 'Round Trip' && isLast) return 'Return to Pickup';
     if (isLast) return 'Final Destination';
@@ -124,21 +129,27 @@ export default function QuoteReview({
         {/* Enhanced Header with Trip Type Colors */}
         <LinearGradient
           colors={
-            tripType === 'Round Trip' 
+            tripType === 'Hourly Rental'
+              ? ['#8B5A3C', '#A0522D', '#CD853F']
+              : tripType === 'Round Trip' 
               ? ['#FFF', '#FFF', '#C084FC']
               : tripType === 'Multy City'
               ? ['#dccdcdff', '#e5e3e3ff', '#4075d8ff'] 
-              : ['#1E40AF', '...3B82F6', '#60A5FA']
+              : ['#1E40AF', '#3B82F6', '#60A5FA']
           }
           style={styles.header}
         >
           <View style={styles.headerContent}>
             <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-              <X size={24} color="#1E40AF" />
+              <X size={24} color={tripType === 'Hourly Rental' ? "#8B5A3C" : "#1E40AF"} />
             </TouchableOpacity>
             <View style={styles.headerTitleContainer}>
-              <Text style={styles.headerTitle}>Quote Review</Text>
-              <Text style={styles.headerSubtitle}>{tripType} Journey</Text>
+              <Text style={[styles.headerTitle, tripType === 'Hourly Rental' && { color: '#e9e1dcff' }]}>
+                Quote Review
+              </Text>
+              <Text style={[styles.headerSubtitle, tripType === 'Hourly Rental' && { color: '#e9e1dcff' }]}>
+                {tripType} Journey
+              </Text>
             </View>
             <View style={styles.placeholder} />
           </View>
@@ -148,13 +159,13 @@ export default function QuoteReview({
           {/* Customer Details Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <User size={24} color="#1E40AF" />
+              <User size={24} color={tripType === 'Hourly Rental' ? "#8B5A3C" : "#1E40AF"} />
               <Text style={styles.sectionTitle}>Customer Details</Text>
             </View>
             
             <View style={styles.card}>
               <View style={styles.detailRow}>
-                <User size={20} color="#1E40AF" style={styles.detailIcon} />
+                <User size={20} color={tripType === 'Hourly Rental' ? "#8B5A3C" : "#1E40AF"} style={styles.detailIcon} />
                 <View style={styles.detailContent}>
                   <Text style={styles.detailLabel}>Customer Name</Text>
                   <Text style={styles.detailValue}>{quoteData.echo.customer_name}</Text>
@@ -162,7 +173,7 @@ export default function QuoteReview({
               </View>
 
               <View style={styles.detailRow}>
-                <Phone size={20} color="#1E40AF" style={styles.detailIcon} />
+                <Phone size={20} color={tripType === 'Hourly Rental' ? "#8B5A3C" : "#1E40AF"} style={styles.detailIcon} />
                 <View style={styles.detailContent}>
                   <Text style={styles.detailLabel}>Phone Number</Text>
                   <Text style={styles.detailValue}>{quoteData.echo.customer_number}</Text>
@@ -174,13 +185,13 @@ export default function QuoteReview({
           {/* Trip Details Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Car size={24} color="#1E40AF" />
+              <Car size={24} color={tripType === 'Hourly Rental' ? "#8B5A3C" : "#1E40AF"} />
               <Text style={styles.sectionTitle}>Trip Details</Text>
             </View>
             
             <View style={styles.card}>
               <View style={styles.detailRow}>
-                <Car size={20} color="#1E40AF" style={styles.detailIcon} />
+                <Car size={20} color={tripType === 'Hourly Rental' ? "#8B5A3C" : "#1E40AF"} style={styles.detailIcon} />
                 <View style={styles.detailContent}>
                   <Text style={styles.detailLabel}>Car Type</Text>
                   <Text style={styles.detailValue}>{quoteData.echo.car_type}</Text>
@@ -188,7 +199,7 @@ export default function QuoteReview({
               </View>
 
               <View style={styles.detailRow}>
-                <Calendar size={20} color="#1E40AF" style={styles.detailIcon} />
+                <Calendar size={20} color={tripType === 'Hourly Rental' ? "#8B5A3C" : "#1E40AF"} style={styles.detailIcon} />
                 <View style={styles.detailContent}>
                   <Text style={styles.detailLabel}>Journey Date</Text>
                   <Text style={styles.detailValue}>{formatDateTime(quoteData.echo.start_date_time).date}</Text>
@@ -196,22 +207,32 @@ export default function QuoteReview({
               </View>
 
               <View style={styles.detailRow}>
-                <Clock size={20} color="#1E40AF" style={styles.detailIcon} />
+                <Clock size={20} color={tripType === 'Hourly Rental' ? "#8B5A3C" : "#1E40AF"} style={styles.detailIcon} />
                 <View style={styles.detailContent}>
                   <Text style={styles.detailLabel}>Departure Time</Text>
                   <Text style={styles.detailValue}>{formatDateTime(quoteData.echo.start_date_time).time}</Text>
                 </View>
               </View>
+
+              {isHourlyRental && (
+                <View style={styles.detailRow}>
+                  <Timer size={20} color="#8B5A3C" style={styles.detailIcon} />
+                  <View style={styles.detailContent}>
+                    <Text style={styles.detailLabel}>Package Hours</Text>
+                    <Text style={styles.detailValue}>{quoteData.echo.package_hours} hours</Text>
+                  </View>
+                </View>
+              )}
             </View>
           </View>
 
           {/* Enhanced Route Details Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Route size={24} color="#1E40AF" />
+              <Route size={24} color={tripType === 'Hourly Rental' ? "#8B5A3C" : "#1E40AF"} />
               <Text style={styles.sectionTitle}>Route Details</Text>
               <View style={styles.routeBadge}>
-                <Text style={styles.routeBadgeText}>{locations.length} stops</Text>
+                <Text style={styles.routeBadgeText}>{locations.length} stop{locations.length > 1 ? 's' : ''}</Text>
               </View>
             </View>
             
@@ -240,101 +261,211 @@ export default function QuoteReview({
           {/* Trip Summary Section */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Truck size={24} color="#1E40AF" />
+              {isHourlyRental ? (
+                <Timer size={24} color="#8B5A3C" />
+              ) : (
+                <Truck size={24} color="#1E40AF" />
+              )}
               <Text style={styles.sectionTitle}>Trip Summary</Text>
             </View>
             
             <View style={styles.summaryCard}>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Total Distance</Text>
-                <Text style={styles.summaryValue}>{quoteData.fare.total_km} km</Text>
-              </View>
-              
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Estimated Time</Text>
-                <Text style={styles.summaryValue}>{quoteData.fare.trip_time || 'Calculating...'}</Text>
-              </View>
-              
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Cost per KM</Text>
-                <Text style={styles.summaryValue}>₹{quoteData.echo.cost_per_km}</Text>
-              </View>
+              {isHourlyRental ? (
+                <>
+                  
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Package Hours</Text>
+                    <Text style={styles.summaryValue}>{quoteData.echo.package_hours} hours</Text>
+                  </View>
+                  
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Cost per Package</Text>
+                    <Text style={styles.summaryValue}>₹{quoteData.echo.cost_per_pack}</Text>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Total Distance</Text>
+                    <Text style={styles.summaryValue}>{quoteData.fare.total_km} km</Text>
+                  </View>
+                  
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Estimated Time</Text>
+                    <Text style={styles.summaryValue}>{quoteData.fare.trip_time || 'Calculating...'}</Text>
+                  </View>
+                  
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Cost per KM</Text>
+                    <Text style={styles.summaryValue}>₹{quoteData.echo.cost_per_km}</Text>
+                  </View>
+                </>
+              )}
             </View>
           </View>
 
-          {/* Pricing Breakdown Section */}
+          {/* Pricing Breakdown Section Vendor */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <IndianRupee size={24} color="#1E40AF" />
-              <Text style={styles.sectionTitle}>Pricing Breakdown</Text>
+              <IndianRupee size={24} color={tripType === 'Hourly Rental' ? "#8B5A3C" : "#1E40AF"} />
+              <Text style={styles.sectionTitle}>Pricing Breakdown - Vendor</Text>
             </View>
             
             <View style={styles.priceCard}>
-              <View style={styles.priceRow}>
-                <Text style={styles.priceLabel}>Base Amount ({quoteData.fare.total_km} km × ₹{quoteData.echo.cost_per_km})</Text>
-                <Text style={styles.priceValue}>₹{quoteData.fare.base_km_amount}</Text>
-              </View>
+              {isHourlyRental ? (
+                <>
+                  <View style={styles.priceRow}>
+                    <Text style={styles.priceLabel}>Vendor Amount</Text>
+                    <Text style={styles.priceValue}>₹{quoteData.fare.vendor_amount}</Text>
+                  </View>
 
-              {quoteData.echo.extra_cost_per_km > 0 && (
-                <View style={styles.priceRow}>
-                  <Text style={styles.priceLabel}>Extra per KM ({quoteData.fare.total_km} km × ₹{quoteData.echo.extra_cost_per_km})</Text>
-                  <Text style={styles.priceValue}>₹{Math.round(quoteData.fare.total_km * quoteData.echo.extra_cost_per_km)}</Text>
-                </View>
-              )}
-              
-              {quoteData.echo.driver_allowance > 0 && (
-                <View style={styles.priceRow}>
-                  <Text style={styles.priceLabel}>Driver Allowance</Text>
-                  <Text style={styles.priceValue}>₹{quoteData.echo.driver_allowance}</Text>
-                </View>
-              )}
+                  {quoteData.echo.additional_cost_per_hour > 0 && (
+                    <View style={styles.priceRow}>
+                      <Text style={styles.priceLabel}>(Additional) Cost per Hour</Text>
+                      <Text style={styles.priceValue}>₹{quoteData.echo.additional_cost_per_hour+quoteData.echo.extra_additional_cost_per_hour}</Text>
+                    </View>
+                  )}
 
-              {quoteData.echo.extra_driver_allowance > 0 && (
-                <View style={styles.priceRow}>
-                  <Text style={styles.priceLabel}>Extra Driver Allowance</Text>
-                  <Text style={styles.priceValue}>₹{quoteData.echo.extra_driver_allowance}</Text>
-                </View>
-              )}
-              
-              {quoteData.echo.permit_charges > 0 && (
-                <View style={styles.priceRow}>
-                  <Text style={styles.priceLabel}>Permit Charges</Text>
-                  <Text style={styles.priceValue}>₹{quoteData.echo.permit_charges}</Text>
-                </View>
-              )}
+                  {/* {quoteData.echo.extra_additional_cost_per_hour > 0 && (
+                    <View style={styles.priceRow}>
+                      <Text style={styles.priceLabel}>Extra Additional Cost per Hour</Text>
+                      <Text style={styles.priceValue}>₹{quoteData.echo.extra_additional_cost_per_hour}</Text>
+                    </View>
+                  )} */}
 
-              {quoteData.echo.extra_permit_charges > 0 && (
-                <View style={styles.priceRow}>
-                  <Text style={styles.priceLabel}>Extra Permit Charges</Text>
-                  <Text style={styles.priceValue}>₹{quoteData.echo.extra_permit_charges}</Text>
-                </View>
-              )}
-              
-              {quoteData.echo.hill_charges > 0 && (
-                <View style={styles.priceRow}>
-                  <Text style={styles.priceLabel}>Hill Charges</Text>
-                  <Text style={styles.priceValue}>₹{quoteData.echo.hill_charges}</Text>
-                </View>
-              )}
+                  <View style={[styles.priceRow, styles.totalRow]}>
+                    <Text style={styles.totalLabel}>Estimate Price</Text>
+                    <Text style={styles.totalValue}>₹{quoteData.fare.vendor_amount}</Text>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <View style={styles.priceRow}>
+                    <Text style={styles.priceLabel}>Vendor Amount ({quoteData.fare.total_km} km × ₹{quoteData.echo.cost_per_km+quoteData.echo.extra_cost_per_km})</Text>
+                    <Text style={styles.priceValue}>₹{quoteData.fare.base_km_amount+Math.round(quoteData.fare.total_km * quoteData.echo.extra_cost_per_km)}</Text>
+                  </View>
+                
+                  {quoteData.echo.driver_allowance > 0 && (
+                    <View style={styles.priceRow}>
+                      <Text style={styles.priceLabel}>Driver Allowance</Text>
+                      <Text style={styles.priceValue}>₹{quoteData.echo.driver_allowance+quoteData.echo.extra_driver_allowance}</Text>
+                    </View>
+                  )}
 
-              {quoteData.echo.toll_charges > 0 && (
-                <View style={styles.priceRow}>
-                  <Text style={styles.priceLabel}>Toll Charges</Text>
-                  <Text style={styles.priceValue}>₹{quoteData.echo.toll_charges}</Text>
-                </View>
+                  
+                  {quoteData.echo.permit_charges > 0 && (
+                    <View style={styles.priceRow}>
+                      <Text style={styles.priceLabel}>Permit Charges</Text>
+                      <Text style={styles.priceValue}>₹{quoteData.echo.permit_charges+quoteData.echo.extra_permit_charges}</Text>
+                    </View>
+                  )}
+                  
+                  {quoteData.echo.hill_charges > 0 && (
+                    <View style={styles.priceRow}>
+                      <Text style={styles.priceLabel}>Hill Charges</Text>
+                      <Text style={styles.priceValue}>₹{quoteData.echo.hill_charges}</Text>
+                    </View>
+                  )}
+
+                  {quoteData.echo.toll_charges > 0 && (
+                    <View style={styles.priceRow}>
+                      <Text style={styles.priceLabel}>Toll Charges</Text>
+                      <Text style={styles.priceValue}>₹{quoteData.echo.toll_charges}</Text>
+                    </View>
+                  )}
+                  
+                  <View style={[styles.priceRow, styles.totalRow]}>
+                    <Text style={styles.totalLabel}>Total Amount</Text>
+                    <Text style={styles.totalValue}>₹{quoteData.fare.total_amount}</Text>
+                  </View>
+                </>
               )}
-              
-              <View style={[styles.priceRow, styles.totalRow]}>
-                <Text style={styles.totalLabel}>Total Amount</Text>
-                <Text style={styles.totalValue}>₹{quoteData.fare.total_amount}</Text>
-              </View>
+            </View>
+          </View>
+
+
+          {/* Pricing Breakdown Section Driver */}
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <IndianRupee size={24} color={tripType === 'Hourly Rental' ? "#8B5A3C" : "#1E40AF"} />
+              <Text style={styles.sectionTitle}>Pricing Breakdown - Driver</Text>
+            </View>
+            
+            <View style={styles.priceCard}>
+              {isHourlyRental ? (
+                <>
+                  <View style={styles.priceRow}>
+                    <Text style={styles.priceLabel}>Driver Amount</Text>
+                    <Text style={styles.priceValue}>₹{quoteData.fare.estimate_price}</Text>
+                  </View>
+
+                  {quoteData.echo.additional_cost_per_hour > 0 && (
+                    <View style={styles.priceRow}>
+                      <Text style={styles.priceLabel}>(Additional) Cost per Hour</Text>
+                      <Text style={styles.priceValue}>₹{quoteData.echo.additional_cost_per_hour}</Text>
+                    </View>
+                  )}
+
+                  {/* {quoteData.echo.extra_additional_cost_per_hour > 0 && (
+                    <View style={styles.priceRow}>
+                      <Text style={styles.priceLabel}>Extra Additional Cost per Hour</Text>
+                      <Text style={styles.priceValue}>₹{quoteData.echo.extra_additional_cost_per_hour}</Text>
+                    </View>
+                  )} */}
+
+                  <View style={[styles.priceRow, styles.totalRow]}>
+                    <Text style={styles.totalLabel}>Estimate Price</Text>
+                    <Text style={styles.totalValue}>₹{quoteData.fare.estimate_price}</Text>
+                  </View>
+                </>
+              ) : (
+                <>
+                  <View style={styles.priceRow}>
+                    <Text style={styles.priceLabel}>Driver Amount ({quoteData.fare.total_km} km × ₹{quoteData.echo.cost_per_km})</Text>
+                    <Text style={styles.priceValue}>₹{quoteData.fare.base_km_amount}</Text>
+                  </View>
+                  
+                  {quoteData.echo.driver_allowance > 0 && (
+                    <View style={styles.priceRow}>
+                      <Text style={styles.priceLabel}>Driver Allowance</Text>
+                      <Text style={styles.priceValue}>₹{quoteData.echo.driver_allowance}</Text>
+                    </View>
+                  )}
+                  
+                  {quoteData.echo.permit_charges > 0 && (
+                    <View style={styles.priceRow}>
+                      <Text style={styles.priceLabel}>Permit Charges</Text>
+                      <Text style={styles.priceValue}>₹{quoteData.echo.permit_charges}</Text>
+                    </View>
+                  )}
+                  
+                  {quoteData.echo.hill_charges > 0 && (
+                    <View style={styles.priceRow}>
+                      <Text style={styles.priceLabel}>Hill Charges</Text>
+                      <Text style={styles.priceValue}>₹{quoteData.echo.hill_charges}</Text>
+                    </View>
+                  )}
+
+                  {quoteData.echo.toll_charges > 0 && (
+                    <View style={styles.priceRow}>
+                      <Text style={styles.priceLabel}>Toll Charges</Text>
+                      <Text style={styles.priceValue}>₹{quoteData.echo.toll_charges}</Text>
+                    </View>
+                  )}
+                  
+                  <View style={[styles.priceRow, styles.totalRow]}>
+                    <Text style={styles.totalLabel}>Total Amount</Text>
+                    <Text style={styles.totalValue}>₹{quoteData.fare.base_km_amount+quoteData.fare.driver_allowance+quoteData.fare.permit_charges+quoteData.fare.hill_charges+quoteData.fare.toll_charges}</Text>
+                  </View>
+                </>
+              )}
             </View>
           </View>
 
           {/* Driver Assignment */}
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
-              <Send size={24} color="#1E40AF" />
+              <Send size={24} color={tripType === 'Hourly Rental' ? "#8B5A3C" : "#1E40AF"} />
               <Text style={styles.sectionTitle}>Driver Assignment</Text>
             </View>
             
@@ -342,11 +473,11 @@ export default function QuoteReview({
               style={styles.pickerButton}
               onPress={() => setShowSendToPicker(true)}
             >
-              <Send size={20} color="#1E40AF" style={styles.pickerIcon} />
+              <Send size={20} color={tripType === 'Hourly Rental' ? "#8B5A3C" : "#1E40AF"} style={styles.pickerIcon} />
               <Text style={styles.pickerText}>
                 {sendTo === 'NEAR_CITY' ? `NEAR CITY - ${nearCity || 'Select City'}` : 'ALL DRIVERS'}
               </Text>
-              <ChevronDown size={20} color="#1E40AF" />
+              <ChevronDown size={20} color={tripType === 'Hourly Rental' ? "#8B5A3C" : "#1E40AF"} />
             </TouchableOpacity>
 
             {sendTo === 'NEAR_CITY' && (
@@ -354,11 +485,11 @@ export default function QuoteReview({
                 style={[styles.pickerButton, { marginTop: 12 }]}
                 onPress={() => setShowNearCityPicker(true)}
               >
-                <MapPin size={20} color="#1E40AF" style={styles.pickerIcon} />
+                <MapPin size={20} color={tripType === 'Hourly Rental' ? "#8B5A3C" : "#1E40AF"} style={styles.pickerIcon} />
                 <Text style={[styles.pickerText, !nearCity && styles.pickerPlaceholder]}>
                   {nearCity || 'Select Near City'}
                 </Text>
-                <ChevronDown size={20} color="#1E40AF" />
+                <ChevronDown size={20} color={tripType === 'Hourly Rental' ? "#8B5A3C" : "#1E40AF"} />
               </TouchableOpacity>
             )}
           </View>
@@ -366,7 +497,7 @@ export default function QuoteReview({
           {quoteData.echo.pickup_notes && (
             <View style={styles.section}>
               <View style={styles.sectionHeader}>
-                <FileText size={24} color="#1E40AF" />
+                <FileText size={24} color={tripType === 'Hourly Rental' ? "#8B5A3C" : "#1E40AF"} />
                 <Text style={styles.sectionTitle}>Additional Notes</Text>
               </View>
               <View style={styles.card}>
@@ -383,7 +514,9 @@ export default function QuoteReview({
           >
             <LinearGradient
               colors={
-                tripType === 'Round Trip' 
+                tripType === 'Hourly Rental'
+                  ? ['#8B5A3C', '#A0522D']
+                  : tripType === 'Round Trip' 
                   ? ['#7C3AED', '#A855F7']
                   : tripType === 'Multy City'
                   ? ['#5196dfff', '#4357cdff'] 

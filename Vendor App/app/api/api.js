@@ -3,20 +3,20 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
-// Create the Axios instance
+// Authenticated Axios instance
 const api = axios.create({
-  baseURL: "http://172.20.10.7:8000/api", // Your backend IP + port
+  baseURL: "http://172.20.10.7:8000/api",
   headers: {
     'Content-Type': 'application/json',
   },
 });
 
-// Add request interceptor to attach token from AsyncStorage
+// Attach token from AsyncStorage to requests
 api.interceptors.request.use(
   async (config) => {
     try {
-      const token = await AsyncStorage.getItem('accessToken'); // get token async
-    console.log("Token from AsyncStorage:", token); // Debug log
+      const token = await AsyncStorage.getItem('accessToken');
+      console.log("Token from AsyncStorage:", token);
       if (token) {
         config.headers['Authorization'] = `Bearer ${token}`;
       }
@@ -25,21 +25,28 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Optional response interceptor
+// Response interceptor (optional)
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
       console.warn('Unauthorized access - maybe redirect to login');
-      // Add your logout or redirect logic here if needed
     }
     return Promise.reject(error);
   }
 );
 
-export default api;
+// Public (unauthenticated) Axios instance
+const publicApi = axios.create({
+  baseURL: 'http://172.20.10.7:8000/api',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
+// ✅ Export both
+export default api;        // Use this for authenticated requests
+export { publicApi };     // Use this for public requests (e.g. `/data`)

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
   Dimensions,
   Platform,
 } from 'react-native';
+import publicApi from '../api/api';
+
 import { LinearGradient } from 'expo-linear-gradient';
 import type { ColorValue } from 'react-native';
 import { 
@@ -32,13 +34,14 @@ import {
   Truck,
   GripVertical,
   ChevronUp,
-  ChevronDown as ChevronDownIcon
+  ChevronDown as ChevronDownIcon,
+  Timer
 } from 'lucide-react-native';
 import LocationPicker from '../../components/LocationPicker';
 import QuoteReview from '../../components/QuoteReview';
 import OrderSuccess from '../../components/OrderSuccess';
-import { getQuote as getQuoteAPI, confirmOrder as confirmOrderAPI, formatOrderData } from '../../services/orderService';
-
+import { getHourlyQuote, confirmHourlyOrder, getQuote as getQuoteAPI, confirmOrder as confirmOrderAPI, formatOrderData, formatHourlyOrderData } from '../../services/orderService';
+import { Picker } from '@react-native-picker/picker';
 const { width } = Dimensions.get('window');
 
 interface FormData {
@@ -49,6 +52,7 @@ interface FormData {
   start_date_time: Date;
   customer_name: string;
   customer_number: string;
+  // Regular trip fields
   cost_per_km: string;
   extra_cost_per_km: string;
   driver_allowance: string;
@@ -57,6 +61,12 @@ interface FormData {
   extra_permit_charges: string;
   hill_charges: string;
   toll_charges: string;
+  // Hourly rental fields
+  package_hours: string;
+  cost_per_pack: string;
+  extra_cost_per_pack: string;
+  additional_cost_per_hour: string;
+  extra_additional_cost_per_hour: string;
   pickup_notes: string;
   send_to: string;
   near_city: string;
@@ -75,6 +85,7 @@ const tripTypes = [
   { value: 'Oneway', label: 'One Way', minLocations: 2, maxLocations: 2, icon: Car },
   { value: 'Round Trip', label: 'Round Trip', minLocations: 3, maxLocations: 10, icon: Route },
   { value: 'Multy City', label: 'Multi City', minLocations: 3, maxLocations: 10, icon: Truck },
+  { value: 'Hourly Rental', label: 'Hourly Rental', minLocations: 1, maxLocations: 1, icon: Timer },
 ];
 
 export default function CreateOrderScreen() {
@@ -82,10 +93,11 @@ export default function CreateOrderScreen() {
     vendor_id: '83a93a3f-2f6e-4bf6-9f78-1c3f9f42b7b1',
     trip_type: 'Oneway',
     car_type: 'Sedan',
-    pickup_drop_location: { '0': '', '1': '' },
+    pickup_drop_location: { '0': '' },
     start_date_time: new Date(),
     customer_name: '',
     customer_number: '',
+    // Regular trip fields
     cost_per_km: '',
     extra_cost_per_km: '',
     driver_allowance: '',
@@ -94,6 +106,12 @@ export default function CreateOrderScreen() {
     extra_permit_charges: '',
     hill_charges: '',
     toll_charges: '',
+    // Hourly rental fields
+    package_hours: '',
+    cost_per_pack: '',
+    extra_cost_per_pack: '',
+    additional_cost_per_hour: '',
+    extra_additional_cost_per_hour: '',
     pickup_notes: '',
     send_to: 'ALL',
     near_city: ''
@@ -109,6 +127,21 @@ export default function CreateOrderScreen() {
   const [showQuoteReview, setShowQuoteReview] = useState(false);
   const [showOrderSuccess, setShowOrderSuccess] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [options, setOptions] = useState({});
+
+    const fetchPackageHours = async () => {
+    try {
+      const response = await publicApi.get('/api/orders/rental_hrs_data');; // replace with actual IP if using on device
+      setOptions(response.data);
+      console.log('Fetched package hours:', response.data);
+    } catch (error) {
+      console.error('Failed to fetch package hours:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchPackageHours();
+  }, []);
 
   const getCurrentTripType = () => {
     return tripTypes.find(type => type.value === formData.trip_type) || tripTypes[0];
@@ -123,6 +156,7 @@ export default function CreateOrderScreen() {
     const position = keys.indexOf(index);
     const tripType = getCurrentTripType();
     
+    if (tripType.value === 'Hourly Rental') return 'Pickup Location';
     if (position === 0) return 'Pickup Location';
     if (tripType.value === 'Round Trip' && position === keys.length - 1) return 'Return to Pickup';
     if (position === keys.length - 1) return 'Final Destination';
@@ -190,17 +224,21 @@ export default function CreateOrderScreen() {
 
   const canReorderLocations = () => {
     const tripType = getCurrentTripType();
-    return tripType.value === 'Round Trip' || tripType.value === 'Multicity';
+    return tripType.value === 'Round Trip' || tripType.value === 'Multy City';
   };
 
   const handleTripTypeChange = (tripType: string) => {
     const newTripType = tripTypes.find(type => type.value === tripType)!;
-    let newLocations = { '0': '', '1': '' };
+    let newLocations = { '0': '' };
     
-    if (newTripType.value === 'Round Trip') {
-      newLocations = { '0': '', '1': ''};
-    } else if (newTripType.value === 'Multicity') {
-      newLocations = { '0': '', '1': ''};
+    if (newTripType.value === 'Hourly Rental') {
+      newLocations = { '0': '' };
+    } else if (newTripType.value === 'Round Trip') {
+      newLocations = { '0': '' };
+    } else if (newTripType.value === 'Multy City') {
+      newLocations = { '0': ''};
+    } else {
+      newLocations = { '0': ''};
     }
     
     setFormData(prev => ({
@@ -251,20 +289,41 @@ export default function CreateOrderScreen() {
       }
     }
     
-    if (!formData.cost_per_km) {
-      Alert.alert('Error', 'Please enter cost per km');
-      return;
+    // Different validation for hourly rental vs regular trips
+    if (formData.trip_type === 'Hourly Rental') {
+      if (!formData.package_hours) {
+        Alert.alert('Error', 'Please enter package hours');
+        return;
+      }
+      if (!formData.cost_per_pack) {
+        Alert.alert('Error', 'Please enter cost per package');
+        return;
+      }
+    } else {
+      if (!formData.cost_per_km) {
+        Alert.alert('Error', 'Please enter cost per km');
+        return;
+      }
     }
 
     setIsLoading(true);
     
     try {
-      // Format data using the service helper
-      const apiData = formatOrderData(formData);
-      console.log('Formatted API Data:', apiData);
+      let quoteResponse;
       
-      // Use the API service to get quote
-      const quoteResponse = await getQuoteAPI(apiData);
+      if (formData.trip_type === 'Hourly Rental') {
+        // Use hourly rental API
+        console.log('Fetching hourly rental quote...',formData);
+        const apiData = formatHourlyOrderData(formData);
+        console.log('Formatted Hourly API Data:', apiData);
+        quoteResponse = await getHourlyQuote(apiData);
+      } else {
+        // Use regular trip API
+        const apiData = formatOrderData(formData);
+        console.log('Formatted Regular API Data:', apiData);
+        quoteResponse = await getQuoteAPI(apiData);
+      }
+      
       setQuoteResponse(quoteResponse);
       setShowQuoteReview(true);
     } catch (error: any) {
@@ -280,11 +339,18 @@ export default function CreateOrderScreen() {
     setIsLoading(true);
     
     try {
-      // Format data using the service helper with sendTo and nearCity
-      const apiData = formatOrderData(formData, sendTo, nearCity);
+      let orderResponse;
       
-      // Use the API service to confirm order
-      const orderResponse = await confirmOrderAPI(apiData);
+      if (formData.trip_type === 'Hourly Rental') {
+        // Use hourly rental confirm API
+        const apiData = formatHourlyOrderData(formData, sendTo, nearCity);
+        orderResponse = await confirmHourlyOrder(apiData);
+      } else {
+        // Use regular trip confirm API
+        const apiData = formatOrderData(formData, sendTo, nearCity);
+        orderResponse = await confirmOrderAPI(apiData);
+      }
+      
       setOrderResponse(orderResponse);
       setShowQuoteReview(false);
       setShowOrderSuccess(true);
@@ -318,8 +384,12 @@ export default function CreateOrderScreen() {
     const IconComponent = tripType.icon;
     return <IconComponent size={32} color="#FFFFFF" />;
   };
+
   const getTripTypeColors = (): [ColorValue, ColorValue, ...ColorValue[]] => {
-    // All trip types use the same blue color scheme
+    if (formData.trip_type === 'Hourly Rental') {
+      return ['#8B5A3C', '#A0522D', '#CD853F'];
+    }
+    // All other trip types use the same blue color scheme
     return ['#1E40AF', '#3B82F6', '#60A5FA'];
   };
 
@@ -504,117 +574,192 @@ export default function CreateOrderScreen() {
           )}
         </View>
 
-        {/* Pricing Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <IndianRupee size={24} color="#1E40AF" />
-            <Text style={styles.sectionTitle}>Pricing Details</Text>
-          </View>
-          
-          <View style={styles.row}>
-            <View style={[styles.inputContainer, styles.halfWidth]}>
-              <IndianRupee size={20} color="#6B7280" style={styles.inputIcon} />
+        {/* Conditional Pricing Section */}
+        {formData.trip_type === 'Hourly Rental' ? (
+          /* Hourly Rental Pricing */
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Timer size={24} color="#8B5A3C" />
+              <Text style={styles.sectionTitle}>Hourly Rental Pricing</Text>
+            </View>
+            
+            <View style={styles.inputContainer}>
+              <Timer size={20} color="#6B7280" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
-                placeholder="Cost per KM"
-                value={formData.cost_per_km}
-                onChangeText={(value) => handleInputChange('cost_per_km', value)}
+                placeholder="Package Hours"
+                value={formData.package_hours}
+                onChangeText={(value) => handleInputChange('package_hours', value)}
                 keyboardType="numeric"
                 placeholderTextColor="#9CA3AF"
               />
             </View>
 
-            <View style={[styles.inputContainer, styles.halfWidth]}>
-              <IndianRupee size={20} color="#6B7280" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Extra Cost per KM"
-                value={formData.extra_cost_per_km}
-                onChangeText={(value) => handleInputChange('extra_cost_per_km', value)}
-                keyboardType="numeric"
-                placeholderTextColor="#9CA3AF"
-              />
-            </View>
-          </View>
+            <View style={styles.row}>
+              <View style={[styles.inputContainer, styles.halfWidth]}>
+                <IndianRupee size={20} color="#6B7280" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Cost per Package"
+                  value={formData.cost_per_pack}
+                  onChangeText={(value) => handleInputChange('cost_per_pack', value)}
+                  keyboardType="numeric"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
 
-          <View style={styles.row}>
-            <View style={[styles.inputContainer, styles.halfWidth]}>
-              <Car size={20} color="#6B7280" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Driver Allowance"
-                value={formData.driver_allowance}
-                onChangeText={(value) => handleInputChange('driver_allowance', value)}
-                keyboardType="numeric"
-                placeholderTextColor="#9CA3AF"
-              />
-            </View>
-
-            <View style={[styles.inputContainer, styles.halfWidth]}>
-              <Car size={20} color="#6B7280" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Extra Driver Allowance"
-                value={formData.extra_driver_allowance}
-                onChangeText={(value) => handleInputChange('extra_driver_allowance', value)}
-                keyboardType="numeric"
-                placeholderTextColor="#9CA3AF"
-              />
-            </View>
-          </View>
-
-          <View style={styles.row}>
-            <View style={[styles.inputContainer, styles.halfWidth]}>
-              <FileText size={20} color="#6B7280" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Permit Charges"
-                value={formData.permit_charges}
-                onChangeText={(value) => handleInputChange('permit_charges', value)}
-                keyboardType="numeric"
-                placeholderTextColor="#9CA3AF"
-              />
+              <View style={[styles.inputContainer, styles.halfWidth]}>
+                <IndianRupee size={20} color="#6B7280" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Extra Cost per Package"
+                  value={formData.extra_cost_per_pack}
+                  onChangeText={(value) => handleInputChange('extra_cost_per_pack', value)}
+                  keyboardType="numeric"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
             </View>
 
-            <View style={[styles.inputContainer, styles.halfWidth]}>
-              <FileText size={20} color="#6B7280" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Extra Permit Charges"
-                value={formData.extra_permit_charges}
-                onChangeText={(value) => handleInputChange('extra_permit_charges', value)}
-                keyboardType="numeric"
-                placeholderTextColor="#9CA3AF"
-              />
+            <View style={styles.row}>
+              <View style={[styles.inputContainer, styles.halfWidth]}>
+                <IndianRupee size={20} color="#6B7280" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Additional Cost per Hour"
+                  value={formData.additional_cost_per_hour}
+                  onChangeText={(value) => handleInputChange('additional_cost_per_hour', value)}
+                  keyboardType="numeric"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+
+              <View style={[styles.inputContainer, styles.halfWidth]}>
+                <IndianRupee size={20} color="#6B7280" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Extra Additional Cost per Hour"
+                  value={formData.extra_additional_cost_per_hour}
+                  onChangeText={(value) => handleInputChange('extra_additional_cost_per_hour', value)}
+                  keyboardType="numeric"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
             </View>
           </View>
+        ) : (
+          /* Regular Trip Pricing */
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <IndianRupee size={24} color="#1E40AF" />
+              <Text style={styles.sectionTitle}>Pricing Details</Text>
+            </View>
+            
+            <View style={styles.row}>
+              <View style={[styles.inputContainer, styles.halfWidth]}>
+                <IndianRupee size={20} color="#6B7280" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Cost per KM"
+                  value={formData.cost_per_km}
+                  onChangeText={(value) => handleInputChange('cost_per_km', value)}
+                  keyboardType="numeric"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
 
-          <View style={styles.row}>
-            <View style={[styles.inputContainer, styles.halfWidth]}>
-              <Mountain size={20} color="#6B7280" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Hill Charges"
-                value={formData.hill_charges}
-                onChangeText={(value) => handleInputChange('hill_charges', value)}
-                keyboardType="numeric"
-                placeholderTextColor="#9CA3AF"
-              />
+              <View style={[styles.inputContainer, styles.halfWidth]}>
+                <IndianRupee size={20} color="#6B7280" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Extra Cost per KM"
+                  value={formData.extra_cost_per_km}
+                  onChangeText={(value) => handleInputChange('extra_cost_per_km', value)}
+                  keyboardType="numeric"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
             </View>
 
-            <View style={[styles.inputContainer, styles.halfWidth]}>
-              <IndianRupee size={20} color="#6B7280" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Toll Charges"
-                value={formData.toll_charges}
-                onChangeText={(value) => handleInputChange('toll_charges', value)}
-                keyboardType="numeric"
-                placeholderTextColor="#9CA3AF"
-              />
+            <View style={styles.row}>
+              <View style={[styles.inputContainer, styles.halfWidth]}>
+                <Car size={20} color="#6B7280" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Driver Allowance"
+                  value={formData.driver_allowance}
+                  onChangeText={(value) => handleInputChange('driver_allowance', value)}
+                  keyboardType="numeric"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+
+              <View style={[styles.inputContainer, styles.halfWidth]}>
+                <Car size={20} color="#6B7280" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Extra Driver Allowance"
+                  value={formData.extra_driver_allowance}
+                  onChangeText={(value) => handleInputChange('extra_driver_allowance', value)}
+                  keyboardType="numeric"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+            </View>
+
+            <View style={styles.row}>
+              <View style={[styles.inputContainer, styles.halfWidth]}>
+                <FileText size={20} color="#6B7280" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Permit Charges"
+                  value={formData.permit_charges}
+                  onChangeText={(value) => handleInputChange('permit_charges', value)}
+                  keyboardType="numeric"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+
+              <View style={[styles.inputContainer, styles.halfWidth]}>
+                <FileText size={20} color="#6B7280" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Extra Permit Charges"
+                  value={formData.extra_permit_charges}
+                  onChangeText={(value) => handleInputChange('extra_permit_charges', value)}
+                  keyboardType="numeric"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+            </View>
+
+            <View style={styles.row}>
+              <View style={[styles.inputContainer, styles.halfWidth]}>
+                <Mountain size={20} color="#6B7280" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Hill Charges"
+                  value={formData.hill_charges}
+                  onChangeText={(value) => handleInputChange('hill_charges', value)}
+                  keyboardType="numeric"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
+
+              <View style={[styles.inputContainer, styles.halfWidth]}>
+                <IndianRupee size={20} color="#6B7280" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Toll Charges"
+                  value={formData.toll_charges}
+                  onChangeText={(value) => handleInputChange('toll_charges', value)}
+                  keyboardType="numeric"
+                  placeholderTextColor="#9CA3AF"
+                />
+              </View>
             </View>
           </View>
-        </View>
+        )}
 
         {/* Additional Notes Section */}
         <View style={styles.section}>
@@ -776,7 +921,7 @@ export default function CreateOrderScreen() {
             vendor_id: '83a93a3f-2f6e-4bf6-9f78-1c3f9f42b7b1',
             trip_type: 'Oneway',
             car_type: 'Sedan',
-            pickup_drop_location: { '0': '', '1': '' },
+            pickup_drop_location: { '0': '' },
             start_date_time: new Date(),
             customer_name: '',
             customer_number: '',
@@ -788,6 +933,11 @@ export default function CreateOrderScreen() {
             extra_permit_charges: '',
             hill_charges: '',
             toll_charges: '',
+            package_hours: '',
+            cost_per_pack: '',
+            extra_cost_per_pack: '',
+            additional_cost_per_hour: '',
+            extra_additional_cost_per_hour: '',
             pickup_notes: '',
             send_to: 'ALL',
             near_city: ''
@@ -936,7 +1086,7 @@ const styles = StyleSheet.create({
   textArea: {
     height: 100,
     textAlignVertical: 'top',
-    paddingTop:35,
+    paddingTop: 35,
   },
   row: {
     flexDirection: 'row',
