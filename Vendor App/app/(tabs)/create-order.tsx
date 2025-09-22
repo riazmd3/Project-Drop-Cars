@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,8 @@ import {
   Dimensions,
   Platform,
 } from 'react-native';
+import publicApi from '../api/api';
+
 import { LinearGradient } from 'expo-linear-gradient';
 import type { ColorValue } from 'react-native';
 import { 
@@ -39,7 +41,7 @@ import LocationPicker from '../../components/LocationPicker';
 import QuoteReview from '../../components/QuoteReview';
 import OrderSuccess from '../../components/OrderSuccess';
 import { getHourlyQuote, confirmHourlyOrder, getQuote as getQuoteAPI, confirmOrder as confirmOrderAPI, formatOrderData, formatHourlyOrderData } from '../../services/orderService';
-
+import { Picker } from '@react-native-picker/picker';
 const { width } = Dimensions.get('window');
 
 interface FormData {
@@ -125,6 +127,21 @@ export default function CreateOrderScreen() {
   const [showQuoteReview, setShowQuoteReview] = useState(false);
   const [showOrderSuccess, setShowOrderSuccess] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [options, setOptions] = useState({});
+
+    const fetchPackageHours = async () => {
+    try {
+      const response = await publicApi.get('/api/orders/rental_hrs_data');; // replace with actual IP if using on device
+      setOptions(response.data);
+      console.log('Fetched package hours:', response.data);
+    } catch (error) {
+      console.error('Failed to fetch package hours:', error);
+    }
+  };
+
+  useEffect(() => {
+    fetchPackageHours();
+  }, []);
 
   const getCurrentTripType = () => {
     return tripTypes.find(type => type.value === formData.trip_type) || tripTypes[0];
@@ -296,6 +313,7 @@ export default function CreateOrderScreen() {
       
       if (formData.trip_type === 'Hourly Rental') {
         // Use hourly rental API
+        console.log('Fetching hourly rental quote...',formData);
         const apiData = formatHourlyOrderData(formData);
         console.log('Formatted Hourly API Data:', apiData);
         quoteResponse = await getHourlyQuote(apiData);

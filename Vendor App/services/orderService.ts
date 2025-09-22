@@ -175,7 +175,7 @@ export const formatHourlyOrderData = (
 ): QuoteData => {
   return {
     vendor_id: formData.vendor_id,
-    trip_type: 'Oneway',
+    trip_type: "Hourly Rental",
     car_type: formData.car_type,
     pickup_drop_location: formData.pickup_drop_location,
     start_date_time: formData.start_date_time.toISOString(),

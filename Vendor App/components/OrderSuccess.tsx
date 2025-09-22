@@ -90,7 +90,7 @@ const OrderSuccess: React.FC<OrderSuccessProps> = ({ visible, onClose, orderData
 
   const getDisplayAmount = () => {
     if (isHourlyRental) {
-      return orderData.estimated_price ? formatAmount(orderData.estimated_price) : '₹0.00';
+      return orderData.estimated_price ? formatAmount(orderData.vendor_amount) : '₹0.00';
     }
     return hasFareDetails() && orderData.fare.total_amount 
       ? formatAmount(orderData.fare.total_amount)
@@ -222,12 +222,12 @@ const OrderSuccess: React.FC<OrderSuccessProps> = ({ visible, onClose, orderData
                     </View>
                   )}
 
-                  {orderData.estimated_price && (
+                  {/* {orderData.estimated_price && (
                     <View style={styles.detailRow}>
                       <Text style={styles.detailLabel}>Customer Price</Text>
                       <Text style={styles.detailValue}>₹{orderData.estimated_price}</Text>
                     </View>
-                  )}
+                  )} */}
                 </>
               ) : (
                 /* Regular Trip Details */
