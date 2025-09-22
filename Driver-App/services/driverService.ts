@@ -171,24 +171,9 @@ export const addDriverDetails = async (driverData: DriverDetails): Promise<any> 
     formData.append('organization_id', driverData.organization_id || 'org_123');
     formData.append('vehicle_owner_id', driverData.vehicle_owner_id || '');
     
-    // Add image files if they exist
+    // Backend expects only licence_front_img in this endpoint
     if (driverData.licence_front_img) {
       formData.append('licence_front_img', driverData.licence_front_img);
-    }
-    if (driverData.rc_front_img) {
-      formData.append('rc_front_img', driverData.rc_front_img);
-    }
-    if (driverData.rc_back_img) {
-      formData.append('rc_back_img', driverData.rc_back_img);
-    }
-    if (driverData.insurance_img) {
-      formData.append('insurance_img', driverData.insurance_img);
-    }
-    if (driverData.fc_img) {
-      formData.append('fc_img', driverData.fc_img);
-    }
-    if (driverData.car_img) {
-      formData.append('car_img', driverData.car_img);
     }
     
     console.log('📱 Driver phone number formatting:', {

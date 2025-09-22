@@ -15,6 +15,19 @@ import { useAuth } from '@/contexts/AuthContext';
 import { addDriverDetails, DriverDetails } from '@/services/driverService';
 import * as ImagePicker from 'expo-image-picker';
 import axiosInstance from '@/app/api/axiosInstance';
+// Local MIME type resolver to avoid extra dependency
+const guessMimeTypeFromUri = (uri: string): string => {
+  try {
+    const lower = (uri || '').toLowerCase();
+    if (lower.endsWith('.png')) return 'image/png';
+    if (lower.endsWith('.jpg') || lower.endsWith('.jpeg')) return 'image/jpeg';
+    if (lower.endsWith('.heic')) return 'image/heic';
+    if (lower.endsWith('.webp')) return 'image/webp';
+    return 'image/jpeg';
+  } catch {
+    return 'image/jpeg';
+  }
+};
 
 export default function AddDriverScreen() {
   const [driverData, setDriverData] = useState({
@@ -183,45 +196,100 @@ export default function AddDriverScreen() {
       return;
     }
 
-    // Check required images
-    if (!driverImages.licence_front_img || !driverImages.rc_front_img || !driverImages.rc_back_img || !driverImages.insurance_img || !driverImages.fc_img || !driverImages.car_img) {
-      Alert.alert('Error', 'Please upload all required images (Licence Front, RC Front, RC Back, Insurance, FC, Car Image)');
+    // Only licence_front_img is required by backend for this endpoint
+    if (!driverImages.licence_front_img) {
+      Alert.alert('Error', 'Please upload Licence Front image');
       return;
     }
 
     try {
-      const payload: DriverDetails = {
-        full_name: driverData.full_name.trim(),
-        primary_number: driverData.primary_number.trim(), // Send as entered
-        secondary_number: driverData.secondary_number.trim(),
-        password: driverData.password.trim(),
-        licence_number: driverData.licence_number.trim(), // Send as entered
-        adress: driverData.adress.trim(),
-        organization_id: user?.organizationId || 'org_001',
-        vehicle_owner_id: user?.id || 'e5b9edb1-b4bb-48b8-a662-f7fd00abb6eb',
-        licence_front_img: driverImages.licence_front_img,
-        rc_front_img: driverImages.rc_front_img,
-        rc_back_img: driverImages.rc_back_img,
-        insurance_img: driverImages.insurance_img,
-        fc_img: driverImages.fc_img,
-        car_img: driverImages.car_img
+      // Verify auth before submitting (VO-protected endpoint)
+      try {
+        const authCheck = await axiosInstance.get('/api/users/vehicle-owner/me');
+        if (!authCheck || authCheck.status !== 200) {
+          Alert.alert('Authentication Required', 'Please log in again to continue.');
+          return;
+        }
+      } catch (authErr: any) {
+        console.error('🔒 Auth preflight failed:', authErr?.response?.status, authErr?.response?.data);
+        Alert.alert('Authentication Required', 'Session expired or invalid. Please log in again.');
+        return;
+      }
+      // Helpers
+      const toTenDigit = (phone: string) => {
+        const digits = (phone || '').replace(/\D/g, '');
+        if (digits.length === 12 && digits.startsWith('91')) return digits.slice(2);
+        return digits.slice(-10);
       };
 
-      await addDriverDetails(payload);
+      // Normalize
+      const primary = toTenDigit(driverData.primary_number.trim());
+      const secondary = driverData.secondary_number ? toTenDigit(driverData.secondary_number.trim()) : '';
 
-      Alert.alert(
-        'Success',
-        'Driver details added successfully!',
-        [
-          {
-            text: 'OK',
-            onPress: () => checkAccountStatusAndRedirect()
-          }
-        ]
-      );
-    } catch (error: any) {
-      console.error('Error adding driver:', error);
-      Alert.alert('Error', error.message || 'Failed to add driver details');
+      // Validations
+      if (!/^[6-9]\d{9}$/.test(primary)) {
+        setErrors(prev => ({ ...prev, primary_number: 'Enter valid 10-digit Indian mobile number' }));
+        Alert.alert('Validation Error', 'Enter valid 10-digit Indian mobile number');
+        return;
+      }
+      if (secondary && !/^[6-9]\d{9}$/.test(secondary)) {
+        setErrors(prev => ({ ...prev, secondary_number: 'Enter valid 10-digit Indian mobile number' }));
+        Alert.alert('Validation Error', 'Secondary number invalid');
+        return;
+      }
+      if (driverData.adress.trim().length < 10) {
+        setErrors(prev => ({ ...prev, adress: 'Address must be at least 10 characters' }));
+        Alert.alert('Validation Error', 'Address must be at least 10 characters');
+        return;
+      }
+      if (driverData.password.trim().length < 6) {
+        setErrors(prev => ({ ...prev, password: 'Password must be at least 6 characters' }));
+        Alert.alert('Validation Error', 'Password must be at least 6 characters');
+        return;
+      }
+      if (!driverImages.licence_front_img) {
+        Alert.alert('Error', 'Please upload Licence Front image');
+        return;
+      }
+
+      // Build multipart form
+      const uri = driverImages.licence_front_img;
+      const name = uri.split('/').pop() || 'license.jpg';
+      const type = guessMimeTypeFromUri(uri) || 'image/jpeg';
+
+      const form = new FormData();
+      form.append('full_name', driverData.full_name.trim());
+      form.append('primary_number', primary);
+      if (secondary) form.append('secondary_number', secondary);
+      form.append('password', driverData.password.trim());
+      form.append('licence_number', driverData.licence_number.trim().toUpperCase());
+      form.append('adress', driverData.adress.trim());
+      if (user?.organizationId) form.append('organization_id', user.organizationId);
+      if (user?.id) form.append('vehicle_owner_id', user.id);
+      form.append('licence_front_img', { uri, name, type } as any);
+
+      console.log('🚀 Submitting driver signup (multipart)...');
+      const res = await axiosInstance.post('/api/users/cardriver/signup', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+        timeout: 120000,
+      });
+      console.log('✅ Driver signup success', res.data);
+
+      Alert.alert('Success', 'Driver details added successfully!', [
+        { text: 'OK', onPress: () => checkAccountStatusAndRedirect() },
+      ]);
+    } catch (err: any) {
+      const detail = err?.response?.data?.detail;
+      if (Array.isArray(detail)) {
+        console.error('🔍 Backend validation error:', JSON.stringify(detail));
+        Alert.alert('Validation Failed', detail.map((d: any) => d?.msg || JSON.stringify(d)).join('\n'));
+      } else {
+        console.error('❌ API Error:', JSON.stringify({
+          status: err?.response?.status,
+          data: err?.response?.data || err?.message,
+        }));
+        Alert.alert('Error', err?.response?.data?.detail || 'Failed to add driver details');
+      }
     }
   };
 

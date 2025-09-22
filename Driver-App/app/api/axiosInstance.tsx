@@ -15,7 +15,8 @@ const axiosInstance = axios.create({
   },
   // Add retry configuration
   maxRedirects: 5,
-  validateStatus: (status) => status < 500, // Don't treat 4xx as errors
+  // Treat only 2xx as success so 4xx surfaces to catch blocks
+  validateStatus: (status) => status >= 200 && status < 300,
 });
 
 // Mask sensitive values in logs
@@ -38,10 +39,12 @@ axiosInstance.interceptors.request.use(
       timeout: config.timeout
     });
 
+    // Align with authService storage key
     const token = await SecureStore.getItemAsync('authToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    console.log('🔐 Auth attached:', !!config.headers.Authorization);
     
     // Ensure proper Content-Type for FormData (matches Postman form-data)
     if (config.data instanceof FormData) {
