@@ -117,20 +117,7 @@ export const createRazorpayOrder = async (amount: number, currency: string = 'IN
     throw new Error('No response data received from Razorpay order creation');
   } catch (error: any) {
     console.error('❌ Failed to create Razorpay order:', error);
-    
-    // Return mock response if backend fails
-    const mockOrderId = `order_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
-    console.log('🔧 Fallback to mock Razorpay order:', mockOrderId);
-    
-    return {
-      success: true,
-      message: 'Razorpay order created successfully (fallback)',
-      order_id: mockOrderId,
-      razorpay_order_id: mockOrderId,
-      amount: amount,
-      currency: currency,
-      status: 'created'
-    };
+    throw error;
   }
 };
 
@@ -218,25 +205,16 @@ export const verifyRazorpayPayment = async (
         data: error.response.data,
         headers: error.response.headers
       });
+      try {
+        console.warn('🔎 verify 400 detail:', error.response?.data?.detail);
+      } catch {}
     } else if (error.request) {
       console.error('❌ No response received:', error.request);
     } else {
       console.error('❌ Request setup error:', error.message);
     }
     
-    // Return mock response if backend fails
-    console.log('🔧 Fallback to mock Razorpay payment verification');
-    
-    return {
-      success: true,
-      message: 'Razorpay payment verified successfully (fallback)',
-      payment_id: rpPaymentId,
-      order_id: rpOrderId,
-      razorpay_payment_id: rpPaymentId,
-      razorpay_order_id: rpOrderId,
-      razorpay_signature: rpSignature,
-      status: 'captured'
-    };
+    throw error;
   }
 };
 
@@ -244,50 +222,23 @@ export const verifyRazorpayPayment = async (
  * Get wallet balance from backend
  */
 export const getWalletBalance = async (): Promise<WalletBalance> => {
-  try {
-    console.log('💰 Fetching wallet balance...');
-    
-    // Check if backend is available
-    const backendAvailable = await isBackendAvailable();
-    
-    if (!backendAvailable) {
-      // Backend unavailable, return zero balance
-      console.log('🔧 Backend unavailable, returning zero balance');
-      
-      return {
-        balance: 0,
-        currency: 'INR',
-        last_updated: new Date().toISOString()
-      };
-    }
-    
-    const authHeaders = await getAuthHeaders();
-    const response = await axiosInstance.get('/api/wallet/balance', {
-      headers: authHeaders
-    });
+  console.log('💰 Fetching wallet balance...');
+  const authHeaders = await getAuthHeaders();
+  console.log('🔐 Wallet balance auth header present:', !!authHeaders?.Authorization);
+  const response = await axiosInstance.get('/api/wallet/balance', {
+    headers: authHeaders
+  });
 
-    if (response.data) {
-      console.log('✅ Wallet balance fetched:', response.data);
-      return {
-        balance: response.data.balance || response.data.current_balance || 0,
-        currency: 'INR',
-        last_updated: new Date().toISOString()
-      };
-    }
-
-    throw new Error('No response data received from wallet balance fetch');
-  } catch (error: any) {
-    console.error('❌ Failed to fetch wallet balance:', error);
-    
-    // Return zero balance if backend fails
-    console.log('🔧 Backend failed, returning zero balance');
-    
+  if (response.data) {
+    console.log('✅ Wallet balance fetched:', response.data);
     return {
-      balance: 0,
+      balance: response.data.balance ?? response.data.current_balance ?? 0,
       currency: 'INR',
       last_updated: new Date().toISOString()
     };
   }
+
+  throw new Error('No response data received from wallet balance fetch');
 };
 
 /**
@@ -544,6 +495,12 @@ export const handleRazorpayPaymentSuccess = async (
 ): Promise<PaymentResponse> => {
   try {
     console.log('🎉 Handling Razorpay payment success:', razorpayResponse);
+    // Explicitly print verify payload exactly as backend expects
+    console.log('📦 Verify payload after payment:', {
+      rp_order_id: razorpayResponse.razorpay_order_id,
+      rp_payment_id: razorpayResponse.razorpay_payment_id,
+      rp_signature: razorpayResponse.razorpay_signature,
+    });
     
     // Verify payment with backend
     const verificationResponse = await verifyRazorpayPayment(
