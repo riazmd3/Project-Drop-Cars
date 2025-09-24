@@ -232,7 +232,8 @@ export const getWalletBalance = async (): Promise<WalletBalance> => {
   if (response.data) {
     console.log('✅ Wallet balance fetched:', response.data);
     return {
-      balance: response.data.balance ?? response.data.current_balance ?? 0,
+      // Backend returns balance in paise; convert to rupees for UI/logic
+      balance: ((response.data.balance ?? response.data.current_balance ?? 0) / 100) as number,
       currency: 'INR',
       last_updated: new Date().toISOString()
     };

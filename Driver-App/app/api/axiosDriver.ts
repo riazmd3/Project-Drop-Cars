@@ -1,0 +1,50 @@
+import axios from 'axios';
+import * as SecureStore from 'expo-secure-store';
+
+// Use same API base as VO
+const API_BASE_URL = 'http://10.64.155.145:8000';
+
+const axiosDriver = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 60000,
+  headers: {
+    'Accept': 'application/json',
+  },
+  validateStatus: (status) => status >= 200 && status < 300,
+});
+
+axiosDriver.interceptors.request.use(
+  async (config: any) => {
+    const token = await SecureStore.getItemAsync('driverAuthToken');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    // Quick self-check
+    console.log('🚗 Driver request:', {
+      method: config.method?.toUpperCase(),
+      url: `${config.baseURL}${config.url}`,
+      authAttached: !!config.headers.Authorization,
+      contentType: config.headers['Content-Type'],
+    });
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+axiosDriver.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    console.error('❌ Driver API Error:', {
+      message: error.message,
+      status: error.response?.status,
+      url: error.config?.url,
+      method: error.config?.method,
+      data: error.response?.data,
+    });
+    return Promise.reject(error);
+  }
+);
+
+export default axiosDriver;
+
+

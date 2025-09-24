@@ -1,5 +1,38 @@
+export const getDriverAssignedOrders = async (): Promise<any[]> => {
+  try {
+    console.log('🧾 Fetching driver assigned orders...');
+    const response = await axiosDriver.get('/api/assignments/driver/assigned-orders');
+    return Array.isArray(response.data) ? response.data : [];
+  } catch (error: any) {
+    if (error.response?.status === 404) {
+      console.log('ℹ️ No assigned orders.');
+      return [];
+    }
+    if (error.response?.status === 401 || error.response?.status === 403) {
+      throw new Error('Not authenticated/authorized. Please login as Driver.');
+    }
+    throw error;
+  }
+};
+
+export const startTrip = async (orderId: number, startKm: number, imgUri: string) => {
+  const form = new FormData();
+  form.append('start_km', String(startKm));
+  form.append('speedometer_img', { uri: imgUri, name: 'speedo.jpg', type: 'image/jpeg' } as any);
+  return (await axiosDriver.post(`/api/assignments/driver/start-trip/${orderId}`, form, { headers: { 'Content-Type': 'multipart/form-data' } })).data;
+};
+
+export const endTrip = async (orderId: number, endKm: number, contact: string, imgUri: string) => {
+  const form = new FormData();
+  form.append('end_km', String(endKm));
+  form.append('contact_number', contact);
+  form.append('speedometer_img', { uri: imgUri, name: 'speedo_end.jpg', type: 'image/jpeg' } as any);
+  return (await axiosDriver.post(`/api/assignments/driver/end-trip/${orderId}`, form, { headers: { 'Content-Type': 'multipart/form-data' } })).data;
+};
 import axiosInstance from '@/app/api/axiosInstance';
+import axiosDriver from '@/app/api/axiosDriver';
 import { getAuthHeaders } from '@/services/authService';
+import * as SecureStore from 'expo-secure-store';
 
 // Car Driver interfaces
 export interface CarDriverSignupRequest {
@@ -174,6 +207,8 @@ export const signinCarDriver = async (request: CarDriverSigninRequest): Promise<
         
         if (driver && token) {
           console.log('🔧 Normalizing response format for compatibility');
+          await SecureStore.setItemAsync('driverAuthToken', token);
+          await SecureStore.setItemAsync('driverAuthInfo', JSON.stringify({ driverId: driver.id, fullName: driver.full_name }));
           return {
             success: true,
             message: 'Signin successful',
@@ -189,6 +224,13 @@ export const signinCarDriver = async (request: CarDriverSigninRequest): Promise<
         throw new Error('No access token received from server');
       }
       
+      // Persist token if present
+      const token = response.data.token || response.data.access_token || response.data.jwt_token;
+      const driver = response.data.driver || response.data.user;
+      if (token && driver) {
+        await SecureStore.setItemAsync('driverAuthToken', token);
+        await SecureStore.setItemAsync('driverAuthInfo', JSON.stringify({ driverId: driver.id, fullName: driver.full_name }));
+      }
       return response.data;
     }
 
@@ -251,12 +293,7 @@ export const setDriverOnline = async (driverId: string): Promise<CarDriverStatus
   try {
     console.log('🟢 Setting driver online:', driverId);
 
-    const authHeaders = await getAuthHeaders();
-    const response = await axiosInstance.put(`/api/users/cardriver/online`, {
-      driver_id: driverId
-    }, {
-      headers: authHeaders
-    });
+    const response = await axiosDriver.put(`/api/users/cardriver/online`);
 
     if (response.data) {
       console.log('✅ Driver set online successfully:', response.data);
@@ -305,12 +342,7 @@ export const setDriverOffline = async (driverId: string): Promise<CarDriverStatu
   try {
     console.log('🔴 Setting driver offline:', driverId);
 
-    const authHeaders = await getAuthHeaders();
-    const response = await axiosInstance.put(`/api/users/cardriver/offline`, {
-      driver_id: driverId
-    }, {
-      headers: authHeaders
-    });
+    const response = await axiosDriver.put(`/api/users/cardriver/offline`);
 
     if (response.data) {
       console.log('✅ Driver set offline successfully:', response.data);
@@ -359,6 +391,7 @@ export const getCarDriver = async (driverId: string): Promise<CarDriverResponse>
   try {
     console.log('👤 Fetching car driver:', driverId);
 
+    // VO-scoped endpoint; keep VO token here
     const authHeaders = await getAuthHeaders();
     const response = await axiosInstance.get(`/api/users/cardriver/${driverId}`, {
       headers: authHeaders
