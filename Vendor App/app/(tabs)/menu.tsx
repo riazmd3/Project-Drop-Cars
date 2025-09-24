@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
+import api from '../../app/api/api'; // Adjust the path as necessary
 import { User, Package, DollarSign, TrendingUp, Calendar, Settings, CircleHelp as HelpCircle, Info, LogOut, Bell, Shield, Star, Phone, Mail, Globe, FileText, CreditCard, Clock, Award, ChevronRight, Wallet } from 'lucide-react-native';
 
 interface VendorData {
@@ -27,21 +28,26 @@ interface VendorData {
 }
 
 export default function MenuScreen() {
+  const [vendorData, setVendorData] = useState<VendorData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const [vendorData] = useState<VendorData>({
-    id: "7c7ae8a8-3d57-4feb-9ea1-2b80e91a0e83",
-    full_name: "Pugazheshwar",
-    primary_number: "9600048429",
-    secondary_number: "9585984449",
-    gpay_number: "9600048429",
-    wallet_balance: 2450,
-    bank_balance: 15630,
-    aadhar_number: "123412341234",
-    aadhar_front_img: "https://storage.googleapis.com/drop-cars-files/vendor_details/aadhar/a27638bc-5879-4f8b-8ceb-7b89173333a2.jpg",
-    address: "Bypass Road 2nd street",
-    account_status: "Active",
-    created_at: "2025-09-17T18:43:45.189233Z"
-  });
+  useEffect(() => {
+    const fetchVendorData = async () => {
+      try {
+        const response = await api.get('/users/vendor-details/me');
+        // optionally check response.status etc
+        setVendorData(response.data);
+      } catch (err: any) {
+        console.error("Error fetching vendor data:", err);
+        setError('Failed to fetch vendor data.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchVendorData();
+  }, []);
 
   const handleLogout = () => {
     // Implement logout functionality
@@ -122,21 +128,21 @@ export default function MenuScreen() {
               <View style={styles.profileImageContainer}>
                 <View style={styles.profileImage}>
                   <Text style={styles.profileInitials}>
-                    {vendorData.full_name.split(' ').map(n => n[0]).join('')}
+                    {vendorData?.full_name.split(' ').map(n => n[0]).join('')}
                   </Text>
                 </View>
                 <View style={[
                   styles.statusIndicator, 
-                  { backgroundColor: vendorData.account_status === 'Active' ? '#10B981' : '#F59E0B' }
+                  { backgroundColor: vendorData?.account_status === 'Active' ? '#10B981' : '#F59E0B' }
                 ]} />
               </View>
               
               <View style={styles.profileInfo}>
-                <Text style={styles.profileName}>{vendorData.full_name}</Text>
+                <Text style={styles.profileName}>{vendorData?.full_name}</Text>
                 <View style={styles.statusContainer}>
                   <View style={styles.statusBadge}>
                     <Shield size={12} color="#FFFFFF" />
-                    <Text style={styles.statusText}>{vendorData.account_status}</Text>
+                    <Text style={styles.statusText}>{vendorData?.account_status}</Text>
                   </View>
                 </View>
               </View>
@@ -156,7 +162,7 @@ export default function MenuScreen() {
                 <Text style={styles.walletLabel}>Wallet Balance</Text>
               </View>
               <Text style={styles.walletAmount}>
-                ₹{vendorData.wallet_balance.toLocaleString('en-IN')}
+                ₹{vendorData?.wallet_balance.toLocaleString('en-IN')}
               </Text>
             </View>
           </View>

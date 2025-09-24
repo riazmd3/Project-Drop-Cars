@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Bell, Search, Filter, Calendar, MapPin, Clock, DollarSign, ArrowRight, Eye, CircleCheck as CheckCircle, TrendingUp, Car } from 'lucide-react-native';
-
+import api from '../api/api';
 interface Order {
   id: number;
   trip_type: string;
@@ -47,8 +47,10 @@ export default function DashboardScreen() {
 
   useEffect(() => {
     loadVendorData();
-    loadOrders();
   }, []);
+    useEffect(() => {
+       fetchOrders();
+    }, [refreshing]);
 
   const loadVendorData = () => {
     // Mock vendor data
@@ -60,178 +62,28 @@ export default function DashboardScreen() {
       branch_name: 'Drop Cars',
     });
   };
-
-  const loadOrders = () => {
-    // Use the provided data
-    const ordersData: Order[] = [
-      {
-        id: 59,
-        trip_type: "Hourly Rental",
-        car_type: "Sedan",
-        pickup_drop_location: {
-          "0": "Tiruvannamalai, Tamil Nadu, India"
-        },
-        start_date_time: "2025-09-22T19:11:30.629000Z",
-        customer_name: "HOUR A",
-        customer_number: "9585984449",
-        trip_status: "PENDING",
-        pick_near_city: "ALL",
-        trip_distance: null,
-        trip_time: "8",
-        estimated_price: 500,
-        vendor_price: 540,
-        platform_fees_percent: 10,
-        created_at: "2025-09-22T19:12:13.393793Z"
-      },
-      {
-        id: 58,
-        trip_type: "Hourly Rental",
-        car_type: "Sedan",
-        pickup_drop_location: {
-          "0": "Tiruvannamalai, Tamil Nadu, India"
-        },
-        start_date_time: "2025-09-22T18:31:25.600000Z",
-        customer_name: "PUGAZHESHWAR D",
-        customer_number: "9600048429",
-        trip_status: "PENDING",
-        pick_near_city: "ALL",
-        trip_distance: null,
-        trip_time: "8",
-        estimated_price: 5000,
-        vendor_price: 5200,
-        platform_fees_percent: 10,
-        created_at: "2025-09-22T18:32:20.564570Z"
-      },
-      {
-        id: 57,
-        trip_type: "Oneway",
-        car_type: "Sedan",
-        pickup_drop_location: {
-          "0": "Tiruvannamalai, Tamil Nadu, India",
-          "1": "Vellore, Tamil Nadu, India"
-        },
-        start_date_time: "2025-09-22T18:25:00.179000Z",
-        customer_name: "PUGAZH",
-        customer_number: "9600048429",
-        trip_status: "PENDING",
-        pick_near_city: "ALL",
-        trip_distance: 88,
-        trip_time: "1 hour 57 mins",
-        estimated_price: 1682,
-        vendor_price: 2008,
-        platform_fees_percent: 10,
-        created_at: "2025-09-22T18:31:15.285065Z"
-      },
-      {
-        id: 56,
-        trip_type: "Hourly Rental",
-        car_type: "Sedan",
-        pickup_drop_location: {
-          "0": "Tiruvannamalai, Tamil Nadu, India"
-        },
-        start_date_time: "2025-09-21T07:56:55.171000Z",
-        customer_name: "RAVI M",
-        customer_number: "9585984449",
-        trip_status: "PENDING",
-        pick_near_city: "Delhi",
-        trip_distance: null,
-        trip_time: "8",
-        estimated_price: 1000,
-        vendor_price: 1400,
-        platform_fees_percent: 10,
-        created_at: "2025-09-21T08:08:24.316075Z"
-      },
-      {
-        id: 55,
-        trip_type: "Oneway",
-        car_type: "Sedan",
-        pickup_drop_location: {
-          "0": "Tiruvannamalai, Tamil Nadu, India",
-          "1": "Vellore, Tamil Nadu, India"
-        },
-        start_date_time: "2025-09-20T09:56:33.914000Z",
-        customer_name: "PUGAZH ONE WAY",
-        customer_number: "9585984449",
-        trip_status: "PENDING",
-        pick_near_city: "ALL",
-        trip_distance: 88,
-        trip_time: "1 hour 57 mins",
-        estimated_price: 1832,
-        vendor_price: 2208,
-        platform_fees_percent: 10,
-        created_at: "2025-09-20T09:57:59.485787Z"
-      },
-      {
-        id: 54,
-        trip_type: "Hourly Rental",
-        car_type: "Sedan",
-        pickup_drop_location: {
-          "0": "Chennai, Tamil Nadu, India"
-        },
-        start_date_time: "2025-09-18T18:01:44.771000Z",
-        customer_name: "PUGAZHESHWAR D",
-        customer_number: "9600048429",
-        trip_status: "PENDING",
-        pick_near_city: "ALL",
-        trip_distance: null,
-        trip_time: "8",
-        estimated_price: 1000,
-        vendor_price: 2500,
-        platform_fees_percent: 10,
-        created_at: "2025-09-18T18:02:34.531625Z"
-      },
-      {
-        id: 53,
-        trip_type: "Oneway",
-        car_type: "Sedan",
-        pickup_drop_location: {
-          "0": "Tiruvannamalai, Tamil Nadu, India",
-          "1": "Vellore, Tamil Nadu, India"
-        },
-        start_date_time: "2025-09-18T18:00:17.074000Z",
-        customer_name: "PUGAZHESHWAR D",
-        customer_number: "9600048429",
-        trip_status: "PENDING",
-        pick_near_city: "ALL",
-        trip_distance: 88,
-        trip_time: "1 hour 57 mins",
-        estimated_price: 1732,
-        vendor_price: 2108,
-        platform_fees_percent: 10,
-        created_at: "2025-09-18T18:01:35.259842Z"
-      },
-      {
-        id: 52,
-        trip_type: "Hourly Rental",
-        car_type: "Sedan",
-        pickup_drop_location: {
-          "0": "Chennai"
-        },
-        start_date_time: "2025-08-13T12:00:00Z",
-        customer_name: "Arun",
-        customer_number: "9876543210",
-        trip_status: "PENDING",
-        pick_near_city: "TVM",
-        trip_distance: null,
-        trip_time: "8",
-        estimated_price: 300,
-        vendor_price: 400,
-        platform_fees_percent: 10,
-        created_at: "2025-09-18T15:53:08.360109Z"
-      }
-    ];
-    
-    // Sort orders by creation date (latest first)
-    const sortedOrders = ordersData.sort((a, b) => 
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
-    
-    setOrders(sortedOrders);
-  };
+    const fetchOrders = async () => {
+      try {
+          const response = await api.get('/orders/vendor');
+          console.log("API response:", response.data);
+          const ordersData: Order[] = response.data;
+          // Sort orders by creation date (latest first)
+          // setOrders(sortedOrders);
+          const sortedOrders = ordersData.sort((a, b) => 
+            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+          );
+          setOrders(sortedOrders);
+          console.log("Fetched orders:", orders);
+        } catch (err: any) {
+          console.error("Error fetching vendor orders:", err);
+        } finally {
+          setRefreshing(false);
+        }
+     };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([loadVendorData(), loadOrders()]);
+    await Promise.all([loadVendorData()]);
     setRefreshing(false);
   };
 

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,9 +7,11 @@ import {
   TouchableOpacity,
   Image,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { User, Phone, CreditCard, MapPin, Calendar, Wallet, Building2, CreditCard as Edit, Camera, Shield, Copy, ExternalLink } from 'lucide-react-native';
+import { User, Phone, CreditCard, MapPin, Calendar, Wallet, Building2, Edit, Camera, Shield, Copy, ExternalLink } from 'lucide-react-native';
+import api from '../../app/api/api'; // Adjust the path as necessary
 
 interface VendorData {
   id: string;
@@ -27,20 +29,26 @@ interface VendorData {
 }
 
 export default function ProfileComponent() {
-  const [vendorData] = useState<VendorData>({
-    id: "7c7ae8a8-3d57-4feb-9ea1-2b80e91a0e83",
-    full_name: "Pugazheshwar",
-    primary_number: "9600048429",
-    secondary_number: "9585984449",
-    gpay_number: "9600048429",
-    wallet_balance: 0,
-    bank_balance: 0,
-    aadhar_number: "123412341234",
-    aadhar_front_img: "https://storage.googleapis.com/drop-cars-files/vendor_details/aadhar/a27638bc-5879-4f8b-8ceb-7b89173333a2.jpg",
-    address: "Bypass Road 2nd street",
-    account_status: "Active",
-    created_at: "2025-09-17T18:43:45.189233Z"
-  });
+  const [vendorData, setVendorData] = useState<VendorData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchVendorData = async () => {
+      try {
+        const response = await api.get('/users/vendor-details/me');
+        // optionally check response.status etc
+        setVendorData(response.data);
+      } catch (err: any) {
+        console.error("Error fetching vendor data:", err);
+        setError('Failed to fetch vendor data.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchVendorData();
+  }, []);
 
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
@@ -52,9 +60,30 @@ export default function ProfileComponent() {
   };
 
   const copyToClipboard = (text: string, label: string) => {
-    // In a real app, you'd use Clipboard API
     Alert.alert('Copied', `${label} copied to clipboard!`);
   };
+
+  // If still loading, show a spinner or loading text
+  if (loading) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <ActivityIndicator size="large" color="#0000ff" />
+      </View>
+    );
+  }
+
+  // If error
+  if (error) {
+    return (
+      <View style={[styles.container, { justifyContent: 'center', alignItems: 'center' }]}>
+        <Text style={{ color: 'red' }}>{error}</Text>
+      </View>
+    );
+  }
+
+  // Now vendorData is non-null, so safe to use
+  // Use optional chaining or non-null assertion just to be safe
+  const data = vendorData!;
 
   const profileSections = [
     {
@@ -62,25 +91,25 @@ export default function ProfileComponent() {
       items: [
         {
           label: 'Full Name',
-          value: vendorData.full_name,
+          value: data.full_name,
           icon: User,
-          action: () => copyToClipboard(vendorData.full_name, 'Full Name'),
+          action: () => copyToClipboard(data.full_name, 'Full Name'),
         },
         {
           label: 'Vendor ID',
-          value: vendorData.id.substring(0, 8) + '...',
+          value: data.id.substring(0, 8) + '...',
           icon: Shield,
-          action: () => copyToClipboard(vendorData.id, 'Vendor ID'),
+          action: () => copyToClipboard(data.id, 'Vendor ID'),
         },
         {
           label: 'Address',
-          value: vendorData.address,
+          value: data.address,
           icon: MapPin,
-          action: () => copyToClipboard(vendorData.address, 'Address'),
+          action: () => copyToClipboard(data.address, 'Address'),
         },
         {
           label: 'Member Since',
-          value: formatDate(vendorData.created_at),
+          value: formatDate(data.created_at),
           icon: Calendar,
           action: undefined,
         },
@@ -91,21 +120,21 @@ export default function ProfileComponent() {
       items: [
         {
           label: 'Primary Number',
-          value: vendorData.primary_number,
+          value: data.primary_number,
           icon: Phone,
-          action: () => copyToClipboard(vendorData.primary_number, 'Primary Number'),
+          action: () => copyToClipboard(data.primary_number, 'Primary Number'),
         },
         {
           label: 'Secondary Number',
-          value: vendorData.secondary_number,
+          value: data.secondary_number,
           icon: Phone,
-          action: () => copyToClipboard(vendorData.secondary_number, 'Secondary Number'),
+          action: () => copyToClipboard(data.secondary_number || '', 'Secondary Number'),
         },
         {
           label: 'GPay Number',
-          value: vendorData.gpay_number,
+          value: data.gpay_number,
           icon: CreditCard,
-          action: () => copyToClipboard(vendorData.gpay_number, 'GPay Number'),
+          action: () => copyToClipboard(data.gpay_number, 'GPay Number'),
         },
       ],
     },
@@ -114,19 +143,19 @@ export default function ProfileComponent() {
       items: [
         {
           label: 'Wallet Balance',
-          value: `₹${vendorData.wallet_balance.toLocaleString('en-IN')}`,
+          value: `₹${data.wallet_balance.toLocaleString('en-IN')}`,
           icon: Wallet,
           action: null,
         },
         {
           label: 'Bank Balance',
-          value: `₹${vendorData.bank_balance.toLocaleString('en-IN')}`,
+          value: `₹${data.bank_balance.toLocaleString('en-IN')}`,
           icon: Building2,
           action: null,
         },
         {
           label: 'Total Balance',
-          value: `₹${(vendorData.wallet_balance + vendorData.bank_balance).toLocaleString('en-IN')}`,
+          value: `₹${(data.wallet_balance + data.bank_balance).toLocaleString('en-IN')}`,
           icon: CreditCard,
           action: null,
         },
@@ -137,9 +166,9 @@ export default function ProfileComponent() {
       items: [
         {
           label: 'Aadhar Number',
-          value: `****-****-${vendorData.aadhar_number.slice(-4)}`,
+          value: `****-****-${data.aadhar_number.slice(-4)}`,
           icon: Shield,
-          action: () => copyToClipboard(vendorData.aadhar_number, 'Aadhar Number'),
+          action: () => copyToClipboard(data.aadhar_number, 'Aadhar Number'),
         },
       ],
     },
@@ -158,22 +187,22 @@ export default function ProfileComponent() {
               <View style={styles.profileImageContainer}>
                 <View style={styles.profileImage}>
                   <Text style={styles.profileInitials}>
-                    {vendorData.full_name.split(' ').map(n => n[0]).join('')}
+                    {data.full_name.split(' ').map(n => n[0]).join('')}
                   </Text>
                 </View>
                 <TouchableOpacity style={styles.editImageButton}>
                   <Camera size={16} color="#FFFFFF" />
                 </TouchableOpacity>
               </View>
-              
+
               <View style={styles.profileInfo}>
-                <Text style={styles.profileName}>{vendorData.full_name}</Text>
-                <Text style={styles.profilePhone}>+91 {vendorData.primary_number}</Text>
+                <Text style={styles.profileName}>{data.full_name}</Text>
+                <Text style={styles.profilePhone}>+91 {data.primary_number}</Text>
                 <View style={[
                   styles.statusBadge,
-                  { backgroundColor: vendorData.account_status === 'Active' ? '#10B981' : '#F59E0B' }
+                  { backgroundColor: data.account_status === 'Active' ? '#10B981' : '#F59E0B' }
                 ]}>
-                  <Text style={styles.statusText}>{vendorData.account_status}</Text>
+                  <Text style={styles.statusText}>{data.account_status}</Text>
                 </View>
               </View>
             </View>
@@ -226,17 +255,17 @@ export default function ProfileComponent() {
               <View style={styles.balanceRow}>
                 <Text style={styles.balanceLabel}>Total Available</Text>
                 <Text style={styles.balanceAmount}>
-                  ₹{(vendorData.wallet_balance + vendorData.bank_balance).toLocaleString('en-IN')}
+                  ₹{(data.wallet_balance + data.bank_balance).toLocaleString('en-IN')}
                 </Text>
               </View>
               <View style={styles.balanceBreakdown}>
                 <View style={styles.balanceItem}>
                   <Text style={styles.balanceSmallLabel}>Wallet</Text>
-                  <Text style={styles.balanceSmallValue}>₹{vendorData.wallet_balance}</Text>
+                  <Text style={styles.balanceSmallValue}>₹{data.wallet_balance}</Text>
                 </View>
                 <View style={styles.balanceItem}>
                   <Text style={styles.balanceSmallLabel}>Bank</Text>
-                  <Text style={styles.balanceSmallValue}>₹{vendorData.bank_balance}</Text>
+                  <Text style={styles.balanceSmallValue}>₹{data.bank_balance}</Text>
                 </View>
               </View>
             </LinearGradient>

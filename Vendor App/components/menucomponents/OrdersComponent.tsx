@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator
 } from 'react-native';
+import api from '../../app/api/api'; // Adjust the path as necessary
 import { LinearGradient } from 'expo-linear-gradient';
 import { FileText, Calendar, Car, User, ArrowRight, Clock, MapPin, DollarSign, CircleAlert as AlertCircle, CircleCheck as CheckCircle } from 'lucide-react-native';
 
@@ -28,143 +29,35 @@ interface Order {
   created_at: string;
 }
 
-export default function OrdersComponent() {
+export default function OrdersComponent(){
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-
-  const fetchOrders = () => {
-    // Use the provided data
-    const ordersData: Order[] = [
-      {
-        id: 59,
-        trip_type: "Hourly Rental",
-        car_type: "Sedan",
-        pickup_drop_location: {
-          "0": "Tiruvannamalai, Tamil Nadu, India"
-        },
-        start_date_time: "2025-09-22T19:11:30.629000Z",
-        customer_name: "HOUR A",
-        customer_number: "9585984449",
-        trip_status: "PENDING",
-        pick_near_city: "ALL",
-        trip_distance: null,
-        trip_time: "8",
-        estimated_price: 500,
-        vendor_price: 540,
-        platform_fees_percent: 10,
-        created_at: "2025-09-22T19:12:13.393793Z"
-      },
-      {
-        id: 58,
-        trip_type: "Hourly Rental",
-        car_type: "Sedan",
-        pickup_drop_location: {
-          "0": "Tiruvannamalai, Tamil Nadu, India"
-        },
-        start_date_time: "2025-09-22T18:31:25.600000Z",
-        customer_name: "PUGAZHESHWAR D",
-        customer_number: "9600048429",
-        trip_status: "PENDING",
-        pick_near_city: "ALL",
-        trip_distance: null,
-        trip_time: "8",
-        estimated_price: 5000,
-        vendor_price: 5200,
-        platform_fees_percent: 10,
-        created_at: "2025-09-22T18:32:20.564570Z"
-      },
-      {
-        id: 57,
-        trip_type: "Oneway",
-        car_type: "Sedan",
-        pickup_drop_location: {
-          "0": "Tiruvannamalai, Tamil Nadu, India",
-          "1": "Vellore, Tamil Nadu, India"
-        },
-        start_date_time: "2025-09-22T18:25:00.179000Z",
-        customer_name: "PUGAZH",
-        customer_number: "9600048429",
-        trip_status: "PENDING",
-        pick_near_city: "ALL",
-        trip_distance: 88,
-        trip_time: "1 hour 57 mins",
-        estimated_price: 1682,
-        vendor_price: 2008,
-        platform_fees_percent: 10,
-        created_at: "2025-09-22T18:31:15.285065Z"
-      },
-      {
-        id: 56,
-        trip_type: "Hourly Rental",
-        car_type: "Sedan",
-        pickup_drop_location: {
-          "0": "Tiruvannamalai, Tamil Nadu, India"
-        },
-        start_date_time: "2025-09-21T07:56:55.171000Z",
-        customer_name: "RAVI M",
-        customer_number: "9585984449",
-        trip_status: "CONFIRMED",
-        pick_near_city: "Delhi",
-        trip_distance: null,
-        trip_time: "8",
-        estimated_price: 1000,
-        vendor_price: 1400,
-        platform_fees_percent: 10,
-        created_at: "2025-09-21T08:08:24.316075Z"
-      },
-      {
-        id: 55,
-        trip_type: "Oneway",
-        car_type: "Sedan",
-        pickup_drop_location: {
-          "0": "Tiruvannamalai, Tamil Nadu, India",
-          "1": "Vellore, Tamil Nadu, India"
-        },
-        start_date_time: "2025-09-20T09:56:33.914000Z",
-        customer_name: "PUGAZH ONE WAY",
-        customer_number: "9585984449",
-        trip_status: "TRIP_COMPLETED",
-        pick_near_city: "ALL",
-        trip_distance: 88,
-        trip_time: "1 hour 57 mins",
-        estimated_price: 1832,
-        vendor_price: 2208,
-        platform_fees_percent: 10,
-        created_at: "2025-09-20T09:57:59.485787Z"
-      },
-      {
-        id: 54,
-        trip_type: "Hourly Rental",
-        car_type: "Sedan",
-        pickup_drop_location: {
-          "0": "Chennai, Tamil Nadu, India"
-        },
-        start_date_time: "2025-09-18T18:01:44.771000Z",
-        customer_name: "PUGAZHESHWAR D",
-        customer_number: "9600048429",
-        trip_status: "DRIVER_ASSIGNED",
-        pick_near_city: "ALL",
-        trip_distance: null,
-        trip_time: "8",
-        estimated_price: 1000,
-        vendor_price: 2500,
-        platform_fees_percent: 10,
-        created_at: "2025-09-18T18:02:34.531625Z"
-      },
-    ];
-    
-    // Sort orders by creation date (latest first)
-    const sortedOrders = ordersData.sort((a, b) => 
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    );
-    
-    setOrders(sortedOrders);
-    setLoading(false);
-  };
-
-  useEffect(() => {
+    useEffect(() => {
     fetchOrders();
   }, []);
+  const fetchOrders = async () => {
+  try {
+      const response = await api.get('/orders/vendor');
+      const sortedOrders = response.data.sort((a: Order, b: Order) =>
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      setOrders(sortedOrders);
+      console.log("Fetched orders:", orders);
+    } catch (err: any) {
+      console.error("Error fetching vendor orders:", err);
+    } finally {
+      setLoading(false);
+    }
+
+  // ✅ Correct usage of useEffect
+    // Sort orders by creation date (latest first)
+    // const sortedOrders = orders.sort((a, b) => 
+    //   new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    // );
+    
+    // setOrders(sortedOrders);
+    setLoading(false);
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
