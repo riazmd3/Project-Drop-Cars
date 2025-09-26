@@ -1,5 +1,6 @@
 import axiosInstance from '@/app/api/axiosInstance';
 import authService, { getAuthHeaders } from './authService';
+import * as SecureStore from 'expo-secure-store';
 
 // Driver details interface for listing
 export interface DriverDetails {
@@ -121,6 +122,18 @@ export const loginDriver = async (mobileNumber: string, password: string): Promi
     const response = await axiosInstance.post('/api/users/cardriver/signin', payload);
 
     console.log('✅ Driver login successful:', response.data);
+    // Persist driver token for axiosDriver interceptor
+    if (response.data?.access_token) {
+      await SecureStore.setItemAsync('driverAuthToken', response.data.access_token);
+    }
+    if (response.data?.driver_id) {
+      await SecureStore.setItemAsync('driverAuthInfo', JSON.stringify({
+        driverId: response.data.driver_id,
+        fullName: response.data.full_name,
+        primaryNumber: response.data.primary_number,
+        driver_status: response.data.driver_status,
+      }));
+    }
     return response.data;
   } catch (error: any) {
     console.error('❌ Driver login failed:', error);

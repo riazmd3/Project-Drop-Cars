@@ -13,6 +13,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useRouter } from 'expo-router';
 import { MapPin, User, Phone, Car, ArrowRight, LogOut, RefreshCw } from 'lucide-react-native';
 import axiosInstance from '@/app/api/axiosInstance';
+import axiosDriver from '@/app/api/axiosDriver';
 import { getAuthHeaders } from '@/services/authService';
 import { getPendingOrders, getDriverAssignmentsWithDetails, fetchAssignmentsForDriver, updateAssignmentStatus } from '@/services/assignmentService';
 import { setDriverOnline, setDriverOffline } from '@/services/carDriverService';
@@ -32,107 +33,43 @@ export default function QuickDashboardScreen() {
     if (!user?.id) return;
     try {
       setOrdersLoading(true);
-        
-        // First, try to use driver_status from user object (from login response)
+
+        // Driver status: prefer user object; avoid VO-only endpoint
         if (user.driver_status) {
           const status = user.driver_status.toUpperCase();
-          if (status === 'ONLINE' || status === 'OFFLINE') {
-            setDriverStatus(status);
-            console.log('🔍 Using driver status from login:', status);
-          }
-        } else {
-          // If no status in user object, try to fetch from API
-        try {
-          const authHeaders = await getAuthHeaders();
-          const driverResponse = await axiosInstance.get(`/api/users/cardriver/${user.id}`, { 
-            headers: authHeaders 
+          if (status === 'ONLINE' || status === 'OFFLINE') setDriverStatus(status);
+        }
+
+        // Fetch assigned orders using driver token
+        const res = await axiosDriver.get('/api/assignments/driver/assigned-orders');
+        const driverData = Array.isArray(res.data) ? res.data : [];
+        const mapped = driverData.map((o: any, idx: number) => {
+          // Debug raw price fields
+          console.warn('Assigned order raw pricing', {
+            idx,
+            order_id: o.order_id,
+            vendor_price: o.vendor_price,
+            estimated_price: o.estimated_price,
+            types: {
+              vendor_price: typeof o.vendor_price,
+              estimated_price: typeof o.estimated_price,
+            }
           });
-          if (driverResponse.data?.driver_status) {
-            const status = driverResponse.data.driver_status.toUpperCase();
-            if (status === 'ONLINE' || status === 'OFFLINE') {
-              setDriverStatus(status);
-                console.log('🔍 Current driver status from API:', status);
-              }
-            }
-          } catch (statusError) {
-            console.log('⚠️ Could not fetch driver status, using default ONLINE');
-            setDriverStatus('ONLINE'); // Default to ONLINE instead of OFFLINE
-          }
-        }
-        
-        // Fetch assignments using the new enhanced function
-        let detailedOrders: any[] = [];
-        let errorMessages: string[] = [];
-        
-        try {
-          // Use the new function that tries multiple approaches and enriches data
-          detailedOrders = await getDriverAssignmentsWithDetails(user.id);
-          
-          
-          if (detailedOrders.length === 0) {
-            errorMessages.push('No assignments found for this driver');
-          }
-        } catch (driverError: any) {
-          console.error('❌ Driver assignments failed:', driverError);
-          errorMessages.push(`Assignment fetch failed: ${driverError.message}`);
-          
-          // Fallback: Try the old method
-          try {
-            const assignments = await fetchAssignmentsForDriver(user.id);
-            
-            // If we got assignments, enrich them with order details
-            if (assignments.length > 0) {
-        const authHeaders = await getAuthHeaders();
-        for (const a of assignments) {
-          try {
-            const res = await axiosInstance.get(`/api/orders/${a.order_id}`, { headers: authHeaders });
-            if (res.data) {
-              detailedOrders.push({ 
-                ...res.data, 
-                assignment_id: a.id, 
-                assignment_status: a.assignment_status || a.status 
-              });
-            }
-                } catch (orderError: any) {
-            console.error('❌ Failed to fetch order details:', orderError);
-                  errorMessages.push(`Order details fetch failed: ${orderError.message}`);
-                }
-              }
-            } else {
-              errorMessages.push('No assignments found via fallback method');
-            }
-          } catch (fallbackError: any) {
-            console.error('❌ Fallback method also failed:', fallbackError);
-            errorMessages.push(`Fallback method failed: ${fallbackError.message}`);
-          }
-        }
-        
-        setDriverOrders(detailedOrders);
-        
-        // Show error alert if there were issues
-        if (errorMessages.length > 0 && detailedOrders.length === 0) {
-          const errorMessage = `Failed to load driver assignments:\n\n${errorMessages.join('\n')}\n\nDriver ID: ${user.id}\n\nCheck console logs for detailed information.`;
-          
-          Alert.alert(
-            'Assignment Loading Failed',
-            errorMessage,
-            [
-              { text: 'OK' },
-              { 
-                text: 'Retry', 
-                onPress: () => {
-                  loadDriverData();
-                }
-              },
-              {
-                text: 'Debug',
-                onPress: () => {
-                  handleDebugAssignments();
-                }
-              }
-            ]
-          );
-        }
+          const cities = Object.values(o.pickup_drop_location || {});
+          const est = o?.estimated_price;
+          return {
+            ...o,
+            pickup: cities[0] || '',
+            drop: cities[1] || '',
+            customer_mobile: o.customer_number,
+            total_fare: est ?? 0, // backend already returns integer
+            assignment_id: o.id,
+            scheduled_at: o.start_date_time,
+          };
+        });
+        // Debug mapped total_fare values
+        console.warn('Mapped assigned orders pricing preview', mapped.map((m: any) => ({ order_id: m.order_id, total_fare: m.total_fare })));
+        setDriverOrders(mapped);
       } finally {
         setOrdersLoading(false);
       }
@@ -290,30 +227,10 @@ export default function QuickDashboardScreen() {
   };
 
   const fetchDriverStatus = async () => {
-    if (!user?.id) return;
-    try {
-      console.log('📊 Fetching driver status for:', user.id);
-      // Fetch current driver status from API
-      const response = await axiosInstance.get(`/api/users/cardriver/${user.id}`);
-      console.log('📊 Driver status response:', response.data);
-      
-      if (response.data && response.data.driver_status) {
-        setDriverStatus(response.data.driver_status);
-        console.log('✅ Driver status updated to:', response.data.driver_status);
-      } else {
-        console.log('⚠️ No driver_status in response, using default ONLINE');
-        setDriverStatus('ONLINE'); // Default to ONLINE if no status found
-      }
-    } catch (error) {
-      console.error('❌ Failed to fetch driver status:', error);
-      // If API fails, check if we have status from login response
-      if (user.driver_status) {
-        setDriverStatus(user.driver_status as 'ONLINE' | 'OFFLINE');
-        console.log('📊 Using driver status from user object:', user.driver_status);
-      } else {
-        console.log('⚠️ No driver status available, defaulting to ONLINE');
-        setDriverStatus('ONLINE'); // Default to ONLINE if all else fails
-      }
+    // Avoid VO-only endpoint; rely on local status or after toggle responses
+    if (user?.driver_status) {
+      const status = user.driver_status.toUpperCase();
+      if (status === 'ONLINE' || status === 'OFFLINE') setDriverStatus(status);
     }
   };
 

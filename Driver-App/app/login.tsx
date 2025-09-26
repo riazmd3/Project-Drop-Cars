@@ -244,8 +244,6 @@ export default function LoginScreen() {
 
       // Test different driver endpoints
       const endpoints = [
-        '/api/users/cardriver/vehicle-owner/b04be5e6-391c-4af9-9903-aa0fc6bfabe0',
-        '/api/users/cardriver/organization/org_001',
         '/api/assignments/available-drivers'
       ];
 

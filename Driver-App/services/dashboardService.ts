@@ -89,10 +89,10 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
         headers: {
           'Authorization': `Bearer ${token}`
         }
-      });
-      
-      if (carsResponse.data && Array.isArray(carsResponse.data)) {
-        cars = carsResponse.data;
+          });
+          
+          if (carsResponse.data && Array.isArray(carsResponse.data)) {
+            cars = carsResponse.data;
         console.log(`✅ Cars fetched:`, cars.length, 'cars');
       }
     } catch (error) {
@@ -107,9 +107,9 @@ export const fetchDashboardData = async (): Promise<DashboardData> => {
         headers: {
           'Authorization': `Bearer ${token}`
         }
-      });
-      
-      if (driversResponse.data && Array.isArray(driversResponse.data)) {
+          });
+          
+          if (driversResponse.data && Array.isArray(driversResponse.data)) {
         drivers = driversResponse.data;
         console.log(`✅ Drivers fetched:`, drivers.length, 'drivers');
       }

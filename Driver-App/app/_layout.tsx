@@ -9,7 +9,6 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import { DashboardProvider } from '@/contexts/DashboardContext';
 import { NotificationProvider } from '@/contexts/NotificationContext';
 import { CarDriverProvider } from '@/contexts/CarDriverContext';
-import FirebaseInitializer from '@/components/FirebaseInitializer';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 import * as SplashScreen from 'expo-splash-screen';
 
@@ -36,7 +35,6 @@ export default function RootLayout() {
   }
 
   return (
-    <FirebaseInitializer>
       <ThemeProvider>
         <AuthProvider>
           <WalletProvider>
@@ -59,6 +57,5 @@ export default function RootLayout() {
           </WalletProvider>
         </AuthProvider>
       </ThemeProvider>
-    </FirebaseInitializer>
   );
 }

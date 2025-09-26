@@ -37,7 +37,7 @@ export default function DashboardScreen() {
   const { user } = useAuth();
   const { balance } = useWallet();
   const { colors } = useTheme();
-  const { dashboardData, loading, error, fetchData, refreshData } = useDashboard();
+  const { dashboardData, loading, error, fetchData, refreshData, futureRides } = useDashboard();
   const { sendNewOrderNotification, sendOrderAssignedNotification } = useNotifications();
   const router = useRouter();
   const [showDrawer, setShowDrawer] = useState(false);
@@ -48,7 +48,11 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [previousOrderCount, setPreviousOrderCount] = useState(0);
 
-  const canAcceptBookings = balance >= 1000;
+  // Compute available balance after reserving future rides' estimated totals
+  const reservedForFuture = (futureRides || []).reduce((sum, r) => sum + Number((r as any).total_fare ?? 0), 0);
+  const currentWallet = Number(dashboardData?.user_info?.wallet_balance ?? balance ?? 0);
+  const availableBalance = Math.max(0, currentWallet - reservedForFuture);
+  const canAcceptOrder = (order: PendingOrder) => availableBalance >= Number(order.estimated_price ?? 0);
 
   // Helper function to extract pickup and drop locations from the API response
   const getPickupDropLocations = (pickupDropLocation: any) => {
@@ -418,10 +422,10 @@ export default function DashboardScreen() {
     },
   });
   const handleAcceptBooking = (order: PendingOrder) => {
-    if (!canAcceptBookings) {
+    if (!canAcceptOrder(order)) {
       Alert.alert(
         'Insufficient Balance',
-        'Your wallet balance is below ₹1000. Please add money to continue receiving bookings.',
+        'Not enough available balance after reserving for your future rides. Add money to accept this booking.',
         [{ text: 'Add Money', onPress: () => router.push('/(tabs)/wallet') }]
       );
       return;
@@ -487,7 +491,7 @@ export default function DashboardScreen() {
           time: new Date().toTimeString().slice(0,5),
           distance: order.trip_distance,
           fare_per_km: order.cost_per_km,
-          total_fare: (order.cost_per_km * order.trip_distance) + order.driver_allowance + order.permit_charges + order.hill_charges + order.toll_charges,
+          total_fare: order.estimated_price,
           status: 'confirmed',
           assigned_driver: null,
           assigned_vehicle: null,
@@ -573,7 +577,7 @@ export default function DashboardScreen() {
         </View>
       </View>
 
-      {!canAcceptBookings && (
+      {availableBalance < 1000 && (
         <View style={dynamicStyles.warningBanner}>
           <Text style={dynamicStyles.warningText}>
             Wallet balance below ₹1000. Add money to receive bookings.
@@ -648,17 +652,17 @@ export default function DashboardScreen() {
                       <BookingCard
                         key={order.order_id}
                         booking={{
-                          booking_id: order.order_id.toString(),
+                          order_id: Number(order.order_id),
                           pickup: locations.pickup,
                           drop: locations.drop,
                           customer_name: order.customer_name,
-                          customer_mobile: order.customer_number,
-                          fare_per_km: order.cost_per_km,
-                          distance_km: order.trip_distance,
-                          total_fare: (order.cost_per_km * order.trip_distance) + order.driver_allowance + order.permit_charges + order.hill_charges + order.toll_charges
+                          customer_number: order.customer_number,
+                          estimated_price: Number(order.estimated_price),
+                          trip_distance: Number(order.trip_distance ?? 0),
+                          fare_per_km: Number(order.cost_per_km ?? 0),
                         }}
                         onAccept={() => handleAcceptBooking(order)}
-                        disabled={!canAcceptBookings}
+                        disabled={!canAcceptOrder(order)}
                         loading={processingOrderId === order.order_id.toString()}
                       />
                     );

@@ -14,7 +14,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDashboard, FutureRide } from '@/contexts/DashboardContext';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { MapPin, Clock, IndianRupee, User, Phone, Car, X, CheckCircle, AlertCircle } from 'lucide-react-native';
-import { fetchAvailableDrivers, fetchAvailableCars, assignDriverAndCar, getPendingOrders, getOrderAssignments, assignCarDriverToOrder, getFutureRidesForVehicleOwner, getFutureRidesWithDetails, debugOrderAcceptance, AvailableDriver, AvailableCar } from '@/services/assignmentService';
+import { fetchAvailableDrivers, fetchAvailableCars, assignDriverAndCar, getOrderAssignments, assignCarDriverToOrder, getFutureRidesWithDetails, debugOrderAcceptance, AvailableDriver, AvailableCar } from '@/services/assignmentService';
+import { getPendingOrders as getVOPendingOrders } from '@/services/vehicleOwnerService';
 
 // Removed local interface - using imported FutureRide from DashboardContext
 
@@ -60,12 +61,8 @@ export default function FutureRidesScreen() {
 
   // Fetch available drivers and cars from assignment endpoints
   useEffect(() => {
-    if (!loading && dashboardData) {
-      fetchAvailableAssignments();
-      fetchPendingOrders();
-      fetchFutureRidesFromAPI();
-    }
-  }, [loading, dashboardData]);
+    fetchAvailableAssignments();
+  }, []);
 
   const fetchFutureRidesFromAPI = async () => {
     try {

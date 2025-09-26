@@ -156,7 +156,7 @@ export default function WalletScreen() {
       console.warn('Razorpay debug: options prepared', {
         hasKey: !!razorpayOptions?.key,
         originalAmount: amount, // Amount in rupees (what user entered)
-        razorpayAmount: razorpayOptions?.amount, // Amount in paise (for Razorpay)
+        razorpayAmount:amount, 
         currency: razorpayOptions?.currency,
         orderId: razorpayOptions?.order_id,
         platform: Platform.OS
@@ -217,6 +217,7 @@ export default function WalletScreen() {
         console.log('🔧 Razorpay SDK not available, using mock payment fallback...');
         
         try {
+          // Use mock payment as fallback
           // Use mock payment as fallback
           const mockPaymentResponse = {
             razorpay_payment_id: `mock_pay_${Date.now()}`,
