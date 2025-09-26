@@ -52,6 +52,7 @@ export default function MenuScreen() {
   const handleLogout = () => {
     // Implement logout functionality
     console.log('Logging out...');
+    router.replace('/(auth)/sign-in');// Navigate to login screen after logout
   };
 
   const menuItems = [

@@ -157,7 +157,7 @@ const OrderSuccess: React.FC<OrderSuccessProps> = ({ visible, onClose, orderData
                   <Text style={styles.expandIcon}>^</Text>
                 </TouchableOpacity>
               </View>
-              <Text style={styles.customerName}>PUGAZHESHWAR D</Text>
+              <Text style={styles.customerName}>{orderData.customerName}</Text>
               <Text style={styles.orderDate}>
                 {new Date().toLocaleDateString('en-GB', {
                   day: '2-digit',
