@@ -73,11 +73,11 @@ export default function DashboardScreen() {
   };
 
   const loadVendorData = async () => {
-    try {
-      const response = await api.get('/vendor/profile');
-      setVendorData(response.data);
-    } catch (err: any) {
-      console.error('Error fetching vendor data:', err);
+    // try {
+    //   const response = await api.get('/vendor/profile');
+    //   setVendorData(response.data);
+    // } catch (err: any) {
+      // console.error('Error fetching vendor data:', err);
       // Fallback to mock data if API fails
       setVendorData({
         id: '1',
@@ -86,12 +86,12 @@ export default function DashboardScreen() {
         account_status: 'Active',
         branch_name: 'Drop Cars',
       });
-    }
+    // }
   };
 
   const fetchOrders = async () => {
     try {
-      const response = await api.get('/orders/vendor');
+      const response = await api.get('/orders/pending/vendor');
       console.log("API response:", response.data);
       const ordersData: Order[] = response.data;
       
