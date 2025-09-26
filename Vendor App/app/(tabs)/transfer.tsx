@@ -47,13 +47,18 @@ export default function TransferScreen() {
 
     setLoading(true);
     try {
-      // await requestTransfer(transferAmount);
-      const response = await api.post('/transfer/request',{amount : transferAmount});
+      const response = await api.post('/transfer/request', { amount: transferAmount });
       Alert.alert('Transfer Requested', 'Your transfer request has been submitted for admin approval');
       setAmount('');
       loadBalance();
-    } catch (error) {
-      Alert.alert('Error', 'Failed to create transfer request');
+    } catch (error : any) {
+      console.log('Transfer request error:', error);
+
+      const errorMessage =
+        error?.response?.data?.detail ??
+        'Failed to create transfer request. Please try again later.';
+
+      Alert.alert('Sorry', errorMessage);
     } finally {
       setLoading(false);
     }

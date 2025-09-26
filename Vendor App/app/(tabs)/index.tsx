@@ -10,7 +10,9 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Bell, Search, Filter, Calendar, MapPin, Clock, DollarSign, ArrowRight, Eye, CircleCheck as CheckCircle, TrendingUp, Car } from 'lucide-react-native';
+// import api, { Order, VendorData } from '../api/api';
 import api from '../api/api';
+
 interface Order {
   id: number;
   trip_type: string;
@@ -43,48 +45,80 @@ export default function DashboardScreen() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [vendorData, setVendorData] = useState<VendorData | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [newOrderNotification, setNewOrderNotification] = useState(false);
 
   useEffect(() => {
-    loadVendorData();
+    loadInitialData();
   }, []);
-    useEffect(() => {
-       fetchOrders();
-    }, [refreshing]);
 
-  const loadVendorData = () => {
-    // Mock vendor data
-    setVendorData({
-      id: '1',
-      full_name: 'Vendor Name',
-      primary_number: '9876543210',
-      account_status: 'Active',
-      branch_name: 'Drop Cars',
-    });
+  useEffect(() => {
+    if (refreshing) {
+      fetchOrders();
+    }
+  }, [refreshing]);
+
+  const loadInitialData = async () => {
+    setLoading(true);
+    try {
+      await Promise.all([
+        loadVendorData(),
+        fetchOrders()
+      ]);
+    } catch (error) {
+      console.error('Error loading initial data:', error);
+    } finally {
+      setLoading(false);
+    }
   };
-    const fetchOrders = async () => {
-      try {
-          const response = await api.get('/orders/vendor');
-          console.log("API response:", response.data);
-          const ordersData: Order[] = response.data;
-          // Sort orders by creation date (latest first)
-          // setOrders(sortedOrders);
-          const sortedOrders = ordersData.sort((a, b) => 
-            new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-          );
-          setOrders(sortedOrders);
-          console.log("Fetched orders:", orders);
-        } catch (err: any) {
-          console.error("Error fetching vendor orders:", err);
-        } finally {
-          setRefreshing(false);
-        }
-     };
+
+  const loadVendorData = async () => {
+    // try {
+    //   const response = await api.get('/vendor/profile');
+    //   setVendorData(response.data);
+    // } catch (err: any) {
+      // console.error('Error fetching vendor data:', err);
+      // Fallback to mock data if API fails
+      setVendorData({
+        id: '1',
+        full_name: 'Drop Cars Pvt Ltd',
+        primary_number: '+91 98765 43210',
+        account_status: 'Active',
+        branch_name: 'Drop Cars',
+      });
+    // }
+  };
+
+  const fetchOrders = async () => {
+    try {
+      const response = await api.get('/orders/pending/vendor');
+      console.log("API response:", response.data);
+      const ordersData: Order[] = response.data;
+      
+      // Sort orders by creation date (latest first)
+      const sortedOrders = ordersData.sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      );
+      
+      setOrders(sortedOrders);
+      console.log("Fetched orders:", sortedOrders.length);
+      
+      // Show notification if there are new pending orders
+      const pendingCount = sortedOrders.filter(order => order.trip_status === 'PENDING').length;
+      if (pendingCount > 0) {
+        setNewOrderNotification(true);
+        setTimeout(() => setNewOrderNotification(false), 5000);
+      }
+    } catch (err: any) {
+      console.error("Error fetching vendor orders:", err);
+    } finally {
+      setRefreshing(false);
+    }
+  };
 
   const onRefresh = async () => {
     setRefreshing(true);
-    await Promise.all([loadVendorData()]);
-    setRefreshing(false);
+    await Promise.all([loadVendorData(), fetchOrders()]);
   };
 
   const getStatusColor = (status: string) => {
@@ -153,10 +187,21 @@ export default function DashboardScreen() {
     return orders.filter(order => order.trip_status === 'PENDING').length;
   };
 
+  if (loading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text style={styles.loadingText}>Loading Dashboard...</Text>
+      </View>
+    );
+  }
+
   if (!vendorData) {
     return (
       <View style={styles.loadingContainer}>
-        <Text>Loading...</Text>
+        <Text style={styles.errorText}>Unable to load vendor data</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={loadInitialData}>
+          <Text style={styles.retryButtonText}>Retry</Text>
+        </TouchableOpacity>
       </View>
     );
   }
@@ -179,7 +224,7 @@ export default function DashboardScreen() {
           </View>
           <TouchableOpacity style={styles.notificationButton}>
             <Bell size={24} color="#FFFFFF" />
-            <View style={styles.notificationBadge} />
+            {getPendingOrdersCount() > 0 && <View style={styles.notificationBadge} />}
           </TouchableOpacity>
         </View>
       </LinearGradient>
@@ -188,7 +233,9 @@ export default function DashboardScreen() {
       {newOrderNotification && (
         <View style={styles.newOrderBanner}>
           <CheckCircle size={20} color="#10B981" />
-          <Text style={styles.newOrderText}>New order received successfully!</Text>
+          <Text style={styles.newOrderText}>
+            {getPendingOrdersCount()} new order{getPendingOrdersCount() > 1 ? 's' : ''} received!
+          </Text>
         </View>
       )}
 
@@ -244,7 +291,7 @@ export default function DashboardScreen() {
           </View>
         </View>
 
-        {/* Orders */}
+        {/* Orders Section */}
         <View style={styles.ordersContainer}>
           <View style={styles.ordersHeader}>
             <View>
@@ -261,101 +308,111 @@ export default function DashboardScreen() {
             </View>
           </View>
 
-          {orders.slice(0, 8).map((order) => (
-            <TouchableOpacity key={order.id} style={styles.orderCard}>
-              <View style={styles.orderHeader}>
-                <View style={styles.customerInfo}>
-                  <View style={styles.customerAvatar}>
-                    <Text style={styles.customerInitial}>
-                      {order.customer_name.charAt(0)}
-                    </Text>
-                  </View>
-                  <View>
-                    <Text style={styles.customerName}>{order.customer_name}</Text>
-                    <Text style={styles.orderTime}>{formatTime(order.created_at)}</Text>
-                  </View>
-                </View>
-                <View style={styles.orderStatus}>
-                  <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(order.trip_status)}20` }]}>
-                    {getStatusIcon(order.trip_status)}
-                    <Text style={[styles.orderStatusText, { color: getStatusColor(order.trip_status) }]}>
-                      {getStatusText(order.trip_status)}
-                    </Text>
-                  </View>
-                </View>
-              </View>
-
-              <View style={styles.orderDetails}>
-                <View style={styles.locationRow}>
-                  <View style={styles.locationItem}>
-                    <View style={[styles.locationDot, { backgroundColor: '#3B82F6' }]} />
-                    <Text style={styles.locationText} numberOfLines={1}>
-                      {order.pickup_drop_location['0']}
-                    </Text>
-                  </View>
-                  {order.pickup_drop_location['1'] && (
-                    <View style={styles.locationItem}>
-                      <View style={[styles.locationDot, { backgroundColor: '#10B981' }]} />
-                      <Text style={styles.locationText} numberOfLines={1}>
-                        {order.pickup_drop_location['1']}
-                      </Text>
+          {orders.length === 0 ? (
+            <View style={styles.emptyState}>
+              <Car size={48} color="#9CA3AF" />
+              <Text style={styles.emptyStateText}>No orders yet</Text>
+              <Text style={styles.emptyStateSubtext}>Orders will appear here when customers book your cars</Text>
+            </View>
+          ) : (
+            <>
+              {orders.slice(0, 8).map((order) => (
+                <TouchableOpacity key={order.id} style={styles.orderCard}>
+                  <View style={styles.orderHeader}>
+                    <View style={styles.customerInfo}>
+                      <View style={styles.customerAvatar}>
+                        <Text style={styles.customerInitial}>
+                          {order.customer_name.charAt(0)}
+                        </Text>
+                      </View>
+                      <View>
+                        <Text style={styles.customerName}>{order.customer_name}</Text>
+                        <Text style={styles.orderTime}>{formatTime(order.created_at)}</Text>
+                      </View>
                     </View>
-                  )}
-                </View>
-
-                <View style={styles.orderMeta}>
-                  {order.trip_distance && (
-                    <View style={styles.metaItem}>
-                      <MapPin size={14} color="#6B7280" />
-                      <Text style={styles.metaText}>{order.trip_distance} km</Text>
+                    <View style={styles.orderStatus}>
+                      <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(order.trip_status)}20` }]}>
+                        {getStatusIcon(order.trip_status)}
+                        <Text style={[styles.orderStatusText, { color: getStatusColor(order.trip_status) }]}>
+                          {getStatusText(order.trip_status)}
+                        </Text>
+                      </View>
                     </View>
-                  )}
-                  <View style={styles.metaItem}>
-                    <Clock size={14} color="#6B7280" />
-                    <Text style={styles.metaText}>
-                      {order.trip_type === 'Hourly Rental' ? `${order.trip_time} hours` : order.trip_time}
-                    </Text>
                   </View>
-                  <View style={styles.metaItem}>
-                    <DollarSign size={14} color="#6B7280" />
-                    <Text style={styles.metaText}>₹{order.vendor_price}</Text>
-                  </View>
-                </View>
 
-                {/* Price and Profit Information */}
-                <View style={styles.priceInfo}>
-                  <View style={styles.priceRow}>
-                    <Text style={styles.priceLabel}>Estimated Price:</Text>
-                    <Text style={styles.estimatedPrice}>₹{order.estimated_price}</Text>
-                  </View>
-                  <View style={styles.priceRow}>
-                    <Text style={styles.priceLabel}>Your Price:</Text>
-                    <Text style={styles.vendorPrice}>₹{order.vendor_price}</Text>
-                  </View>
-                  <View style={styles.priceRow}>
-                    <Text style={styles.priceLabel}>Profit:</Text>
-                    <Text style={styles.profitText}>₹{order.vendor_price - order.estimated_price}</Text>
-                  </View>
-                </View>
+                  <View style={styles.orderDetails}>
+                    <View style={styles.locationRow}>
+                      <View style={styles.locationItem}>
+                        <View style={[styles.locationDot, { backgroundColor: '#3B82F6' }]} />
+                        <Text style={styles.locationText} numberOfLines={1}>
+                          {order.pickup_drop_location['0']}
+                        </Text>
+                      </View>
+                      {order.pickup_drop_location['1'] && (
+                        <View style={styles.locationItem}>
+                          <View style={[styles.locationDot, { backgroundColor: '#10B981' }]} />
+                          <Text style={styles.locationText} numberOfLines={1}>
+                            {order.pickup_drop_location['1']}
+                          </Text>
+                        </View>
+                      )}
+                    </View>
 
-                <View style={styles.carInfo}>
-                  <Text style={styles.carTypeText}>{order.car_type} • {order.trip_type}</Text>
-                </View>
+                    <View style={styles.orderMeta}>
+                      {order.trip_distance && (
+                        <View style={styles.metaItem}>
+                          <MapPin size={14} color="#6B7280" />
+                          <Text style={styles.metaText}>{order.trip_distance} km</Text>
+                        </View>
+                      )}
+                      <View style={styles.metaItem}>
+                        <Clock size={14} color="#6B7280" />
+                        <Text style={styles.metaText}>
+                          {order.trip_type === 'Hourly Rental' ? `${order.trip_time} hours` : order.trip_time}
+                        </Text>
+                      </View>
+                      <View style={styles.metaItem}>
+                        <DollarSign size={14} color="#6B7280" />
+                        <Text style={styles.metaText}>₹{order.vendor_price}</Text>
+                      </View>
+                    </View>
 
-                <View style={styles.orderActions}>
-                  <TouchableOpacity style={styles.viewButton}>
-                    <Eye size={16} color="#3B82F6" />
-                    <Text style={styles.viewButtonText}>View Details</Text>
-                  </TouchableOpacity>
-                </View>
-              </View>
-            </TouchableOpacity>
-          ))}
+                    {/* Price and Profit Information */}
+                    <View style={styles.priceInfo}>
+                      <View style={styles.priceRow}>
+                        <Text style={styles.priceLabel}>Estimated Price:</Text>
+                        <Text style={styles.estimatedPrice}>₹{order.estimated_price}</Text>
+                      </View>
+                      <View style={styles.priceRow}>
+                        <Text style={styles.priceLabel}>Your Price:</Text>
+                        <Text style={styles.vendorPrice}>₹{order.vendor_price}</Text>
+                      </View>
+                      <View style={styles.priceRow}>
+                        <Text style={styles.priceLabel}>Profit:</Text>
+                        <Text style={styles.profitText}>₹{order.vendor_price - order.estimated_price}</Text>
+                      </View>
+                    </View>
 
-          <TouchableOpacity style={styles.viewAllOrdersButton}>
-            <Text style={styles.viewAllOrdersText}>View All Orders</Text>
-            <ArrowRight size={20} color="#3B82F6" />
-          </TouchableOpacity>
+                    <View style={styles.carInfo}>
+                      <Text style={styles.carTypeText}>{order.car_type} • {order.trip_type}</Text>
+                    </View>
+
+                    <View style={styles.orderActions}>
+                      <TouchableOpacity style={styles.viewButton}>
+                        <Eye size={16} color="#3B82F6" />
+                        <Text style={styles.viewButtonText}>View Details</Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              ))}
+
+              <TouchableOpacity style={styles.viewAllOrdersButton}>
+                <Text style={styles.viewAllOrdersText}>View All Orders</Text>
+                <ArrowRight size={20} color="#3B82F6" />
+              </TouchableOpacity>
+            </>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -372,6 +429,30 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#F8FAFC',
+    paddingHorizontal: 20,
+  },
+  loadingText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1F2937',
+    marginBottom: 10,
+  },
+  errorText: {
+    fontSize: 16,
+    color: '#EF4444',
+    textAlign: 'center',
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '600',
   },
   header: {
     paddingTop: 60,
@@ -505,6 +586,24 @@ const styles = StyleSheet.create({
     padding: 8,
     borderRadius: 8,
     backgroundColor: '#F3F4F6',
+  },
+  emptyState: {
+    alignItems: 'center',
+    paddingVertical: 40,
+    paddingHorizontal: 20,
+  },
+  emptyStateText: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#4B5563',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptyStateSubtext: {
+    fontSize: 14,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    lineHeight: 20,
   },
   orderCard: {
     backgroundColor: '#FFFFFF',
