@@ -11,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useRouter } from 'expo-router';
-import { MapPin, User, Phone, Car, ArrowRight, LogOut, RefreshCw, Bug } from 'lucide-react-native';
+import { MapPin, User, Phone, Car, ArrowRight, LogOut, RefreshCw } from 'lucide-react-native';
 import axiosInstance from '@/app/api/axiosInstance';
 import axiosDriver from '@/app/api/axiosDriver';
 import { getAuthHeaders } from '@/services/authService';
@@ -31,78 +31,81 @@ export default function QuickDashboardScreen() {
 
   // Fetch current driver status and assignments
   const loadDriverData = async () => {
-    if (!user?.id) return;
+    if (!user?.id) {
+      console.log('⚠️ No user ID available for loading driver data');
+      return;
+    }
+    
     try {
       setOrdersLoading(true);
-
-        // Driver status: prefer user object; avoid VO-only endpoint
-        if (user.driver_status) {
-          const status = user.driver_status.toUpperCase();
-          if (status === 'ONLINE' || status === 'OFFLINE') setDriverStatus(status);
-        }
-
-        // Fetch assigned orders using driver token
-        console.log('🔍 Fetching assigned orders for driver...');
-        const res = await axiosDriver.get('/api/assignments/driver/assigned-orders');
-        console.log('📊 Raw API response:', {
-          status: res.status,
-          dataLength: Array.isArray(res.data) ? res.data.length : 'not array',
-          data: res.data
-        });
+      console.log('🔄 Loading driver data for user:', user.id);
         
-        const driverData = Array.isArray(res.data) ? res.data : [];
-        console.log('📋 Processed driver data count:', driverData.length);
-        
-        const mapped = driverData.map((o: any, idx: number) => {
-          // Debug raw price fields
-          console.warn('Assigned order raw pricing', {
-            idx,
-            order_id: o.order_id,
-            vendor_price: o.vendor_price,
-            estimated_price: o.estimated_price,
-            types: {
-              vendor_price: typeof o.vendor_price,
-              estimated_price: typeof o.estimated_price,
-            }
-          });
-          const cities = Object.values(o.pickup_drop_location || {});
-          const est = o?.estimated_price;
-          return {
-            ...o,
-            pickup: cities[0] || '',
-            drop: cities[1] || '',
-            customer_mobile: o.customer_number,
-            total_fare: est ?? 0, // backend already returns integer
-            assignment_id: o.id,
-            scheduled_at: o.start_date_time,
-          };
-        });
-        // Debug mapped total_fare values
-        console.warn('Mapped assigned orders pricing preview', mapped.map((m: any) => ({ order_id: m.order_id, total_fare: m.total_fare })));
-        setDriverOrders(mapped);
-      } catch (apiError: any) {
-        console.error('❌ Failed to fetch assigned orders:', {
-          message: apiError.message,
-          status: apiError.response?.status,
-          data: apiError.response?.data,
-          url: apiError.config?.url
-        });
-        
-        // Show user-friendly error message
-        Alert.alert(
-          'Failed to Load Orders',
-          `Error: ${apiError.response?.status || 'Network Error'}\n\n${apiError.response?.data?.message || apiError.message}`,
-          [
-            { text: 'OK' },
-            { text: 'Retry', onPress: () => loadDriverData() }
-          ]
-        );
-        
-        setDriverOrders([]);
-      } finally {
-        setOrdersLoading(false);
+      // Driver status: prefer user object; avoid VO-only endpoint
+      if (user.driver_status) {
+        const status = user.driver_status.toUpperCase();
+        if (status === 'ONLINE' || status === 'OFFLINE') setDriverStatus(status);
       }
-    };
+
+      // Fetch assigned orders using driver token
+      console.log('🔍 Fetching assigned orders for driver...');
+      const res = await axiosDriver.get('/api/assignments/driver/assigned-orders');
+      console.log('📊 Raw API response:', {
+        status: res.status,
+        data: res.data,
+        dataType: typeof res.data,
+        isArray: Array.isArray(res.data),
+        length: Array.isArray(res.data) ? res.data.length : 'N/A'
+      });
+      
+      const driverData = Array.isArray(res.data) ? res.data : [];
+      console.log('📋 Processed driver data:', driverData);
+      
+      const mapped = driverData.map((o: any, idx: number) => {
+        // Debug raw price fields
+        console.warn('Assigned order raw pricing', {
+          idx,
+          order_id: o.order_id,
+          vendor_price: o.vendor_price,
+          estimated_price: o.estimated_price,
+          types: {
+            vendor_price: typeof o.vendor_price,
+            estimated_price: typeof o.estimated_price,
+          }
+        });
+        const cities = Object.values(o.pickup_drop_location || {});
+        const est = o?.estimated_price;
+        return {
+          ...o,
+          pickup: cities[0] || '',
+          drop: cities[1] || '',
+          customer_mobile: o.customer_number,
+          total_fare: est ?? 0, // backend already returns integer
+          assignment_id: o.id,
+          scheduled_at: o.start_date_time,
+        };
+      });
+      // Debug mapped total_fare values
+      console.warn('Mapped assigned orders pricing preview', mapped.map((m: any) => ({ order_id: m.order_id, total_fare: m.total_fare })));
+      setDriverOrders(mapped);
+      
+      console.log('✅ Driver data loaded successfully:', {
+        ordersCount: mapped.length,
+        orders: mapped.map(o => ({ id: o.order_id, status: o.assignment_status }))
+      });
+    } catch (error: any) {
+      console.error('❌ Failed to load driver data:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        url: error.config?.url
+      });
+      
+      // Set empty array on error
+      setDriverOrders([]);
+    } finally {
+      setOrdersLoading(false);
+    }
+  };
 
   useEffect(() => {
     loadDriverData();
@@ -116,51 +119,71 @@ export default function QuickDashboardScreen() {
   };
 
   const handleDebugAssignments = async () => {
+    if (!user?.id) {
+      Alert.alert('Debug Error', 'No user ID available');
+      return;
+    }
+
     try {
-      console.log('🧪 Testing assigned orders API...');
+      console.log('🧪 Testing driver assignments for driver:', user.id);
       
-      // Check if driver token exists
+      // Check driver token
       const driverToken = await SecureStore.getItemAsync('driverAuthToken');
-      console.log('🔑 Driver token exists:', !!driverToken);
+      console.log('🔑 Driver token status:', {
+        hasToken: !!driverToken,
+        tokenLength: driverToken?.length || 0,
+        tokenPreview: driverToken ? `${driverToken.substring(0, 20)}...` : 'None'
+      });
       
-      if (!driverToken) {
-        Alert.alert('Debug Error', 'No driver token found. Please login as driver first.');
-        return;
+      // Test network connectivity first
+      console.log('🌐 Testing network connectivity...');
+      try {
+        const testRes = await axiosDriver.get('/api/health', { timeout: 5000 });
+        console.log('✅ Network test successful:', testRes.status);
+      } catch (networkError: any) {
+        console.log('⚠️ Network test failed:', networkError.message);
       }
       
       // Test the assigned orders API directly
-      const res = await axiosDriver.get('/api/assignments/driver/assigned-orders');
-      console.log('📊 Direct API test result:', {
-        status: res.status,
-        dataLength: Array.isArray(res.data) ? res.data.length : 'not array',
-        data: res.data
+      console.log('🔍 Testing /api/assignments/driver/assigned-orders...');
+      const assignedOrdersRes = await axiosDriver.get('/api/assignments/driver/assigned-orders');
+      console.log('📊 Assigned orders API response:', {
+        status: assignedOrdersRes.status,
+        data: assignedOrdersRes.data,
+        dataType: typeof assignedOrdersRes.data,
+        isArray: Array.isArray(assignedOrdersRes.data),
+        length: Array.isArray(assignedOrdersRes.data) ? assignedOrdersRes.data.length : 'N/A'
       });
       
-      // Create detailed debug message
-      let debugMessage = `API Status: ${res.status}\n`;
-      debugMessage += `Data Type: ${Array.isArray(res.data) ? 'Array' : typeof res.data}\n`;
-      debugMessage += `Data Length: ${Array.isArray(res.data) ? res.data.length : 'N/A'}\n\n`;
+      // Test the old function for comparison
+      const assignments = await getDriverAssignmentsWithDetails(user.id);
+      console.log('📊 Driver assignments debug result:', assignments);
       
-      if (Array.isArray(res.data) && res.data.length > 0) {
+      // Create detailed debug message
+      let debugMessage = `Driver ID: ${user.id}\n`;
+      debugMessage += `Driver Token: ${driverToken ? 'Present' : 'Missing'}\n`;
+      debugMessage += `Assigned Orders API: ${Array.isArray(assignedOrdersRes.data) ? assignedOrdersRes.data.length : 0} orders\n`;
+      debugMessage += `Old API: ${assignments.length} assignments\n\n`;
+      
+      if (Array.isArray(assignedOrdersRes.data) && assignedOrdersRes.data.length > 0) {
         debugMessage += 'Assigned Orders:\n';
-        res.data.forEach((order: any, index: number) => {
-          debugMessage += `${index + 1}. Order ${order.order_id || order.id}\n`;
-          debugMessage += `   Status: ${order.assignment_status || 'Unknown'}\n`;
-          debugMessage += `   Customer: ${order.customer_name || 'Unknown'}\n`;
-          debugMessage += `   Driver ID: ${order.driver_id || 'Not assigned'}\n\n`;
+        assignedOrdersRes.data.forEach((order: any, index: number) => {
+          debugMessage += `${index + 1}. Order ${order.order_id} - ${order.assignment_status}\n`;
+          debugMessage += `   Driver: ${order.driver_id}\n`;
+          debugMessage += `   Car: ${order.car_id}\n`;
+          debugMessage += `   Customer: ${order.customer_name}\n\n`;
         });
       } else {
-        debugMessage += 'No assigned orders found.\n\n';
-        debugMessage += 'Possible reasons:\n';
+        debugMessage += 'No assigned orders found. This could mean:\n';
         debugMessage += '• Driver has no assigned orders\n';
-        debugMessage += '• Orders exist but not in ASSIGNED status\n';
-        debugMessage += '• Driver token is invalid\n';
-        debugMessage += '• API endpoint issues\n\n';
+        debugMessage += '• Assignments exist but not in ASSIGNED status\n';
+        debugMessage += '• API endpoint issues\n';
+        debugMessage += '• Driver token issues\n\n';
         debugMessage += 'Check console logs for detailed information.';
       }
       
       Alert.alert(
-        'Assigned Orders Debug',
+        'Driver Assignments Debug',
         debugMessage,
         [
           { text: 'OK' },
@@ -173,16 +196,26 @@ export default function QuickDashboardScreen() {
         ]
       );
     } catch (error: any) {
-      console.error('❌ Assigned orders debug failed:', error);
+      console.error('❌ Driver assignments debug failed:', error);
       
       let errorMessage = `Debug failed: ${error.message}\n\n`;
-      errorMessage += `Status: ${error.response?.status || 'Unknown'}\n`;
-      errorMessage += `URL: ${error.config?.url || 'Unknown'}\n\n`;
-      errorMessage += 'Possible causes:\n';
-      errorMessage += '• Network connectivity issues\n';
-      errorMessage += '• Invalid driver token\n';
-      errorMessage += '• API endpoint not available\n';
-      errorMessage += '• Server error\n\n';
+      errorMessage += `Status: ${error.response?.status}\n`;
+      errorMessage += `URL: ${error.config?.url}\n`;
+      errorMessage += `Code: ${error.code}\n\n`;
+      
+      if (error.message === 'Network Error') {
+        errorMessage += 'NETWORK ISSUE DETECTED:\n';
+        errorMessage += '• Check if backend server is running\n';
+        errorMessage += '• Verify API URL is correct\n';
+        errorMessage += '• Check network connectivity\n';
+        errorMessage += '• Try restarting the app\n\n';
+      } else {
+        errorMessage += 'Possible causes:\n';
+        errorMessage += '• Authentication problems\n';
+        errorMessage += '• API endpoint not available\n';
+        errorMessage += '• Invalid driver token\n\n';
+      }
+      
       errorMessage += 'Check console logs for detailed error information.';
       
       Alert.alert('Debug Error', errorMessage, [
@@ -191,83 +224,6 @@ export default function QuickDashboardScreen() {
           text: 'Retry', 
           onPress: () => {
             handleDebugAssignments();
-          }
-        }
-      ]);
-    }
-  };
-
-  const handleDebugStatus = async () => {
-    try {
-      console.log('🧪 Testing driver status APIs...');
-      
-      // Check if driver token exists
-      const driverToken = await SecureStore.getItemAsync('driverAuthToken');
-      console.log('🔑 Driver token exists:', !!driverToken);
-      
-      if (!driverToken) {
-        Alert.alert('Debug Error', 'No driver token found. Please login as driver first.');
-        return;
-      }
-      
-      // Test both online and offline APIs
-      console.log('🟢 Testing online API...');
-      const onlineRes = await axiosDriver.put('/api/users/cardriver/online');
-      console.log('📊 Online API Response:', {
-        status: onlineRes.status,
-        data: onlineRes.data
-      });
-      
-      console.log('🔴 Testing offline API...');
-      const offlineRes = await axiosDriver.put('/api/users/cardriver/offline');
-      console.log('📊 Offline API Response:', {
-        status: offlineRes.status,
-        data: offlineRes.data
-      });
-      
-      // Create detailed debug message
-      let debugMessage = `Driver Status APIs Test Results:\n\n`;
-      debugMessage += `Online API:\n`;
-      debugMessage += `  Status: ${onlineRes.status}\n`;
-      debugMessage += `  Response: ${JSON.stringify(onlineRes.data)}\n\n`;
-      debugMessage += `Offline API:\n`;
-      debugMessage += `  Status: ${offlineRes.status}\n`;
-      debugMessage += `  Response: ${JSON.stringify(offlineRes.data)}\n\n`;
-      debugMessage += `Current Driver Status: ${driverStatus}\n`;
-      debugMessage += `Driver Token: ${driverToken.substring(0, 20)}...`;
-      
-      Alert.alert(
-        'Driver Status Debug',
-        debugMessage,
-        [
-          { text: 'OK' },
-          { 
-            text: 'Test Toggle', 
-            onPress: () => {
-              toggleStatus();
-            }
-          }
-        ]
-      );
-    } catch (error: any) {
-      console.error('❌ Driver status debug failed:', error);
-      
-      let errorMessage = `Debug failed: ${error.message}\n\n`;
-      errorMessage += `Status: ${error.response?.status || 'Unknown'}\n`;
-      errorMessage += `URL: ${error.config?.url || 'Unknown'}\n\n`;
-      errorMessage += 'Possible causes:\n';
-      errorMessage += '• Network connectivity issues\n';
-      errorMessage += '• Invalid driver token\n';
-      errorMessage += '• API endpoint not available\n';
-      errorMessage += '• Server error\n\n';
-      errorMessage += 'Check console logs for detailed error information.';
-      
-      Alert.alert('Debug Error', errorMessage, [
-        { text: 'OK' },
-        { 
-          text: 'Retry', 
-          onPress: () => {
-            handleDebugStatus();
           }
         }
       ]);
@@ -735,10 +691,7 @@ export default function QuickDashboardScreen() {
         </View>
         <View style={dynamicStyles.headerActions}>
           <TouchableOpacity onPress={handleDebugAssignments} style={dynamicStyles.refreshButton}>
-            <Bug color={colors.warning} size={24} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={handleDebugStatus} style={dynamicStyles.refreshButton}>
-            <Text style={{ color: colors.primary, fontSize: 12, fontWeight: 'bold' }}>STATUS</Text>
+            <Text style={{ color: colors.primary, fontSize: 12 }}>Debug</Text>
           </TouchableOpacity>
           <TouchableOpacity onPress={handleRefresh} style={dynamicStyles.refreshButton}>
             <RefreshCw color={colors.primary} size={24} />

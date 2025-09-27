@@ -222,24 +222,24 @@ export const verifyRazorpayPayment = async (
  * Get wallet balance from backend
  */
 export const getWalletBalance = async (): Promise<WalletBalance> => {
-  console.log('💰 Fetching wallet balance...');
-  const authHeaders = await getAuthHeaders();
+    console.log('💰 Fetching wallet balance...');
+    const authHeaders = await getAuthHeaders();
   console.log('🔐 Wallet balance auth header present:', !!authHeaders?.Authorization);
-  const response = await axiosInstance.get('/api/wallet/balance', {
-    headers: authHeaders
-  });
+    const response = await axiosInstance.get('/api/wallet/balance', {
+      headers: authHeaders
+    });
 
-  if (response.data) {
-    console.log('✅ Wallet balance fetched:', response.data);
-    return {
+    if (response.data) {
+      console.log('✅ Wallet balance fetched:', response.data);
+      return {
       // Backend returns balance in paise; convert to rupees for UI/logic
       balance: ((response.data.balance ?? response.data.current_balance ?? 0) / 100) as number,
-      currency: 'INR',
-      last_updated: new Date().toISOString()
-    };
-  }
+        currency: 'INR',
+        last_updated: new Date().toISOString()
+      };
+    }
 
-  throw new Error('No response data received from wallet balance fetch');
+    throw new Error('No response data received from wallet balance fetch');
 };
 
 /**

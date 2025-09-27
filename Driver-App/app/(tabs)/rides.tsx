@@ -6,59 +6,171 @@ import {
   StyleSheet,
   TouchableOpacity,
   RefreshControl,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { MapPin, Clock, IndianRupee, Car } from 'lucide-react-native';
-import { getDriverAssignmentsWithDetails } from '@/services/assignmentService';
+import { MapPin, Clock, IndianRupee, Car, User, Phone, RefreshCw } from 'lucide-react-native';
+import axiosInstance from '@/app/api/axiosInstance';
+import * as SecureStore from 'expo-secure-store';
 
-interface RideHistory {
+interface CompletedTrip {
   id: string;
-  booking_id: string;
+  order_id: string;
   pickup: string;
   drop: string;
   customer_name: string;
+  customer_mobile: string;
   date: string;
   time: string;
   distance: number;
   fare: number;
   status: string;
+  driver_name?: string;
+  car_details?: string;
+  assignment_id: string;
 }
 
 export default function RidesScreen() {
-  const [rides, setRides] = useState<RideHistory[]>([]);
+  const [completedTrips, setCompletedTrips] = useState<CompletedTrip[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const { colors } = useTheme();
   const { user } = useAuth();
 
-  // Fetch ride history from API
-  const fetchRideHistory = async () => {
+  // Fetch completed trips for Vehicle Owner
+  const fetchCompletedTrips = async () => {
     try {
       setLoading(true);
-      const assignments = await getDriverAssignmentsWithDetails();
+      console.log('📋 Fetching completed trips for Vehicle Owner...');
       
-      // Filter completed rides and transform data
-      const completedRides: RideHistory[] = assignments
-        .filter(assignment => assignment.status === 'completed')
-        .map(assignment => ({
-          id: assignment.id || assignment.order_id,
-          booking_id: assignment.order_id || assignment.id,
-          pickup: assignment.pickup_location || 'Pickup Location',
-          drop: assignment.drop_location || 'Drop Location',
+      if (!user?.id) {
+        console.log('⚠️ No user ID available for fetching trips');
+        setCompletedTrips([]);
+        return;
+      }
+      
+      // Get Vehicle Owner ID from JWT token
+      const authToken = await SecureStore.getItemAsync('authToken');
+      if (!authToken) {
+        console.log('⚠️ No auth token available');
+        setCompletedTrips([]);
+        return;
+      }
+      
+      // Try multiple endpoints to get completed assignments
+      let response;
+      try {
+        // First try: Get all assignments for this Vehicle Owner
+        console.log('🔍 Trying /api/assignments/vehicle_owner/{id}...');
+        response = await axiosInstance.get(`/api/assignments/vehicle_owner/${user.id}`);
+      } catch (firstError: any) {
+        console.log('⚠️ First endpoint failed, trying alternative...');
+        try {
+          // Second try: Get assignments using a different endpoint
+          console.log('🔍 Trying /api/assignments/vehicle-owner/{id}...');
+          response = await axiosInstance.get(`/api/assignments/vehicle-owner/${user.id}`);
+        } catch (secondError: any) {
+          console.log('⚠️ Second endpoint failed, trying orders endpoint...');
+          // Third try: Get from orders endpoint and filter
+          response = await axiosInstance.get('/api/orders/vehicle_owner/pending');
+          // This will return pending orders, but we'll handle it gracefully
+        }
+      }
+      
+      console.log('📊 Raw completed assignments response:', {
+        status: response.status,
+        data: response.data,
+        dataType: typeof response.data,
+        isArray: Array.isArray(response.data),
+        length: Array.isArray(response.data) ? response.data.length : 'N/A'
+      });
+      
+      const allAssignments = Array.isArray(response.data) ? response.data : [];
+      
+      // Filter for completed assignments only
+      const completedAssignments = allAssignments.filter((assignment: any) => 
+        assignment.assignment_status === 'COMPLETED' || 
+        assignment.status === 'COMPLETED' ||
+        assignment.assignment_status === 'completed' ||
+        assignment.status === 'completed'
+      );
+      
+      console.log('📊 Filtered completed assignments:', {
+        totalAssignments: allAssignments.length,
+        completedAssignments: completedAssignments.length,
+        statuses: allAssignments.map((a: any) => a.assignment_status || a.status)
+      });
+      
+      // If no completed assignments found, show a message
+      if (completedAssignments.length === 0) {
+        console.log('ℹ️ No completed assignments found. This could mean:');
+        console.log('• No trips have been completed yet');
+        console.log('• API endpoint returns different data structure');
+        console.log('• All assignments are still in progress');
+      }
+      
+      // Transform data for display
+      const completedTrips: CompletedTrip[] = completedAssignments.map((assignment: any) => {
+        console.log('🔄 Processing completed assignment:', {
+          id: assignment.id,
+          order_id: assignment.order_id,
+          assignment_status: assignment.assignment_status,
+          vehicle_owner_id: assignment.vehicle_owner_id
+        });
+        
+        // Handle pickup_drop_location JSON parsing
+        let pickup = 'Pickup Location';
+        let drop = 'Drop Location';
+        
+        if (assignment.pickup_drop_location) {
+          try {
+            const location = typeof assignment.pickup_drop_location === 'string' 
+              ? JSON.parse(assignment.pickup_drop_location) 
+              : assignment.pickup_drop_location;
+            const cities = Object.values(location || {});
+            pickup = (cities[0] as string) || pickup;
+            drop = (cities[1] as string) || drop;
+          } catch (e) {
+            console.log('⚠️ Failed to parse pickup_drop_location:', e);
+          }
+        }
+        
+        return {
+          id: assignment.id,
+          order_id: assignment.order_id || assignment.booking_id,
+          pickup: pickup,
+          drop: drop,
           customer_name: assignment.customer_name || 'Customer',
+          customer_mobile: assignment.customer_number || assignment.customer_mobile || 'N/A',
           date: assignment.start_date_time ? new Date(assignment.start_date_time).toLocaleDateString() : 'N/A',
           time: assignment.start_date_time ? new Date(assignment.start_date_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A',
-          distance: assignment.distance || assignment.trip_distance || 0,
-          fare: assignment.estimated_price || 0,
-          status: assignment.status || 'completed'
-        }));
+          distance: assignment.trip_distance || assignment.distance || 0,
+          fare: assignment.estimated_price || assignment.total_fare || 0,
+          status: assignment.assignment_status || 'COMPLETED',
+          driver_name: assignment.driver_name || 'Driver',
+          car_details: assignment.car_details || 'Car',
+          assignment_id: assignment.id
+        };
+      });
       
-      setRides(completedRides);
-    } catch (error) {
-      console.error('Error fetching ride history:', error);
-      setRides([]);
+      console.log('✅ Completed trips processed:', {
+        totalAssignments: allAssignments.length,
+        completedAssignments: completedAssignments.length,
+        completedTrips: completedTrips.length,
+        trips: completedTrips.map(t => ({ id: t.id, order_id: t.order_id, status: t.status }))
+      });
+      
+      setCompletedTrips(completedTrips);
+    } catch (error: any) {
+      console.error('❌ Error fetching completed trips:', {
+        message: error.message,
+        status: error.response?.status,
+        data: error.response?.data,
+        url: error.config?.url
+      });
+      setCompletedTrips([]);
     } finally {
       setLoading(false);
     }
@@ -67,13 +179,55 @@ export default function RidesScreen() {
   // Refresh function
   const onRefresh = async () => {
     setRefreshing(true);
-    await fetchRideHistory();
+    await fetchCompletedTrips();
     setRefreshing(false);
+  };
+
+  // Debug function to test API endpoints
+  const handleDebugAPI = async () => {
+    if (!user?.id) {
+      Alert.alert('Debug Error', 'No user ID available');
+      return;
+    }
+
+    try {
+      console.log('🧪 Testing API endpoints for Vehicle Owner:', user.id);
+      
+      // Test multiple endpoints
+      const endpoints = [
+        `/api/assignments/vehicle_owner/${user.id}`,
+        `/api/assignments/vehicle-owner/${user.id}`,
+        '/api/orders/vehicle_owner/pending',
+        '/api/assignments/vehicle-owner/completed'
+      ];
+      
+      let results = '';
+      
+      for (const endpoint of endpoints) {
+        try {
+          console.log(`🔍 Testing ${endpoint}...`);
+          const response = await axiosInstance.get(endpoint);
+          results += `✅ ${endpoint}: ${response.status} - ${Array.isArray(response.data) ? response.data.length : 'N/A'} items\n`;
+          console.log(`✅ ${endpoint} success:`, response.data);
+        } catch (error: any) {
+          results += `❌ ${endpoint}: ${error.response?.status || 'Error'} - ${error.message}\n`;
+          console.log(`❌ ${endpoint} failed:`, error.message);
+        }
+      }
+      
+      Alert.alert(
+        'API Endpoint Test Results',
+        results,
+        [{ text: 'OK' }]
+      );
+    } catch (error: any) {
+      Alert.alert('Debug Error', `Debug failed: ${error.message}`);
+    }
   };
 
   // Load data on component mount
   useEffect(() => {
-    fetchRideHistory();
+    fetchCompletedTrips();
   }, []);
 
   const dynamicStyles = StyleSheet.create({
@@ -87,6 +241,17 @@ export default function RidesScreen() {
       backgroundColor: colors.surface,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    headerContent: {
+      flex: 1,
+    },
+    debugButton: {
+      padding: 8,
+      borderRadius: 8,
+      backgroundColor: colors.background,
     },
     headerTitle: {
       fontSize: 24,
@@ -215,10 +380,10 @@ export default function RidesScreen() {
       textAlign: 'center',
     },
   });
-  const RideCard = ({ ride }) => (
+  const RideCard = ({ ride }: { ride: CompletedTrip }) => (
     <View style={dynamicStyles.rideCard}>
       <View style={dynamicStyles.rideHeader}>
-        <Text style={dynamicStyles.bookingId}>#{ride.booking_id}</Text>
+        <Text style={dynamicStyles.bookingId}>#{ride.order_id}</Text>
         <View style={dynamicStyles.statusBadge}>
           <Text style={dynamicStyles.statusText}>{ride.status.toUpperCase()}</Text>
         </View>
@@ -260,8 +425,13 @@ export default function RidesScreen() {
   return (
     <SafeAreaView style={dynamicStyles.container}>
       <View style={dynamicStyles.header}>
-        <Text style={dynamicStyles.headerTitle}>My Rides</Text>
-        <Text style={dynamicStyles.headerSubtitle}>Welcome back, {user?.name}! • Trip History</Text>
+        <View style={dynamicStyles.headerContent}>
+          <Text style={dynamicStyles.headerTitle}>My Trips</Text>
+          <Text style={dynamicStyles.headerSubtitle}>Welcome back, {user?.fullName}! • Completed Trips</Text>
+        </View>
+        <TouchableOpacity onPress={handleDebugAPI} style={dynamicStyles.debugButton}>
+          <RefreshCw color={colors.primary} size={20} />
+        </TouchableOpacity>
       </View>
 
       <ScrollView 
@@ -278,17 +448,17 @@ export default function RidesScreen() {
       >
         {loading ? (
           <View style={dynamicStyles.loadingContainer}>
-            <Text style={dynamicStyles.loadingText}>Loading ride history...</Text>
+            <Text style={dynamicStyles.loadingText}>Loading completed trips...</Text>
           </View>
-        ) : rides.length > 0 ? (
-          rides.map((ride) => (
-            <RideCard key={ride.id} ride={ride} />
+        ) : completedTrips.length > 0 ? (
+          completedTrips.map((trip) => (
+            <RideCard key={trip.id} ride={trip} />
           ))
         ) : (
           <View style={dynamicStyles.emptyContainer}>
-            <Text style={dynamicStyles.emptyText}>No completed rides yet</Text>
+            <Text style={dynamicStyles.emptyText}>No completed trips yet</Text>
             <Text style={dynamicStyles.emptySubtext}>
-              Your completed rides will appear here
+              Your completed trips will appear here
             </Text>
           </View>
         )}

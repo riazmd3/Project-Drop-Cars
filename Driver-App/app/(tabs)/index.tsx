@@ -473,7 +473,7 @@ export default function DashboardScreen() {
         Alert.alert('Order Already Taken', 'Refreshing orders...');
         return;
       }
-
+      
       // Accept with VO token
       const headers = await getAuthHeaders();
       const acceptResponse = await axiosInstance.post('/api/assignments/acceptorder', { order_id: Number(order.order_id) }, { headers });
