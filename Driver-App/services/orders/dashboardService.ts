@@ -1,5 +1,5 @@
 import axiosInstance from '@/app/api/axiosInstance';
-import authService from './authService';
+import authService from '../auth/authService';
 
 export interface CarDetail {
   id: string;

@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { DashboardData, fetchDashboardData, fetchAvailableDrivers, DriverDetail } from '@/services/dashboardService';
+import { DashboardData, fetchDashboardData, fetchAvailableDrivers, DriverDetail } from '@/services/orders/dashboardService';
 
 export interface FutureRide {
   id: string;

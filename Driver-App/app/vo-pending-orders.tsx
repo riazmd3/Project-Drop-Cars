@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ActivityIndicator, FlatList, TouchableOpacity, StyleSheet } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { getPendingOrders, type PendingOrderView } from '@/services/vehicleOwnerService';
+import { getPendingOrders, type PendingOrderView } from '@/services/vehicle/vehicleOwnerService';
 
 export default function VOPendingOrdersScreen() {
   const [loading, setLoading] = useState(true);

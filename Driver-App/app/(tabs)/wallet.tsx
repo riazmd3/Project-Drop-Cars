@@ -34,7 +34,7 @@ import {
   handleRazorpayPaymentSuccess,
   handleRazorpayPaymentFailure,
   getRazorpayOptions
-} from '@/services/paymentService';
+} from '@/services/payment/paymentService';
 
 export default function WalletScreen() {
   const { 

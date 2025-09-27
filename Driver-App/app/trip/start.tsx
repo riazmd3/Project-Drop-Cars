@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Camera, Upload, ArrowLeft } from 'lucide-react-native';
-import { startDriverTrip } from '@/services/assignmentService';
+import { startDriverTrip } from '@/services/orders/assignmentService';
 import * as ImagePicker from 'expo-image-picker';
 
 export default function StartTripScreen() {

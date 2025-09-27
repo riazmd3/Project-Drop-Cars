@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { notificationService, OrderNotificationData } from '@/services/notificationService';
+import { notificationService, OrderNotificationData } from '@/services/notifications/notificationService';
 import * as SecureStore from 'expo-secure-store';
 
 interface NotificationContextType {

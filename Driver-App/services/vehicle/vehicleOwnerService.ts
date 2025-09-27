@@ -1,5 +1,5 @@
 import axiosInstance from '@/app/api/axiosInstance';
-import { getAuthHeaders } from '@/services/authService';
+import { getAuthHeaders } from '@/services/auth/authService';
 import * as SecureStore from 'expo-secure-store';
 import { extractUserIdFromJWT } from '@/utils/jwtDecoder';
 

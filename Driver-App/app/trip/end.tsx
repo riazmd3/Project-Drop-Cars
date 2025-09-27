@@ -14,7 +14,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useWallet } from '@/contexts/WalletContext';
 import { Camera, ArrowLeft, Check, IndianRupee } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { endDriverTrip } from '@/services/assignmentService';
+import { endDriverTrip } from '@/services/orders/assignmentService';
 
 export default function EndTripScreen() {
   const [endKm, setEndKm] = useState('');

@@ -14,7 +14,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { Moon, Sun, LogOut, ChevronRight, User, Bell, Shield } from 'lucide-react-native';
-import NotificationTest from '@/components/NotificationTest';
 
 export default function SettingsScreen() {
   const { user, logout } = useAuth();
@@ -204,10 +203,6 @@ export default function SettingsScreen() {
           />
         </View>
 
-        <View style={dynamicStyles.section}>
-          <Text style={dynamicStyles.sectionTitle}>Notification Testing</Text>
-          <NotificationTest />
-        </View>
 
         <View style={dynamicStyles.section}>
           <TouchableOpacity style={dynamicStyles.logoutButton} onPress={handleLogout}>

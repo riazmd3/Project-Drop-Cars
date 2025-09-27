@@ -15,8 +15,8 @@ import { useDashboard, FutureRide } from '@/contexts/DashboardContext';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { MapPin, Clock, IndianRupee, User, Phone, Car, X, CheckCircle, AlertCircle } from 'lucide-react-native';
 import { RefreshControl } from 'react-native';
-import { fetchAvailableDrivers, fetchAvailableCars, getOrderAssignments, assignCarDriverToOrder, AvailableDriver, AvailableCar } from '@/services/assignmentService';
-import { getPendingOrders as getVOPendingOrders, getFutureRidesForVehicleOwner } from '@/services/vehicleOwnerService';
+import { fetchAvailableDrivers, fetchAvailableCars, getOrderAssignments, assignCarDriverToOrder, AvailableDriver, AvailableCar } from '@/services/orders/assignmentService';
+import { getPendingOrders as getVOPendingOrders, getFutureRidesForVehicleOwner } from '@/services/vehicle/vehicleOwnerService';
 
 // Removed local interface - using imported FutureRide from DashboardContext
 

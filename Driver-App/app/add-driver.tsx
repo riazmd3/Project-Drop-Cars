@@ -12,7 +12,7 @@ import {
 import { useRouter } from 'expo-router';
 import { ArrowLeft, User, Save, Upload, CheckCircle, FileText, Image, Phone, Lock, MapPin, CreditCard } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
-import { addDriverDetails, DriverDetails } from '@/services/driverService';
+import { addDriverDetails, DriverDetails } from '@/services/driver/driverService';
 import * as ImagePicker from 'expo-image-picker';
 import axiosInstance from '@/app/api/axiosInstance';
 // Local MIME type resolver to avoid extra dependency

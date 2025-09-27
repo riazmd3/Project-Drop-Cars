@@ -14,7 +14,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Smartphone, Lock, ArrowRight, ArrowLeft } from 'lucide-react-native';
-import { loginDriver } from '@/services/driverService';
+import { loginDriver } from '@/services/driver/driverService';
 
 export default function QuickLoginScreen() {
   const [phoneNumber, setPhoneNumber] = useState('');

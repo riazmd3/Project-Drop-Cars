@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
-import { authService, getCompleteUserData } from '@/services/authService';
+import { authService, getCompleteUserData } from '@/services/auth/authService';
 
 interface User {
   id: string;

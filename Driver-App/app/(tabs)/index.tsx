@@ -18,10 +18,10 @@ import { useRouter } from 'expo-router';
 import { Menu, Wallet, MapPin, Clock, User, Phone, Car, RefreshCw } from 'lucide-react-native';
 import BookingCard from '@/components/BookingCard';
 import DrawerNavigation from '@/components/DrawerNavigation';
-import { fetchDashboardData, DashboardData, forceRefreshDashboardData } from '@/services/dashboardService';
-import { getPendingOrders, PendingOrder } from '@/services/assignmentService';
+import { fetchDashboardData, DashboardData, forceRefreshDashboardData } from '@/services/orders/dashboardService';
+import { getPendingOrders, PendingOrder } from '@/services/orders/assignmentService';
 import axiosInstance from '@/app/api/axiosInstance';
-import { getAuthHeaders } from '@/services/authService';
+import { getAuthHeaders } from '@/services/auth/authService';
 
 interface Booking {
   booking_id: string;

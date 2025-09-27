@@ -10,7 +10,7 @@ import {
   completePaymentFlow,
   WalletBalance,
   WalletTransaction 
-} from '@/services/paymentService';
+} from '@/services/payment/paymentService';
 
 interface Transaction {
   id: string;

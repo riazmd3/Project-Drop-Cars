@@ -31,7 +31,7 @@ export const endTrip = async (orderId: number, endKm: number, contact: string, i
 };
 import axiosInstance from '@/app/api/axiosInstance';
 import axiosDriver from '@/app/api/axiosDriver';
-import { getAuthHeaders } from '@/services/authService';
+import { getAuthHeaders } from '@/services/auth/authService';
 import * as SecureStore from 'expo-secure-store';
 
 // Car Driver interfaces

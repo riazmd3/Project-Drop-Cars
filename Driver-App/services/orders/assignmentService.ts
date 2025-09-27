@@ -1,5 +1,5 @@
 import axiosInstance from '@/app/api/axiosInstance';
-import authService, { getAuthHeaders } from './authService';
+import authService, { getAuthHeaders } from '../auth/authService';
 
 // Order interface for pending orders
 export interface PendingOrder {

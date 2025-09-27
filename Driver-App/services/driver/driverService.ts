@@ -1,5 +1,5 @@
 import axiosInstance from '@/app/api/axiosInstance';
-import authService, { getAuthHeaders } from './authService';
+import authService, { getAuthHeaders } from '../auth/authService';
 import * as SecureStore from 'expo-secure-store';
 
 // Driver details interface for listing

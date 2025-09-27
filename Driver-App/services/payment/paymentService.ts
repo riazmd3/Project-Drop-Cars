@@ -1,5 +1,5 @@
 import axiosInstance from '@/app/api/axiosInstance';
-import { getAuthHeaders } from '@/services/authService';
+import { getAuthHeaders } from '@/services/auth/authService';
 
 // Payment interfaces
 export interface PaymentRequest {
