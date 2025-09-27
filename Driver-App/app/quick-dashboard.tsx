@@ -778,7 +778,7 @@ export default function QuickDashboardScreen() {
               });
               
               return (
-                <View key={order.id || order.assignment_id || index} style={[
+                <View key={`${order.id || order.assignment_id || order.order_id}-${index}-${order.customer_name || 'unknown'}`} style={[
                   dynamicStyles.orderCard,
                   isCurrentTrip && { borderColor: colors.success, borderWidth: 2 },
                   isCompleted && { opacity: 0.6, backgroundColor: colors.surface }

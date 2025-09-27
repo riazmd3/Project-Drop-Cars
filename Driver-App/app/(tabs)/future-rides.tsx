@@ -938,8 +938,8 @@ export default function FutureRidesScreen() {
             <Text style={dynamicStyles.loadingText}>Loading future rides from API...</Text>
           </View>
         ) : uniqueRides.length > 0 ? (
-          uniqueRides.map((ride) => (
-            <RideCard key={ride.id || ride.booking_id} ride={ride} />
+          uniqueRides.map((ride, index) => (
+            <RideCard key={`${ride.id || ride.booking_id}-${index}-${ride.customer_name || 'unknown'}`} ride={ride} />
           ))
         ) : (
           <View style={dynamicStyles.loadingContainer}>

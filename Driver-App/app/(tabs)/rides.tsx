@@ -138,7 +138,7 @@ export default function RidesScreen() {
         }
         
         return {
-          id: assignment.id,
+          id: `${assignment.id}-${assignment.order_id || assignment.booking_id}-${assignment.vehicle_owner_id}`,
           order_id: assignment.order_id || assignment.booking_id,
           pickup: pickup,
           drop: drop,
