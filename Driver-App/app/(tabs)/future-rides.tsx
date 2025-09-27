@@ -344,9 +344,32 @@ export default function FutureRidesScreen() {
       }
       
       // Use the new API endpoint for assigning driver and car
-      // Use assignment_id from the ride (this is the assignment ID from the database)
-      const assignmentId = selectedRide.assignment_id || selectedRide.booking_id || selectedRide.id;
-      console.log('🔗 Using assignment ID for assignment:', assignmentId);
+      // For assignment, we need to use the original order ID, not the assignment ID
+      // Extract original order ID from booking_id (remove 'B' prefix) or use assignment_id
+      let assignmentId = selectedRide.assignment_id;
+      
+      // If no assignment_id, try to extract original order ID from booking_id
+      if (!assignmentId && selectedRide.booking_id) {
+        if (selectedRide.booking_id.startsWith('B')) {
+          // Remove 'B' prefix to get original order ID
+          assignmentId = selectedRide.booking_id.substring(1);
+        } else {
+          assignmentId = selectedRide.booking_id;
+        }
+      }
+      
+      // Fallback to ride ID if nothing else works
+      if (!assignmentId) {
+        assignmentId = selectedRide.id;
+      }
+      
+      console.log('🔗 Assignment debug info:', {
+        selectedRideId: selectedRide.id,
+        selectedRideBookingId: selectedRide.booking_id,
+        selectedRideAssignmentId: selectedRide.assignment_id,
+        finalAssignmentId: assignmentId,
+        extractedFromBookingId: selectedRide.booking_id?.startsWith('B') ? selectedRide.booking_id.substring(1) : 'N/A'
+      });
       
       const assignment = await assignCarDriverToOrder(
         assignmentId,

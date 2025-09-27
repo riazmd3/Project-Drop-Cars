@@ -484,9 +484,18 @@ export default function DashboardScreen() {
         await fetchPendingOrdersData();
 
         const locations = getPickupDropLocations(order.pickup_drop_location);
+        
+        // Get the assignment ID from the API response
+        const assignmentId = acceptResponse.data?.id || acceptResponse.data?.assignment_id || `B${order.order_id}`;
+        
+        console.log('🔍 Accept order response data:', acceptResponse.data);
+        console.log('🔍 Using assignment ID:', assignmentId);
+        console.log('🔍 Original order ID:', order.order_id);
+        
         const ride: FutureRide = {
-          id: order.order_id.toString(),
-          booking_id: `B${order.order_id}`,
+          id: assignmentId, // Use the assignment ID as the main ID
+          booking_id: `B${order.order_id}`, // Keep the B-prefixed booking ID
+          assignment_id: assignmentId, // Set the assignment_id for assignment operations
           pickup: locations.pickup,
           drop: locations.drop,
           customer_name: order.customer_name,
