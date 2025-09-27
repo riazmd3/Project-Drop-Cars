@@ -427,7 +427,7 @@ export default function RidesScreen() {
       <View style={dynamicStyles.header}>
         <View style={dynamicStyles.headerContent}>
           <Text style={dynamicStyles.headerTitle}>My Trips</Text>
-          <Text style={dynamicStyles.headerSubtitle}>Welcome back, {user?.fullName}! • Completed Trips</Text>
+          <Text style={dynamicStyles.headerSubtitle}>Welcome back, {user?.fullName || 'Driver'}! • Completed Trips</Text>
         </View>
         <TouchableOpacity onPress={handleDebugAPI} style={dynamicStyles.debugButton}>
           <RefreshCw color={colors.primary} size={20} />

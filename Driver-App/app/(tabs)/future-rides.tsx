@@ -80,13 +80,13 @@ export default function FutureRidesScreen() {
       const processedRides: FutureRide[] = ridesArray.map((ride: any) => ({
         id: ride.id?.toString?.() || ride.assignment_id?.toString?.() || ride.booking_id?.toString?.(),
         booking_id: ride.booking_id?.toString?.() || ride.order_id?.toString?.() || ride.id?.toString?.(),
-        pickup: ride.pickup || ride.pickup_city || ride.pickup_location || 'Unknown',
-        drop: ride.drop || ride.drop_city || ride.drop_location || 'Unknown',
-        date: ride.date || ride.created_at?.slice?.(0,10) || '',
-        time: ride.time || ride.created_at?.slice?.(11,16) || '',
+        pickup: ride.pickup || ride.pickup_city || ride.pickup_location || (ride.pickup_drop_location && Object.values(ride.pickup_drop_location)[0]) || 'Unknown',
+        drop: ride.drop || ride.drop_city || ride.drop_location || (ride.pickup_drop_location && Object.values(ride.pickup_drop_location)[1]) || 'Unknown',
+        date: ride.date || ride.start_date_time?.slice?.(0,10) || ride.created_at?.slice?.(0,10) || '',
+        time: ride.time || ride.start_date_time?.slice?.(11,16) || ride.created_at?.slice?.(11,16) || '',
         distance: typeof ride.trip_distance === 'string' ? parseFloat(ride.trip_distance) || 0 : (ride.trip_distance || 0),
         fare_per_km: typeof ride.cost_per_km === 'string' ? parseFloat(ride.cost_per_km) || 0 : (ride.cost_per_km || 0),
-        total_fare: typeof ride.estimated_price === 'string' ? parseFloat(ride.estimated_price) || 0 : (ride.estimated_price || 0),
+        total_fare: typeof ride.estimated_price === 'string' ? parseFloat(ride.estimated_price) || 0 : (ride.estimated_price || ride.vendor_price || 0),
         customer_name: ride.customer_name || '',
         customer_mobile: ride.customer_number || '',
         status: ride.assignment_status || ride.status || 'confirmed',
@@ -886,7 +886,7 @@ export default function FutureRidesScreen() {
       <View style={dynamicStyles.header}>
         <Text style={dynamicStyles.headerTitle}>Future Rides</Text>
         <Text style={dynamicStyles.headerSubtitle}>
-          Welcome back, {dashboardData?.user_info?.full_name || user?.fullName || 'Driver'}! • {uniqueRides.length} upcoming bookings
+          Welcome back, {dashboardData?.user_info?.full_name || user?.fullName || 'Vehicle Owner'}! • {uniqueRides.length} upcoming bookings
         </Text>
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
           <TouchableOpacity 

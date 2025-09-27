@@ -522,7 +522,7 @@ export default function WalletScreen() {
       <View style={dynamicStyles.header}>
         <Text style={dynamicStyles.headerTitle}>Wallet</Text>
         <Text style={dynamicStyles.headerSubtitle}>
-          Welcome back, {user?.fullName || 'Driver'}!
+          Welcome back, {user?.fullName || 'Vehicle Owner'}!
         </Text>
       </View>
 

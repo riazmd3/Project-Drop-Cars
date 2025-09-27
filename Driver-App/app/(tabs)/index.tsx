@@ -478,7 +478,7 @@ export default function DashboardScreen() {
       const headers = await getAuthHeaders();
       const acceptResponse = await axiosInstance.post('/api/assignments/acceptorder', { order_id: Number(order.order_id) }, { headers });
 
-      if (acceptResponse && (acceptResponse.success === true || acceptResponse.id)) {
+      if (acceptResponse && (acceptResponse.data?.success === true || acceptResponse.data?.id || acceptResponse.data)) {
         // Remove order from pending list
         setPendingOrders(prev => prev.filter(o => o.order_id !== order.order_id));
         await fetchPendingOrdersData();
@@ -520,7 +520,9 @@ export default function DashboardScreen() {
           `Order accepted successfully! SMS sent to customer: "DropCars: Your driver ${user?.fullName || 'Driver'} (${dashboardData?.cars?.[0]?.car_brand || 'Vehicle'} ${dashboardData?.cars?.[0]?.car_model || ''} - ${dashboardData?.cars?.[0]?.car_number || 'Number'}) has accepted your booking."`
         );
       } else {
-        throw new Error(acceptResponse.message || 'Failed to accept order');
+        console.log('❌ Accept order response:', acceptResponse);
+        Alert.alert('Error', 'Failed to accept order. Please try again.');
+        return;
       }
     } catch (error: any) {
       console.error('❌ Error accepting order:', error);
@@ -572,7 +574,7 @@ export default function DashboardScreen() {
           style={dynamicStyles.balanceContainer}
         >
           <Text style={dynamicStyles.welcomeText}>
-            Welcome back, {dashboardData?.user_info?.full_name || user?.fullName || 'Driver'}!
+            Welcome back, {dashboardData?.user_info?.full_name || user?.fullName || 'Vehicle Owner'}!
           </Text>
           <Text style={dynamicStyles.balanceLabel}>Available Balance</Text>
           <Text style={dynamicStyles.balanceAmount}>₹{dashboardData?.user_info?.wallet_balance || balance || 0}</Text>
@@ -622,7 +624,7 @@ export default function DashboardScreen() {
             {/* Welcome Banner */}
             <View style={dynamicStyles.welcomeBanner}>
               <Text style={dynamicStyles.welcomeBannerTitle}>
-                🚗 Welcome to Drop Cars, {dashboardData?.user_info?.full_name || user?.fullName || 'Driver'}!
+                🚗 Welcome to Drop Cars, {dashboardData?.user_info?.full_name || user?.fullName || 'Vehicle Owner'}!
               </Text>
               <Text style={dynamicStyles.welcomeBannerSubtitle}>
                 {dashboardData?.cars && dashboardData.cars.length > 0 
