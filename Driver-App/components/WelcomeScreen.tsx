@@ -40,31 +40,38 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps) {
   const welcomeSteps = [
     {
       icon: <CheckCircle size={80} color="#10B981" />,
-      title: `Welcome back, ${user?.name}!`,
-      subtitle: "You're all set to start your journey",
-      description: "Your account has been successfully verified and you're ready to accept new bookings.",
+      title: `Welcome to Drop Cars, ${user?.fullName || 'Driver'}!`,
+      subtitle: "Your Professional Journey Starts Here",
+      description: "Drop Cars is India's premier vehicle rental platform connecting vehicle owners with customers. Start earning by providing reliable transportation services.",
       color: ['#10B981', '#059669']
     },
     {
       icon: <Car size={80} color="#3B82F6" />,
-      title: "Your Vehicle is Ready",
-      subtitle: `${user?.cars?.[0]?.name} - ${user?.cars?.[0]?.registration}`,
-      description: "Your vehicle details are verified and ready for service.",
+      title: "Step 1: Accept Bookings",
+      subtitle: "View & Accept Available Orders",
+      description: "Browse pending bookings on your dashboard. Each booking shows pickup/drop locations, customer details, and fare. Accept orders that match your schedule and route.",
       color: ['#3B82F6', '#1E40AF']
     },
     {
       icon: <MapPin size={80} color="#8B5CF6" />,
-      title: "Service Area Active",
-      subtitle: `Based in ${user?.address}`,
-      description: "You're now visible to customers in your service area.",
+      title: "Step 2: Assign Driver & Vehicle",
+      subtitle: "Match Orders with Your Resources",
+      description: "After accepting an order, assign one of your registered drivers and vehicles. Ensure your driver is available and vehicle is ready for the trip.",
       color: ['#8B5CF6', '#7C3AED']
     },
     {
-      icon: <TrendingUp size={80} color="#F59E0B" />,
-      title: "Ready to Earn",
-      subtitle: "Start accepting bookings now",
-      description: "Navigate to the dashboard to view available bookings and start earning.",
+      icon: <Clock size={80} color="#F59E0B" />,
+      title: "Step 3: Track Trip Progress",
+      subtitle: "Monitor Real-time Trip Status",
+      description: "Your assigned driver can start/end trips with odometer readings. Track trip progress, distance covered, and fare calculation in real-time.",
       color: ['#F59E0B', '#D97706']
+    },
+    {
+      icon: <TrendingUp size={80} color="#EF4444" />,
+      title: "Step 4: Earn & Grow",
+      subtitle: "Maximize Your Revenue",
+      description: "Earn from every completed trip. Build your reputation with quality service. Access detailed analytics and expand your fleet to increase earnings.",
+      color: ['#EF4444', '#DC2626']
     }
   ];
 
@@ -106,7 +113,7 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps) {
   return (
     <SafeAreaView style={styles.container}>
       <LinearGradient 
-        colors={currentStepData.color} 
+        colors={currentStepData.color as [string, string]} 
         style={styles.gradient}
         start={{ x: 0, y: 0 }}
         end={{ x: 1, y: 1 }}

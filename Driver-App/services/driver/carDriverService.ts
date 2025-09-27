@@ -15,19 +15,130 @@ export const getDriverAssignedOrders = async (): Promise<any[]> => {
   }
 };
 
-export const startTrip = async (orderId: number, startKm: number, imgUri: string) => {
-  const form = new FormData();
-  form.append('start_km', String(startKm));
-  form.append('speedometer_img', { uri: imgUri, name: 'speedo.jpg', type: 'image/jpeg' } as any);
-  return (await axiosDriver.post(`/api/assignments/driver/start-trip/${orderId}`, form, { headers: { 'Content-Type': 'multipart/form-data' } })).data;
+export const startTrip = async (orderId: number, startKm?: number, imgUri?: string) => {
+  try {
+    console.log('🚗 Starting trip for order:', orderId);
+    
+    // Validate required parameters
+    if (!startKm || startKm <= 0) {
+      throw new Error('Start KM must be provided and greater than 0');
+    }
+    
+    if (!imgUri) {
+      throw new Error('Speedometer image is required to start trip');
+    }
+    
+    const form = new FormData();
+    
+    // Add required fields - the API expects these as Form fields
+    form.append('start_km', String(startKm)); // Must be > 0
+    form.append('speedometer_img', { 
+      uri: imgUri, 
+      name: 'speedometer.jpg', 
+      type: 'image/jpeg' 
+    } as any);
+    
+    console.log('📤 Sending start trip request:', {
+      orderId,
+      startKm,
+      hasImage: !!imgUri
+    });
+    
+    const response = await axiosDriver.post(`/api/assignments/driver/start-trip/${orderId}`, form, { 
+      headers: { 
+        'Content-Type': 'multipart/form-data' 
+      } 
+    });
+    
+    console.log('✅ Trip started successfully:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ Failed to start trip:', error);
+    console.error('❌ Error details:', {
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message
+    });
+    
+    // Handle specific validation errors
+    if (error.response?.status === 422) {
+      const validationErrors = error.response.data?.detail || [];
+      if (Array.isArray(validationErrors)) {
+        const errorMessages = validationErrors.map((err: any) => err.msg || err.message).join(', ');
+        throw new Error(`Validation error: ${errorMessages}`);
+      } else {
+        throw new Error(`Validation error: ${error.response.data?.detail}`);
+      }
+    }
+    
+    throw error;
+  }
 };
 
-export const endTrip = async (orderId: number, endKm: number, contact: string, imgUri: string) => {
-  const form = new FormData();
-  form.append('end_km', String(endKm));
-  form.append('contact_number', contact);
-  form.append('speedometer_img', { uri: imgUri, name: 'speedo_end.jpg', type: 'image/jpeg' } as any);
-  return (await axiosDriver.post(`/api/assignments/driver/end-trip/${orderId}`, form, { headers: { 'Content-Type': 'multipart/form-data' } })).data;
+export const endTrip = async (orderId: number, endKm?: number, contact?: string, imgUri?: string) => {
+  try {
+    console.log('🏁 Ending trip for order:', orderId);
+    
+    // Validate required parameters
+    if (!endKm || endKm <= 0) {
+      throw new Error('End KM must be provided and greater than 0');
+    }
+    
+    if (!contact) {
+      throw new Error('Contact number is required to end trip');
+    }
+    
+    if (!imgUri) {
+      throw new Error('End speedometer image is required to end trip');
+    }
+    
+    const form = new FormData();
+    
+    // Add required fields - the API expects these as Form fields
+    form.append('end_km', String(endKm)); // Must be > 0
+    form.append('contact_number', contact);
+    form.append('close_speedometer_img', { 
+      uri: imgUri, 
+      name: 'close_speedometer.jpg', 
+      type: 'image/jpeg' 
+    } as any);
+    
+    console.log('📤 Sending end trip request:', {
+      orderId,
+      endKm,
+      contact,
+      hasImage: !!imgUri
+    });
+    
+    const response = await axiosDriver.post(`/api/assignments/driver/end-trip/${orderId}`, form, { 
+      headers: { 
+        'Content-Type': 'multipart/form-data' 
+      } 
+    });
+    
+    console.log('✅ Trip ended successfully:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ Failed to end trip:', error);
+    console.error('❌ Error details:', {
+      status: error.response?.status,
+      data: error.response?.data,
+      message: error.message
+    });
+    
+    // Handle specific validation errors
+    if (error.response?.status === 422) {
+      const validationErrors = error.response.data?.detail || [];
+      if (Array.isArray(validationErrors)) {
+        const errorMessages = validationErrors.map((err: any) => err.msg || err.message).join(', ');
+        throw new Error(`Validation error: ${errorMessages}`);
+      } else {
+        throw new Error(`Validation error: ${error.response.data?.detail}`);
+      }
+    }
+    
+    throw error;
+  }
 };
 import axiosInstance from '@/app/api/axiosInstance';
 import axiosDriver from '@/app/api/axiosDriver';
@@ -293,7 +404,7 @@ export const setDriverOnline = async (driverId: string): Promise<CarDriverStatus
   try {
     console.log('🟢 Setting driver online:', driverId);
 
-    const response = await axiosDriver.put(`/api/users/cardriver/online`);
+    const response = await axiosDriver.patch(`/api/users/cardriver/online`);
 
     if (response.data) {
       console.log('✅ Driver set online successfully:', response.data);
@@ -342,7 +453,7 @@ export const setDriverOffline = async (driverId: string): Promise<CarDriverStatu
   try {
     console.log('🔴 Setting driver offline:', driverId);
 
-    const response = await axiosDriver.put(`/api/users/cardriver/offline`);
+    const response = await axiosDriver.patch(`/api/users/cardriver/offline`);
 
     if (response.data) {
       console.log('✅ Driver set offline successfully:', response.data);
@@ -626,4 +737,5 @@ export const searchDrivers = async (filters: {
     }
   }
 };
+
 

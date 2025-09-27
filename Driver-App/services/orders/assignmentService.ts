@@ -249,49 +249,8 @@ export const updateAssignmentStatus = async (assignmentId: string, status: strin
   }
 };
 
-// Add missing functions for compatibility
-export const startDriverTrip = async (tripId: string, startKm?: number, odometerPhoto?: any): Promise<any> => {
-  try {
-    console.log('🚗 Starting driver trip:', tripId);
-    const authHeaders = await getAuthHeaders();
-    
-    const payload: any = {};
-    if (startKm !== undefined) payload.start_km = startKm;
-    if (odometerPhoto) payload.odometer_photo = odometerPhoto;
-    
-    const response = await axiosInstance.post(`/api/trips/${tripId}/start`, payload, {
-      headers: authHeaders
-    });
-
-    console.log('✅ Driver trip started successfully:', response.data);
-      return response.data;
-  } catch (error: any) {
-    console.error('❌ Failed to start driver trip:', error);
-    throw error;
-  }
-};
-
-export const endDriverTrip = async (tripId: string, endKm?: number, contactNumber?: string, odometerPhoto?: any): Promise<any> => {
-  try {
-    console.log('🏁 Ending driver trip:', tripId);
-    const authHeaders = await getAuthHeaders();
-    
-    const payload: any = {};
-    if (endKm !== undefined) payload.end_km = endKm;
-    if (contactNumber) payload.contact_number = contactNumber;
-    if (odometerPhoto) payload.odometer_photo = odometerPhoto;
-    
-    const response = await axiosInstance.post(`/api/trips/${tripId}/end`, payload, {
-          headers: authHeaders
-        });
-        
-    console.log('✅ Driver trip ended successfully:', response.data);
-    return response.data;
-      } catch (error: any) {
-    console.error('❌ Failed to end driver trip:', error);
-    throw error;
-  }
-};
+// Trip start/end functions are handled in carDriverService.ts with correct endpoints
+// /api/assignments/driver/start-trip/{orderId} and /api/assignments/driver/end-trip/{orderId}
 
 export const assignCarDriverToOrder = async (orderId: string | number, driverId: string, carId: string): Promise<any> => {
   try {

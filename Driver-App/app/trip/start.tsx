@@ -11,7 +11,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Camera, Upload, ArrowLeft } from 'lucide-react-native';
-import { startDriverTrip } from '@/services/orders/assignmentService';
+import { startTrip } from '@/services/driver/carDriverService';
 import * as ImagePicker from 'expo-image-picker';
 
 export default function StartTripScreen() {
@@ -51,7 +51,7 @@ export default function StartTripScreen() {
         // If no assignment id, continue UI flow without API to prevent blocking
         console.warn('No assignmentId provided to start trip; navigating without API call');
       } else {
-        await startDriverTrip(assignmentId, parseInt(startKm, 10), odometerPhoto);
+        await startTrip(parseInt(assignmentId), parseInt(startKm, 10), odometerPhoto);
       }
 
       router.replace({

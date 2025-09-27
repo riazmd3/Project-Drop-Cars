@@ -14,7 +14,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useWallet } from '@/contexts/WalletContext';
 import { Camera, ArrowLeft, Check, IndianRupee } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { endDriverTrip } from '@/services/orders/assignmentService';
+import { endTrip } from '@/services/driver/carDriverService';
 
 export default function EndTripScreen() {
   const [endKm, setEndKm] = useState('');
@@ -70,7 +70,7 @@ export default function EndTripScreen() {
       setSubmitting(true);
       const assignmentId = String(params.assignmentId || '');
       if (assignmentId) {
-        await endDriverTrip(assignmentId, parseInt(endKm, 10), contactNumber, odometerPhoto);
+        await endTrip(parseInt(assignmentId), parseInt(endKm, 10), contactNumber, odometerPhoto);
       } else {
         console.warn('No assignmentId provided to end trip; finishing without API call');
       }

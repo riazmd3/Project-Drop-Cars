@@ -221,7 +221,7 @@ export default function WalletScreen() {
           // Use mock payment as fallback
           const mockPaymentResponse = {
             razorpay_payment_id: `mock_pay_${Date.now()}`,
-            razorpay_order_id: orderResponse.razorpay_order_id,
+            razorpay_order_id: `mock_order_${Date.now()}`,
             razorpay_signature: `mock_signature_${Date.now()}`
           };
 
@@ -538,7 +538,7 @@ export default function WalletScreen() {
           {loading ? (
             <ActivityIndicator color="#FFFFFF" size="large" />
           ) : (
-            <Text style={dynamicStyles.balanceAmount}>₹{balance}</Text>
+            <Text style={dynamicStyles.balanceAmount}>₹{Math.round(Number(balance) || 0)}</Text>
           )}
           {balance < 1000 && (
             <View style={dynamicStyles.lowBalanceWarning}>

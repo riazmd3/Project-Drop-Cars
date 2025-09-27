@@ -122,17 +122,192 @@ export async function getPendingOrders(params?: { limit?: number; page?: number 
   });
 }
 
-export async function getFutureRidesForVehicleOwner(): Promise<any[]> {
-  // Get VO id from VO token (sub)
-  const token = await SecureStore.getItemAsync('authToken');
-  if (!token) throw new Error('No VO token found');
-  const voId = extractUserIdFromJWT(token);
-  if (!voId) throw new Error('Could not extract VO id from token');
-
-  const headers = await getAuthHeaders();
-  const url = `/api/assignments/vehicle_owner/${voId}`;
-  const res = await axiosInstance.get(url, { headers });
-  return Array.isArray(res.data) ? res.data : [];
+export interface FutureRide {
+  id: string;
+  order_id: number;
+  vehicle_owner_id: string;
+  driver_id: string | null;
+  car_id: string | null;
+  assignment_status: string;
+  assigned_at: string | null;
+  expires_at: string | null;
+  cancelled_at: string | null;
+  completed_at: string | null;
+  created_at: string;
+  vendor_id: string;
+  trip_type: string;
+  car_type: string;
+  pickup_drop_location: Record<string, string>;
+  start_date_time: string;
+  customer_name: string;
+  customer_number: string;
+  cost_per_km: number;
+  extra_cost_per_km: number;
+  driver_allowance: number;
+  extra_driver_allowance: number;
+  permit_charges: number;
+  extra_permit_charges: number;
+  hill_charges: number;
+  toll_charges: number;
+  pickup_notes: string | null;
+  trip_status: string;
+  pick_near_city: string;
+  trip_distance: number;
+  trip_time: string;
+  platform_fees_percent: number;
+  estimated_price: number;
+  vendor_price: number | null;
+  order_created_at: string;
+  pickup_city?: string;
+  drop_city?: string;
+  total_amount?: number | null;
+  per_km_price?: number | null;
 }
 
+export interface FutureRideView extends FutureRide {
+  pickup_city: string;
+  drop_city: string;
+  total_amount: number | null;
+  per_km_price: number | null;
+}
 
+// Get future rides (pending orders) using the correct API
+export async function getFutureRidesForVehicleOwner(): Promise<FutureRideView[]> {
+  try {
+    console.log('🚗 Fetching future rides (pending orders) for Vehicle Owner...');
+
+    // Get Auth headers (VO Bearer token)
+    const authHeaders = await getAuthHeaders();
+    console.log('🔑 Auth headers ready:', !!(authHeaders as any)?.Authorization);
+
+    // Fetch pending orders using the correct API
+    const response = await axiosInstance.get('/api/orders/vehicle-owner/pending', {
+      headers: authHeaders,
+    });
+
+    const data: PendingOrder[] = Array.isArray(response.data) ? response.data : [];
+    console.log(`✅ Future rides fetched: ${data.length} orders`);
+
+    if (data.length > 0) {
+      console.log('📦 Sample future ride:', {
+        id: data[0].id,
+        trip_type: data[0].trip_type,
+        car_type: data[0].car_type,
+        estimated_price: data[0].estimated_price,
+        vendor_price: data[0].vendor_price,
+        trip_distance: data[0].trip_distance,
+        pickup_drop_location: data[0].pickup_drop_location,
+      });
+    }
+
+    // Map the data to FutureRideView format
+    return data.map((order) => {
+      const loc = safePickLoc(order.pickup_drop_location);
+      const cities = Object.values(loc || {});
+      const pickup_city = cities[0] || 'Unknown';
+      const drop_city = cities[1] || 'Unknown';
+
+      const vendor = toNumber(order.vendor_price) ?? undefined;
+      const estimate = toNumber(order.estimated_price) ?? undefined;
+      const total_amount = vendor ?? estimate ?? 0;
+
+      const distance = toNumber(order.trip_distance) ?? 0;
+      const cost_per_km = toNumber(order.cost_per_km);
+
+      const per_km_price = total_amount > 0 && distance > 0
+        ? Math.round((total_amount / distance) * 100) / 100
+        : cost_per_km;
+
+      return {
+        ...order,
+        pickup_city,
+        drop_city,
+        total_amount,
+        per_km_price: per_km_price === 0 ? null : per_km_price,
+      } as FutureRideView;
+    });
+  } catch (error: any) {
+    console.error('❌ Failed to fetch future rides:', error);
+    
+    if (error.response?.status === 401) {
+      throw new Error('Authentication failed. Please login again.');
+    } else if (error.response?.status === 404) {
+      console.warn('⚠️ No pending orders found');
+      return [];
+    } else if (error.response?.status === 500) {
+      throw new Error('Server error. Please try again later.');
+    } else {
+      throw new Error(error.message || 'Failed to fetch future rides');
+    }
+  }
+}
+
+// Get completed/cancelled orders using the non-pending API
+export async function getCompletedOrdersForVehicleOwner(): Promise<FutureRideView[]> {
+  try {
+    console.log('📋 Fetching completed orders for Vehicle Owner...');
+
+    // Get Auth headers (VO Bearer token)
+    const authHeaders = await getAuthHeaders();
+    console.log('🔑 Auth headers ready:', !!(authHeaders as any)?.Authorization);
+
+    // Fetch non-pending orders using the correct API
+    const response = await axiosInstance.get('/api/orders/vehicle-owner/non-pending', {
+      headers: authHeaders,
+    });
+
+    const data: PendingOrder[] = Array.isArray(response.data) ? response.data : [];
+    console.log(`✅ Completed orders fetched: ${data.length} orders`);
+
+    if (data.length > 0) {
+      console.log('📦 Sample completed order:', {
+        id: data[0].id,
+        trip_status: data[0].trip_status,
+        assignment_status: data[0].assignment_status,
+        estimated_price: data[0].estimated_price,
+        vendor_price: data[0].vendor_price,
+        trip_distance: data[0].trip_distance,
+      });
+    }
+
+    // Map the data to FutureRideView format
+    return data.map((order) => {
+      const loc = safePickLoc(order.pickup_drop_location);
+      const cities = Object.values(loc || {});
+      const pickup_city = cities[0] || 'Unknown';
+      const drop_city = cities[1] || 'Unknown';
+
+      const vendor = toNumber(order.vendor_price) ?? undefined;
+      const estimate = toNumber(order.estimated_price) ?? undefined;
+      const total_amount = vendor ?? estimate ?? 0;
+
+      const distance = toNumber(order.trip_distance) ?? 0;
+      const cost_per_km = toNumber(order.cost_per_km);
+
+      const per_km_price = total_amount > 0 && distance > 0
+        ? Math.round((total_amount / distance) * 100) / 100
+        : cost_per_km;
+
+      return {
+        ...order,
+        pickup_city,
+        drop_city,
+        total_amount,
+        per_km_price: per_km_price === 0 ? null : per_km_price,
+      } as FutureRideView;
+    });
+  } catch (error: any) {
+    console.error('❌ Failed to fetch completed orders:', error);
+    
+    if (error.response?.status === 401) {
+      throw new Error('Authentication failed. Please login again.');
+    } else if (error.response?.status === 404) {
+      console.warn('⚠️ No completed orders found');
+      return [];
+    } else if (error.response?.status === 500) {
+      throw new Error('Server error. Please try again later.');
+    } else {
+      throw new Error(error.message || 'Failed to fetch completed orders');
+    }
+  }
+}

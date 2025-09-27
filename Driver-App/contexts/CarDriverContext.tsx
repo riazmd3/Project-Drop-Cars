@@ -68,6 +68,7 @@ export const CarDriverProvider: React.FC<CarDriverProviderProps> = ({ children }
     try {
       setIsLoading(true);
       
+      // Fast local storage check only - no API calls on startup
       const storedDriver = await AsyncStorage.getItem('carDriver');
       const storedToken = await AsyncStorage.getItem('carDriverToken');
       
@@ -75,7 +76,9 @@ export const CarDriverProvider: React.FC<CarDriverProviderProps> = ({ children }
         const driverData = JSON.parse(storedDriver);
         setDriver(driverData);
         setIsAuthenticated(true);
-        console.log('✅ Stored driver data loaded:', driverData.full_name);
+        console.log('✅ Stored driver data loaded (fast startup):', driverData.full_name);
+      } else {
+        console.log('ℹ️ No stored driver data found, driver needs to login');
       }
     } catch (error) {
       console.error('❌ Failed to load stored driver data:', error);

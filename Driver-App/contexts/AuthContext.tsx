@@ -40,40 +40,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       setIsLoading(true);
       
-      // First try to load from local storage only
+      // Fast local storage check only - no API calls on startup
       const localUser = await SecureStore.getItemAsync('userData');
       if (localUser) {
         const userData = JSON.parse(localUser);
         setUser(userData);
-        console.log('✅ User data loaded from local storage:', userData);
+        console.log('✅ User data loaded from local storage (fast startup)');
         return;
       }
 
-      // Fallback to auth service
-      const isAuth = await authService.isAuthenticated();
-      if (isAuth) {
-        const userData = await getCompleteUserData();
-        if (userData) {
-          // Convert auth service user data to context user format
-          const contextUser: User = {
-            id: userData.id,
-            fullName: userData.fullName,
-            primaryMobile: userData.primaryMobile,
-            secondaryMobile: userData.secondaryMobile,
-            password: '',
-            address: userData.address,
-            aadharNumber: userData.aadharNumber,
-            organizationId: userData.organizationId,
-            languages: userData.languages,
-            documents: {}
-          };
-          setUser(contextUser);
-          
-          // Persist to local storage only
-          await SecureStore.setItemAsync('userData', JSON.stringify(contextUser));
-          console.log('✅ User data loaded from auth service and saved locally:', contextUser);
-        }
-      }
+      // If no local data, user needs to login
+      console.log('ℹ️ No local user data found, user needs to login');
     } catch (error) {
       console.error('❌ Failed to load user data on start:', error);
     } finally {

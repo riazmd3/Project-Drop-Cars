@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   Modal,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -77,25 +78,104 @@ export default function FutureRidesScreen() {
       const apiRides = await getFutureRidesForVehicleOwner();
       const ridesArray = Array.isArray(apiRides) ? apiRides : [];
 
-      const processedRides: FutureRide[] = ridesArray.map((ride: any) => ({
-        id: ride.id?.toString?.() || ride.assignment_id?.toString?.() || ride.booking_id?.toString?.(),
-        booking_id: ride.booking_id?.toString?.() || ride.order_id?.toString?.() || ride.id?.toString?.(),
-        pickup: ride.pickup || ride.pickup_city || ride.pickup_location || (ride.pickup_drop_location && Object.values(ride.pickup_drop_location)[0]) || 'Unknown',
-        drop: ride.drop || ride.drop_city || ride.drop_location || (ride.pickup_drop_location && Object.values(ride.pickup_drop_location)[1]) || 'Unknown',
-        date: ride.date || ride.start_date_time?.slice?.(0,10) || ride.created_at?.slice?.(0,10) || '',
-        time: ride.time || ride.start_date_time?.slice?.(11,16) || ride.created_at?.slice?.(11,16) || '',
+      console.log('🔍 Raw API rides data:', ridesArray.length > 0 ? ridesArray[0] : 'No rides');
+      console.log('🔍 Sample pickup_drop_location:', ridesArray.length > 0 ? ridesArray[0].pickup_drop_location : 'No data');
+
+      const processedRides: FutureRide[] = ridesArray.map((ride: any) => {
+        // Use the same logic as getPickupDropLocations from index.tsx
+        const getPickupDropLocations = (pickupDropLocation: any) => {
+          if (!pickupDropLocation) return { pickup: 'Unknown', drop: 'Unknown' };
+          
+          // Handle array format: { "0": "Chennai", "1": "Gingee" }
+          if (typeof pickupDropLocation === 'object' && pickupDropLocation['0'] && pickupDropLocation['1']) {
+            return {
+              pickup: pickupDropLocation['0'],
+              drop: pickupDropLocation['1']
+            };
+          }
+          
+          // Handle object format: { pickup: "Chennai", drop: "Gingee" }
+          if (pickupDropLocation.pickup && pickupDropLocation.drop) {
+            return {
+              pickup: pickupDropLocation.pickup,
+              drop: pickupDropLocation.drop
+            };
+          }
+          
+          // Fallback
+          return { pickup: 'Unknown', drop: 'Unknown' };
+        };
+
+        // Extract pickup and drop locations using the same logic as index.tsx
+        const locations = getPickupDropLocations(ride.pickup_drop_location);
+        let pickup = locations.pickup;
+        let drop = locations.drop;
+        
+        // Additional fallbacks for API data variations
+        if (pickup === 'Unknown' || drop === 'Unknown') {
+          // Try other possible field names
+          pickup = ride.pickup || ride.pickup_city || ride.pickup_location || pickup;
+          drop = ride.drop || ride.drop_city || ride.drop_location || drop;
+          
+          // Try parsing as JSON string if it's a string
+          if (typeof ride.pickup_drop_location === 'string') {
+            try {
+              const parsed = JSON.parse(ride.pickup_drop_location);
+              if (parsed['0'] && parsed['1']) {
+                pickup = parsed['0'];
+                drop = parsed['1'];
+              } else if (parsed.pickup && parsed.drop) {
+                pickup = parsed.pickup;
+                drop = parsed.drop;
+              }
+            } catch (e) {
+              // Ignore parsing errors
+            }
+          }
+        }
+        
+        // Debug logging for first ride
+        if (ride.order_id && (pickup === 'Unknown' || drop === 'Unknown')) {
+          console.log('🔍 Debug ride data:', {
+            order_id: ride.order_id,
+            assignment_id: ride.assignment_id,
+            pickup_drop_location: ride.pickup_drop_location,
+            locations: locations,
+            pickup: pickup,
+            drop: drop,
+            ride_pickup: ride.pickup,
+            ride_pickup_city: ride.pickup_city,
+            ride_pickup_location: ride.pickup_location,
+            ride_drop: ride.drop,
+            ride_drop_city: ride.drop_city,
+            ride_drop_location: ride.drop_location
+          });
+        }
+
+        return {
+          id: ride.assignment_id?.toString?.() || ride.id?.toString?.() || ride.order_id?.toString?.(),
+          booking_id: ride.order_id?.toString?.() || ride.assignment_id?.toString?.() || ride.id?.toString?.(),
+          pickup: pickup,
+          drop: drop,
+          date: ride.date || ride.start_date_time?.slice?.(0,10) || ride.created_at?.slice?.(0,10) || '',
+          time: ride.time || ride.start_date_time?.slice?.(11,16) || ride.created_at?.slice?.(11,16) || '',
         distance: typeof ride.trip_distance === 'string' ? parseFloat(ride.trip_distance) || 0 : (ride.trip_distance || 0),
         fare_per_km: typeof ride.cost_per_km === 'string' ? parseFloat(ride.cost_per_km) || 0 : (ride.cost_per_km || 0),
-        total_fare: typeof ride.estimated_price === 'string' ? parseFloat(ride.estimated_price) || 0 : (ride.estimated_price || ride.vendor_price || 0),
+          total_fare: typeof ride.estimated_price === 'string' ? parseFloat(ride.estimated_price) || 0 : (ride.estimated_price || ride.vendor_price || 0),
         customer_name: ride.customer_name || '',
-        customer_mobile: ride.customer_number || '',
+          customer_mobile: ride.customer_number || ride.customer_mobile || '',
         status: ride.assignment_status || ride.status || 'confirmed',
         assigned_driver: ride.assigned_driver || null,
         assigned_vehicle: ride.assigned_vehicle || null,
         assignment_id: ride.assignment_id || ride.id,
         expires_at: ride.expires_at,
-        created_at: ride.created_at
-      } as any));
+          created_at: ride.created_at,
+          // Additional fields from the new API structure
+          driver_id: ride.driver_id,
+          car_id: ride.car_id,
+          assigned_at: ride.assigned_at
+        } as any;
+      });
 
       console.log('📋 Future rides loaded (VO):', processedRides.length);
       setApiFutureRides(processedRides);
@@ -278,9 +358,10 @@ export default function FutureRidesScreen() {
   };
 
   const assignVehicle = async (vehicle: AvailableCar) => {
-    if (!selectedRide || !selectedDriver) return;
+    if (!selectedRide || !selectedDriver || assignmentsLoading) return;
     
     try {
+      setAssignmentsLoading(true);
       console.log('🔗 Creating assignment for order:', selectedRide.booking_id);
       console.log('👤 Selected Driver:', {
         id: selectedDriver.id,
@@ -464,6 +545,8 @@ export default function FutureRidesScreen() {
           }
         ]
       );
+    } finally {
+      setAssignmentsLoading(false);
     }
   };
 
@@ -692,6 +775,11 @@ export default function FutureRidesScreen() {
       fontSize: 12,
       fontFamily: 'Inter-SemiBold',
     },
+    loadingButtonContent: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     noDriversContainer: {
       backgroundColor: colors.background,
       borderRadius: 12,
@@ -887,17 +975,40 @@ export default function FutureRidesScreen() {
           </View>
         ) : ride.status === 'pending_assignment' ? (
           <TouchableOpacity 
-            style={[dynamicStyles.assignButton, { backgroundColor: colors.warning }]}
+            style={[
+              dynamicStyles.assignButton, 
+              { backgroundColor: colors.warning },
+              assignmentsLoading && { opacity: 0.6 }
+            ]}
             onPress={() => openAssignmentModal(ride)}
+            disabled={assignmentsLoading}
           >
+            {assignmentsLoading ? (
+              <View style={dynamicStyles.loadingButtonContent}>
+                <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
+                <Text style={dynamicStyles.assignButtonText}>Assigning...</Text>
+              </View>
+            ) : (
             <Text style={dynamicStyles.assignButtonText}>Assign Driver & Vehicle</Text>
+            )}
           </TouchableOpacity>
         ) : (
           <TouchableOpacity 
-            style={dynamicStyles.assignButton}
+            style={[
+              dynamicStyles.assignButton,
+              assignmentsLoading && { opacity: 0.6 }
+            ]}
             onPress={() => openAssignmentModal(ride)}
+            disabled={assignmentsLoading}
           >
+            {assignmentsLoading ? (
+              <View style={dynamicStyles.loadingButtonContent}>
+                <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
+                <Text style={dynamicStyles.assignButtonText}>Assigning...</Text>
+              </View>
+            ) : (
             <Text style={dynamicStyles.assignButtonText}>Assign Driver & Vehicle</Text>
+            )}
           </TouchableOpacity>
         )}
       </View>
@@ -1047,17 +1158,24 @@ export default function FutureRidesScreen() {
                     <TouchableOpacity
                       style={[
                         dynamicStyles.selectButton,
-                        !car.is_available && dynamicStyles.selectButtonDisabled
+                        (!car.is_available || assignmentsLoading) && dynamicStyles.selectButtonDisabled
                       ]}
                       onPress={() => assignVehicle(car)}
-                      disabled={!car.is_available}
+                      disabled={!car.is_available || assignmentsLoading}
                     >
+                      {assignmentsLoading ? (
+                        <View style={dynamicStyles.loadingButtonContent}>
+                          <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
+                          <Text style={dynamicStyles.selectButtonText}>Assigning...</Text>
+                        </View>
+                      ) : (
                       <Text style={[
                         dynamicStyles.selectButtonText,
                         !car.is_available && dynamicStyles.selectButtonTextDisabled
                       ]}>
                         {car.is_available ? 'Select' : 'Unavailable'}
                       </Text>
+                      )}
                     </TouchableOpacity>
                   </View>
                 ))

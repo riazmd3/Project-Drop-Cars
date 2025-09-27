@@ -11,458 +11,441 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { MapPin, Clock, IndianRupee, Car, User, Phone, RefreshCw } from 'lucide-react-native';
-import axiosInstance from '@/app/api/axiosInstance';
-import * as SecureStore from 'expo-secure-store';
+import { MapPin, Clock, IndianRupee, Car, User, Phone, RefreshCw, Navigation } from 'lucide-react-native';
+import { getFutureRidesForVehicleOwner, getCompletedOrdersForVehicleOwner, FutureRideView } from '@/services/vehicle/vehicleOwnerService';
 
-interface CompletedTrip {
-  id: string;
-  order_id: string;
-  pickup: string;
-  drop: string;
-  customer_name: string;
-  customer_mobile: string;
-  date: string;
-  time: string;
-  distance: number;
-  fare: number;
+interface RideData extends FutureRideView {
   status: string;
-  driver_name?: string;
-  car_details?: string;
-  assignment_id: string;
+  assignment_status: string;
+  trip_status: string;
+  assignment_id?: string;
 }
 
 export default function RidesScreen() {
-  const [completedTrips, setCompletedTrips] = useState<CompletedTrip[]>([]);
+  const [activeTab, setActiveTab] = useState<'driving' | 'completed' | 'cancelled'>('driving');
+  const [drivingRides, setDrivingRides] = useState<RideData[]>([]);
+  const [completedRides, setCompletedRides] = useState<RideData[]>([]);
+  const [cancelledRides, setCancelledRides] = useState<RideData[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const { colors } = useTheme();
   const { user } = useAuth();
 
-  // Fetch completed trips for Vehicle Owner
-  const fetchCompletedTrips = async () => {
+  // Fetch all rides data
+  const fetchRidesData = async () => {
     try {
       setLoading(true);
-      console.log('📋 Fetching completed trips for Vehicle Owner...');
+      console.log('📋 Fetching all rides data for Vehicle Owner...');
       
-      if (!user?.id) {
-        console.log('⚠️ No user ID available for fetching trips');
-        setCompletedTrips([]);
-        return;
-      }
+      // Fetch future rides (pending/driving orders)
+      const futureRides = await getFutureRidesForVehicleOwner();
+      console.log('🚗 Future rides fetched:', futureRides.length);
       
-      // Get Vehicle Owner ID from JWT token
-      const authToken = await SecureStore.getItemAsync('authToken');
-      if (!authToken) {
-        console.log('⚠️ No auth token available');
-        setCompletedTrips([]);
-        return;
-      }
+      // Fetch completed orders
+      const completedOrders = await getCompletedOrdersForVehicleOwner();
+      console.log('✅ Completed orders fetched:', completedOrders.length);
       
-      // Try multiple endpoints to get completed assignments
-      let response;
-      try {
-        // First try: Get all assignments for this Vehicle Owner
-        console.log('🔍 Trying /api/assignments/vehicle_owner/{id}...');
-        response = await axiosInstance.get(`/api/assignments/vehicle_owner/${user.id}`);
-      } catch (firstError: any) {
-        console.log('⚠️ First endpoint failed, trying alternative...');
-        try {
-          // Second try: Get assignments using a different endpoint
-          console.log('🔍 Trying /api/assignments/vehicle-owner/{id}...');
-          response = await axiosInstance.get(`/api/assignments/vehicle-owner/${user.id}`);
-        } catch (secondError: any) {
-          console.log('⚠️ Second endpoint failed, trying orders endpoint...');
-          // Third try: Get from orders endpoint and filter
-          response = await axiosInstance.get('/api/orders/vehicle_owner/pending');
-          // This will return pending orders, but we'll handle it gracefully
-        }
-      }
+      // Categorize the rides
+      const driving: RideData[] = [];
+      const completed: RideData[] = [];
+      const cancelled: RideData[] = [];
       
-      console.log('📊 Raw completed assignments response:', {
-        status: response.status,
-        data: response.data,
-        dataType: typeof response.data,
-        isArray: Array.isArray(response.data),
-        length: Array.isArray(response.data) ? response.data.length : 'N/A'
-      });
-      
-      const allAssignments = Array.isArray(response.data) ? response.data : [];
-      
-      // Filter for completed assignments only
-      const completedAssignments = allAssignments.filter((assignment: any) => 
-        assignment.assignment_status === 'COMPLETED' || 
-        assignment.status === 'COMPLETED' ||
-        assignment.assignment_status === 'completed' ||
-        assignment.status === 'completed'
-      );
-      
-      console.log('📊 Filtered completed assignments:', {
-        totalAssignments: allAssignments.length,
-        completedAssignments: completedAssignments.length,
-        statuses: allAssignments.map((a: any) => a.assignment_status || a.status)
-      });
-      
-      // If no completed assignments found, show a message
-      if (completedAssignments.length === 0) {
-        console.log('ℹ️ No completed assignments found. This could mean:');
-        console.log('• No trips have been completed yet');
-        console.log('• API endpoint returns different data structure');
-        console.log('• All assignments are still in progress');
-      }
-      
-      // Transform data for display
-      const completedTrips: CompletedTrip[] = completedAssignments.map((assignment: any) => {
-        console.log('🔄 Processing completed assignment:', {
-          id: assignment.id,
-          order_id: assignment.order_id,
-          assignment_status: assignment.assignment_status,
-          vehicle_owner_id: assignment.vehicle_owner_id
-        });
-        
-        // Handle pickup_drop_location JSON parsing
-        let pickup = 'Pickup Location';
-        let drop = 'Drop Location';
-        
-        if (assignment.pickup_drop_location) {
-          try {
-            const location = typeof assignment.pickup_drop_location === 'string' 
-              ? JSON.parse(assignment.pickup_drop_location) 
-              : assignment.pickup_drop_location;
-            const cities = Object.values(location || {});
-            pickup = (cities[0] as string) || pickup;
-            drop = (cities[1] as string) || drop;
-          } catch (e) {
-            console.log('⚠️ Failed to parse pickup_drop_location:', e);
-          }
-        }
-        
-        return {
-          id: `${assignment.id}-${assignment.order_id || assignment.booking_id}-${assignment.vehicle_owner_id}`,
-          order_id: assignment.order_id || assignment.booking_id,
-          pickup: pickup,
-          drop: drop,
-          customer_name: assignment.customer_name || 'Customer',
-          customer_mobile: assignment.customer_number || assignment.customer_mobile || 'N/A',
-          date: assignment.start_date_time ? new Date(assignment.start_date_time).toLocaleDateString() : 'N/A',
-          time: assignment.start_date_time ? new Date(assignment.start_date_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'N/A',
-          distance: assignment.trip_distance || assignment.distance || 0,
-          fare: assignment.estimated_price || assignment.total_fare || 0,
-          status: assignment.assignment_status || 'COMPLETED',
-          driver_name: assignment.driver_name || 'Driver',
-          car_details: assignment.car_details || 'Car',
-          assignment_id: assignment.id
+      // Process future rides (these are driving/pending)
+      futureRides.forEach(ride => {
+        const rideData: RideData = {
+          ...ride,
+          status: ride.assignment_status?.toLowerCase() || 'pending',
+          assignment_status: ride.assignment_status || 'PENDING',
+          trip_status: ride.trip_status || 'PENDING',
         };
+        
+        if (rideData.assignment_status === 'PENDING' || rideData.assignment_status === 'ASSIGNED') {
+          driving.push(rideData);
+        }
       });
       
-      console.log('✅ Completed trips processed:', {
-        totalAssignments: allAssignments.length,
-        completedAssignments: completedAssignments.length,
-        completedTrips: completedTrips.length,
-        trips: completedTrips.map(t => ({ id: t.id, order_id: t.order_id, status: t.status }))
+      // Process completed orders
+      completedOrders.forEach(order => {
+        const rideData: RideData = {
+          ...order,
+          status: order.assignment_status?.toLowerCase() || 'completed',
+          assignment_status: order.assignment_status || 'COMPLETED',
+          trip_status: order.trip_status || 'COMPLETED',
+        };
+        
+        if (rideData.assignment_status === 'COMPLETED' || rideData.trip_status === 'COMPLETED') {
+          completed.push(rideData);
+        } else if (rideData.assignment_status === 'CANCELLED' || rideData.trip_status === 'CANCELLED') {
+          cancelled.push(rideData);
+        }
       });
       
-      setCompletedTrips(completedTrips);
+      setDrivingRides(driving);
+      setCompletedRides(completed);
+      setCancelledRides(cancelled);
+      
+      console.log('📊 Rides categorized:', {
+        driving: driving.length,
+        completed: completed.length,
+        cancelled: cancelled.length,
+      });
+      
     } catch (error: any) {
-      console.error('❌ Error fetching completed trips:', {
-        message: error.message,
-        status: error.response?.status,
-        data: error.response?.data,
-        url: error.config?.url
-      });
-      setCompletedTrips([]);
+      console.error('❌ Failed to fetch rides data:', error);
+      Alert.alert('Error', error.message || 'Failed to fetch rides data');
     } finally {
       setLoading(false);
     }
   };
 
-  // Refresh function
-  const onRefresh = async () => {
+  const handleRefresh = async () => {
     setRefreshing(true);
-    await fetchCompletedTrips();
+    await fetchRidesData();
     setRefreshing(false);
   };
 
-  // Debug function to test API endpoints
-  const handleDebugAPI = async () => {
-    if (!user?.id) {
-      Alert.alert('Debug Error', 'No user ID available');
-      return;
-    }
+  useEffect(() => {
+    fetchRidesData();
+  }, []);
 
-    try {
-      console.log('🧪 Testing API endpoints for Vehicle Owner:', user.id);
-      
-      // Test multiple endpoints
-      const endpoints = [
-        `/api/assignments/vehicle_owner/${user.id}`,
-        `/api/assignments/vehicle-owner/${user.id}`,
-        '/api/orders/vehicle_owner/pending',
-        '/api/assignments/vehicle-owner/completed'
-      ];
-      
-      let results = '';
-      
-      for (const endpoint of endpoints) {
-        try {
-          console.log(`🔍 Testing ${endpoint}...`);
-          const response = await axiosInstance.get(endpoint);
-          results += `✅ ${endpoint}: ${response.status} - ${Array.isArray(response.data) ? response.data.length : 'N/A'} items\n`;
-          console.log(`✅ ${endpoint} success:`, response.data);
-        } catch (error: any) {
-          results += `❌ ${endpoint}: ${error.response?.status || 'Error'} - ${error.message}\n`;
-          console.log(`❌ ${endpoint} failed:`, error.message);
-        }
-      }
-      
-      Alert.alert(
-        'API Endpoint Test Results',
-        results,
-        [{ text: 'OK' }]
-      );
-    } catch (error: any) {
-      Alert.alert('Debug Error', `Debug failed: ${error.message}`);
+  const getCurrentRides = () => {
+    switch (activeTab) {
+      case 'driving': return drivingRides;
+      case 'completed': return completedRides;
+      case 'cancelled': return cancelledRides;
+      default: return [];
     }
   };
 
-  // Load data on component mount
-  useEffect(() => {
-    fetchCompletedTrips();
-  }, []);
+  const getTabTitle = () => {
+    switch (activeTab) {
+      case 'driving': return 'Driving';
+      case 'completed': return 'Completed';
+      case 'cancelled': return 'Cancelled';
+      default: return 'Rides';
+    }
+  };
 
-  const dynamicStyles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    header: {
-      paddingHorizontal: 20,
-      paddingVertical: 20,
-      backgroundColor: colors.surface,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    },
-    headerContent: {
-      flex: 1,
-    },
-    debugButton: {
-      padding: 8,
-      borderRadius: 8,
-      backgroundColor: colors.background,
-    },
-    headerTitle: {
-      fontSize: 24,
-      fontFamily: 'Inter-Bold',
-      color: colors.text,
-    },
-    headerSubtitle: {
-      fontSize: 14,
-      fontFamily: 'Inter-Regular',
-      color: colors.textSecondary,
-      marginTop: 4,
-    },
-    content: {
-      flex: 1,
-      paddingHorizontal: 20,
-      paddingTop: 20,
-    },
-    rideCard: {
-      backgroundColor: colors.surface,
-      borderRadius: 16,
-      padding: 16,
-      marginBottom: 16,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-      elevation: 4,
-    },
-    rideHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 12,
-    },
-    bookingId: {
-      fontSize: 16,
-      fontFamily: 'Inter-SemiBold',
-      color: colors.text,
-    },
-    statusBadge: {
-      backgroundColor: '#D1FAE5',
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 8,
-    },
-    statusText: {
-      fontSize: 12,
-      fontFamily: 'Inter-SemiBold',
-      color: '#065F46',
-    },
-    routeContainer: {
-      marginBottom: 12,
-    },
-    routeRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: 4,
-    },
-    routeText: {
-      marginLeft: 8,
-      fontSize: 14,
-      fontFamily: 'Inter-Medium',
-      color: colors.text,
-    },
-    routeLine: {
-      width: 1,
-      height: 20,
-      backgroundColor: colors.border,
-      marginLeft: 8,
-      marginVertical: 4,
-    },
-    rideDetails: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      marginBottom: 12,
-    },
-    detailRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    detailText: {
-      marginLeft: 4,
-      fontSize: 12,
-      fontFamily: 'Inter-Medium',
-      color: colors.textSecondary,
-    },
-    customerInfo: {
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-      paddingTop: 12,
-    },
-    customerName: {
-      fontSize: 14,
-      fontFamily: 'Inter-SemiBold',
-      color: colors.text,
-    },
-    loadingContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingVertical: 40,
-    },
-    loadingText: {
-      fontSize: 16,
-      fontFamily: 'Inter-Medium',
-      color: colors.textSecondary,
-      textAlign: 'center',
-    },
-    emptyContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingVertical: 40,
-    },
-    emptyText: {
-      fontSize: 16,
-      fontFamily: 'Inter-Medium',
-      color: colors.textSecondary,
-      textAlign: 'center',
-      marginBottom: 8,
-    },
-    emptySubtext: {
-      fontSize: 14,
-      fontFamily: 'Inter-Regular',
-      color: colors.textSecondary,
-      textAlign: 'center',
-    },
-  });
-  const RideCard = ({ ride }: { ride: CompletedTrip }) => (
-    <View style={dynamicStyles.rideCard}>
-      <View style={dynamicStyles.rideHeader}>
-        <Text style={dynamicStyles.bookingId}>#{ride.order_id}</Text>
-        <View style={dynamicStyles.statusBadge}>
-          <Text style={dynamicStyles.statusText}>{ride.status.toUpperCase()}</Text>
+  const getStatusColor = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'pending': return '#F59E0B';
+      case 'assigned': return '#10B981';
+      case 'completed': return '#6B7280';
+      case 'cancelled': return '#EF4444';
+      default: return '#6B7280';
+    }
+  };
+
+  const getStatusIcon = (status: string) => {
+    switch (status.toLowerCase()) {
+      case 'pending': return '⏳';
+      case 'assigned': return '🚗';
+      case 'completed': return '✅';
+      case 'cancelled': return '❌';
+      default: return '📋';
+    }
+  };
+
+  const renderRideCard = (ride: RideData) => (
+    <View key={`${ride.id}-${ride.order_id}-${ride.assignment_id || ride.id}`} style={[styles.rideCard, { backgroundColor: colors.surface }]}>
+      <View style={styles.rideHeader}>
+        <View style={styles.statusBadge}>
+          <Text style={styles.statusIcon}>{getStatusIcon(ride.status)}</Text>
+          <Text style={[styles.statusText, { color: getStatusColor(ride.status) }]}>
+            {ride.status.toUpperCase()}
+          </Text>
+        </View>
+        <Text style={[styles.orderId, { color: colors.textSecondary }]}>
+          Order #{ride.order_id}
+        </Text>
+      </View>
+
+      <View style={styles.routeInfo}>
+        <View style={styles.locationRow}>
+          <View style={[styles.locationDot, { backgroundColor: '#10B981' }]} />
+          <Text style={[styles.locationText, { color: colors.text }]} numberOfLines={1}>
+            {ride.pickup_city || 'Pickup Location'}
+          </Text>
+        </View>
+        <View style={styles.locationRow}>
+          <View style={[styles.locationDot, { backgroundColor: '#EF4444' }]} />
+          <Text style={[styles.locationText, { color: colors.text }]} numberOfLines={1}>
+            {ride.drop_city || 'Drop Location'}
+          </Text>
         </View>
       </View>
 
-      <View style={dynamicStyles.routeContainer}>
-        <View style={dynamicStyles.routeRow}>
-          <MapPin color={colors.success} size={16} />
-          <Text style={dynamicStyles.routeText}>{ride.pickup}</Text>
+      <View style={styles.rideDetails}>
+        <View style={styles.detailRow}>
+          <User size={16} color={colors.textSecondary} />
+          <Text style={[styles.detailText, { color: colors.textSecondary }]}>
+            {ride.customer_name || 'Customer'}
+          </Text>
         </View>
-        <View style={dynamicStyles.routeLine} />
-        <View style={dynamicStyles.routeRow}>
-          <MapPin color={colors.error} size={16} />
-          <Text style={dynamicStyles.routeText}>{ride.drop}</Text>
+        <View style={styles.detailRow}>
+          <Phone size={16} color={colors.textSecondary} />
+          <Text style={[styles.detailText, { color: colors.textSecondary }]}>
+            {ride.customer_number || 'N/A'}
+          </Text>
+        </View>
+        <View style={styles.detailRow}>
+          <Car size={16} color={colors.textSecondary} />
+          <Text style={[styles.detailText, { color: colors.textSecondary }]}>
+            {ride.car_type || 'Car Type'}
+          </Text>
+        </View>
+        <View style={styles.detailRow}>
+          <Navigation size={16} color={colors.textSecondary} />
+          <Text style={[styles.detailText, { color: colors.textSecondary }]}>
+            {ride.trip_distance || 0} km
+          </Text>
         </View>
       </View>
 
-      <View style={dynamicStyles.rideDetails}>
-        <View style={dynamicStyles.detailRow}>
-          <Clock color={colors.textSecondary} size={14} />
-          <Text style={dynamicStyles.detailText}>{ride.date} at {ride.time}</Text>
+      <View style={styles.rideFooter}>
+        <View style={styles.timeInfo}>
+          <Clock size={16} color={colors.textSecondary} />
+          <Text style={[styles.timeText, { color: colors.textSecondary }]}>
+            {ride.start_date_time ? new Date(ride.start_date_time).toLocaleDateString() : 'N/A'}
+          </Text>
         </View>
-        <View style={dynamicStyles.detailRow}>
-          <Car color={colors.textSecondary} size={14} />
-          <Text style={dynamicStyles.detailText}>{ride.distance} km</Text>
+        <View style={styles.priceInfo}>
+          <IndianRupee size={16} color="#10B981" />
+          <Text style={styles.priceText}>
+            {ride.total_amount || ride.estimated_price || 0}
+          </Text>
         </View>
-        <View style={dynamicStyles.detailRow}>
-          <IndianRupee color={colors.textSecondary} size={14} />
-          <Text style={dynamicStyles.detailText}>₹{ride.fare}</Text>
-        </View>
-      </View>
-
-      <View style={dynamicStyles.customerInfo}>
-        <Text style={dynamicStyles.customerName}>{ride.customer_name}</Text>
       </View>
     </View>
   );
 
+  const renderEmptyState = () => (
+    <View style={styles.emptyState}>
+      <Text style={[styles.emptyTitle, { color: colors.text }]}>
+        No {getTabTitle().toLowerCase()} rides
+      </Text>
+      <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+        {activeTab === 'driving' && 'No rides are currently in progress'}
+        {activeTab === 'completed' && 'No rides have been completed yet'}
+        {activeTab === 'cancelled' && 'No rides have been cancelled'}
+      </Text>
+    </View>
+  );
+
+  const renderTabButton = (tab: 'driving' | 'completed' | 'cancelled', label: string, count: number) => (
+    <TouchableOpacity
+      key={tab}
+      style={[
+        styles.tabButton,
+        activeTab === tab && { backgroundColor: colors.primary },
+      ]}
+      onPress={() => setActiveTab(tab)}
+    >
+      <Text style={[
+        styles.tabButtonText,
+        { color: activeTab === tab ? '#FFFFFF' : colors.textSecondary },
+      ]}>
+        {label} ({count})
+      </Text>
+    </TouchableOpacity>
+  );
+
   return (
-    <SafeAreaView style={dynamicStyles.container}>
-      <View style={dynamicStyles.header}>
-        <View style={dynamicStyles.headerContent}>
-          <Text style={dynamicStyles.headerTitle}>My Trips</Text>
-          <Text style={dynamicStyles.headerSubtitle}>Welcome back, {user?.fullName || 'Driver'}! • Completed Trips</Text>
-        </View>
-        <TouchableOpacity onPress={handleDebugAPI} style={dynamicStyles.debugButton}>
-          <RefreshCw color={colors.primary} size={20} />
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: colors.text }]}>My Rides</Text>
+        <TouchableOpacity onPress={handleRefresh} disabled={refreshing}>
+          <RefreshCw size={24} color={colors.textSecondary} />
         </TouchableOpacity>
       </View>
 
-      <ScrollView 
-        style={dynamicStyles.content} 
-        showsVerticalScrollIndicator={false}
+      <View style={styles.tabContainer}>
+        {renderTabButton('driving', 'Driving', drivingRides.length)}
+        {renderTabButton('completed', 'Completed', completedRides.length)}
+        {renderTabButton('cancelled', 'Cancelled', cancelledRides.length)}
+      </View>
+
+      <ScrollView
+        style={styles.scrollView}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
+        showsVerticalScrollIndicator={false}
       >
         {loading ? (
-          <View style={dynamicStyles.loadingContainer}>
-            <Text style={dynamicStyles.loadingText}>Loading completed trips...</Text>
-          </View>
-        ) : completedTrips.length > 0 ? (
-          completedTrips.map((trip) => (
-            <RideCard key={trip.id} ride={trip} />
-          ))
-        ) : (
-          <View style={dynamicStyles.emptyContainer}>
-            <Text style={dynamicStyles.emptyText}>No completed trips yet</Text>
-            <Text style={dynamicStyles.emptySubtext}>
-              Your completed trips will appear here
+          <View style={styles.loadingContainer}>
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+              Loading rides...
             </Text>
           </View>
+        ) : getCurrentRides().length > 0 ? (
+          <View style={styles.ridesList}>
+            {getCurrentRides().map(renderRideCard)}
+          </View>
+        ) : (
+          renderEmptyState()
         )}
       </ScrollView>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+  },
+  tabContainer: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  tabButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginHorizontal: 4,
+    borderRadius: 8,
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+  },
+  tabButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  scrollView: {
+    flex: 1,
+    paddingHorizontal: 20,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  loadingText: {
+    fontSize: 16,
+  },
+  ridesList: {
+    paddingBottom: 20,
+  },
+  rideCard: {
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  rideHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  statusIcon: {
+    fontSize: 12,
+    marginRight: 4,
+  },
+  statusText: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  orderId: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  routeInfo: {
+    marginBottom: 12,
+  },
+  locationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  locationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 12,
+  },
+  locationText: {
+    fontSize: 16,
+    fontWeight: '500',
+    flex: 1,
+  },
+  rideDetails: {
+    marginBottom: 12,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  detailText: {
+    fontSize: 14,
+    marginLeft: 8,
+  },
+  rideFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  timeInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  timeText: {
+    fontSize: 14,
+    marginLeft: 6,
+  },
+  priceInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  priceText: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#10B981',
+    marginLeft: 4,
+  },
+  emptyState: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+});

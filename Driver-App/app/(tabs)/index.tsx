@@ -96,17 +96,19 @@ export default function DashboardScreen() {
   }, [user, dashboardData, loading, error, pendingOrders]);
 
   // Fetch dashboard data on component mount
-  useEffect(() => {
-    console.log('📱 DashboardScreen: fetchData called');
-    fetchData();
-  }, []);
+  // Lazy load dashboard data - only fetch when user explicitly requests it
+  // This prevents heavy API calls on app startup
+  // useEffect(() => {
+  //   console.log('📱 DashboardScreen: fetchData called');
+  //   fetchData();
+  // }, []);
 
-  // Fetch pending orders when dashboard data is loaded
-  useEffect(() => {
-    if (dashboardData && !loading) {
-      fetchPendingOrdersData();
-    }
-  }, [dashboardData, loading]);
+  // Lazy load pending orders - only fetch when user explicitly requests it
+  // useEffect(() => {
+  //   if (dashboardData && !loading) {
+  //     fetchPendingOrdersData();
+  //   }
+  // }, [dashboardData, loading]);
 
   // Check for new orders and send notifications
   useEffect(() => {
@@ -526,7 +528,7 @@ export default function DashboardScreen() {
 
         Alert.alert(
           'Booking Accepted',
-          `Order accepted successfully! SMS sent to customer: "DropCars: Your driver ${user?.fullName || 'Driver'} (${dashboardData?.cars?.[0]?.car_brand || 'Vehicle'} ${dashboardData?.cars?.[0]?.car_model || ''} - ${dashboardData?.cars?.[0]?.car_number || 'Number'}) has accepted your booking."`
+          'Order accepted successfully! Check Future rides to assign the car and driver within 10 minutes.'
         );
       } else {
         console.log('❌ Accept order response:', acceptResponse);
@@ -586,7 +588,7 @@ export default function DashboardScreen() {
             Welcome back, {dashboardData?.user_info?.full_name || user?.fullName || 'Vehicle Owner'}!
           </Text>
           <Text style={dynamicStyles.balanceLabel}>Available Balance</Text>
-          <Text style={dynamicStyles.balanceAmount}>₹{dashboardData?.user_info?.wallet_balance || balance || 0}</Text>
+          <Text style={dynamicStyles.balanceAmount}>₹{Math.round(Number(dashboardData?.user_info?.wallet_balance || balance || 0))}</Text>
         </TouchableOpacity>
 
         <View style={dynamicStyles.headerRight}>
@@ -637,7 +639,7 @@ export default function DashboardScreen() {
               </Text>
               <Text style={dynamicStyles.welcomeBannerSubtitle}>
                 {dashboardData?.cars && dashboardData.cars.length > 0 
-                  ? `Your ${dashboardData.cars[0].car_brand} ${dashboardData.cars[0].car_model} (${dashboardData.cars[0].car_number}) is ready for service. Start earning today!`
+                  ? `Your ${dashboardData.cars[0].car_brand || 'Vehicle'} ${dashboardData.cars[0].car_model || ''} (${dashboardData.cars[0].car_number || 'Number'}) is ready for service. Start earning today!`
                   : 'Complete your profile setup to start earning!'
                 }
               </Text>
@@ -646,7 +648,7 @@ export default function DashboardScreen() {
             {/* Quick Stats */}
             <View style={dynamicStyles.statsContainer}>
               <View style={dynamicStyles.statCard}>
-                <Text style={dynamicStyles.statNumber}>₹{dashboardData?.user_info?.wallet_balance || balance || 0}</Text>
+                <Text style={dynamicStyles.statNumber}>₹{Math.round(Number(dashboardData?.user_info?.wallet_balance || balance || 0))}</Text>
                 <Text style={dynamicStyles.statLabel}>Wallet Balance</Text>
               </View>
               <View style={dynamicStyles.statCard}>

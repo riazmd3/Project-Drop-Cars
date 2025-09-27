@@ -47,11 +47,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [availableDriversLoading, setAvailableDriversLoading] = useState(false);
   const [availableDriversError, setAvailableDriversError] = useState<string | null>(null);
 
-  // Auto-fetch data when context is created
-  useEffect(() => {
-    console.log('🚀 DashboardContext created, auto-fetching data...');
-    fetchData();
-  }, []);
+  // Remove auto-fetching to improve app startup performance
+  // Data will be fetched only when explicitly requested
 
   const fetchData = async () => {
     try {
