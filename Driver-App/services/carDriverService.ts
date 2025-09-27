@@ -292,8 +292,15 @@ export const signinCarDriver = async (request: CarDriverSigninRequest): Promise<
 export const setDriverOnline = async (driverId: string): Promise<CarDriverStatusResponse> => {
   try {
     console.log('🟢 Setting driver online:', driverId);
+    console.log('🔗 API Endpoint: PUT /api/users/cardriver/online');
 
     const response = await axiosDriver.put(`/api/users/cardriver/online`);
+
+    console.log('📊 Online API Response:', {
+      status: response.status,
+      data: response.data,
+      headers: response.headers
+    });
 
     if (response.data) {
       console.log('✅ Driver set online successfully:', response.data);
@@ -341,8 +348,15 @@ export const setDriverOnline = async (driverId: string): Promise<CarDriverStatus
 export const setDriverOffline = async (driverId: string): Promise<CarDriverStatusResponse> => {
   try {
     console.log('🔴 Setting driver offline:', driverId);
+    console.log('🔗 API Endpoint: PUT /api/users/cardriver/offline');
 
     const response = await axiosDriver.put(`/api/users/cardriver/offline`);
+
+    console.log('📊 Offline API Response:', {
+      status: response.status,
+      data: response.data,
+      headers: response.headers
+    });
 
     if (response.data) {
       console.log('✅ Driver set offline successfully:', response.data);

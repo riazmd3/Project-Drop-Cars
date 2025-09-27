@@ -63,8 +63,8 @@ export default function LoginScreen() {
     setLoading(true);
 
     try {
-      // Build both formats for maximum compatibility
-      const { withPlus, ten } = formatForBackend(phoneNumber);
+      // Build backend format (10 digits only)
+      const { ten } = formatForBackend(phoneNumber);
       
       const payload = {
         mobile_number: ten, // Send 10 digits only

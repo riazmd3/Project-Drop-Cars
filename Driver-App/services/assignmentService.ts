@@ -27,6 +27,36 @@ export interface PendingOrder {
   toll_charges: number; // Added for compatibility
 }
 
+// Available driver interface
+export interface AvailableDriver {
+  id: string;
+  full_name: string;
+  primary_number: string;
+  secondary_number?: string;
+  address: string;
+  aadhar_number: string;
+  status: string;
+  is_available: boolean;
+  current_assignment?: any;
+  updated_at: string;
+  created_at: string;
+  driver_status?: string;
+  adress?: string; // Alternative spelling
+  licence_number?: string; // Alternative field name
+}
+
+// Available car interface
+export interface AvailableCar {
+  id: string;
+  car_name: string;
+  car_number: string;
+  car_type: string;
+  is_available: boolean;
+  current_assignment?: any;
+  car_status?: string;
+  status?: string;
+}
+
 // Get pending orders for vehicle owner - using only /api/orders/vehicle_owner/pending
 export const getPendingOrders = async (): Promise<PendingOrder[]> => {
   console.log('📋 Fetching pending orders for vehicle owner...');
@@ -69,6 +99,10 @@ export const getPendingOrders = async (): Promise<PendingOrder[]> => {
 export const getDriverAssignmentsWithDetails = async (driverId: string): Promise<any[]> => {
   try {
     console.log('📋 Fetching driver assignments with details for driver:', driverId);
+    if (!driverId || driverId === 'undefined' || driverId === 'null') {
+      console.warn('⚠️ Skipping driver assignments fetch: invalid driverId');
+    return [];
+    }
     const authHeaders = await getAuthHeaders();
     
     const response = await axiosInstance.get(`/api/assignments/driver/${driverId}`, {
@@ -107,7 +141,7 @@ export const getOrderAssignments = async (orderId: string): Promise<any[]> => {
   } catch (error: any) {
     console.error('❌ Failed to fetch order assignments:', error);
     return [];
-  }
+      }
 };
 
 // Get future rides with details (for compatibility)
@@ -128,7 +162,7 @@ export const getFutureRidesWithDetails = async (): Promise<any[]> => {
 };
 
 // Fetch available drivers (for compatibility)
-export const fetchAvailableDrivers = async (): Promise<any[]> => {
+export const fetchAvailableDrivers = async (): Promise<AvailableDriver[]> => {
   try {
     console.log('👥 Fetching available drivers from assignment service...');
     const authHeaders = await getAuthHeaders();
@@ -140,6 +174,23 @@ export const fetchAvailableDrivers = async (): Promise<any[]> => {
     return response.data || [];
   } catch (error: any) {
     console.error('❌ Failed to fetch available drivers:', error);
+    return [];
+  }
+};
+
+// Fetch available cars (for compatibility)
+export const fetchAvailableCars = async (): Promise<AvailableCar[]> => {
+  try {
+    console.log('🚗 Fetching available cars from assignment service...');
+    const authHeaders = await getAuthHeaders();
+    
+    const response = await axiosInstance.get('/api/users/available-cars', {
+      headers: authHeaders
+    });
+
+    return response.data || [];
+  } catch (error: any) {
+    console.error('❌ Failed to fetch available cars:', error);
     return [];
   }
 };
@@ -161,24 +212,20 @@ export const checkOrderAvailability = async (orderId: string): Promise<boolean> 
   }
 };
 
-export const acceptOrder = async (orderData: {
-  order_id: string;
-  driver_id?: string;
-  car_id?: string;
-  vehicle_owner_id?: string;
-}): Promise<any> => {
+export const acceptOrder = async (orderData: { order_id: string | number }): Promise<any> => {
   try {
-    console.log('✅ Accepting order:', orderData);
+    const orderIdNum = typeof orderData.order_id === 'string' ? Number(orderData.order_id) : orderData.order_id;
+    console.log('✅ Accepting order via /api/assignments/acceptorder:', { order_id: orderIdNum });
     const authHeaders = await getAuthHeaders();
-    
-    const response = await axiosInstance.post('/api/orders/accept', orderData, {
-              headers: authHeaders
-            });
-            
+    const response = await axiosInstance.post('/api/assignments/acceptorder', { order_id: orderIdNum }, { headers: authHeaders });
     console.log('✅ Order accepted successfully:', response.data);
     return response.data;
   } catch (error: any) {
-    console.error('❌ Failed to accept order:', error);
+    console.error('❌ Failed to accept order:', {
+      message: error?.message,
+      status: error?.response?.status,
+      data: error?.response?.data,
+    });
     throw error;
   }
 };
@@ -242,6 +289,32 @@ export const endDriverTrip = async (tripId: string, endKm?: number, contactNumbe
     return response.data;
       } catch (error: any) {
     console.error('❌ Failed to end driver trip:', error);
+    throw error;
+  }
+};
+
+export const assignCarDriverToOrder = async (orderId: string | number, driverId: string, carId: string): Promise<any> => {
+  try {
+    console.log('🔗 Assigning car and driver to order:', { orderId, driverId, carId });
+    const authHeaders = await getAuthHeaders();
+    
+    const payload = {
+      driver_id: driverId,
+      car_id: carId
+    };
+    
+    const response = await axiosInstance.patch(`/api/assignments/${orderId}/assign-car-driver`, payload, {
+      headers: authHeaders
+    });
+    
+    console.log('✅ Car and driver assigned successfully:', response.data);
+    return response.data;
+  } catch (error: any) {
+    console.error('❌ Failed to assign car and driver:', {
+      message: error?.message,
+      status: error?.response?.status,
+      data: error?.response?.data,
+    });
     throw error;
   }
 };

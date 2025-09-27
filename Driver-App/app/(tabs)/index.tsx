@@ -19,7 +19,9 @@ import { Menu, Wallet, MapPin, Clock, User, Phone, Car, RefreshCw } from 'lucide
 import BookingCard from '@/components/BookingCard';
 import DrawerNavigation from '@/components/DrawerNavigation';
 import { fetchDashboardData, DashboardData, forceRefreshDashboardData } from '@/services/dashboardService';
-import { getPendingOrders, PendingOrder, checkOrderAvailability, acceptOrder } from '@/services/assignmentService';
+import { getPendingOrders, PendingOrder } from '@/services/assignmentService';
+import axiosInstance from '@/app/api/axiosInstance';
+import { getAuthHeaders } from '@/services/authService';
 
 interface Booking {
   booking_id: string;
@@ -422,6 +424,7 @@ export default function DashboardScreen() {
     },
   });
   const handleAcceptBooking = (order: PendingOrder) => {
+    if (processingOrderId && processingOrderId !== order.order_id.toString()) return;
     if (!canAcceptOrder(order)) {
       Alert.alert(
         'Insufficient Balance',
@@ -444,40 +447,41 @@ export default function DashboardScreen() {
 
   const { addFutureRide } = useDashboard();
 
+  // Just-in-time order availability check (VO token)
+  const isOrderFree = async (orderId: number): Promise<boolean> => {
+    try {
+      const headers = await getAuthHeaders();
+      const res = await axiosInstance.get(`/api/assignments/order/${orderId}`, { headers });
+      const list = Array.isArray(res.data) ? res.data : [];
+      const active = list.some((a: any) => a?.assignment_status && a.assignment_status !== 'CANCELLED');
+      return !active;
+    } catch (e) {
+      console.warn('isOrderFree check failed', e);
+      return false;
+    }
+  };
+
   const acceptBooking = async (order: PendingOrder) => {
     try {
       // Show loading state for this specific order
       setProcessingOrderId(order.order_id.toString());
-      
-      // First check if the order is still available
-      const isAvailable = await checkOrderAvailability(order.order_id.toString());
-      
-      if (!isAvailable) {
-        Alert.alert(
-          'Order No Longer Available',
-          'This order has already been taken by another vehicle owner. Refreshing available orders...',
-          [
-            {
-              text: 'OK',
-              onPress: () => {
-                // Refresh the orders list to remove already assigned orders
-                fetchPendingOrdersData();
-              }
-            }
-          ]
-        );
+      // Pre-check order availability just-in-time
+      const free = await isOrderFree(Number(order.order_id));
+      if (!free) {
+        setPendingOrders(prev => prev.filter(o => o.order_id !== order.order_id));
+        await fetchPendingOrdersData();
+        Alert.alert('Order Already Taken', 'Refreshing orders...');
         return;
       }
-      
-      // Call the new API to accept the order
-      const acceptResponse = await acceptOrder({
-        order_id: order.order_id.toString(),
-        vehicle_owner_id: user?.id || ''
-      });
 
-      if (acceptResponse.success) {
+      // Accept with VO token
+      const headers = await getAuthHeaders();
+      const acceptResponse = await axiosInstance.post('/api/assignments/acceptorder', { order_id: Number(order.order_id) }, { headers });
+
+      if (acceptResponse && (acceptResponse.success === true || acceptResponse.id)) {
         // Remove order from pending list
         setPendingOrders(prev => prev.filter(o => o.order_id !== order.order_id));
+        await fetchPendingOrdersData();
 
         const locations = getPickupDropLocations(order.pickup_drop_location);
         const ride: FutureRide = {
@@ -520,30 +524,37 @@ export default function DashboardScreen() {
       }
     } catch (error: any) {
       console.error('❌ Error accepting order:', error);
-      
-      // Check if it's an "already assigned" error
-      if (error.message.includes('already been accepted') || 
-          error.message.includes('already assigned') ||
-          error.message.includes('active assignment')) {
-        
+      const backendMsg = error?.response?.data?.detail || error?.response?.data?.message || '';
+
+      // Treat backend "already has an active assignment" as already taken
+      const alreadyTaken = (
+        error?.message?.includes('already been accepted') ||
+        error?.message?.includes('already assigned') ||
+        error?.message?.includes('active assignment') ||
+        backendMsg?.includes('already been accepted') ||
+        backendMsg?.includes('already assigned') ||
+        backendMsg?.includes('active assignment')
+      );
+
+      if (alreadyTaken) {
         Alert.alert(
           'Order Already Taken',
-          'This order has already been accepted by another vehicle owner. Refreshing available orders...',
+          'This order already has an active assignment. Refreshing available orders...',
           [
             {
               text: 'OK',
               onPress: () => {
-                // Refresh the orders list to remove already assigned orders
+                // Remove locally and refresh list
+                setPendingOrders(prev => prev.filter(o => o.order_id !== order.order_id));
                 fetchPendingOrdersData();
               }
             }
           ]
         );
+      } else if (backendMsg?.toLowerCase?.().includes('insufficient balance')) {
+        Alert.alert('Insufficient Balance', 'Please top up your wallet.');
       } else {
-        Alert.alert(
-          'Error',
-          error.message || 'Failed to accept order. Please try again.'
-        );
+        Alert.alert('Error', backendMsg || error.message || 'Failed to accept order. Please try again.');
       }
     } finally {
       setProcessingOrderId(null);
@@ -662,7 +673,7 @@ export default function DashboardScreen() {
                           fare_per_km: Number(order.cost_per_km ?? 0),
                         }}
                         onAccept={() => handleAcceptBooking(order)}
-                        disabled={!canAcceptOrder(order)}
+                        disabled={!canAcceptOrder(order) || processingOrderId === order.order_id.toString()}
                         loading={processingOrderId === order.order_id.toString()}
                       />
                     );

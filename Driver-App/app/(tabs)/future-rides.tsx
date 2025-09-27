@@ -14,8 +14,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useDashboard, FutureRide } from '@/contexts/DashboardContext';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { MapPin, Clock, IndianRupee, User, Phone, Car, X, CheckCircle, AlertCircle } from 'lucide-react-native';
-import { fetchAvailableDrivers, fetchAvailableCars, assignDriverAndCar, getOrderAssignments, assignCarDriverToOrder, getFutureRidesWithDetails, debugOrderAcceptance, AvailableDriver, AvailableCar } from '@/services/assignmentService';
-import { getPendingOrders as getVOPendingOrders } from '@/services/vehicleOwnerService';
+import { RefreshControl } from 'react-native';
+import { fetchAvailableDrivers, fetchAvailableCars, getOrderAssignments, assignCarDriverToOrder, AvailableDriver, AvailableCar } from '@/services/assignmentService';
+import { getPendingOrders as getVOPendingOrders, getFutureRidesForVehicleOwner } from '@/services/vehicleOwnerService';
 
 // Removed local interface - using imported FutureRide from DashboardContext
 
@@ -24,7 +25,7 @@ import { getPendingOrders as getVOPendingOrders } from '@/services/vehicleOwnerS
 export default function FutureRidesScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
-  const { dashboardData, loading, error, futureRides, updateFutureRide } = useDashboard();
+  const { dashboardData, loading, error, futureRides, updateFutureRide, refreshData } = useDashboard();
   const { sendOrderAssignedNotification } = useNotifications();
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showVehicleModal, setShowVehicleModal] = useState(false);
@@ -37,6 +38,7 @@ export default function FutureRidesScreen() {
   const [pendingOrdersLoading, setPendingOrdersLoading] = useState(false);
   const [apiFutureRides, setApiFutureRides] = useState<FutureRide[]>([]);
   const [apiRidesLoading, setApiRidesLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   // Combine context rides and API rides, dedupe by id (fallback to booking_id)
   const uniqueRides = useMemo(() => {
@@ -59,50 +61,43 @@ export default function FutureRidesScreen() {
     return Array.from(rideMap.values());
   }, [futureRides, apiFutureRides]);
 
-  // Fetch available drivers and cars from assignment endpoints
+  // Auto-fetch on mount and when dashboard data loads
   useEffect(() => {
-    fetchAvailableAssignments();
-  }, []);
+    if (dashboardData && !loading) {
+      fetchAvailableAssignments();
+      fetchFutureRidesFromAPI();
+    }
+  }, [dashboardData, loading]);
 
   const fetchFutureRidesFromAPI = async () => {
     try {
       setApiRidesLoading(true);
 
-      // Get future rides with complete order details
-      const ridesWithDetails = await getFutureRidesWithDetails();
+      // Fetch via VO endpoint using token-sub-decoded owner ID
+      const apiRides = await getFutureRidesForVehicleOwner();
+      const ridesArray = Array.isArray(apiRides) ? apiRides : [];
 
-      // Ensure we have an array to work with
-      const ridesArray = Array.isArray(ridesWithDetails) ? ridesWithDetails : [];
-
-      // Convert to FutureRide format
       const processedRides: FutureRide[] = ridesArray.map((ride: any) => ({
-        id: ride.id,
-        booking_id: ride.booking_id,
-        pickup: ride.pickup,
-        drop: ride.drop,
-        date: ride.date,
-        time: ride.time,
-        distance: typeof ride.distance === 'string' ? parseFloat(ride.distance.replace(' km', '')) || 0 : ride.distance || 0,
-        fare_per_km: 0, // Default value, would need to be fetched from order details
-        total_fare: typeof ride.total_fare === 'string' ? parseFloat(ride.total_fare.replace('₹', '')) || 0 : ride.total_fare || 0,
-        customer_name: ride.customer_name,
-        customer_mobile: ride.customer_mobile,
-        status: ride.status,
-        assigned_driver: ride.assigned_driver,
-        assigned_vehicle: ride.assigned_vehicle,
-        // Additional assignment fields (not part of FutureRide interface)
-        assignment_id: ride.assignment_id,
-        assignment_status: ride.assignment_status,
+        id: ride.id?.toString?.() || ride.assignment_id?.toString?.() || ride.booking_id?.toString?.(),
+        booking_id: ride.booking_id?.toString?.() || ride.order_id?.toString?.() || ride.id?.toString?.(),
+        pickup: ride.pickup || ride.pickup_city || ride.pickup_location || 'Unknown',
+        drop: ride.drop || ride.drop_city || ride.drop_location || 'Unknown',
+        date: ride.date || ride.created_at?.slice?.(0,10) || '',
+        time: ride.time || ride.created_at?.slice?.(11,16) || '',
+        distance: typeof ride.trip_distance === 'string' ? parseFloat(ride.trip_distance) || 0 : (ride.trip_distance || 0),
+        fare_per_km: typeof ride.cost_per_km === 'string' ? parseFloat(ride.cost_per_km) || 0 : (ride.cost_per_km || 0),
+        total_fare: typeof ride.estimated_price === 'string' ? parseFloat(ride.estimated_price) || 0 : (ride.estimated_price || 0),
+        customer_name: ride.customer_name || '',
+        customer_mobile: ride.customer_number || '',
+        status: ride.assignment_status || ride.status || 'confirmed',
+        assigned_driver: ride.assigned_driver || null,
+        assigned_vehicle: ride.assigned_vehicle || null,
+        assignment_id: ride.assignment_id || ride.id,
         expires_at: ride.expires_at,
         created_at: ride.created_at
-      } as FutureRide & {
-        assignment_id?: any;
-        assignment_status?: string;
-        expires_at?: string;
-        created_at?: string;
-      }));
+      } as any));
 
-      console.log('📋 Future rides loaded:', processedRides.length);
+      console.log('📋 Future rides loaded (VO):', processedRides.length);
       setApiFutureRides(processedRides);
 
     } catch (error) {
@@ -112,42 +107,21 @@ export default function FutureRidesScreen() {
       setApiRidesLoading(false);
     }
   };
-
-  const debugAPI = async () => {
-    try {
-      console.log('🐛 Starting API debug...');
-      
-      // Test with a sample order ID (you can change this to test with different orders)
-      const testOrderId = "5"; // This matches the order ID from your error logs
-      
-      // The function will automatically get the vehicle owner ID from JWT token
-      const result = await debugOrderAcceptance(testOrderId);
-      
-      Alert.alert(
-        'Debug Results',
-        `Status: ${result.success ? 'Success' : 'Failed'}\n\nDetails: ${JSON.stringify(result, null, 2)}`,
-        [{ text: 'OK' }]
-      );
-      
-    } catch (error: any) {
-      console.error('❌ Debug failed:', error);
-      Alert.alert('Debug Error', error.message || 'Debug failed');
-    }
-  };
+  
 
   const fetchPendingOrders = async () => {
     try {
       setPendingOrdersLoading(true);
       console.log('📋 Fetching pending orders...');
       
-      const orders = await getPendingOrders();
+      const orders = await getVOPendingOrders();
       console.log('📋 Raw pending orders:', orders);
       
       // Check assignment status for each order
       const ordersWithAssignmentStatus = await Promise.all(
         orders.map(async (order) => {
           try {
-            const assignments = await getOrderAssignments(order.id || order.order_id);
+            const assignments = await getOrderAssignments(String(order.id || order.order_id));
             const hasAssignedStatus = assignments.some(assignment => 
               assignment.assignment_status === 'ASSIGNED' || 
               assignment.assignment_status === 'DRIVING' || 
@@ -194,26 +168,53 @@ export default function FutureRidesScreen() {
       console.log('🔍 Raw drivers from API:', drivers);
       console.log('🔍 Dashboard drivers for comparison:', dashboardData?.drivers);
       
-      setAvailableDrivers(drivers);
-      setAvailableCars(cars);
+      // Process drivers to ensure they're marked as available
+      const processedDrivers = drivers.map(driver => ({
+        ...driver,
+        is_available: true, // Mark all fetched drivers as available
+        current_assignment: undefined
+      }));
+      
+      // Process cars to ensure they're marked as available
+      const processedCars = cars.map(car => ({
+        ...car,
+        is_available: true, // Mark all fetched cars as available
+        current_assignment: undefined
+      }));
+      
+      setAvailableDrivers(processedDrivers);
+      setAvailableCars(processedCars);
       
       console.log('✅ Available assignments loaded:', {
-        drivers: drivers.length,
-        cars: cars.length
+        drivers: processedDrivers.length,
+        cars: processedCars.length
       });
+      
+      // Debug: Log driver availability details
+      console.log('🔍 Driver availability details:', processedDrivers.map(d => ({
+        id: d.id,
+        name: d.full_name,
+        status: d.status,
+        is_available: d.is_available,
+        driver_status: d.driver_status
+      })));
     } catch (error) {
       console.error('❌ Failed to fetch available assignments:', error);
       // Fallback to dashboard data if assignment endpoints fail
       // Convert dashboard data to assignment format
       const fallbackDrivers: AvailableDriver[] = (dashboardData?.drivers || [])
-        .filter(driver => driver.driver_status === 'ONLINE' || driver.driver_status === 'PROCESSING') // Include ONLINE and PROCESSING drivers
+        .filter(driver => {
+          // Include all drivers regardless of status - let the assignment logic handle availability
+          const status = driver.driver_status;
+          return status !== 'OFFLINE' && status !== 'INACTIVE'; // Only exclude explicitly offline/inactive drivers
+        })
         .map(driver => ({
           ...driver,
           address: driver.adress, // Map adress to address
           aadhar_number: driver.licence_number, // Map licence_number to aadhar_number
           status: driver.driver_status, // Map driver_status to status
           updated_at: driver.created_at, // Use created_at as updated_at fallback
-          is_available: true, // Assume available as fallback
+          is_available: true, // Always show as available for assignment
           current_assignment: undefined
         }));
       
@@ -231,8 +232,40 @@ export default function FutureRidesScreen() {
       
       setAvailableDrivers(fallbackDrivers);
       setAvailableCars(fallbackCars);
+      
+      // Debug: Log fallback driver availability details
+      console.log('🔍 Fallback driver availability details:', fallbackDrivers.map(d => ({
+        id: d.id,
+        name: d.full_name,
+        status: d.status,
+        is_available: d.is_available,
+        driver_status: d.driver_status
+      })));
     } finally {
       setAssignmentsLoading(false);
+    }
+  };
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      console.log('🔄 Refreshing future rides data...');
+      await Promise.all([
+        fetchAvailableAssignments(),
+        fetchFutureRidesFromAPI(),
+        fetchPendingOrders()
+      ]);
+      
+      // Also refresh dashboard data to get latest future rides
+      if (refreshData) {
+        await refreshData();
+      }
+      
+      console.log('✅ Future rides data refreshed successfully');
+    } catch (error) {
+      console.error('❌ Error refreshing future rides data:', error);
+    } finally {
+      setRefreshing(false);
     }
   };
 
@@ -311,8 +344,10 @@ export default function FutureRidesScreen() {
       }
       
       // Use the new API endpoint for assigning driver and car
-      // Use assignment_id instead of booking_id (order_id)
-      const assignmentId = selectedRide.assignment_id || selectedRide.id;
+      // Use assignment_id from the ride (this is the assignment ID from the database)
+      const assignmentId = selectedRide.assignment_id || selectedRide.booking_id || selectedRide.id;
+      console.log('🔗 Using assignment ID for assignment:', assignmentId);
+      
       const assignment = await assignCarDriverToOrder(
         assignmentId,
         selectedDriver.id,
@@ -546,6 +581,12 @@ export default function FutureRidesScreen() {
       fontFamily: 'Inter-SemiBold',
       color: colors.text,
     },
+    customerMobile: {
+      fontSize: 12,
+      fontFamily: 'Inter-Medium',
+      color: colors.textSecondary,
+      marginTop: 2,
+    },
     assignButton: {
       backgroundColor: colors.primary,
       borderRadius: 12,
@@ -729,79 +770,116 @@ export default function FutureRidesScreen() {
     );
   }
 
-  const RideCard = ({ ride }: { ride: FutureRide }) => (
-    <View style={dynamicStyles.rideCard}>
-      <View style={dynamicStyles.rideHeader}>
-        <Text style={dynamicStyles.bookingId}>#{ride.booking_id}</Text>
-        <View style={[
-          dynamicStyles.statusBadge,
-          ride.status === 'assigned' && dynamicStyles.assignedBadge,
-          ride.status === 'pending_assignment' && { backgroundColor: colors.warning }
-        ]}>
-          <Text style={dynamicStyles.statusText}>
-            {ride.status === 'assigned' ? 'ASSIGNED' : 
-             ride.status === 'pending_assignment' ? 'PENDING ASSIGNMENT' : 'CONFIRMED'}
-          </Text>
-        </View>
-      </View>
+  const RideCard = ({ ride }: { ride: FutureRide }) => {
+    // Use the same robust mapping as BookingCard
+    const toNumber = (v: any): number => {
+      if (v === null || v === undefined || v === '') return 0;
+      const n = Number(v);
+      return Number.isFinite(n) ? n : 0;
+    };
 
-      <View style={dynamicStyles.routeContainer}>
-        <View style={dynamicStyles.routeRow}>
-          <MapPin color={colors.success} size={16} />
-          <Text style={dynamicStyles.routeText}>{ride.pickup}</Text>
-        </View>
-        <View style={dynamicStyles.routeLine} />
-        <View style={dynamicStyles.routeRow}>
-          <MapPin color={colors.error} size={16} />
-          <Text style={dynamicStyles.routeText}>{ride.drop}</Text>
-        </View>
-      </View>
+    const safePickLoc = (v: any): Record<string, string> => {
+      if (!v) return {};
+      if (typeof v === 'string') {
+        try { return JSON.parse(v); } catch { return {}; }
+      }
+      return v;
+    };
 
-      <View style={dynamicStyles.rideDetails}>
-        <View style={dynamicStyles.detailRow}>
-          <Clock color={colors.textSecondary} size={14} />
-          <Text style={dynamicStyles.detailText}>{ride.date} at {ride.time}</Text>
-        </View>
-        <View style={dynamicStyles.detailRow}>
-          <Car color={colors.textSecondary} size={14} />
-          <Text style={dynamicStyles.detailText}>{ride.distance} km</Text>
-        </View>
-        <View style={dynamicStyles.detailRow}>
-          <IndianRupee color={colors.textSecondary} size={14} />
-          <Text style={dynamicStyles.detailText}>₹{ride.total_fare}</Text>
-        </View>
-      </View>
+    // Derive fields robustly in case parent passes raw VO pending order
+    const loc = safePickLoc((ride as any).pickup_drop_location);
+    const cities = Object.values(loc || {});
+    const pickup = ride.pickup || String(cities[0] ?? '');
+    const drop = ride.drop || String(cities[1] ?? '');
 
-      <View style={dynamicStyles.customerInfo}>
-        <Text style={dynamicStyles.customerName}>{ride.customer_name}</Text>
-      </View>
+    const displayPrice = toNumber((ride as any).estimated_price ?? (ride as any).vendor_price ?? ride.total_fare);
+    const customerNumber = (ride as any).customer_number || (ride as any).customer_mobile || ride.customer_mobile || '';
+    const orderId = (ride as any).order_id || ride.booking_id || ride.id;
+    const tripDistance = toNumber((ride as any).trip_distance ?? ride.distance);
+    const farePerKm = toNumber((ride as any).fare_per_km ?? ride.fare_per_km);
 
-      {ride.assigned_driver && ride.assigned_vehicle ? (
-        <View style={dynamicStyles.assignedInfo}>
-          <Text style={dynamicStyles.assignedText}>
-            Driver: {ride.assigned_driver.full_name || ride.assigned_driver.name} ({ride.assigned_driver.primary_number || ride.assigned_driver.mobile})
-          </Text>
-          <Text style={dynamicStyles.assignedText}>
-            Vehicle: {ride.assigned_vehicle.car_name} ({ride.assigned_vehicle.car_number})
-          </Text>
+    return (
+      <View style={dynamicStyles.rideCard}>
+        <View style={dynamicStyles.rideHeader}>
+          <Text style={dynamicStyles.bookingId}>#{orderId}</Text>
+          <View style={[
+            dynamicStyles.statusBadge,
+            ride.status === 'assigned' && dynamicStyles.assignedBadge,
+            ride.status === 'pending_assignment' && { backgroundColor: colors.warning }
+          ]}>
+            <Text style={dynamicStyles.statusText}>
+              {ride.status === 'assigned' ? 'ASSIGNED' : 
+               ride.status === 'pending_assignment' ? 'PENDING ASSIGNMENT' : 'CONFIRMED'}
+            </Text>
+          </View>
         </View>
-      ) : ride.status === 'pending_assignment' ? (
-        <TouchableOpacity 
-          style={[dynamicStyles.assignButton, { backgroundColor: colors.warning }]}
-          onPress={() => openAssignmentModal(ride)}
-        >
-          <Text style={dynamicStyles.assignButtonText}>Assign Driver & Vehicle</Text>
-        </TouchableOpacity>
-      ) : (
-        <TouchableOpacity 
-          style={dynamicStyles.assignButton}
-          onPress={() => openAssignmentModal(ride)}
-        >
-          <Text style={dynamicStyles.assignButtonText}>Assign Driver & Vehicle</Text>
-        </TouchableOpacity>
-      )}
-    </View>
-  );
+
+        <View style={dynamicStyles.routeContainer}>
+          <View style={dynamicStyles.routeRow}>
+            <MapPin color={colors.success} size={16} />
+            <Text style={dynamicStyles.routeText}>{pickup}</Text>
+          </View>
+          <View style={dynamicStyles.routeLine} />
+          <View style={dynamicStyles.routeRow}>
+            <MapPin color={colors.error} size={16} />
+            <Text style={dynamicStyles.routeText}>{drop}</Text>
+          </View>
+        </View>
+
+        <View style={dynamicStyles.rideDetails}>
+          <View style={dynamicStyles.detailRow}>
+            <Clock color={colors.textSecondary} size={14} />
+            <Text style={dynamicStyles.detailText}>{ride.date} at {ride.time}</Text>
+          </View>
+          <View style={dynamicStyles.detailRow}>
+            <Car color={colors.textSecondary} size={14} />
+            <Text style={dynamicStyles.detailText}>{tripDistance} km</Text>
+          </View>
+          <View style={dynamicStyles.detailRow}>
+            <IndianRupee color={colors.textSecondary} size={14} />
+            <Text style={dynamicStyles.detailText}>₹{displayPrice}</Text>
+          </View>
+          {farePerKm > 0 && (
+            <View style={dynamicStyles.detailRow}>
+              <Text style={dynamicStyles.detailText}>₹{farePerKm}/km</Text>
+            </View>
+          )}
+        </View>
+
+        <View style={dynamicStyles.customerInfo}>
+          <Text style={dynamicStyles.customerName}>{ride.customer_name}</Text>
+          {customerNumber && (
+            <Text style={dynamicStyles.customerMobile}>{customerNumber}</Text>
+          )}
+        </View>
+
+        {ride.assigned_driver && ride.assigned_vehicle ? (
+          <View style={dynamicStyles.assignedInfo}>
+            <Text style={dynamicStyles.assignedText}>
+              Driver: {ride.assigned_driver.full_name || ride.assigned_driver.name} ({ride.assigned_driver.primary_number || ride.assigned_driver.mobile})
+            </Text>
+            <Text style={dynamicStyles.assignedText}>
+              Vehicle: {ride.assigned_vehicle.car_name} ({ride.assigned_vehicle.car_number})
+            </Text>
+          </View>
+        ) : ride.status === 'pending_assignment' ? (
+          <TouchableOpacity 
+            style={[dynamicStyles.assignButton, { backgroundColor: colors.warning }]}
+            onPress={() => openAssignmentModal(ride)}
+          >
+            <Text style={dynamicStyles.assignButtonText}>Assign Driver & Vehicle</Text>
+          </TouchableOpacity>
+        ) : (
+          <TouchableOpacity 
+            style={dynamicStyles.assignButton}
+            onPress={() => openAssignmentModal(ride)}
+          >
+            <Text style={dynamicStyles.assignButtonText}>Assign Driver & Vehicle</Text>
+          </TouchableOpacity>
+        )}
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={dynamicStyles.container}>
@@ -813,20 +891,25 @@ export default function FutureRidesScreen() {
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
           <TouchableOpacity 
             style={[dynamicStyles.assignButton, { flex: 1, backgroundColor: colors.warning }]}
-            onPress={fetchFutureRidesFromAPI}
+            onPress={handleRefresh}
           >
-            <Text style={dynamicStyles.assignButtonText}>Refresh Future Rides</Text>
-          </TouchableOpacity>
-          <TouchableOpacity 
-            style={[dynamicStyles.assignButton, { flex: 1, backgroundColor: colors.error }]}
-            onPress={debugAPI}
-          >
-            <Text style={dynamicStyles.assignButtonText}>Debug API</Text>
+            <Text style={dynamicStyles.assignButtonText}>Refresh All Data</Text>
           </TouchableOpacity>
         </View>
       </View>
 
-      <ScrollView style={dynamicStyles.content} showsVerticalScrollIndicator={false}>
+      <ScrollView 
+        style={dynamicStyles.content} 
+        showsVerticalScrollIndicator={false}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            colors={[colors.primary]}
+            tintColor={colors.primary}
+          />
+        }
+      >
         {apiRidesLoading ? (
           <View style={dynamicStyles.loadingContainer}>
             <Text style={dynamicStyles.loadingText}>Loading future rides from API...</Text>

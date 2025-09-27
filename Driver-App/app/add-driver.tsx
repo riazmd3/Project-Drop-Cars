@@ -441,8 +441,8 @@ export default function AddDriverScreen() {
           />
 
           <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-            <Save color="#FFFFFF" size={20} />
-            <Text style={styles.saveButtonText}>Save Driver & Continue</Text>
+                <Save color="#FFFFFF" size={20} />
+                <Text style={styles.saveButtonText}>Save Driver & Continue</Text>
           </TouchableOpacity>
         </View>
       </ScrollView>
