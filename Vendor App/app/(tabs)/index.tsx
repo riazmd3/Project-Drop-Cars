@@ -312,7 +312,7 @@ export default function DashboardScreen() {
             <View style={styles.emptyState}>
               <Car size={48} color="#9CA3AF" />
               <Text style={styles.emptyStateText}>No orders yet</Text>
-              <Text style={styles.emptyStateSubtext}>Orders will appear here when customers book your cars</Text>
+              <Text style={styles.emptyStateSubtext}>Creae an Order from New Order Page</Text>
             </View>
           ) : (
             <>

@@ -34,6 +34,7 @@ import {
   Info
 } from 'lucide-react-native';
 import api from '../../app/api/api';
+import { Colors } from 'react-native/Libraries/NewAppScreen';
 
 interface OrderDetail {
   id: number;
@@ -276,6 +277,38 @@ export default function OrderDetailsComponent() {
               <Text style={styles.infoLabel}>Duration:</Text>
               <Text style={styles.infoValue}>{orderDetails.trip_time}</Text>
             </View>
+            <View style={styles.infoRow}>
+              <Timer size={16} color="#6B7280" />
+              <Text style={styles.infoLabel}>Accepted Status:</Text>
+              <Text style={[styles.infoValue,{color: orderDetails.assignments.length == 0? "red" : "#10B981"}]}>{orderDetails.assignments.length == 0?"Waiting to accept":"Order Accepted"}</Text>
+            </View>
+            {orderDetails.assignments.length > 0?(            
+              <>
+                <View style={styles.infoRow}>
+                <Timer size={16} color="#6B7280" />
+                <Text style={styles.infoLabel}>Driver Status:</Text>
+                <Text style={[styles.infoValue,{color: orderDetails.assigned_driver_name == null? "red" : "#10B981"}]}>{orderDetails.assigned_driver_name == null?"Not Assigned":"Assigned"}</Text>
+              </View>
+              <View style={styles.infoRow}>
+                <Timer size={16} color="#6B7280" />
+                <Text style={styles.infoLabel}>Car Status:</Text>
+                <Text style={[styles.infoValue,{color: orderDetails.assigned_car_name == null? "red" : "#10B981"}]}>{orderDetails.assigned_car_name == null?"Not Assigned":"Assigned"}</Text>
+              </View>
+              </>)
+            :null}
+
+            {/* <View style={styles.infoRow}>
+              <Timer size={16} color="#6B7280" />
+              <Text style={styles.infoLabel}>Driver Status:</Text>
+              <Text style={[styles.infoValue,{color: orderDetails.assigned_driver_name == null? "red" : "#10B981"}]}>{orderDetails.assigned_driver_name == null?"Not Assigned":"Assigned"}</Text>
+            </View>
+            <View style={styles.infoRow}>
+              <Timer size={16} color="#6B7280" />
+              <Text style={styles.infoLabel}>Car Status:</Text>
+              <Text style={[styles.infoValue,{color: orderDetails.assigned_car_name == null? "red" : "#10B981"}]}>{orderDetails.assigned_car_name == null?"Not Assigned":"Assigned"}</Text>
+            </View> */}
+
+
           </View>
         </View>
 
@@ -421,12 +454,12 @@ export default function OrderDetailsComponent() {
                 <View style={styles.kmItem}>
                   <Text style={styles.kmLabel}>Total KM</Text>
                   <Text style={[styles.kmValue, styles.totalKm]}>
-                    {latestEndRecord.end_km - latestEndRecord.start_km}
+                    {latestEndRecord.end_km>0? latestEndRecord.end_km - latestEndRecord.start_km:0}
                   </Text>
                 </View>
               </View>
               
-              {latestEndRecord.img_url && (
+              {/* {latestEndRecord.img_url && (
                 <View style={styles.imageSection}>
                   <Text style={styles.imageLabel}>Speedometer Images</Text>
                   <View style={styles.imageRow}>
@@ -442,7 +475,7 @@ export default function OrderDetailsComponent() {
                     )}
                   </View>
                 </View>
-              )}
+              )} */}
             </View>
           </View>
         )}
