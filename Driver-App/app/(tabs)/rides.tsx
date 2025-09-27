@@ -291,13 +291,13 @@ export default function RidesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    container: {
+      flex: 1,
+    },
+    header: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
   },
@@ -311,21 +311,21 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   tabButton: {
-    flex: 1,
+      flex: 1,
     paddingVertical: 12,
     paddingHorizontal: 16,
     marginHorizontal: 4,
-    borderRadius: 8,
+      borderRadius: 8,
     alignItems: 'center',
     backgroundColor: '#F3F4F6',
   },
   tabButtonText: {
-    fontSize: 14,
+      fontSize: 14,
     fontWeight: '600',
-  },
+    },
   scrollView: {
-    flex: 1,
-    paddingHorizontal: 20,
+      flex: 1,
+      paddingHorizontal: 20,
   },
   loadingContainer: {
     flex: 1,
@@ -338,37 +338,37 @@ const styles = StyleSheet.create({
   },
   ridesList: {
     paddingBottom: 20,
-  },
-  rideCard: {
+    },
+    rideCard: {
     borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+      padding: 16,
+      marginBottom: 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-  },
-  rideHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  statusBadge: {
+    },
+    rideHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#F3F4F6',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
     borderRadius: 6,
   },
   statusIcon: {
     fontSize: 12,
     marginRight: 4,
-  },
-  statusText: {
-    fontSize: 12,
+    },
+    statusText: {
+      fontSize: 12,
     fontWeight: '600',
   },
   orderId: {
@@ -376,11 +376,11 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   routeInfo: {
-    marginBottom: 12,
-  },
+      marginBottom: 12,
+    },
   locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+      flexDirection: 'row',
+      alignItems: 'center',
     marginBottom: 8,
   },
   locationDot: {
@@ -393,16 +393,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '500',
     flex: 1,
-  },
-  rideDetails: {
-    marginBottom: 12,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    },
+    rideDetails: {
+      marginBottom: 12,
+    },
+    detailRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
     marginBottom: 6,
-  },
-  detailText: {
+    },
+    detailText: {
     fontSize: 14,
     marginLeft: 8,
   },
@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     paddingTop: 12,
-    borderTopWidth: 1,
+      borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
   },
   timeInfo: {
@@ -419,12 +419,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   timeText: {
-    fontSize: 14,
+      fontSize: 14,
     marginLeft: 6,
-  },
+    },
   priceInfo: {
     flexDirection: 'row',
-    alignItems: 'center',
+      alignItems: 'center',
   },
   priceText: {
     fontSize: 18,
@@ -433,19 +433,19 @@ const styles = StyleSheet.create({
     marginLeft: 4,
   },
   emptyState: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
+      flex: 1,
+      justifyContent: 'center',
+      alignItems: 'center',
     paddingVertical: 60,
   },
   emptyTitle: {
     fontSize: 18,
     fontWeight: '600',
-    marginBottom: 8,
-  },
+      marginBottom: 8,
+    },
   emptySubtitle: {
-    fontSize: 14,
-    textAlign: 'center',
+      fontSize: 14,
+      textAlign: 'center',
     lineHeight: 20,
-  },
-});
+    },
+  });

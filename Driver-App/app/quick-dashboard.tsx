@@ -357,8 +357,8 @@ export default function QuickDashboardScreen() {
     router.push({
       pathname: '/trip/start',
       params: {
-        assignmentId: order.assignment_id,
-        orderId: order.order_id,
+        assignment_id: order.assignment_id,
+        order_id: order.order_id,
         customerName: order.customer_name,
         pickup: order.pickup,
         drop: order.drop,

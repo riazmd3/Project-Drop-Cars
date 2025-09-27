@@ -19,7 +19,7 @@ export default function StartTripScreen() {
   const [odometerPhoto, setOdometerPhoto] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
-  const params = useLocalSearchParams<{ orderId?: string; farePerKm?: string; assignmentId?: string }>();
+  const params = useLocalSearchParams<{ order_id?: string; farePerKm?: string; assignment_id?: string }>();
 
   const takeOdometerPhoto = async () => {
     try {
@@ -45,20 +45,20 @@ export default function StartTripScreen() {
     if (submitting) return;
     try {
       setSubmitting(true);
-      // Prefer assignmentId if provided (recommended)
-      const assignmentId = String(params.assignmentId || '');
-      if (!assignmentId) {
+      // Prefer assignment_id if provided (recommended)
+      const assignment_id = String(params.assignment_id || '');
+      if (!assignment_id) {
         // If no assignment id, continue UI flow without API to prevent blocking
-        console.warn('No assignmentId provided to start trip; navigating without API call');
+        console.warn('No assignment_id provided to start trip; navigating without API call');
       } else {
-        await startTrip(parseInt(assignmentId), parseInt(startKm, 10), odometerPhoto);
+        await startTrip(parseInt(params.order_id || ''), parseInt(startKm, 10), odometerPhoto);
       }
 
       router.replace({
         pathname: '/trip/end',
         params: {
-          orderId: String(params.orderId || ''),
-          assignmentId,
+          order_id: String(params.order_id || ''),
+          assignment_id,
           startKm: String(startKm),
           farePerKm: String(params.farePerKm || '0'),
         }

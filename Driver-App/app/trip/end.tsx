@@ -24,7 +24,7 @@ export default function EndTripScreen() {
   const [thanked, setThanked] = useState(false);
   const { deductMoney } = useWallet();
   const router = useRouter();
-  const params = useLocalSearchParams<{ orderId?: string; assignmentId?: string; startKm?: string; farePerKm?: string }>();
+  const params = useLocalSearchParams<{ order_id?: string; assignment_id?: string; startKm?: string; farePerKm?: string }>();
 
   const startKm = parseInt(String(params.startKm || '0')) || 0;
   const farePerKm = parseFloat(String(params.farePerKm || '0')) || 0;
@@ -68,11 +68,11 @@ export default function EndTripScreen() {
 
     try {
       setSubmitting(true);
-      const assignmentId = String(params.assignmentId || '');
-      if (assignmentId) {
-        await endTrip(parseInt(assignmentId), parseInt(endKm, 10), contactNumber, odometerPhoto);
+      const assignment_id = String(params.assignment_id || '');
+      if (assignment_id) {
+        await endTrip(parseInt(params.order_id || ''), parseInt(endKm, 10), contactNumber, odometerPhoto);
       } else {
-        console.warn('No assignmentId provided to end trip; finishing without API call');
+        console.warn('No assignment_id provided to end trip; finishing without API call');
       }
 
       // Deduct commission (ignore backend errors for missing route)
