@@ -333,25 +333,20 @@ export default function QuickDashboardScreen() {
   }, [activeTrip]);
 
   const handleEndTrip = useCallback(async (order: DriverOrder) => {
-    // For now, show an alert that trip end requires additional data
-    // In a real implementation, you would navigate to a trip end screen
-    Alert.alert(
-      'Trip End',
-      'To end a trip, you need to:\n• Enter ending odometer reading\n• Enter contact number\n• Take end speedometer photo\n\nThis feature requires a trip end screen with camera functionality.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Continue', 
-          onPress: () => {
-            // Navigate to trip end screen or show input modal
-            console.log('Navigate to trip end screen for order:', order.order_id);
-            // For now, just show a placeholder
-            Alert.alert('Info', 'Trip end screen would open here with camera, odometer input, and contact form');
-          }
-        }
-      ]
-    );
-  }, [loadDriverData]);
+    // Navigate to trip end screen
+    router.push({
+      pathname: '/trip/end',
+      params: {
+        assignment_id: order.assignment_id,
+        order_id: order.order_id,
+        customerName: order.customer_name,
+        pickup: order.pickup,
+        drop: order.drop,
+        startKm: '0', // Default start KM, will be updated from trip start
+        farePerKm: '0', // Default fare per KM
+      }
+    });
+  }, [router]);
 
   const navigateToTrip = useCallback((order: DriverOrder) => {
     router.push({
@@ -585,8 +580,8 @@ export default function QuickDashboardScreen() {
                   </View>
                   
                   {/* Show different buttons based on trip state */}
-                  {activeTrip && activeTrip.order_id === order.order_id ? (
-                    // Active trip - show end trip button
+                  {(activeTrip && activeTrip.order_id === order.order_id) || order.assignment_status === 'DRIVING' ? (
+                    // Active trip or DRIVING status - show end trip button
                     <TouchableOpacity 
                       style={[styles.endTripButton, { backgroundColor: '#EF4444' }]}
                       onPress={() => handleEndTrip(order)}
@@ -611,7 +606,7 @@ export default function QuickDashboardScreen() {
                       <Text style={styles.startTripText}>Trip Active</Text>
                     </TouchableOpacity>
                   ) : (
-                    // No active trip - show start trip button
+                    // No active trip and not DRIVING - show start trip button
                     <TouchableOpacity 
                       style={[styles.startTripButton, { backgroundColor: colors.primary }]}
                       onPress={() => handleStartTrip(order)}

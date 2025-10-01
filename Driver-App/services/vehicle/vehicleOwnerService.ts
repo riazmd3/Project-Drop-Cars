@@ -180,28 +180,56 @@ export async function getFutureRidesForVehicleOwner(): Promise<FutureRideView[]>
     const authHeaders = await getAuthHeaders();
     console.log('🔑 Auth headers ready:', !!(authHeaders as any)?.Authorization);
 
+    // Get current user ID from token
+    const token = await SecureStore.getItemAsync('authToken');
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const currentUserId = extractUserIdFromJWT(token);
+    if (!currentUserId) {
+      throw new Error('Could not extract user ID from token');
+    }
+
+    console.log('🔍 Current user ID:', currentUserId);
+
     // Fetch pending orders using the correct API
     const response = await axiosInstance.get('/api/orders/vehicle-owner/pending', {
       headers: authHeaders,
     });
 
     const data: PendingOrder[] = Array.isArray(response.data) ? response.data : [];
-    console.log(`✅ Future rides fetched: ${data.length} orders`);
+    console.log(`✅ Future rides fetched: ${data.length} orders (before filtering)`);
 
-    if (data.length > 0) {
-      console.log('📦 Sample future ride:', {
-        id: data[0].id,
-        trip_type: data[0].trip_type,
-        car_type: data[0].car_type,
-        estimated_price: data[0].estimated_price,
-        vendor_price: data[0].vendor_price,
-        trip_distance: data[0].trip_distance,
-        pickup_drop_location: data[0].pickup_drop_location,
+    // Filter orders to only show those belonging to the current user
+    const filteredData = data.filter((order) => {
+      // Check if the order belongs to the current user
+      const orderBelongsToUser = order.vendor_id === currentUserId;
+      
+      // Also filter out orders with alphanumeric IDs (like B43) as they seem to be from other accounts
+      const hasValidId = order.id && typeof order.id === 'number' && order.id > 0;
+      
+      return orderBelongsToUser && hasValidId;
+    });
+
+    console.log(`🔍 Filtered future rides: ${filteredData.length} orders (after filtering)`);
+
+    if (filteredData.length > 0) {
+      console.log('📦 Sample filtered future ride:', {
+        id: filteredData[0].id,
+        vendor_id: filteredData[0].vendor_id,
+        currentUserId,
+        trip_type: filteredData[0].trip_type,
+        car_type: filteredData[0].car_type,
+        estimated_price: filteredData[0].estimated_price,
+        vendor_price: filteredData[0].vendor_price,
+        trip_distance: filteredData[0].trip_distance,
+        pickup_drop_location: filteredData[0].pickup_drop_location,
       });
     }
 
     // Map the data to FutureRideView format
-    return data.map((order) => {
+    return filteredData.map((order) => {
       const loc = safePickLoc(order.pickup_drop_location);
       const cities = Object.values(loc || {});
       const pickup_city = cities[0] || 'Unknown';
@@ -251,27 +279,55 @@ export async function getCompletedOrdersForVehicleOwner(): Promise<FutureRideVie
     const authHeaders = await getAuthHeaders();
     console.log('🔑 Auth headers ready:', !!(authHeaders as any)?.Authorization);
 
+    // Get current user ID from token
+    const token = await SecureStore.getItemAsync('authToken');
+    if (!token) {
+      throw new Error('No authentication token found');
+    }
+
+    const currentUserId = extractUserIdFromJWT(token);
+    if (!currentUserId) {
+      throw new Error('Could not extract user ID from token');
+    }
+
+    console.log('🔍 Current user ID:', currentUserId);
+
     // Fetch non-pending orders using the correct API
     const response = await axiosInstance.get('/api/orders/vehicle-owner/non-pending', {
       headers: authHeaders,
     });
 
     const data: PendingOrder[] = Array.isArray(response.data) ? response.data : [];
-    console.log(`✅ Completed orders fetched: ${data.length} orders`);
+    console.log(`✅ Completed orders fetched: ${data.length} orders (before filtering)`);
 
-    if (data.length > 0) {
-      console.log('📦 Sample completed order:', {
-        id: data[0].id,
-        trip_status: data[0].trip_status,
-        assignment_status: data[0].assignment_status,
-        estimated_price: data[0].estimated_price,
-        vendor_price: data[0].vendor_price,
-        trip_distance: data[0].trip_distance,
+    // Filter orders to only show those belonging to the current user
+    const filteredData = data.filter((order) => {
+      // Check if the order belongs to the current user
+      const orderBelongsToUser = order.vendor_id === currentUserId;
+      
+      // Also filter out orders with alphanumeric IDs (like B43) as they seem to be from other accounts
+      const hasValidId = order.id && typeof order.id === 'number' && order.id > 0;
+      
+      return orderBelongsToUser && hasValidId;
+    });
+
+    console.log(`🔍 Filtered completed orders: ${filteredData.length} orders (after filtering)`);
+
+    if (filteredData.length > 0) {
+      console.log('📦 Sample filtered completed order:', {
+        id: filteredData[0].id,
+        vendor_id: filteredData[0].vendor_id,
+        currentUserId,
+        trip_status: filteredData[0].trip_status,
+        assignment_status: filteredData[0].assignment_status,
+        estimated_price: filteredData[0].estimated_price,
+        vendor_price: filteredData[0].vendor_price,
+        trip_distance: filteredData[0].trip_distance,
       });
     }
 
     // Map the data to FutureRideView format
-    return data.map((order) => {
+    return filteredData.map((order) => {
       const loc = safePickLoc(order.pickup_drop_location);
       const cities = Object.values(loc || {});
       const pickup_city = cities[0] || 'Unknown';
