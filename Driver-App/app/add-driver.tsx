@@ -41,11 +41,6 @@ export default function AddDriverScreen() {
   
   const [driverImages, setDriverImages] = useState({
     licence_front_img: '',
-    rc_front_img: '',
-    rc_back_img: '',
-    insurance_img: '',
-    fc_img: '',
-    car_img: '',
   });
 
   const [errors, setErrors] = useState<{[key: string]: string}>({});
@@ -393,9 +388,9 @@ export default function AddDriverScreen() {
           </View>
           {errors.adress && <Text style={styles.errorText}>{errors.adress}</Text>}
 
-          <Text style={styles.sectionTitle}>Required Documents & Images</Text>
+          <Text style={styles.sectionTitle}>Required Document</Text>
           <Text style={styles.sectionSubtitle}>
-            Please upload clear images of all required documents
+            Please upload a clear image of your driving license
           </Text>
 
           <ImageUploadField
@@ -403,41 +398,6 @@ export default function AddDriverScreen() {
             description="Front side of driving licence"
             imageKey="licence_front_img"
             isRequired={true}
-          />
-
-          <ImageUploadField
-            title="RC Front Image"
-            description="Registration Certificate front side (Optional)"
-            imageKey="rc_front_img"
-            isRequired={false}
-          />
-
-          <ImageUploadField
-            title="RC Back Image"
-            description="Registration Certificate back side (Optional)"
-            imageKey="rc_back_img"
-            isRequired={false}
-          />
-
-          <ImageUploadField
-            title="Insurance Image"
-            description="Valid insurance certificate (Optional)"
-            imageKey="insurance_img"
-            isRequired={false}
-          />
-
-          <ImageUploadField
-            title="FC Image"
-            description="Fitness Certificate (Optional)"
-            imageKey="fc_img"
-            isRequired={false}
-          />
-
-          <ImageUploadField
-            title="Car Image"
-            description="Clear photo of your car (Optional)"
-            imageKey="car_img"
-            isRequired={false}
           />
 
           <TouchableOpacity style={styles.saveButton} onPress={handleSave}>

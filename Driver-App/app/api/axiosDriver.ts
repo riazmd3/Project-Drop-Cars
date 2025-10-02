@@ -2,7 +2,7 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
 // Use same API base as VO
-const API_BASE_URL = 'http://10.52.194.145:8000';
+const API_BASE_URL = 'http://10.220.244.145:8000';
 
 const axiosDriver = axios.create({
   baseURL: API_BASE_URL,

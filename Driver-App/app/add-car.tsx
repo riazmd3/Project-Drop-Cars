@@ -41,7 +41,7 @@ export default function AddCarScreen() {
   const router = useRouter();
   const { user } = useAuth();
 
-  const carTypes = ['HATCHBACK', 'SEDAN', 'NEW SEDAN', 'SUV', 'INNOVA', 'INNOVA CRYSTA'];
+  const carTypes = ['HATCHBACK', 'SEDAN', 'NEW_SEDAN', 'SUV', 'INNOVA', 'INNOVA_CRYSTA'];
 
   // Function to redirect after successful car addition
   const redirectAfterCarAddition = async () => {

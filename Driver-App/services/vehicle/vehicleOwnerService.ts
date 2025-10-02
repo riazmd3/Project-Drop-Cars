@@ -280,7 +280,7 @@ export async function getCompletedOrdersForVehicleOwner(): Promise<FutureRideVie
     console.log('🔑 Auth headers ready:', !!(authHeaders as any)?.Authorization);
 
     // Get current user ID from token
-    const token = await SecureStore.getItemAsync('authToken');
+  const token = await SecureStore.getItemAsync('authToken');
     if (!token) {
       throw new Error('No authentication token found');
     }
