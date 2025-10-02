@@ -319,7 +319,11 @@ export const signinCarDriver = async (request: CarDriverSigninRequest): Promise<
         if (driver && token) {
           console.log('🔧 Normalizing response format for compatibility');
           await SecureStore.setItemAsync('driverAuthToken', token);
-          await SecureStore.setItemAsync('driverAuthInfo', JSON.stringify({ driverId: driver.id, fullName: driver.full_name }));
+          await SecureStore.setItemAsync('driverAuthInfo', JSON.stringify({ 
+            driverId: driver.id, 
+            fullName: driver.full_name,
+            driver_status: driver.status || driver.driver_status
+          }));
           return {
             success: true,
             message: 'Signin successful',

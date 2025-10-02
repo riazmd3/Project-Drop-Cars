@@ -171,7 +171,22 @@ export const fetchAvailableDrivers = async (): Promise<AvailableDriver[]> => {
       headers: authHeaders
     });
 
-    return response.data || [];
+    const allDrivers = response.data || [];
+    
+    // Filter out drivers with PROCESSING status - they should not be available for assignment
+    const availableDrivers = allDrivers.filter((driver: AvailableDriver) => {
+      const driverStatus = driver.driver_status || driver.status;
+      const isProcessing = driverStatus === 'PROCESSING' || driverStatus === 'processing';
+      
+      if (isProcessing) {
+        console.log(`🚫 Excluding driver ${driver.full_name} (${driver.id}) - status: ${driverStatus}`);
+      }
+      
+      return !isProcessing;
+    });
+    
+    console.log(`✅ Filtered ${allDrivers.length} drivers to ${availableDrivers.length} available drivers (excluded PROCESSING drivers)`);
+    return availableDrivers;
   } catch (error: any) {
     console.error('❌ Failed to fetch available drivers:', error);
     return [];

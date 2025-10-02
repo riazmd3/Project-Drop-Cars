@@ -131,7 +131,7 @@ export const loginDriver = async (mobileNumber: string, password: string): Promi
         driverId: response.data.driver_id,
         fullName: response.data.full_name,
         primaryNumber: response.data.primary_number,
-        driver_status: response.data.driver_status,
+        driver_status: response.data.driver_status || response.data.status,
       }));
     }
     return response.data;
