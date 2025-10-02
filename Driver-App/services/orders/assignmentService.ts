@@ -173,19 +173,26 @@ export const fetchAvailableDrivers = async (): Promise<AvailableDriver[]> => {
 
     const allDrivers = response.data || [];
     
-    // Filter out drivers with PROCESSING status - they should not be available for assignment
+    // Filter out drivers with PROCESSING or OFFLINE status - they should not be available for assignment
     const availableDrivers = allDrivers.filter((driver: AvailableDriver) => {
       const driverStatus = driver.driver_status || driver.status;
       const isProcessing = driverStatus === 'PROCESSING' || driverStatus === 'processing';
+      const isOffline = driverStatus === 'OFFLINE' || driverStatus === 'offline' || driverStatus === 'BLOCKED' || driverStatus === 'blocked';
       
       if (isProcessing) {
-        console.log(`🚫 Excluding driver ${driver.full_name} (${driver.id}) - status: ${driverStatus}`);
+        console.log(`🚫 Excluding driver ${driver.full_name} (${driver.id}) - status: ${driverStatus} (Under verification)`);
       }
       
-      return !isProcessing;
+      if (isOffline) {
+        console.log(`🚫 Excluding driver ${driver.full_name} (${driver.id}) - status: ${driverStatus} (Not available)`);
+      }
+      
+      // Only include drivers who are ONLINE, DRIVING, or other active statuses
+      const isAvailable = !isProcessing && !isOffline;
+      return isAvailable;
     });
     
-    console.log(`✅ Filtered ${allDrivers.length} drivers to ${availableDrivers.length} available drivers (excluded PROCESSING drivers)`);
+    console.log(`✅ Filtered ${allDrivers.length} drivers to ${availableDrivers.length} available drivers (excluded PROCESSING and OFFLINE drivers)`);
     return availableDrivers;
   } catch (error: any) {
     console.error('❌ Failed to fetch available drivers:', error);

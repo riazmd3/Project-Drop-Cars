@@ -9,6 +9,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   Animated,
+  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
@@ -28,8 +29,8 @@ import {
   CheckCircle,
   AlertCircle
 } from 'lucide-react-native';
+import { startTrip, endTrip } from '@/services/driver/carDriverService';
 import axiosDriver from '@/app/api/axiosDriver';
-import { setDriverOnline, setDriverOffline, startTrip, endTrip } from '@/services/driver/carDriverService';
 import * as SecureStore from 'expo-secure-store';
 
 interface DriverOrder {
@@ -190,13 +191,38 @@ export default function QuickDashboardScreen() {
     }
   }, [user?.id, router]);
 
-  // Optimized status toggle
-  const toggleDriverStatus = useCallback(async () => {
+  // New API functions for driver status
+  const setDriverOnlineAPI = async () => {
+    try {
+      console.log('🟢 Setting driver online via API...');
+      const response = await axiosDriver.put('/api/users/cardriver/online');
+      console.log('✅ Driver set online successfully:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Failed to set driver online:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Failed to set driver online');
+    }
+  };
+
+  const setDriverOfflineAPI = async () => {
+    try {
+      console.log('🔴 Setting driver offline via API...');
+      const response = await axiosDriver.put('/api/users/cardriver/offline');
+      console.log('✅ Driver set offline successfully:', response.data);
+      return response.data;
+    } catch (error: any) {
+      console.error('❌ Failed to set driver offline:', error);
+      throw new Error(error.response?.data?.message || error.message || 'Failed to set driver offline');
+    }
+  };
+
+  // Optimized status toggle with new API
+  const toggleDriverStatus = useCallback(async (newValue: boolean) => {
     if (statusChanging) return;
     
     try {
       setStatusChanging(true);
-      const newStatus = driverStatus === 'ONLINE' ? 'OFFLINE' : 'ONLINE';
+      const newStatus = newValue ? 'ONLINE' : 'OFFLINE';
       
       // Animate status change
       Animated.sequence([
@@ -212,10 +238,10 @@ export default function QuickDashboardScreen() {
         }),
       ]).start();
 
-      // API call
-      const response = newStatus === 'ONLINE' 
-        ? await setDriverOnline()
-        : await setDriverOffline();
+      // API call with new endpoints
+      const response = newValue 
+        ? await setDriverOnlineAPI()
+        : await setDriverOfflineAPI();
       
       // Update status on successful response
       setDriverStatus(newStatus);
@@ -231,12 +257,15 @@ export default function QuickDashboardScreen() {
     } finally {
       setStatusChanging(false);
     }
-  }, [driverStatus, statusChanging, user?.id, statusAnimation]);
+  }, [statusChanging, statusAnimation]);
 
   // Initialize data
   useEffect(() => {
+    // Set initial driver status from login response
     if (user?.driver_status) {
-      setDriverStatus(user.driver_status.toUpperCase() as 'ONLINE' | 'OFFLINE');
+      const status = user.driver_status.toUpperCase();
+      console.log('🔍 Setting initial driver status from user data:', status);
+      setDriverStatus(status as 'ONLINE' | 'OFFLINE');
     }
     
     // Debug authentication first
@@ -408,34 +437,48 @@ export default function QuickDashboardScreen() {
         </View>
       </View>
 
-      {/* Status Toggle */}
+      {/* Status Toggle Switch */}
       <View style={[styles.statusSection, { backgroundColor: colors.surface }]}>
-        <Animated.View 
-          style={[
-            styles.statusToggle,
-            { 
-              backgroundColor: driverStatus === 'ONLINE' ? '#10B981' : '#EF4444',
-              transform: [{ scale: pulseAnimation }]
-            }
-          ]}
-        >
-          <TouchableOpacity
-            onPress={toggleDriverStatus}
-            disabled={statusChanging}
-            style={styles.statusButton}
-          >
+        <View style={styles.statusToggleContainer}>
+          <View style={styles.statusInfo}>
+            <Text style={[styles.statusLabel, { color: colors.text }]}>
+              Driver Status
+            </Text>
+            <View style={styles.statusRow}>
+              <View style={[
+                styles.statusDot, 
+                { backgroundColor: driverStatus === 'ONLINE' ? '#10B981' : '#EF4444' }
+              ]} />
+              <Text style={[
+                styles.statusText, 
+                { 
+                  color: driverStatus === 'ONLINE' ? '#10B981' : '#EF4444',
+                  fontWeight: 'bold'
+                }
+              ]}>
+                {driverStatus === 'ONLINE' ? 'ONLINE' : 'OFFLINE'}
+              </Text>
+            </View>
+          </View>
+          
+          <View style={styles.switchContainer}>
             {statusChanging ? (
-              <ActivityIndicator color="white" size="small" />
+              <ActivityIndicator color={colors.primary} size="small" />
             ) : (
-              <>
-                <View style={styles.statusIndicator} />
-                <Text style={styles.statusText}>
-                  {driverStatus === 'ONLINE' ? 'ONLINE' : 'OFFLINE'}
-                </Text>
-              </>
+              <Switch
+                value={driverStatus === 'ONLINE'}
+                onValueChange={toggleDriverStatus}
+                disabled={statusChanging}
+                trackColor={{
+                  false: '#EF4444',
+                  true: '#10B981'
+                }}
+                thumbColor={driverStatus === 'ONLINE' ? '#FFFFFF' : '#FFFFFF'}
+                ios_backgroundColor="#EF4444"
+              />
             )}
-          </TouchableOpacity>
-        </Animated.View>
+          </View>
+        </View>
         
         <Text style={[styles.statusDescription, { color: colors.textSecondary }]}>
           {activeTrip 
@@ -673,35 +716,51 @@ const styles = StyleSheet.create({
     padding: 8,
   },
   statusSection: {
-      padding: 20,
+    padding: 20,
     alignItems: 'center',
   },
-  statusToggle: {
-    borderRadius: 25,
-    marginBottom: 8,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
+  statusToggleContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    marginBottom: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
   },
-  statusButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
+  statusInfo: {
+    flex: 1,
   },
-  statusIndicator: {
+  statusLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 4,
+  },
+  statusRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  statusDot: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: 'white',
     marginRight: 8,
   },
   statusText: {
-    color: 'white',
-      fontSize: 16,
+    fontSize: 16,
     fontWeight: '600',
+  },
+  switchContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 50,
   },
   statusDescription: {
     fontSize: 14,

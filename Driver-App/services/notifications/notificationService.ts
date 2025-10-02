@@ -93,7 +93,7 @@ class NotificationService {
     try {
       if (Device.isDevice) {
         const token = await Notifications.getExpoPushTokenAsync({
-          projectId: 'your-project-id', // Replace with your actual Expo project ID
+          projectId: 'f317ef72-93ae-427b-a6fa-1bee22c3138c', // Your actual Expo project ID
         });
         
         this.expoPushToken = token.data;
@@ -113,13 +113,22 @@ class NotificationService {
   // Send token to backend
   private async sendTokenToBackend(token: string): Promise<void> {
     try {
-      // TODO: Implement API call to send token to your backend
       console.log('📤 Sending push token to backend:', token);
       
-      // Example API call:
-      // await axiosInstance.post('/api/users/driver/push-token', { token });
+      // Import axios at the top of the file if not already imported
+      const axiosDriver = (await import('@/app/api/axiosDriver')).default;
+      
+      // Send token to backend for remote notifications
+      await axiosDriver.post('/api/users/driver/push-token', { 
+        expo_push_token: token,
+        device_type: Platform.OS,
+        app_version: '1.0.0'
+      });
+      
+      console.log('✅ Push token sent to backend successfully');
     } catch (error) {
       console.error('❌ Failed to send token to backend:', error);
+      // Don't throw error - app should still work without backend token registration
     }
   }
 
