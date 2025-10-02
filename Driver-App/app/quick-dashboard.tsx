@@ -214,15 +214,12 @@ export default function QuickDashboardScreen() {
 
       // API call
       const response = newStatus === 'ONLINE' 
-        ? await setDriverOnline(user?.id || '')
-        : await setDriverOffline(user?.id || '');
+        ? await setDriverOnline()
+        : await setDriverOffline();
       
-      if (response.success !== false) {
-        setDriverStatus(newStatus);
-        console.log(`✅ Driver set ${newStatus.toLowerCase()}`);
-      } else {
-        throw new Error(response.message || 'Status update failed');
-      }
+      // Update status on successful response
+      setDriverStatus(newStatus);
+      console.log(`✅ Driver set ${newStatus.toLowerCase()}:`, response);
       
     } catch (error: any) {
       console.error('❌ Status toggle failed:', error.message);

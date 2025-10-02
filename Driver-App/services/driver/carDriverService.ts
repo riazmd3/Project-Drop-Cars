@@ -31,7 +31,7 @@ export const startTrip = async (orderId: number, startKm?: number, imgUri?: stri
     const form = new FormData();
     
     // Add required fields - the API expects these as Form fields
-    form.append('start_km', String(startKm)); // Must be > 0
+    form.append('start_km', String(startKm)); // Must be > 0 
     form.append('speedometer_img', { 
       uri: imgUri, 
       name: 'speedometer.jpg', 
@@ -398,34 +398,23 @@ export const signinCarDriver = async (request: CarDriverSigninRequest): Promise<
 };
 
 /**
- * Set driver online
+ * Set driver online - put /api/users/cardriver/online
  */
-export const setDriverOnline = async (driverId: string): Promise<CarDriverStatusResponse> => {
+export const setDriverOnline = async (): Promise<CarDriverStatusResponse> => {
   try {
-    console.log('🟢 Setting driver online:', driverId);
+    console.log('🟢 Setting driver online...');
 
-    const response = await axiosDriver.patch(`/api/users/cardriver/online`);
+    const response = await axiosDriver.put('/api/users/cardriver/online');
 
-    if (response.data) {
-      console.log('✅ Driver set online successfully:', response.data);
-      return response.data;
-    }
-
-    throw new Error('No response data received from online status update');
+    console.log('✅ Driver set online successfully:', response.data);
+    return {
+      success: true,
+      message: 'Driver set online successfully',
+      status: 'online',
+      ...response.data
+    };
   } catch (error: any) {
     console.error('❌ Failed to set driver online:', error);
-    
-    // Check if it's a network/backend availability issue
-    if (error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED' || 
-        error.response?.status >= 500 || !error.response) {
-      console.log('🔧 Backend not available, using mock online status for development');
-      
-      return {
-        success: true,
-        message: 'Mock: Driver set online successfully (backend not available)',
-        status: 'online'
-      };
-    }
     
     if (error.response?.status === 401) {
       throw new Error('Authentication failed. Please login again.');
@@ -433,13 +422,7 @@ export const setDriverOnline = async (driverId: string): Promise<CarDriverStatus
       throw new Error('Driver not found');
     } else if (error.response?.status === 400) {
       const errorDetail = error.response.data?.detail || error.response.data?.message || 'Invalid request';
-      throw new Error(`Online status update failed: ${errorDetail}`);
-    } else if (error.response?.status === 500) {
-      throw new Error('Server error. Please try again later.');
-    } else if (error.code === 'ECONNABORTED') {
-      throw new Error('Request timeout. Please check your connection.');
-    } else if (error.code === 'ERR_NETWORK') {
-      throw new Error('Network error. Please check your internet connection.');
+      throw new Error(`Failed to set online: ${errorDetail}`);
     } else {
       throw new Error(error.message || 'Failed to set driver online');
     }
@@ -447,34 +430,23 @@ export const setDriverOnline = async (driverId: string): Promise<CarDriverStatus
 };
 
 /**
- * Set driver offline
+ * Set driver offline - put /api/users/cardriver/offline
  */
-export const setDriverOffline = async (driverId: string): Promise<CarDriverStatusResponse> => {
+export const setDriverOffline = async (): Promise<CarDriverStatusResponse> => {
   try {
-    console.log('🔴 Setting driver offline:', driverId);
+    console.log('🔴 Setting driver offline...');
 
-    const response = await axiosDriver.patch(`/api/users/cardriver/offline`);
+    const response = await axiosDriver.put('/api/users/cardriver/offline');
 
-    if (response.data) {
-      console.log('✅ Driver set offline successfully:', response.data);
-      return response.data;
-    }
-
-    throw new Error('No response data received from offline status update');
+    console.log('✅ Driver set offline successfully:', response.data);
+    return {
+      success: true,
+      message: 'Driver set offline successfully',
+      status: 'offline',
+      ...response.data
+    };
   } catch (error: any) {
     console.error('❌ Failed to set driver offline:', error);
-    
-    // Check if it's a network/backend availability issue
-    if (error.code === 'ERR_NETWORK' || error.code === 'ECONNABORTED' || 
-        error.response?.status >= 500 || !error.response) {
-      console.log('🔧 Backend not available, using mock offline status for development');
-      
-      return {
-        success: true,
-        message: 'Mock: Driver set offline successfully (backend not available)',
-        status: 'offline'
-      };
-    }
     
     if (error.response?.status === 401) {
       throw new Error('Authentication failed. Please login again.');
@@ -482,13 +454,7 @@ export const setDriverOffline = async (driverId: string): Promise<CarDriverStatu
       throw new Error('Driver not found');
     } else if (error.response?.status === 400) {
       const errorDetail = error.response.data?.detail || error.response.data?.message || 'Invalid request';
-      throw new Error(`Offline status update failed: ${errorDetail}`);
-    } else if (error.response?.status === 500) {
-      throw new Error('Server error. Please try again later.');
-    } else if (error.code === 'ECONNABORTED') {
-      throw new Error('Request timeout. Please check your connection.');
-    } else if (error.code === 'ERR_NETWORK') {
-      throw new Error('Network error. Please check your internet connection.');
+      throw new Error(`Failed to set offline: ${errorDetail}`);
     } else {
       throw new Error(error.message || 'Failed to set driver offline');
     }

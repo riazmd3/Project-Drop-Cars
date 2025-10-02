@@ -125,12 +125,12 @@ export default function FutureRidesScreen() {
     try {
       setAssignmentsLoading(true);
       console.log('🔄 Fetching available drivers and cars...');
-
+      
       const [driversResponse, carsResponse] = await Promise.all([
         fetchAvailableDrivers(),
         fetchAvailableCars()
       ]);
-
+      
       setAvailableDrivers(driversResponse || []);
       setAvailableCars(carsResponse || []);
       
@@ -518,7 +518,7 @@ export default function FutureRidesScreen() {
                 <Text style={[styles.selectedDriverText, { color: colors.text }]}>
                   Selected Driver: {selectedDriver.full_name}
                 </Text>
-              </View>
+      </View>
             )}
 
             <ScrollView style={styles.modalScrollView}>
@@ -553,7 +553,7 @@ export default function FutureRidesScreen() {
                   <Text style={[styles.modalEmptyText, { color: colors.textSecondary }]}>
                     No available cars found
                   </Text>
-                </View>
+      </View>
               )}
             </ScrollView>
           </View>
@@ -564,66 +564,66 @@ export default function FutureRidesScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-  },
-  header: {
+    container: {
+      flex: 1,
+    },
+    header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
+      paddingHorizontal: 20,
     paddingVertical: 16,
-    borderBottomWidth: 1,
+      borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
-  },
+    },
   title: {
-    fontSize: 24,
-    fontFamily: 'Inter-Bold',
+      fontSize: 24,
+      fontFamily: 'Inter-Bold',
   },
   scrollView: {
-    flex: 1,
-    paddingHorizontal: 20,
+      flex: 1,
+      paddingHorizontal: 20,
     paddingTop: 16,
   },
   ridesContainer: {
     gap: 16,
     paddingBottom: 20,
-  },
-  rideCard: {
+    },
+    rideCard: {
     borderRadius: 12,
-    padding: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
+      padding: 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 3,
-  },
-  rideHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 12,
-  },
-  statusBadge: {
+    },
+    rideHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      marginBottom: 12,
+    },
+    statusBadge: {
     backgroundColor: '#F3F4F6',
     borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-  },
-  statusText: {
-    fontSize: 12,
-    fontFamily: 'Inter-SemiBold',
-  },
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+    },
+    statusText: {
+      fontSize: 12,
+      fontFamily: 'Inter-SemiBold',
+    },
   orderId: {
     fontSize: 14,
     fontFamily: 'Inter-Medium',
-  },
-  routeContainer: {
-    marginBottom: 12,
-  },
-  routeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    },
+    routeContainer: {
+      marginBottom: 12,
+    },
+    routeRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
     marginBottom: 8,
   },
   locationDot: {
@@ -634,22 +634,22 @@ const styles = StyleSheet.create({
   },
   locationText: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+      fontFamily: 'Inter-Medium',
     flex: 1,
   },
   detailsContainer: {
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
     paddingTop: 12,
-    marginBottom: 12,
+      marginBottom: 12,
     gap: 8,
-  },
-  detailRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    },
+    detailRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
     gap: 8,
-  },
-  detailText: {
+    },
+    detailText: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
   },
@@ -657,9 +657,9 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    borderTopWidth: 1,
+      borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
-    paddingTop: 12,
+      paddingTop: 12,
   },
   timeContainer: {
     flexDirection: 'row',
@@ -686,8 +686,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   assignmentTitle: {
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
+      fontSize: 14,
+      fontFamily: 'Inter-SemiBold',
     marginBottom: 4,
   },
   assignmentText: {
@@ -736,47 +736,47 @@ const styles = StyleSheet.create({
   },
   loadingText: {
     fontSize: 16,
-    fontFamily: 'Inter-Medium',
+      fontFamily: 'Inter-Medium',
     marginTop: 16,
-  },
-  assignButton: {
+    },
+    assignButton: {
     marginTop: 12,
     borderRadius: 8,
-    paddingVertical: 12,
+      paddingVertical: 12,
     paddingHorizontal: 16,
     flexDirection: 'row',
-    alignItems: 'center',
+      alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-  },
-  assignButtonText: {
-    color: '#FFFFFF',
-    fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    },
+    assignButtonText: {
+      color: '#FFFFFF',
+      fontSize: 14,
+      fontFamily: 'Inter-SemiBold',
+    },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
-  },
-  modalContent: {
+    },
+    modalContent: {
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     paddingTop: 20,
-    maxHeight: '80%',
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+      maxHeight: '80%',
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
     paddingHorizontal: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
-  },
-  modalTitle: {
-    fontSize: 18,
-    fontFamily: 'Inter-SemiBold',
+    },
+    modalTitle: {
+      fontSize: 18,
+      fontFamily: 'Inter-SemiBold',
   },
   modalScrollView: {
     paddingHorizontal: 20,
@@ -798,10 +798,10 @@ const styles = StyleSheet.create({
   modalEmptyText: {
     fontSize: 16,
     fontFamily: 'Inter-Medium',
-  },
-  driverCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
+    },
+    driverCard: {
+      flexDirection: 'row',
+      alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
     borderRadius: 12,
@@ -811,18 +811,18 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 2,
     elevation: 2,
-  },
-  driverInfo: {
-    flex: 1,
-  },
-  driverName: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+    },
+    driverInfo: {
+      flex: 1,
+    },
+    driverName: {
+      fontSize: 16,
+      fontFamily: 'Inter-SemiBold',
     marginBottom: 4,
-  },
+    },
   driverDetails: {
     fontSize: 14,
-    fontFamily: 'Inter-Regular',
+      fontFamily: 'Inter-Regular',
     marginBottom: 2,
   },
   driverStatus: {
@@ -832,20 +832,20 @@ const styles = StyleSheet.create({
   selectedDriverInfo: {
     marginHorizontal: 20,
     padding: 12,
-    borderRadius: 8,
+      borderRadius: 8,
     marginBottom: 16,
-  },
+    },
   selectedDriverText: {
     fontSize: 14,
-    fontFamily: 'Inter-SemiBold',
-  },
+      fontFamily: 'Inter-SemiBold',
+    },
   carCard: {
     flexDirection: 'row',
-    alignItems: 'center',
+      alignItems: 'center',
     justifyContent: 'space-between',
     padding: 16,
     borderRadius: 12,
-    marginBottom: 12,
+      marginBottom: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
@@ -853,15 +853,15 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   carInfo: {
-    flex: 1,
+      flex: 1,
   },
   carName: {
-    fontSize: 16,
-    fontFamily: 'Inter-SemiBold',
+      fontSize: 16,
+      fontFamily: 'Inter-SemiBold',
     marginBottom: 4,
   },
   carDetails: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
-  },
-});
+    },
+  });
