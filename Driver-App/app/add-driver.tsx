@@ -8,6 +8,7 @@ import {
   Alert,
   ScrollView,
   SafeAreaView,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, User, Save, Upload, CheckCircle, FileText, Image, Phone, Lock, MapPin, CreditCard } from 'lucide-react-native';
@@ -44,6 +45,7 @@ export default function AddDriverScreen() {
   });
 
   const [errors, setErrors] = useState<{[key: string]: string}>({});
+  const [isLoading, setIsLoading] = useState(false);
   
   const router = useRouter();
   const { user } = useAuth();
@@ -198,6 +200,8 @@ export default function AddDriverScreen() {
     }
 
     try {
+      setIsLoading(true);
+      console.log('👤 Starting driver registration process...');
       // Verify auth before submitting (VO-protected endpoint)
       try {
         const authCheck = await axiosInstance.get('/api/users/vehicle-owner/me');
@@ -268,12 +272,20 @@ export default function AddDriverScreen() {
         headers: { 'Content-Type': 'multipart/form-data' },
         timeout: 120000,
       });
-      console.log('✅ Driver signup success', res.data);
+      console.log('✅ Driver registration completed successfully!', res.data);
 
       Alert.alert('Success', 'Driver details added successfully!', [
-        { text: 'OK', onPress: () => checkAccountStatusAndRedirect() },
+        { 
+          text: 'OK', 
+          onPress: () => {
+            setIsLoading(false);
+            checkAccountStatusAndRedirect();
+          }
+        },
       ]);
     } catch (err: any) {
+      console.error('❌ Error during driver registration:', err);
+      setIsLoading(false);
       const detail = err?.response?.data?.detail;
       if (Array.isArray(detail)) {
         console.error('🔍 Backend validation error:', JSON.stringify(detail));
@@ -291,8 +303,12 @@ export default function AddDriverScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft color="#1F2937" size={24} />
+        <TouchableOpacity 
+          onPress={() => router.back()} 
+          style={[styles.backButton, isLoading && styles.backButtonDisabled]}
+          disabled={isLoading}
+        >
+          <ArrowLeft color={isLoading ? "#9CA3AF" : "#1F2937"} size={24} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Add Your First Driver</Text>
         <View style={styles.stepIndicator}>
@@ -400,9 +416,22 @@ export default function AddDriverScreen() {
             isRequired={true}
           />
 
-          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
+          <TouchableOpacity 
+            style={[styles.saveButton, isLoading && styles.saveButtonDisabled]} 
+            onPress={handleSave}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <ActivityIndicator color="#FFFFFF" size="small" />
+                <Text style={styles.saveButtonText}>Saving Driver...</Text>
+              </>
+            ) : (
+              <>
                 <Save color="#FFFFFF" size={20} />
                 <Text style={styles.saveButtonText}>Save Driver & Continue</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -426,6 +455,9 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
+  },
+  backButtonDisabled: {
+    opacity: 0.5,
   },
   headerTitle: {
     fontSize: 18,
@@ -581,6 +613,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 24,
     marginBottom: 20,
+  },
+  saveButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+    opacity: 0.7,
   },
   saveButtonText: {
     color: '#FFFFFF',

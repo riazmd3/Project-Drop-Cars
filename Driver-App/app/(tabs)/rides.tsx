@@ -104,9 +104,21 @@ export default function RidesScreen() {
     setRefreshing(false);
   };
 
+  // Auto-load data when user is available
   useEffect(() => {
-    fetchRidesData();
-  }, []);
+    if (user) {
+      console.log('🔄 Auto-loading rides data...');
+      fetchRidesData();
+    }
+  }, [user]);
+
+  // Also load data when user changes (login/logout)
+  useEffect(() => {
+    if (user) {
+      console.log('👤 User changed, refreshing rides data...');
+      fetchRidesData();
+    }
+  }, [user?.id]); // Only trigger when user ID changes (login/logout)
 
   const getCurrentRides = () => {
     switch (activeTab) {

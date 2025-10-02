@@ -8,6 +8,7 @@ import {
   Alert,
   ScrollView,
   SafeAreaView,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Car, Save, Upload, CheckCircle, FileText, Image, ChevronDown } from 'lucide-react-native';
@@ -37,6 +38,7 @@ export default function AddCarScreen() {
 
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [showTypeDropdown, setShowTypeDropdown] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   
   const router = useRouter();
   const { user } = useAuth();
@@ -146,6 +148,8 @@ export default function AddCarScreen() {
     }
   
     try {
+      setIsLoading(true);
+      console.log('🚗 Starting car registration process...');
       const payload = {
         car_name: carData.name.trim(),
         car_type: carData.type,
@@ -166,18 +170,23 @@ export default function AddCarScreen() {
   
       await addCarDetails(payload);
   
+      console.log('✅ Car registration completed successfully!');
       Alert.alert(
         'Success',
         'Car details added successfully!',
         [
           {
             text: 'OK',
-            onPress: () => redirectAfterCarAddition()
+            onPress: () => {
+              setIsLoading(false);
+              redirectAfterCarAddition();
+            }
           }
         ]
       );
     } catch (error: any) {
-      console.error('Error adding car:', error);
+      console.error('❌ Error adding car:', error);
+      setIsLoading(false);
       
       // Improved error handling
       if (error.response) {
@@ -224,8 +233,12 @@ export default function AddCarScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <ArrowLeft color="#1F2937" size={24} />
+        <TouchableOpacity 
+          onPress={() => router.back()} 
+          style={[styles.backButton, isLoading && styles.backButtonDisabled]}
+          disabled={isLoading}
+        >
+          <ArrowLeft color={isLoading ? "#9CA3AF" : "#1F2937"} size={24} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Add Your First Car</Text>
         <View style={styles.stepIndicator}>
@@ -368,9 +381,22 @@ export default function AddCarScreen() {
             isRequired={true}
           />
 
-          <TouchableOpacity style={styles.saveButton} onPress={handleSave}>
-            <Save color="#FFFFFF" size={20} />
-            <Text style={styles.saveButtonText}>Save Car & Continue</Text>
+          <TouchableOpacity 
+            style={[styles.saveButton, isLoading && styles.saveButtonDisabled]} 
+            onPress={handleSave}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <ActivityIndicator color="#FFFFFF" size="small" />
+                <Text style={styles.saveButtonText}>Saving Car...</Text>
+              </>
+            ) : (
+              <>
+                <Save color="#FFFFFF" size={20} />
+                <Text style={styles.saveButtonText}>Save Car & Continue</Text>
+              </>
+            )}
           </TouchableOpacity>
         </View>
       </ScrollView>
@@ -394,6 +420,9 @@ const styles = StyleSheet.create({
   },
   backButton: {
     padding: 8,
+  },
+  backButtonDisabled: {
+    opacity: 0.5,
   },
   headerTitle: {
     fontSize: 18,
@@ -596,6 +625,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginTop: 24,
     marginBottom: 20,
+  },
+  saveButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+    opacity: 0.7,
   },
   saveButtonText: {
     color: '#FFFFFF',

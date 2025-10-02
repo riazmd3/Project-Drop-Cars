@@ -45,6 +45,7 @@ interface CarDriverContextType {
   
   // Utility methods
   clearError: () => void;
+  clearAllData: () => void;
 }
 
 const CarDriverContext = createContext<CarDriverContextType | undefined>(undefined);
@@ -332,6 +333,14 @@ export const CarDriverProvider: React.FC<CarDriverProviderProps> = ({ children }
     setError(null);
   };
 
+  const clearAllData = () => {
+    console.log('🧹 Clearing all car driver data...');
+    setDriver(null);
+    setIsAuthenticated(false);
+    setError(null);
+    console.log('✅ All car driver data cleared');
+  };
+
   const value: CarDriverContextType = {
     driver,
     isAuthenticated,
@@ -347,7 +356,8 @@ export const CarDriverProvider: React.FC<CarDriverProviderProps> = ({ children }
     refreshDriverData,
     getDriversForOrganization,
     searchDriversByFilters,
-    clearError
+    clearError,
+    clearAllData
   };
 
   return (

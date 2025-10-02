@@ -1,33 +1,74 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  Alert,
-  Modal,
   ActivityIndicator,
+  Modal,
+  Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext'; 
-import { useDashboard, FutureRide } from '@/contexts/DashboardContext';
 import { useNotifications } from '@/contexts/NotificationContext';
-import { MapPin, Clock, IndianRupee, User, Phone, Car, X, CheckCircle, AlertCircle } from 'lucide-react-native';
+import { MapPin, Clock, IndianRupee, User, Phone, Car, RefreshCw, UserPlus, X, CheckCircle } from 'lucide-react-native';
 import { RefreshControl } from 'react-native';
-import { fetchAvailableDrivers, fetchAvailableCars, getOrderAssignments, assignCarDriverToOrder, AvailableDriver, AvailableCar } from '@/services/orders/assignmentService';
-import { getPendingOrders as getVOPendingOrders, getFutureRidesForVehicleOwner } from '@/services/vehicle/vehicleOwnerService';
+import axiosInstance from '@/app/api/axiosInstance';
+import { fetchAvailableDrivers, fetchAvailableCars, assignCarDriverToOrder, AvailableDriver, AvailableCar } from '@/services/orders/assignmentService';
 
-// Removed local interface - using imported FutureRide from DashboardContext
-
-// Removed sample data; now reads from shared context
+// Simple interface for the new API response
+interface FutureRide {
+  id: number;
+  source: string;
+  source_order_id: number;
+  vendor_id: string;
+  trip_type: string;
+  car_type: string;
+  pickup_drop_location: {
+    "0": string;
+    "1": string;
+  };
+  start_date_time: string;
+  customer_name: string;
+  customer_number: string;
+  trip_status: string;
+  pick_near_city: string;
+  trip_distance: number;
+  trip_time: string;
+  estimated_price: number;
+  vendor_price: number;
+  platform_fees_percent: number;
+  closed_vendor_price: number | null;
+  closed_driver_price: number | null;
+  commision_amount: number | null;
+  created_at: string;
+  assignment_id: number;
+  assignment_status: string;
+  assigned_at: string | null;
+  expires_at: string;
+  cancelled_at: string | null;
+  completed_at: string | null;
+  assignment_created_at: string;
+  vendor_name: string;
+  vendor_phone: string;
+  assigned_driver_name: string | null;
+  assigned_driver_phone: string | null;
+  assigned_car_name: string | null;
+  assigned_car_number: string | null;
+}
 
 export default function FutureRidesScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
-  const { dashboardData, loading, error, futureRides, updateFutureRide, refreshData } = useDashboard();
   const { sendOrderAssignedNotification } = useNotifications();
+  const [futureRides, setFutureRides] = useState<FutureRide[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  // Assignment modal states
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showVehicleModal, setShowVehicleModal] = useState(false);
   const [selectedRide, setSelectedRide] = useState<FutureRide | null>(null);
@@ -35,1087 +76,417 @@ export default function FutureRidesScreen() {
   const [availableDrivers, setAvailableDrivers] = useState<AvailableDriver[]>([]);
   const [availableCars, setAvailableCars] = useState<AvailableCar[]>([]);
   const [assignmentsLoading, setAssignmentsLoading] = useState(false);
-  const [pendingOrders, setPendingOrders] = useState<any[]>([]);
-  const [pendingOrdersLoading, setPendingOrdersLoading] = useState(false);
-  const [apiFutureRides, setApiFutureRides] = useState<FutureRide[]>([]);
-  const [apiRidesLoading, setApiRidesLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
 
-  // Combine context rides and API rides, dedupe by id (fallback to booking_id)
-  const uniqueRides = useMemo(() => {
-    const rideMap = new Map<string, FutureRide>();
-    
-    // Add context rides first
-    for (const ride of futureRides) {
-      const key = ride.id || ride.booking_id;
-      if (!rideMap.has(key)) {
-        rideMap.set(key, ride);
-      }
-    }
-    
-    // Add API rides (these will override context rides if they have the same key)
-    for (const ride of apiFutureRides) {
-      const key = ride.id || ride.booking_id;
-      rideMap.set(key, ride);
-    }
-    
-    return Array.from(rideMap.values());
-  }, [futureRides, apiFutureRides]);
+  // Simple API fetch function
+  const fetchFutureRides = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      console.log('🔄 Fetching future rides from /api/orders/vehicle-owner/pending...');
 
-  // Auto-fetch on mount and when dashboard data loads
+      const response = await axiosInstance.get('/api/orders/vehicle-owner/pending');
+      const ridesArray = Array.isArray(response.data) ? response.data : [];
+
+      console.log('✅ Future rides fetched successfully:', ridesArray.length, 'rides');
+      setFutureRides(ridesArray);
+    } catch (error: any) {
+      console.error('❌ Failed to fetch future rides:', error);
+      setError(error.message || 'Failed to fetch future rides');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Refresh function for pull-to-refresh
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchFutureRides();
+    setRefreshing(false);
+  };
+
+  // Auto-load data when user is available
   useEffect(() => {
-    if (dashboardData && !loading) {
-      fetchAvailableAssignments();
-      fetchFutureRidesFromAPI();
+    if (user) {
+      console.log('🔄 Auto-loading future rides data...');
+      fetchFutureRides();
     }
-  }, [dashboardData, loading]);
+  }, [user]);
 
-  const fetchFutureRidesFromAPI = async () => {
-    try {
-      setApiRidesLoading(true);
-
-      // Fetch via VO endpoint using token-sub-decoded owner ID
-      const apiRides = await getFutureRidesForVehicleOwner();
-      const ridesArray = Array.isArray(apiRides) ? apiRides : [];
-
-      console.log('🔍 Raw API rides data:', ridesArray.length > 0 ? ridesArray[0] : 'No rides');
-      console.log('🔍 Sample pickup_drop_location:', ridesArray.length > 0 ? ridesArray[0].pickup_drop_location : 'No data');
-
-      const processedRides: FutureRide[] = ridesArray.map((ride: any) => {
-        // Use the same logic as getPickupDropLocations from index.tsx
-        const getPickupDropLocations = (pickupDropLocation: any) => {
-          if (!pickupDropLocation) return { pickup: 'Unknown', drop: 'Unknown' };
-          
-          // Handle array format: { "0": "Chennai", "1": "Gingee" }
-          if (typeof pickupDropLocation === 'object' && pickupDropLocation['0'] && pickupDropLocation['1']) {
-            return {
-              pickup: pickupDropLocation['0'],
-              drop: pickupDropLocation['1']
-            };
-          }
-          
-          // Handle object format: { pickup: "Chennai", drop: "Gingee" }
-          if (pickupDropLocation.pickup && pickupDropLocation.drop) {
-            return {
-              pickup: pickupDropLocation.pickup,
-              drop: pickupDropLocation.drop
-            };
-          }
-          
-          // Fallback
-          return { pickup: 'Unknown', drop: 'Unknown' };
-        };
-
-        // Extract pickup and drop locations using the same logic as index.tsx
-        const locations = getPickupDropLocations(ride.pickup_drop_location);
-        let pickup = locations.pickup;
-        let drop = locations.drop;
-        
-        // Additional fallbacks for API data variations
-        if (pickup === 'Unknown' || drop === 'Unknown') {
-          // Try other possible field names
-          pickup = ride.pickup || ride.pickup_city || ride.pickup_location || pickup;
-          drop = ride.drop || ride.drop_city || ride.drop_location || drop;
-          
-          // Try parsing as JSON string if it's a string
-          if (typeof ride.pickup_drop_location === 'string') {
-            try {
-              const parsed = JSON.parse(ride.pickup_drop_location);
-              if (parsed['0'] && parsed['1']) {
-                pickup = parsed['0'];
-                drop = parsed['1'];
-              } else if (parsed.pickup && parsed.drop) {
-                pickup = parsed.pickup;
-                drop = parsed.drop;
-              }
-            } catch (e) {
-              // Ignore parsing errors
-            }
-          }
-        }
-        
-        // Debug logging for first ride
-        if (ride.order_id && (pickup === 'Unknown' || drop === 'Unknown')) {
-          console.log('🔍 Debug ride data:', {
-            order_id: ride.order_id,
-            assignment_id: ride.assignment_id,
-            pickup_drop_location: ride.pickup_drop_location,
-            locations: locations,
-            pickup: pickup,
-            drop: drop,
-            ride_pickup: ride.pickup,
-            ride_pickup_city: ride.pickup_city,
-            ride_pickup_location: ride.pickup_location,
-            ride_drop: ride.drop,
-            ride_drop_city: ride.drop_city,
-            ride_drop_location: ride.drop_location
-          });
-        }
-
-        return {
-          id: ride.assignment_id?.toString?.() || ride.id?.toString?.() || ride.order_id?.toString?.(),
-          booking_id: ride.order_id?.toString?.() || ride.assignment_id?.toString?.() || ride.id?.toString?.(),
-          pickup: pickup,
-          drop: drop,
-          date: ride.date || ride.start_date_time?.slice?.(0,10) || ride.created_at?.slice?.(0,10) || '',
-          time: ride.time || ride.start_date_time?.slice?.(11,16) || ride.created_at?.slice?.(11,16) || '',
-        distance: typeof ride.trip_distance === 'string' ? parseFloat(ride.trip_distance) || 0 : (ride.trip_distance || 0),
-        fare_per_km: typeof ride.cost_per_km === 'string' ? parseFloat(ride.cost_per_km) || 0 : (ride.cost_per_km || 0),
-          total_fare: typeof ride.estimated_price === 'string' ? parseFloat(ride.estimated_price) || 0 : (ride.estimated_price || ride.vendor_price || 0),
-        customer_name: ride.customer_name || '',
-          customer_mobile: ride.customer_number || ride.customer_mobile || '',
-        status: ride.assignment_status || ride.status || 'confirmed',
-        assigned_driver: ride.assigned_driver || null,
-        assigned_vehicle: ride.assigned_vehicle || null,
-        assignment_id: ride.assignment_id || ride.id,
-        expires_at: ride.expires_at,
-          created_at: ride.created_at,
-          // Additional fields from the new API structure
-          driver_id: ride.driver_id,
-          car_id: ride.car_id,
-          assigned_at: ride.assigned_at
-        } as any;
-      });
-
-      console.log('📋 Future rides loaded (VO):', processedRides.length);
-      setApiFutureRides(processedRides);
-
-    } catch (error) {
-      console.error('❌ Failed to fetch future rides from API:', error);
-      setApiFutureRides([]);
-    } finally {
-      setApiRidesLoading(false);
+  // Also load data when user changes (login/logout)
+  useEffect(() => {
+    if (user) {
+      console.log('👤 User changed, refreshing future rides data...');
+      fetchFutureRides();
     }
-  };
-  
+  }, [user?.id]);
 
-  const fetchPendingOrders = async () => {
-    try {
-      setPendingOrdersLoading(true);
-      console.log('📋 Fetching pending orders...');
-      
-      const orders = await getVOPendingOrders();
-      console.log('📋 Raw pending orders:', orders);
-      
-      // Check assignment status for each order
-      const ordersWithAssignmentStatus = await Promise.all(
-        orders.map(async (order) => {
-          try {
-            const assignments = await getOrderAssignments(String(order.id || order.order_id));
-            const hasAssignedStatus = assignments.some(assignment => 
-              assignment.assignment_status === 'ASSIGNED' || 
-              assignment.assignment_status === 'DRIVING' || 
-              assignment.assignment_status === 'COMPLETED'
-            );
-            
-            return {
-              ...order,
-              isAssigned: hasAssignedStatus,
-              assignments: assignments
-            };
-          } catch (error) {
-            console.error('❌ Failed to check assignment status for order:', order.id, error);
-            return {
-              ...order,
-              isAssigned: false,
-              assignments: []
-            };
-          }
-        })
-      );
-      
-      console.log('📋 Orders with assignment status:', ordersWithAssignmentStatus);
-      setPendingOrders(ordersWithAssignmentStatus);
-    } catch (error) {
-      console.error('❌ Failed to fetch pending orders:', error);
-      setPendingOrders([]);
-    } finally {
-      setPendingOrdersLoading(false);
-    }
-  };
-
+  // Fetch available drivers and cars for assignment
   const fetchAvailableAssignments = async () => {
     try {
       setAssignmentsLoading(true);
-      console.log('🔍 Fetching available drivers and cars for assignments...');
-      
-      // Fetch both drivers and cars in parallel
-      const [drivers, cars] = await Promise.all([
+      console.log('🔄 Fetching available drivers and cars...');
+
+      const [driversResponse, carsResponse] = await Promise.all([
         fetchAvailableDrivers(),
         fetchAvailableCars()
       ]);
+
+      setAvailableDrivers(driversResponse || []);
+      setAvailableCars(carsResponse || []);
       
-      console.log('🔍 Raw drivers from API:', drivers);
-      console.log('🔍 Dashboard drivers for comparison:', dashboardData?.drivers);
-      
-      // Process drivers to ensure they're marked as available
-      const processedDrivers = drivers.map(driver => ({
-        ...driver,
-        is_available: true, // Mark all fetched drivers as available
-        current_assignment: undefined
-      }));
-      
-      // Process cars to ensure they're marked as available
-      const processedCars = cars.map(car => ({
-        ...car,
-        is_available: true, // Mark all fetched cars as available
-        current_assignment: undefined
-      }));
-      
-      setAvailableDrivers(processedDrivers);
-      setAvailableCars(processedCars);
-      
-      console.log('✅ Available assignments loaded:', {
-        drivers: processedDrivers.length,
-        cars: processedCars.length
+      console.log('✅ Available assignments fetched:', {
+        drivers: driversResponse?.length || 0,
+        cars: carsResponse?.length || 0
       });
-      
-      // Debug: Log driver availability details
-      console.log('🔍 Driver availability details:', processedDrivers.map(d => ({
-        id: d.id,
-        name: d.full_name,
-        status: d.status,
-        is_available: d.is_available,
-        driver_status: d.driver_status
-      })));
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Failed to fetch available assignments:', error);
-      // Fallback to dashboard data if assignment endpoints fail
-      // Convert dashboard data to assignment format
-      const fallbackDrivers: AvailableDriver[] = (dashboardData?.drivers || [])
-        .filter(driver => {
-          // Include all drivers regardless of status - let the assignment logic handle availability
-          const status = driver.driver_status;
-          return status !== 'OFFLINE' && status !== 'INACTIVE'; // Only exclude explicitly offline/inactive drivers
-        })
-        .map(driver => ({
-          ...driver,
-          address: driver.adress, // Map adress to address
-          aadhar_number: driver.licence_number, // Map licence_number to aadhar_number
-          status: driver.driver_status, // Map driver_status to status
-          updated_at: driver.created_at, // Use created_at as updated_at fallback
-          is_available: true, // Always show as available for assignment
-          current_assignment: undefined
-        }));
-      
-      const fallbackCars: AvailableCar[] = (dashboardData?.cars || [])
-        .filter(car => {
-          // Check if car has a status property (from API) or assume it's available
-          const carStatus = (car as any).car_status || (car as any).status;
-          return !carStatus || carStatus === 'ONLINE' || carStatus === 'PROCESSING' || carStatus === 'ACTIVE';
-        })
-        .map(car => ({
-          ...car,
-          is_available: true, // Assume available as fallback
-          current_assignment: undefined
-        }));
-      
-      setAvailableDrivers(fallbackDrivers);
-      setAvailableCars(fallbackCars);
-      
-      // Debug: Log fallback driver availability details
-      console.log('🔍 Fallback driver availability details:', fallbackDrivers.map(d => ({
-        id: d.id,
-        name: d.full_name,
-        status: d.status,
-        is_available: d.is_available,
-        driver_status: d.driver_status
-      })));
+      Alert.alert('Error', 'Failed to fetch available drivers and cars');
     } finally {
       setAssignmentsLoading(false);
     }
   };
 
-  const handleRefresh = async () => {
-    setRefreshing(true);
-    try {
-      console.log('🔄 Refreshing future rides data...');
-      await Promise.all([
-        fetchAvailableAssignments(),
-        fetchFutureRidesFromAPI(),
-        fetchPendingOrders()
-      ]);
-      
-      // Also refresh dashboard data to get latest future rides
-      if (refreshData) {
-        await refreshData();
-      }
-      
-      console.log('✅ Future rides data refreshed successfully');
-    } catch (error) {
-      console.error('❌ Error refreshing future rides data:', error);
-    } finally {
-      setRefreshing(false);
-    }
+  // Handle assign driver button press
+  const handleAssignDriver = (ride: FutureRide) => {
+    setSelectedRide(ride);
+    setSelectedDriver(null);
+    fetchAvailableAssignments();
+    setShowAssignModal(true);
   };
 
-  // Removed quick ID generation - drivers use their passwords instead
-
-  const selectDriver = (driver: AvailableDriver) => {
+  // Handle driver selection
+  const handleDriverSelect = (driver: AvailableDriver) => {
     setSelectedDriver(driver);
     setShowAssignModal(false);
     setShowVehicleModal(true);
   };
 
-  const assignVehicle = async (vehicle: AvailableCar) => {
-    if (!selectedRide || !selectedDriver || assignmentsLoading) return;
-    
+  // Handle assignment confirmation
+  const handleConfirmAssignment = async (car: AvailableCar) => {
+    if (!selectedRide || !selectedDriver) {
+      Alert.alert('Error', 'Please select both driver and car');
+      return;
+    }
+
     try {
       setAssignmentsLoading(true);
-      console.log('🔗 Creating assignment for order:', selectedRide.booking_id);
-      console.log('👤 Selected Driver:', {
-        id: selectedDriver.id,
-        name: selectedDriver.full_name,
-        mobile: selectedDriver.primary_number
-      });
-      console.log('🚗 Selected Vehicle:', {
-        id: vehicle.id,
-        name: vehicle.car_name,
-        number: vehicle.car_number
-      });
-      
-      // Validate that we have valid IDs
-      if (!selectedDriver.id || selectedDriver.id === 'undefined' || selectedDriver.id === 'null') {
-        Alert.alert(
-          'Invalid Driver',
-          'Please select a valid driver before assigning the vehicle.',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-      if (!vehicle.id || vehicle.id === 'undefined' || vehicle.id === 'null') {
-        Alert.alert(
-          'Invalid Vehicle',
-          'Please select a valid vehicle before proceeding.',
-          [{ text: 'OK' }]
-        );
-        return;
-      }
-      
-      // Check if order is already assigned
-      try {
-        const existingAssignments = await getOrderAssignments(selectedRide.booking_id);
-        
-        if (existingAssignments && existingAssignments.length > 0) {
-          const assignedOrder = existingAssignments.find(assignment => 
-            assignment.assignment_status === 'ASSIGNED' || 
-            assignment.assignment_status === 'DRIVING' || 
-            assignment.assignment_status === 'COMPLETED'
-          );
-          
-          if (assignedOrder) {
-            Alert.alert(
-              'Order Already Assigned',
-              `This order is already assigned to:\n\nDriver: ${assignedOrder.driver_id}\nCar: ${assignedOrder.car_id}\nStatus: ${assignedOrder.assignment_status}\n\nPlease refresh the list to see updated assignments.`,
-              [
-                { text: 'OK' },
-                { 
-                  text: 'Refresh', 
-                  onPress: () => {
-                    fetchFutureRidesFromAPI();
-                  }
-                }
-              ]
-            );
-            return;
-          }
-        }
-      } catch (checkError: any) {
-        // Proceed anyway if check fails
-      }
-      
-      // Use the new API endpoint for assigning driver and car
-      // For assignment, we need to use the original order ID, not the assignment ID
-      // Extract original order ID from booking_id (remove 'B' prefix) or use assignment_id
-      let assignmentId = selectedRide.assignment_id;
-      
-      // If no assignment_id, try to extract original order ID from booking_id
-      if (!assignmentId && selectedRide.booking_id) {
-        if (selectedRide.booking_id.startsWith('B')) {
-          // Remove 'B' prefix to get original order ID
-          assignmentId = selectedRide.booking_id.substring(1);
-        } else {
-          assignmentId = selectedRide.booking_id;
-        }
-      }
-      
-      // Fallback to ride ID if nothing else works
-      if (!assignmentId) {
-        assignmentId = selectedRide.id;
-      }
-      
-      console.log('🔗 Assignment debug info:', {
-        selectedRideId: selectedRide.id,
-        selectedRideBookingId: selectedRide.booking_id,
-        selectedRideAssignmentId: selectedRide.assignment_id,
-        finalAssignmentId: assignmentId,
-        extractedFromBookingId: selectedRide.booking_id?.startsWith('B') ? selectedRide.booking_id.substring(1) : 'N/A'
-      });
-      
-      const assignment = await assignCarDriverToOrder(
-        assignmentId,
-        selectedDriver.id,
-        vehicle.id
-      );
-      
-      console.log('✅ Assignment created successfully:', assignment);
-      
-      // Update the ride with assignment details
-      const updatedRide: FutureRide = {
-        ...selectedRide,
-        assigned_driver: { ...selectedDriver },
-        assigned_vehicle: vehicle,
-        status: 'assigned',
-      };
+      console.log('🔄 Assigning driver and car to order...');
 
-      // Update both context and API state
-      updateFutureRide(updatedRide);
-      
-      // Update the API rides state
-      setApiFutureRides(prevRides => 
-        prevRides.map(ride => 
-          ride.id === selectedRide.id ? updatedRide : ride
-        )
+      await assignCarDriverToOrder(
+        selectedRide.assignment_id,
+        selectedDriver.id,
+        car.id
       );
-      
-      setShowAssignModal(false);
+
+      // Update the ride in the list
+      setFutureRides(prev => prev.map(ride => 
+        ride.id === selectedRide.id 
+          ? {
+              ...ride,
+              assignment_status: 'ASSIGNED',
+              assigned_driver_name: selectedDriver.full_name,
+              assigned_driver_phone: selectedDriver.primary_number,
+              assigned_car_name: car.car_name,
+              assigned_car_number: car.car_number
+            }
+          : ride
+      ));
+
+      // Send notification
+      sendOrderAssignedNotification({
+        orderId: selectedRide.source_order_id.toString(),
+        pickup: getPickupDrop(selectedRide.pickup_drop_location).pickup,
+        drop: getPickupDrop(selectedRide.pickup_drop_location).drop,
+        customerName: selectedRide.customer_name,
+        customerMobile: selectedRide.customer_number,
+        distance: selectedRide.trip_distance,
+        fare: selectedRide.vendor_price,
+        orderType: 'assigned'
+      });
+
+      Alert.alert('Success', 'Driver and car assigned successfully!');
       setShowVehicleModal(false);
       setSelectedRide(null);
       setSelectedDriver(null);
       
-      // Send notification for order assignment
-      sendOrderAssignedNotification({
-        orderId: selectedRide.booking_id,
-        pickup: selectedRide.pickup,
-        drop: selectedRide.drop,
-        customerName: selectedRide.customer_name,
-        customerMobile: selectedRide.customer_mobile,
-        distance: selectedRide.distance,
-        fare: selectedRide.total_fare,
-        orderType: 'assigned'
-      });
-      
-      Alert.alert(
-        'Assignment Complete',
-        `Driver: ${selectedDriver.full_name}\nVehicle: ${vehicle.car_name} (${vehicle.car_number})\nTrip: ${selectedRide.booking_id}\n\nMobile: ${selectedDriver.primary_number}\n\nThe driver can now login using their registered password.`
-      );
-      
-      // Refresh available assignments and future rides
-      await fetchAvailableAssignments();
-      await fetchFutureRidesFromAPI();
-      
+      console.log('✅ Assignment completed successfully');
     } catch (error: any) {
-      console.error('❌ Assignment failed:', error);
-      
-      let errorMessage = 'Failed to assign driver and vehicle.\n\n';
-      let errorTitle = 'Assignment Failed';
-      
-      if (error.message.includes('already assigned')) {
-        errorTitle = 'Order Already Assigned';
-        errorMessage = `This order is already assigned to another driver and car.\n\n${error.message}\n\nPlease refresh the list to see updated assignments.`;
-      } else if (error.message.includes('Invalid driver ID')) {
-        errorTitle = 'Invalid Driver';
-        errorMessage = 'The selected driver is invalid. Please select a different driver.';
-      } else if (error.message.includes('Invalid car ID')) {
-        errorTitle = 'Invalid Vehicle';
-        errorMessage = 'The selected vehicle is invalid. Please select a different vehicle.';
-      } else if (error.message.includes('Authentication failed')) {
-        errorTitle = 'Authentication Error';
-        errorMessage = 'Your session has expired. Please login again.';
-      } else if (error.message.includes('Order not found')) {
-        errorTitle = 'Order Not Found';
-        errorMessage = 'This order no longer exists. Please refresh the list.';
-      } else if (error.message.includes('Server error')) {
-        errorTitle = 'Server Error';
-        errorMessage = 'Server is temporarily unavailable. Please try again later.';
-      } else {
-        errorMessage += `Error: ${error.message}\n\nPlease check your connection and try again.`;
-      }
-      
-      Alert.alert(
-        errorTitle,
-        errorMessage,
-        [
-          { text: 'OK' },
-          { 
-            text: 'Refresh', 
-            onPress: () => {
-              fetchFutureRidesFromAPI();
-            }
-          }
-        ]
-      );
+      console.error('❌ Failed to assign driver and car:', error);
+      Alert.alert('Error', error.message || 'Failed to assign driver and car');
     } finally {
       setAssignmentsLoading(false);
     }
   };
 
-  const handleCloseModal = () => {
-    setShowAssignModal(false);
-    setShowVehicleModal(false);
-    setSelectedRide(null);
-    setSelectedDriver(null);
+  // Helper function to get pickup and drop locations
+  const getPickupDrop = (pickupDropLocation: any) => {
+    if (!pickupDropLocation) return { pickup: 'Unknown', drop: 'Unknown' };
+    
+    // Handle the format from API: { "0": "gingee", "1": "Tiruvannamalai" }
+    if (pickupDropLocation["0"] && pickupDropLocation["1"]) {
+      return {
+        pickup: pickupDropLocation["0"],
+        drop: pickupDropLocation["1"]
+      };
+    }
+    
+    return { pickup: 'Unknown', drop: 'Unknown' };
   };
 
-  const openAssignmentModal = (ride: FutureRide) => {
-    setSelectedRide(ride);
-    setShowAssignModal(true);
+  // Helper function to format date
+  const formatDate = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return 'Invalid Date';
+    }
   };
 
-  const getAvailabilityStatus = (isAvailable: boolean) => {
-    return isAvailable ? (
-      <View style={[dynamicStyles.availabilityBadge, { backgroundColor: '#10B981' }]}>
-        <CheckCircle color="#FFFFFF" size={12} />
-        <Text style={dynamicStyles.availabilityText}>Available</Text>
-      </View>
-    ) : (
-      <View style={[dynamicStyles.availabilityBadge, { backgroundColor: '#EF4444' }]}>
-        <AlertCircle color="#FFFFFF" size={12} />
-        <Text style={dynamicStyles.availabilityText}>Unavailable</Text>
-      </View>
-    );
+  // Helper function to get status color
+  const getStatusColor = (status: string) => {
+    switch (status.toUpperCase()) {
+      case 'PENDING': return '#F59E0B';
+      case 'ASSIGNED': return '#10B981';
+      case 'COMPLETED': return '#6B7280';
+      case 'CANCELLED': return '#EF4444';
+      default: return '#6B7280';
+    }
   };
 
-  const dynamicStyles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    header: {
-      paddingHorizontal: 20,
-      paddingVertical: 20,
-      backgroundColor: colors.surface,
-      borderBottomWidth: 1,
-      borderBottomColor: colors.border,
-    },
-    headerTitle: {
-      fontSize: 24,
-      fontFamily: 'Inter-Bold',
-      color: colors.text,
-    },
-    headerSubtitle: {
-      fontSize: 14,
-      fontFamily: 'Inter-Regular',
-      color: colors.textSecondary,
-      marginTop: 4,
-    },
-    content: {
-      flex: 1,
-      paddingHorizontal: 20,
-      paddingTop: 20,
-    },
-    rideCard: {
-      backgroundColor: colors.surface,
-      borderRadius: 16,
-      padding: 16,
-      marginBottom: 16,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 2 },
-      shadowOpacity: 0.1,
-      shadowRadius: 8,
-      elevation: 4,
-    },
-    rideHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 12,
-    },
-    bookingId: {
-      fontSize: 16,
-      fontFamily: 'Inter-SemiBold',
-      color: colors.text,
-    },
-    statusBadge: {
-      backgroundColor: colors.primary,
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 8,
-    },
-    statusText: {
-      fontSize: 12,
-      fontFamily: 'Inter-SemiBold',
-      color: '#FFFFFF',
-    },
-    assignedBadge: {
-      backgroundColor: colors.success,
-    },
-    routeContainer: {
-      marginBottom: 12,
-    },
-    routeRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: 4,
-    },
-    routeText: {
-      marginLeft: 8,
-      fontSize: 14,
-      fontFamily: 'Inter-Medium',
-      color: colors.text,
-    },
-    routeLine: {
-      width: 1,
-      height: 20,
-      backgroundColor: colors.border,
-      marginLeft: 8,
-      marginVertical: 4,
-    },
-    rideDetails: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      marginBottom: 12,
-    },
-    detailRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-    },
-    detailText: {
-      marginLeft: 4,
-      fontSize: 12,
-      fontFamily: 'Inter-Medium',
-      color: colors.textSecondary,
-    },
-    customerInfo: {
-      borderTopWidth: 1,
-      borderTopColor: colors.border,
-      paddingTop: 12,
-      marginBottom: 12,
-    },
-    customerName: {
-      fontSize: 14,
-      fontFamily: 'Inter-SemiBold',
-      color: colors.text,
-    },
-    customerMobile: {
-      fontSize: 12,
-      fontFamily: 'Inter-Medium',
-      color: colors.textSecondary,
-      marginTop: 2,
-    },
-    assignButton: {
-      backgroundColor: colors.primary,
-      borderRadius: 12,
-      paddingVertical: 12,
-      alignItems: 'center',
-    },
-    assignButtonText: {
-      color: '#FFFFFF',
-      fontSize: 14,
-      fontFamily: 'Inter-SemiBold',
-    },
-    assignedInfo: {
-      backgroundColor: colors.background,
-      borderRadius: 12,
-      padding: 12,
-    },
-    assignedText: {
-      fontSize: 12,
-      fontFamily: 'Inter-Medium',
-      color: colors.textSecondary,
-    },
-    modalOverlay: {
-      flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.5)',
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    modalContent: {
-      backgroundColor: colors.surface,
-      borderRadius: 16,
-      padding: 20,
-      width: '90%',
-      maxHeight: '80%',
-    },
-    modalHeader: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      marginBottom: 20,
-    },
-    modalTitle: {
-      fontSize: 18,
-      fontFamily: 'Inter-SemiBold',
-      color: colors.text,
-    },
-    closeButton: {
-      padding: 8,
-    },
-    driverCard: {
-      backgroundColor: colors.background,
-      borderRadius: 12,
-      padding: 16,
-      marginBottom: 12,
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-    },
-    driverInfo: {
-      flex: 1,
-    },
-    driverName: {
-      fontSize: 16,
-      fontFamily: 'Inter-SemiBold',
-      color: colors.text,
-    },
-    driverMobile: {
-      fontSize: 12,
-      fontFamily: 'Inter-Regular',
-      color: colors.textSecondary,
-      marginTop: 2,
-    },
-    selectButton: {
-      backgroundColor: colors.primary,
-      borderRadius: 8,
-      paddingHorizontal: 16,
-      paddingVertical: 8,
-    },
-    selectButtonText: {
-      color: '#FFFFFF',
-      fontSize: 12,
-      fontFamily: 'Inter-SemiBold',
-    },
-    loadingButtonContent: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    noDriversContainer: {
-      backgroundColor: colors.background,
-      borderRadius: 12,
-      padding: 20,
-      alignItems: 'center',
-      marginBottom: 12,
-    },
-    noDriversText: {
-      fontSize: 14,
-      fontFamily: 'Inter-Medium',
-      color: colors.textSecondary,
-      textAlign: 'center',
-      marginBottom: 8,
-    },
-    noDriversSubtext: {
-      fontSize: 12,
-      fontFamily: 'Inter-Regular',
-      color: colors.textSecondary,
-      textAlign: 'center',
-    },
-    loadingContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingVertical: 60,
-    },
-    loadingText: {
-      fontSize: 16,
-      fontFamily: 'Inter-Medium',
-      color: colors.textSecondary,
-    },
-    errorContainer: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
-      paddingVertical: 60,
-    },
-    errorText: {
-      fontSize: 16,
-      fontFamily: 'Inter-Medium',
-      color: colors.error,
-      textAlign: 'center',
-      marginBottom: 16,
-    },
-    retryButton: {
-      backgroundColor: colors.primary,
-      borderRadius: 8,
-      paddingHorizontal: 20,
-      paddingVertical: 12,
-    },
-    retryButtonText: {
-      color: '#FFFFFF',
-      fontSize: 16,
-      fontFamily: 'Inter-SemiBold',
-    },
-    availabilityBadge: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 8,
-      marginTop: 4,
-    },
-    availabilityText: {
-      marginLeft: 4,
-      fontSize: 12,
-      fontFamily: 'Inter-Medium',
-      color: '#FFFFFF',
-    },
-    selectButtonDisabled: {
-      backgroundColor: colors.border,
-      opacity: 0.6,
-    },
-    selectButtonTextDisabled: {
-      color: colors.textSecondary,
-    },
-  });
-
-  if (loading) {
+  // Render ride card
+  const renderRideCard = (ride: FutureRide) => {
+    const { pickup, drop } = getPickupDrop(ride.pickup_drop_location);
+    
     return (
-      <SafeAreaView style={dynamicStyles.container}>
-        <View style={dynamicStyles.loadingContainer}>
-          <Text style={dynamicStyles.loadingText}>Loading future rides...</Text>
+      <View key={ride.id} style={[styles.rideCard, { backgroundColor: colors.surface }]}>
+        {/* Header */}
+        <View style={styles.rideHeader}>
+          <View style={styles.statusBadge}>
+            <Text style={[styles.statusText, { color: getStatusColor(ride.assignment_status) }]}>
+              {ride.assignment_status}
+            </Text>
+          </View>
+          <Text style={[styles.orderId, { color: colors.textSecondary }]}>
+            Order #{ride.source_order_id}
+          </Text>
         </View>
-      </SafeAreaView>
-    );
-  }
 
-  if (error) {
-    return (
-      <SafeAreaView style={dynamicStyles.container}>
-        <View style={dynamicStyles.errorContainer}>
-          <Text style={dynamicStyles.errorText}>Error: {error}</Text>
-          <TouchableOpacity style={dynamicStyles.retryButton}>
-            <Text style={dynamicStyles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
-
-  const RideCard = ({ ride }: { ride: FutureRide }) => {
-    // Use the same robust mapping as BookingCard
-    const toNumber = (v: any): number => {
-      if (v === null || v === undefined || v === '') return 0;
-      const n = Number(v);
-      return Number.isFinite(n) ? n : 0;
-    };
-
-    const safePickLoc = (v: any): Record<string, string> => {
-      if (!v) return {};
-      if (typeof v === 'string') {
-        try { return JSON.parse(v); } catch { return {}; }
-      }
-      return v;
-    };
-
-    // Derive fields robustly in case parent passes raw VO pending order
-    const loc = safePickLoc((ride as any).pickup_drop_location);
-    const cities = Object.values(loc || {});
-    const pickup = ride.pickup || String(cities[0] ?? '');
-    const drop = ride.drop || String(cities[1] ?? '');
-
-    const displayPrice = toNumber((ride as any).estimated_price ?? (ride as any).vendor_price ?? ride.total_fare);
-    const customerNumber = (ride as any).customer_number || (ride as any).customer_mobile || ride.customer_mobile || '';
-    const orderId = (ride as any).order_id || ride.booking_id || ride.id;
-    const tripDistance = toNumber((ride as any).trip_distance ?? ride.distance);
-    const farePerKm = toNumber((ride as any).fare_per_km ?? ride.fare_per_km);
-
-    return (
-      <View style={dynamicStyles.rideCard}>
-        <View style={dynamicStyles.rideHeader}>
-          <Text style={dynamicStyles.bookingId}>#{orderId}</Text>
-          <View style={[
-            dynamicStyles.statusBadge,
-            ride.status === 'assigned' && dynamicStyles.assignedBadge,
-            ride.status === 'pending_assignment' && { backgroundColor: colors.warning }
-          ]}>
-            <Text style={dynamicStyles.statusText}>
-              {ride.status === 'assigned' ? 'ASSIGNED' : 
-               ride.status === 'pending_assignment' ? 'PENDING ASSIGNMENT' : 'CONFIRMED'}
+        {/* Route */}
+        <View style={styles.routeContainer}>
+          <View style={styles.routeRow}>
+            <View style={[styles.locationDot, { backgroundColor: '#10B981' }]} />
+            <Text style={[styles.locationText, { color: colors.text }]} numberOfLines={1}>
+              {pickup}
+            </Text>
+          </View>
+          <View style={styles.routeRow}>
+            <View style={[styles.locationDot, { backgroundColor: '#EF4444' }]} />
+            <Text style={[styles.locationText, { color: colors.text }]} numberOfLines={1}>
+              {drop}
             </Text>
           </View>
         </View>
 
-        <View style={dynamicStyles.routeContainer}>
-          <View style={dynamicStyles.routeRow}>
-            <MapPin color={colors.success} size={16} />
-            <Text style={dynamicStyles.routeText}>{pickup}</Text>
-          </View>
-          <View style={dynamicStyles.routeLine} />
-          <View style={dynamicStyles.routeRow}>
-            <MapPin color={colors.error} size={16} />
-            <Text style={dynamicStyles.routeText}>{drop}</Text>
-          </View>
-        </View>
-
-        <View style={dynamicStyles.rideDetails}>
-          <View style={dynamicStyles.detailRow}>
-            <Clock color={colors.textSecondary} size={14} />
-            <Text style={dynamicStyles.detailText}>{ride.date} at {ride.time}</Text>
-          </View>
-          <View style={dynamicStyles.detailRow}>
-            <Car color={colors.textSecondary} size={14} />
-            <Text style={dynamicStyles.detailText}>{tripDistance} km</Text>
-          </View>
-          <View style={dynamicStyles.detailRow}>
-            <IndianRupee color={colors.textSecondary} size={14} />
-            <Text style={dynamicStyles.detailText}>₹{displayPrice}</Text>
-          </View>
-          {farePerKm > 0 && (
-            <View style={dynamicStyles.detailRow}>
-              <Text style={dynamicStyles.detailText}>₹{farePerKm}/km</Text>
-            </View>
-          )}
-        </View>
-
-        <View style={dynamicStyles.customerInfo}>
-          <Text style={dynamicStyles.customerName}>{ride.customer_name}</Text>
-          {customerNumber && (
-            <Text style={dynamicStyles.customerMobile}>{customerNumber}</Text>
-          )}
-        </View>
-
-        {ride.assigned_driver && ride.assigned_vehicle ? (
-          <View style={dynamicStyles.assignedInfo}>
-            <Text style={dynamicStyles.assignedText}>
-              Driver: {ride.assigned_driver.full_name || ride.assigned_driver.name} ({ride.assigned_driver.primary_number || ride.assigned_driver.mobile})
-            </Text>
-            <Text style={dynamicStyles.assignedText}>
-              Vehicle: {ride.assigned_vehicle.car_name} ({ride.assigned_vehicle.car_number})
+        {/* Details */}
+        <View style={styles.detailsContainer}>
+          <View style={styles.detailRow}>
+            <User size={16} color={colors.textSecondary} />
+            <Text style={[styles.detailText, { color: colors.textSecondary }]}>
+              {ride.customer_name}
             </Text>
           </View>
-        ) : ride.status === 'pending_assignment' ? (
-          <TouchableOpacity 
-            style={[
-              dynamicStyles.assignButton, 
-              { backgroundColor: colors.warning },
-              assignmentsLoading && { opacity: 0.6 }
-            ]}
-            onPress={() => openAssignmentModal(ride)}
-            disabled={assignmentsLoading}
-          >
-            {assignmentsLoading ? (
-              <View style={dynamicStyles.loadingButtonContent}>
-                <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
-                <Text style={dynamicStyles.assignButtonText}>Assigning...</Text>
-              </View>
-            ) : (
-            <Text style={dynamicStyles.assignButtonText}>Assign Driver & Vehicle</Text>
+          <View style={styles.detailRow}>
+            <Phone size={16} color={colors.textSecondary} />
+            <Text style={[styles.detailText, { color: colors.textSecondary }]}>
+              {ride.customer_number}
+            </Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Car size={16} color={colors.textSecondary} />
+            <Text style={[styles.detailText, { color: colors.textSecondary }]}>
+              {ride.car_type}
+            </Text>
+          </View>
+          <View style={styles.detailRow}>
+            <MapPin size={16} color={colors.textSecondary} />
+            <Text style={[styles.detailText, { color: colors.textSecondary }]}>
+              {ride.trip_distance} km • {ride.trip_time}
+            </Text>
+          </View>
+        </View>
+
+        {/* Footer */}
+        <View style={styles.rideFooter}>
+          <View style={styles.timeContainer}>
+            <Clock size={16} color={colors.textSecondary} />
+            <Text style={[styles.timeText, { color: colors.textSecondary }]}>
+              {formatDate(ride.start_date_time)}
+            </Text>
+          </View>
+          <View style={styles.priceContainer}>
+            <IndianRupee size={16} color="#10B981" />
+            <Text style={styles.priceText}>
+              {ride.vendor_price}
+            </Text>
+          </View>
+        </View>
+
+        {/* Assignment Info or Assign Button */}
+        {ride.assigned_driver_name ? (
+          <View style={[styles.assignmentInfo, { backgroundColor: colors.background }]}>
+            <Text style={[styles.assignmentTitle, { color: colors.text }]}>
+              Assigned Driver
+            </Text>
+            <Text style={[styles.assignmentText, { color: colors.textSecondary }]}>
+              {ride.assigned_driver_name} • {ride.assigned_driver_phone}
+            </Text>
+            {ride.assigned_car_name && (
+              <Text style={[styles.assignmentText, { color: colors.textSecondary }]}>
+                {ride.assigned_car_name} • {ride.assigned_car_number}
+              </Text>
             )}
-          </TouchableOpacity>
+          </View>
         ) : (
           <TouchableOpacity 
-            style={[
-              dynamicStyles.assignButton,
-              assignmentsLoading && { opacity: 0.6 }
-            ]}
-            onPress={() => openAssignmentModal(ride)}
+            style={[styles.assignButton, { backgroundColor: colors.primary }]}
+            onPress={() => handleAssignDriver(ride)}
             disabled={assignmentsLoading}
           >
             {assignmentsLoading ? (
-              <View style={dynamicStyles.loadingButtonContent}>
-                <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
-                <Text style={dynamicStyles.assignButtonText}>Assigning...</Text>
-              </View>
+              <ActivityIndicator color="#FFFFFF" size="small" />
             ) : (
-            <Text style={dynamicStyles.assignButtonText}>Assign Driver & Vehicle</Text>
+              <UserPlus color="#FFFFFF" size={20} />
             )}
+            <Text style={styles.assignButtonText}>
+              {assignmentsLoading ? 'Loading...' : 'Assign Driver & Car'}
+            </Text>
           </TouchableOpacity>
         )}
       </View>
     );
   };
 
+  // Render empty state
+  const renderEmptyState = () => (
+    <View style={styles.emptyContainer}>
+      <Car size={64} color={colors.textSecondary} />
+      <Text style={[styles.emptyTitle, { color: colors.text }]}>
+        No Future Rides
+      </Text>
+      <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+        You don't have any upcoming rides at the moment.
+      </Text>
+      <TouchableOpacity style={styles.refreshButton} onPress={fetchFutureRides}>
+        <RefreshCw size={20} color="#FFFFFF" />
+        <Text style={styles.refreshButtonText}>Refresh</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
+  // Render error state
+  const renderErrorState = () => (
+    <View style={styles.emptyContainer}>
+      <Text style={[styles.emptyTitle, { color: colors.error }]}>
+        Error Loading Rides
+      </Text>
+      <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
+        {error}
+      </Text>
+      <TouchableOpacity style={styles.refreshButton} onPress={fetchFutureRides}>
+        <RefreshCw size={20} color="#FFFFFF" />
+        <Text style={styles.refreshButtonText}>Try Again</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   return (
-    <SafeAreaView style={dynamicStyles.container}>
-      <View style={dynamicStyles.header}>
-        <Text style={dynamicStyles.headerTitle}>Future Rides</Text>
-        <Text style={dynamicStyles.headerSubtitle}>
-          Welcome back, {dashboardData?.user_info?.full_name || user?.fullName || 'Vehicle Owner'}! • {uniqueRides.length} upcoming bookings
-        </Text>
-        <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
-          <TouchableOpacity 
-            style={[dynamicStyles.assignButton, { flex: 1, backgroundColor: colors.warning }]}
-            onPress={handleRefresh}
-          >
-            <Text style={dynamicStyles.assignButtonText}>Refresh All Data</Text>
-          </TouchableOpacity>
-        </View>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Header */}
+      <View style={styles.header}>
+        <Text style={[styles.title, { color: colors.text }]}>Future Rides</Text>
+        <TouchableOpacity onPress={fetchFutureRides} disabled={loading}>
+          <RefreshCw size={24} color={loading ? colors.textSecondary : colors.primary} />
+        </TouchableOpacity>
       </View>
 
-      <ScrollView 
-        style={dynamicStyles.content} 
-        showsVerticalScrollIndicator={false}
+      {/* Content */}
+      <ScrollView
+        style={styles.scrollView}
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
         }
+        showsVerticalScrollIndicator={false}
       >
-        {apiRidesLoading ? (
-          <View style={dynamicStyles.loadingContainer}>
-            <Text style={dynamicStyles.loadingText}>Loading future rides from API...</Text>
-          </View>
-        ) : uniqueRides.length > 0 ? (
-          uniqueRides.map((ride, index) => (
-            <RideCard key={`${ride.id || ride.booking_id}-${index}-${ride.customer_name || 'unknown'}`} ride={ride} />
-          ))
-        ) : (
-          <View style={dynamicStyles.loadingContainer}>
-            <Text style={dynamicStyles.loadingText}>No future rides available</Text>
-            <Text style={[dynamicStyles.loadingText, { fontSize: 14, marginTop: 8 }]}>
-              Use the "Refresh Future Rides" button to load assignments from the API
+        {loading && futureRides.length === 0 ? (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={colors.primary} />
+            <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
+              Loading future rides...
             </Text>
           </View>
+        ) : error ? (
+          renderErrorState()
+        ) : futureRides.length > 0 ? (
+          <View style={styles.ridesContainer}>
+            {futureRides.map(renderRideCard)}
+          </View>
+        ) : (
+          renderEmptyState()
         )}
       </ScrollView>
 
+      {/* Driver Assignment Modal */}
       <Modal
         visible={showAssignModal}
         transparent={true}
         animationType="slide"
-        onRequestClose={handleCloseModal}
+        onRequestClose={() => setShowAssignModal(false)}
       >
-        <View style={dynamicStyles.modalOverlay}>
-          <View style={dynamicStyles.modalContent}>
-            <View style={dynamicStyles.modalHeader}>
-              <Text style={dynamicStyles.modalTitle}>Assign Driver</Text>
-              <TouchableOpacity 
-                onPress={handleCloseModal}
-                style={dynamicStyles.closeButton}
-              >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Select Driver
+              </Text>
+              <TouchableOpacity onPress={() => setShowAssignModal(false)}>
                 <X color={colors.textSecondary} size={24} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
+            <ScrollView style={styles.modalScrollView}>
               {assignmentsLoading ? (
-                <View style={dynamicStyles.loadingContainer}>
-                  <Text style={dynamicStyles.loadingText}>Loading available drivers...</Text>
+                <View style={styles.modalLoading}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                  <Text style={[styles.modalLoadingText, { color: colors.textSecondary }]}>
+                    Loading drivers...
+                  </Text>
                 </View>
               ) : availableDrivers.length > 0 ? (
                 availableDrivers.map((driver) => (
-                  <View key={driver.id} style={dynamicStyles.driverCard}>
-                    <View style={dynamicStyles.driverInfo}>
-                      <Text style={dynamicStyles.driverName}>{driver.full_name}</Text>
-                      <Text style={dynamicStyles.driverMobile}>{driver.primary_number}</Text>
-                      {getAvailabilityStatus(driver.is_available)}
-                    </View>
-                    <TouchableOpacity
-                      style={[
-                        dynamicStyles.selectButton,
-                        !driver.is_available && dynamicStyles.selectButtonDisabled
-                      ]}
-                      onPress={() => selectDriver(driver)}
-                      disabled={!driver.is_available}
-                    >
-                      <Text style={[
-                        dynamicStyles.selectButtonText,
-                        !driver.is_available && dynamicStyles.selectButtonTextDisabled
-                      ]}>
-                        {driver.is_available ? 'Select' : 'Unavailable'}
+                  <TouchableOpacity
+                    key={driver.id}
+                    style={[styles.driverCard, { backgroundColor: colors.background }]}
+                    onPress={() => handleDriverSelect(driver)}
+                  >
+                    <View style={styles.driverInfo}>
+                      <Text style={[styles.driverName, { color: colors.text }]}>
+                        {driver.full_name}
                       </Text>
-                    </TouchableOpacity>
-                  </View>
+                      <Text style={[styles.driverDetails, { color: colors.textSecondary }]}>
+                        {driver.primary_number}
+                      </Text>
+                      <Text style={[styles.driverStatus, { color: '#10B981' }]}>
+                        {driver.driver_status}
+                      </Text>
+                    </View>
+                    <CheckCircle color={colors.primary} size={24} />
+                  </TouchableOpacity>
                 ))
               ) : (
-                <View style={dynamicStyles.noDriversContainer}>
-                  <User color={colors.textSecondary} size={32} />
-                  <Text style={dynamicStyles.noDriversText}>No Drivers Available</Text>
-                  <Text style={dynamicStyles.noDriversSubtext}>
-                    Add drivers to your account first to assign them to rides
+                <View style={styles.modalEmpty}>
+                  <Text style={[styles.modalEmptyText, { color: colors.textSecondary }]}>
+                    No available drivers found
                   </Text>
                 </View>
               )}
@@ -1124,67 +495,63 @@ export default function FutureRidesScreen() {
         </View>
       </Modal>
 
+      {/* Car Assignment Modal */}
       <Modal
         visible={showVehicleModal}
         transparent={true}
         animationType="slide"
-        onRequestClose={handleCloseModal}
+        onRequestClose={() => setShowVehicleModal(false)}
       >
-        <View style={dynamicStyles.modalOverlay}>
-          <View style={dynamicStyles.modalContent}>
-            <View style={dynamicStyles.modalHeader}>
-              <Text style={dynamicStyles.modalTitle}>Select Vehicle</Text>
-              <TouchableOpacity 
-                onPress={handleCloseModal}
-                style={dynamicStyles.closeButton}
-              >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
+            <View style={styles.modalHeader}>
+              <Text style={[styles.modalTitle, { color: colors.text }]}>
+                Select Car
+              </Text>
+              <TouchableOpacity onPress={() => setShowVehicleModal(false)}>
                 <X color={colors.textSecondary} size={24} />
               </TouchableOpacity>
             </View>
 
-            <ScrollView showsVerticalScrollIndicator={false}>
+            {selectedDriver && (
+              <View style={[styles.selectedDriverInfo, { backgroundColor: colors.background }]}>
+                <Text style={[styles.selectedDriverText, { color: colors.text }]}>
+                  Selected Driver: {selectedDriver.full_name}
+                </Text>
+              </View>
+            )}
+
+            <ScrollView style={styles.modalScrollView}>
               {assignmentsLoading ? (
-                <View style={dynamicStyles.loadingContainer}>
-                  <Text style={dynamicStyles.loadingText}>Loading available vehicles...</Text>
+                <View style={styles.modalLoading}>
+                  <ActivityIndicator size="large" color={colors.primary} />
+                  <Text style={[styles.modalLoadingText, { color: colors.textSecondary }]}>
+                    Assigning...
+                  </Text>
                 </View>
               ) : availableCars.length > 0 ? (
                 availableCars.map((car) => (
-                  <View key={car.id} style={dynamicStyles.driverCard}>
-                    <View style={dynamicStyles.driverInfo}>
-                      <Text style={dynamicStyles.driverName}>{car.car_name}</Text>
-                      <Text style={dynamicStyles.driverMobile}>{car.car_number}</Text>
-                      {getAvailabilityStatus(car.is_available)}
-                    </View>
-                    <TouchableOpacity
-                      style={[
-                        dynamicStyles.selectButton,
-                        (!car.is_available || assignmentsLoading) && dynamicStyles.selectButtonDisabled
-                      ]}
-                      onPress={() => assignVehicle(car)}
-                      disabled={!car.is_available || assignmentsLoading}
-                    >
-                      {assignmentsLoading ? (
-                        <View style={dynamicStyles.loadingButtonContent}>
-                          <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
-                          <Text style={dynamicStyles.selectButtonText}>Assigning...</Text>
-                        </View>
-                      ) : (
-                      <Text style={[
-                        dynamicStyles.selectButtonText,
-                        !car.is_available && dynamicStyles.selectButtonTextDisabled
-                      ]}>
-                        {car.is_available ? 'Select' : 'Unavailable'}
+                  <TouchableOpacity
+                    key={car.id}
+                    style={[styles.carCard, { backgroundColor: colors.background }]}
+                    onPress={() => handleConfirmAssignment(car)}
+                    disabled={assignmentsLoading}
+                  >
+                    <View style={styles.carInfo}>
+                      <Text style={[styles.carName, { color: colors.text }]}>
+                        {car.car_name} ({car.car_type})
                       </Text>
-                      )}
-                    </TouchableOpacity>
-                  </View>
+                      <Text style={[styles.carDetails, { color: colors.textSecondary }]}>
+                        {car.car_number}
+                      </Text>
+                    </View>
+                    <CheckCircle color={colors.primary} size={24} />
+                  </TouchableOpacity>
                 ))
               ) : (
-                <View style={dynamicStyles.noDriversContainer}>
-                  <Car color={colors.textSecondary} size={32} />
-                  <Text style={dynamicStyles.noDriversText}>No Vehicles Available</Text>
-                  <Text style={dynamicStyles.noDriversSubtext}>
-                    Add vehicles to your account first to assign them to rides
+                <View style={styles.modalEmpty}>
+                  <Text style={[styles.modalEmptyText, { color: colors.textSecondary }]}>
+                    No available cars found
                   </Text>
                 </View>
               )}
@@ -1195,3 +562,306 @@ export default function FutureRidesScreen() {
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  title: {
+    fontSize: 24,
+    fontFamily: 'Inter-Bold',
+  },
+  scrollView: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+  },
+  ridesContainer: {
+    gap: 16,
+    paddingBottom: 20,
+  },
+  rideCard: {
+    borderRadius: 12,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  rideHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  statusBadge: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  statusText: {
+    fontSize: 12,
+    fontFamily: 'Inter-SemiBold',
+  },
+  orderId: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+  },
+  routeContainer: {
+    marginBottom: 12,
+  },
+  routeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  locationDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    marginRight: 12,
+  },
+  locationText: {
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    flex: 1,
+  },
+  detailsContainer: {
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    paddingTop: 12,
+    marginBottom: 12,
+    gap: 8,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  detailText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+  },
+  rideFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    paddingTop: 12,
+  },
+  timeContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  timeText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+  },
+  priceContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  priceText: {
+    fontSize: 18,
+    fontFamily: 'Inter-Bold',
+    color: '#10B981',
+  },
+  assignmentInfo: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 8,
+  },
+  assignmentTitle: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+    marginBottom: 4,
+  },
+  assignmentText: {
+    fontSize: 13,
+    fontFamily: 'Inter-Regular',
+    marginBottom: 2,
+  },
+  emptyContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontFamily: 'Inter-SemiBold',
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    fontFamily: 'Inter-Regular',
+    textAlign: 'center',
+    marginBottom: 24,
+    paddingHorizontal: 40,
+  },
+  refreshButton: {
+    backgroundColor: '#3B82F6',
+    borderRadius: 8,
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  refreshButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+  },
+  loadingText: {
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    marginTop: 16,
+  },
+  assignButton: {
+    marginTop: 12,
+    borderRadius: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  assignButtonText: {
+    color: '#FFFFFF',
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 20,
+    maxHeight: '80%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  modalTitle: {
+    fontSize: 18,
+    fontFamily: 'Inter-SemiBold',
+  },
+  modalScrollView: {
+    paddingHorizontal: 20,
+    paddingTop: 16,
+  },
+  modalLoading: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  modalLoadingText: {
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    marginTop: 12,
+  },
+  modalEmpty: {
+    alignItems: 'center',
+    paddingVertical: 40,
+  },
+  modalEmptyText: {
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+  },
+  driverCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  driverInfo: {
+    flex: 1,
+  },
+  driverName: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    marginBottom: 4,
+  },
+  driverDetails: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    marginBottom: 2,
+  },
+  driverStatus: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+  },
+  selectedDriverInfo: {
+    marginHorizontal: 20,
+    padding: 12,
+    borderRadius: 8,
+    marginBottom: 16,
+  },
+  selectedDriverText: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+  },
+  carCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: 16,
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  carInfo: {
+    flex: 1,
+  },
+  carName: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    marginBottom: 4,
+  },
+  carDetails: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+  },
+});

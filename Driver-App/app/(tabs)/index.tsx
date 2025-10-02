@@ -95,20 +95,39 @@ export default function DashboardScreen() {
     });
   }, [user, dashboardData, loading, error, pendingOrders]);
 
-  // Fetch dashboard data on component mount
-  // Lazy load dashboard data - only fetch when user explicitly requests it
-  // This prevents heavy API calls on app startup
-  // useEffect(() => {
-  //   console.log('📱 DashboardScreen: fetchData called');
-  //   fetchData();
-  // }, []);
+  // Auto-load data when user is available after login
+  useEffect(() => {
+    if (user && !loading && !dashboardData) {
+      console.log('🔄 User available, auto-loading dashboard data...');
+      fetchData();
+      fetchPendingOrdersData();
+    }
+  }, [user, loading, dashboardData]);
 
-  // Lazy load pending orders - only fetch when user explicitly requests it
-  // useEffect(() => {
-  //   if (dashboardData && !loading) {
-  //     fetchPendingOrdersData();
-  //   }
-  // }, [dashboardData, loading]);
+  // Also load data when user changes (login/logout)
+  useEffect(() => {
+    if (user) {
+      console.log('👤 User changed, refreshing dashboard data...');
+      fetchData();
+      fetchPendingOrdersData();
+    }
+  }, [user?.id]); // Only trigger when user ID changes (login/logout)
+
+  // Set up periodic refresh for new bookings
+  useEffect(() => {
+    if (!user) return;
+
+    console.log('⏰ Setting up periodic refresh for new bookings...');
+    const interval = setInterval(() => {
+      console.log('🔄 Periodic refresh: checking for new bookings...');
+      fetchPendingOrdersData();
+    }, 30000); // Check every 30 seconds for new bookings
+
+    return () => {
+      console.log('⏰ Clearing periodic refresh interval');
+      clearInterval(interval);
+    };
+  }, [user]);
 
   // Check for new orders and send notifications
   useEffect(() => {

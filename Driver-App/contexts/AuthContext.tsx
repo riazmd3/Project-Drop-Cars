@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { authService, getCompleteUserData } from '@/services/auth/authService';
 
 interface User {
@@ -68,6 +69,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       setUser(userData);
       console.log('✅ User logged in successfully and saved locally:', userData);
+      
+      // Trigger data refresh after successful login
+      console.log('🔄 User login completed, contexts will auto-refresh data');
     } catch (error) {
       console.error('❌ Login failed:', error);
       throw new Error('Failed to save authentication data');
@@ -76,12 +80,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = async () => {
     try {
+      console.log('🔄 Starting comprehensive logout process...');
+      
+      // Clear auth service data
       await authService.logout();
-      await SecureStore.deleteItemAsync('userData');
+      
+      // Clear all SecureStore items (Vehicle Owner data)
+      const secureStoreKeys = [
+        'userData',
+        'authToken',
+        'notificationsEnabled',
+        'expoPushToken',
+        'driverAuthToken',
+        'driverAuthInfo'
+      ];
+      
+      for (const key of secureStoreKeys) {
+        try {
+          await SecureStore.deleteItemAsync(key);
+          console.log(`✅ Cleared SecureStore key: ${key}`);
+        } catch (error) {
+          console.log(`ℹ️ SecureStore key ${key} not found or already cleared`);
+        }
+      }
+      
+      // Clear all AsyncStorage items (Car Driver data)
+      const asyncStorageKeys = [
+        'carDriver',
+        'carDriverToken'
+      ];
+      
+      for (const key of asyncStorageKeys) {
+        try {
+          await AsyncStorage.removeItem(key);
+          console.log(`✅ Cleared AsyncStorage key: ${key}`);
+        } catch (error) {
+          console.log(`ℹ️ AsyncStorage key ${key} not found or already cleared`);
+        }
+      }
+      
+      // Clear user state
       setUser(null);
-      console.log('✅ User logged out successfully and cleared local data');
+      
+      // User state will be set to null, which will trigger useEffect in other contexts
+      
+      console.log('✅ Comprehensive logout completed - all user data cleared');
     } catch (error) {
-      console.error('Logout error:', error);
+      console.error('❌ Logout error:', error);
+      // Even if there's an error, clear the user state
+      setUser(null);
     }
   };
 
