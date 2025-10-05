@@ -87,6 +87,12 @@ axiosInstance.interceptors.response.use(
       return Promise.resolve(error.response);
     }
     
+    // Don't convert 4xx and 5xx errors to success
+    if (error.response?.status >= 400) {
+      console.log('❌ HTTP error response, not converting to success:', error.response.status);
+      return Promise.reject(error);
+    }
+    
     return Promise.reject(error);
   }
 );

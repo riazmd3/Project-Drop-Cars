@@ -5,80 +5,53 @@ import {
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  Dimensions,
   StatusBar,
-  Image,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useVendorAuth } from '../../hooks/useVendorAuth';
-import {
-  User,
-  Package,
-  DollarSign,
-  TrendingUp,
-  Calendar,
-  Settings,
-  HelpCircle,
-  Info,
-  LogOut,
-  Bell,
-  Shield,
-  Star,
-  MapPin,
-  Phone,
-  Mail,
-  Globe,
-  FileText,
-  CreditCard,
-  Clock,
-  Award,
-  ChevronRight,
-} from 'lucide-react-native';
-
-const { width, height } = Dimensions.get('window');
+import { useRouter } from 'expo-router';
+import api from '../../app/api/api'; // Adjust the path as necessary
+import { User, Package, DollarSign, TrendingUp, Calendar, Settings, CircleHelp as HelpCircle, Info, LogOut, Bell, Shield, Star, Phone, Mail, Globe, FileText, CreditCard, Clock, Award, ChevronRight, Wallet } from 'lucide-react-native';
 
 interface VendorData {
   id: string;
   full_name: string;
   primary_number: string;
-  account_status: string;
+  secondary_number: string;
+  gpay_number: string;
   wallet_balance: number;
-  total_orders: number;
-  completed_orders: number;
-  rating: number;
+  bank_balance: number;
+  aadhar_number: string;
+  aadhar_front_img: string;
+  address: string;
+  account_status: string;
+  created_at: string;
 }
 
 export default function MenuScreen() {
   const [vendorData, setVendorData] = useState<VendorData | null>(null);
-  const { getStoredVendorData, signOut } = useVendorAuth();
-
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
   useEffect(() => {
-    loadVendorData();
+    const fetchVendorData = async () => {
+      try {
+        const response = await api.get('/users/vendor-details/me');
+        // optionally check response.status etc
+        setVendorData(response.data);
+      } catch (err: any) {
+        console.error("Error fetching vendor data:", err);
+        setError('Failed to fetch vendor data.');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchVendorData();
   }, []);
 
-  const loadVendorData = async () => {
-    try {
-      const storedData = await getStoredVendorData();
-      if (storedData) {
-        setVendorData({
-          id: storedData.id,
-          full_name: storedData.full_name,
-          primary_number: storedData.primary_number,
-          account_status: storedData.account_status,
-          wallet_balance: storedData.wallet_balance || 0,
-          total_orders: 45, // Mock data
-          completed_orders: 38, // Mock data
-          rating: 4.8, // Mock data
-        });
-      }
-    } catch (error) {
-      console.error('Error loading vendor data:', error);
-    }
-  };
-
   const handleLogout = () => {
-    // Here you would implement logout functionality
-    signOut();
+    // Implement logout functionality
+    console.log('Logging out...');
   };
 
   const menuItems = [
@@ -87,40 +60,24 @@ export default function MenuScreen() {
       title: 'Profile',
       subtitle: 'View and edit your profile',
       icon: User,
-      iconColor: '#3B82F6',
-      action: () => console.log('Navigate to Profile'),
+      iconColor: '#1E40AF',
+      action: () => router.push('/(menu)/profile'),
     },
     {
       id: 'orders',
       title: 'Orders',
       subtitle: 'Manage your deliveries',
       icon: Package,
-      iconColor: '#10B981',
-      action: () => console.log('Navigate to Orders'),
+      iconColor: '#3B82F6',
+      action: () => router.push('/(menu)/orders'),
     },
     {
       id: 'earnings',
       title: 'Earnings',
       subtitle: 'Track your income',
       icon: DollarSign,
-      iconColor: '#F59E0B',
+      iconColor: '#60A5FA',
       action: () => console.log('Navigate to Earnings'),
-    },
-    {
-      id: 'analytics',
-      title: 'Analytics',
-      subtitle: 'View performance insights',
-      icon: TrendingUp,
-      iconColor: '#8B5CF6',
-      action: () => console.log('Navigate to Analytics'),
-    },
-    {
-      id: 'schedule',
-      title: 'Schedule',
-      subtitle: 'Manage your availability',
-      icon: Calendar,
-      iconColor: '#06B6D4',
-      action: () => console.log('Navigate to Schedule'),
     },
     {
       id: 'settings',
@@ -135,7 +92,7 @@ export default function MenuScreen() {
       title: 'Support',
       subtitle: 'Get help and contact us',
       icon: HelpCircle,
-      iconColor: '#EF4444',
+      iconColor: '#F59E0B',
       action: () => console.log('Navigate to Support'),
     },
     {
@@ -148,205 +105,162 @@ export default function MenuScreen() {
     },
   ];
 
-  if (!vendorData) {
-    return (
-      <View style={styles.loadingContainer}>
-        <Text>Loading...</Text>
-      </View>
-    );
-  }
+  const formatJoinedDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-IN', {
+      month: 'long',
+      year: 'numeric'
+    });
+  };
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1E293B" />
+      <StatusBar barStyle="light-content" backgroundColor="#1E40AF" />
       
-      {/* Header */}
-      <LinearGradient
-        colors={['#1E293B', '#334155']}
-        style={styles.header}
-      >
-        <View style={styles.headerContent}>
-          <View style={styles.profileSection}>
-            <View style={styles.profileImage}>
-              <User size={40} color="#FFFFFF" />
-            </View>
-            
-            <View style={styles.profileInfo}>
-              <Text style={styles.profileName}>{vendorData.full_name}</Text>
-              <Text style={styles.profilePhone}>{vendorData.primary_number}</Text>
-              <View style={styles.statusContainer}>
-                <View style={[styles.statusDot, { backgroundColor: vendorData.account_status === 'Active' ? '#10B981' : '#F59E0B' }]} />
-                <Text style={styles.statusText}>
-                  {vendorData.account_status === 'Active' ? 'Account Active' : 'Pending Verification'}
-                </Text>
-              </View>
-            </View>
-          </View>
-          
-          <TouchableOpacity style={styles.notificationButton}>
-            <Bell size={24} color="#FFFFFF" />
-            <View style={styles.notificationBadge} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Quick Stats */}
-        <View style={styles.quickStats}>
-          <View style={styles.statItem}>
-            <View style={styles.statIcon}>
-              <Package size={20} color="#3B82F6" />
-            </View>
-            <View>
-              <Text style={styles.statValue}>{vendorData.total_orders}</Text>
-              <Text style={styles.statLabel}>Orders</Text>
-            </View>
-          </View>
-          
-          <View style={styles.statItem}>
-            <View style={styles.statIcon}>
-              <Star size={20} color="#FCD34D" />
-            </View>
-            <View>
-              <Text style={styles.statValue}>{vendorData.rating}</Text>
-              <Text style={styles.statLabel}>Rating</Text>
-            </View>
-          </View>
-          
-          <View style={styles.statItem}>
-            <View style={styles.statIcon}>
-              <DollarSign size={20} color="#10B981" />
-            </View>
-            <View>
-              <Text style={styles.statValue}>₹{vendorData.wallet_balance}</Text>
-              <Text style={styles.statLabel}>Balance</Text>
-            </View>
-          </View>
-        </View>
-      </LinearGradient>
-
-      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
-        {/* Menu Items */}
-        <View style={styles.menuContainer}>
-          <Text style={styles.sectionTitle}>Main Menu</Text>
-          
-          {menuItems.map((item) => (
-            <TouchableOpacity
-              key={item.id}
-              style={styles.menuItem}
-              onPress={item.action}
-            >
-              <View style={styles.menuItemLeft}>
-                <View style={[styles.menuIcon, { backgroundColor: `${item.iconColor}20` }]}>
-                  <item.icon size={24} color={item.iconColor} />
+      <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
+        {/* Enhanced Header Section */}
+        <LinearGradient
+          colors={['#057296ff', '#10575eff', '#094157ff']}
+          style={styles.headerSection}
+        >
+          <View style={styles.headerContent}>
+            <View style={styles.profileSection}>
+              <View style={styles.profileImageContainer}>
+                <View style={styles.profileImage}>
+                  <Text style={styles.profileInitials}>
+                    {vendorData?.full_name.split(' ').map(n => n[0]).join('')}
+                  </Text>
                 </View>
-                <View style={styles.menuText}>
-                  <Text style={styles.menuTitle}>{item.title}</Text>
-                  <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+                <View style={[
+                  styles.statusIndicator, 
+                  { backgroundColor: vendorData?.account_status === 'Active' ? '#10B981' : '#F59E0B' }
+                ]} />
+              </View>
+              
+              <View style={styles.profileInfo}>
+                <Text style={styles.profileName}>{vendorData?.full_name}</Text>
+                <View style={styles.statusContainer}>
+                  <View style={styles.statusBadge}>
+                    <Shield size={12} color="#FFFFFF" />
+                    <Text style={styles.statusText}>{vendorData?.account_status}</Text>
+                  </View>
                 </View>
               </View>
-              <ChevronRight size={20} color="#9CA3AF" />
-            </TouchableOpacity>
-          ))}
-        </View>
-
-        {/* Account Information */}
-        <View style={styles.accountSection}>
-          <Text style={styles.sectionTitle}>Account Information</Text>
-          
-          <View style={styles.infoCard}>
-            <View style={styles.infoRow}>
-              <View style={styles.infoIcon}>
-                <Shield size={20} color="#10B981" />
-              </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Account Status</Text>
-                <Text style={styles.infoValue}>
-                  {vendorData.account_status === 'Active' ? 'Active' : 'Pending Verification'}
-                </Text>
-              </View>
             </View>
             
-            <View style={styles.infoRow}>
-              <View style={styles.infoIcon}>
-                <Clock size={20} color="#F59E0B" />
-              </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Member Since</Text>
-                <Text style={styles.infoValue}>January 2024</Text>
-              </View>
-            </View>
-            
-            <View style={styles.infoRow}>
-              <View style={styles.infoIcon}>
-                <Award size={20} color="#8B5CF6" />
-              </View>
-              <View style={styles.infoContent}>
-                <Text style={styles.infoLabel}>Performance</Text>
-                <Text style={styles.infoValue}>Excellent</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-
-        {/* Contact Information */}
-        <View style={styles.contactSection}>
-          <Text style={styles.sectionTitle}>Contact & Support</Text>
-          
-          <View style={styles.contactCard}>
-            <TouchableOpacity style={styles.contactItem}>
-              <View style={styles.contactIcon}>
-                <Phone size={20} color="#3B82F6" />
-              </View>
-              <View style={styles.contactContent}>
-                <Text style={styles.contactLabel}>Call Support</Text>
-                <Text style={styles.contactValue}>+91 98765 43210</Text>
-              </View>
-              <ChevronRight size={16} color="#9CA3AF" />
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.contactItem}>
-              <View style={styles.contactIcon}>
-                <Mail size={20} color="#10B981" />
-              </View>
-              <View style={styles.contactContent}>
-                <Text style={styles.contactLabel}>Email Support</Text>
-                <Text style={styles.contactValue}>support@dropcars.com</Text>
-              </View>
-              <ChevronRight size={16} color="#9CA3AF" />
-            </TouchableOpacity>
-            
-            <TouchableOpacity style={styles.contactItem}>
-              <View style={styles.contactIcon}>
-                <Globe size={20} color="#F59E0B" />
-              </View>
-              <View style={styles.contactContent}>
-                <Text style={styles.contactLabel}>Website</Text>
-                <Text style={styles.contactValue}>www.dropcars.com</Text>
-              </View>
-              <ChevronRight size={16} color="#9CA3AF" />
+            <TouchableOpacity style={styles.notificationButton}>
+              <Bell size={24} color="#FFFFFF" />
+              <View style={styles.notificationBadge} />
             </TouchableOpacity>
           </View>
-        </View>
 
-        {/* App Information */}
-        <View style={styles.appSection}>
-          <Text style={styles.sectionTitle}>App Information</Text>
-          
-          <View style={styles.appCard}>
-            <View style={styles.appInfo}>
-              <Text style={styles.appName}>Drop Cars Vendor</Text>
-              <Text style={styles.appVersion}>Version 1.0.0</Text>
-              <Text style={styles.appDescription}>
-                Professional delivery management app for vendors
+          {/* Wallet Balance Card */}
+          <View style={styles.walletSection}>
+            <View style={styles.walletCard}>
+              <View style={styles.walletHeader}>
+                <Wallet size={24} color="#FFFFFF" />
+                <Text style={styles.walletLabel}>Wallet Balance</Text>
+              </View>
+              <Text style={styles.walletAmount}>
+                ₹{vendorData?.wallet_balance.toLocaleString('en-IN')}
               </Text>
             </View>
           </View>
-        </View>
+        </LinearGradient>
 
-        {/* Logout Button */}
-        <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-          <LogOut size={20} color="#EF4444" />
-          <Text style={styles.logoutButtonText}>Logout</Text>
-        </TouchableOpacity>
+        {/* Content Section */}
+        <View style={styles.contentSection}>
+          {/* Menu Items */}
+          <View style={styles.menuContainer}>
+            <Text style={styles.sectionTitle}>Main Menu</Text>
+            
+            <View style={styles.menuGrid}>
+              {menuItems.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  style={styles.menuItem}
+                  onPress={item.action}
+                >
+                  <View style={styles.menuItemContent}>
+                    <View style={[styles.menuIcon, { backgroundColor: `${item.iconColor}15` }]}>
+                      <item.icon size={24} color={item.iconColor} />
+                    </View>
+                    <View style={styles.menuTextContainer}>
+                      <Text style={styles.menuTitle}>{item.title}</Text>
+                      <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
+                    </View>
+                  </View>
+                  <ChevronRight size={16} color="#9CA3AF" />
+                </TouchableOpacity>
+              ))}
+            </View>
+          </View>
+
+          {/* Support Section */}
+          <View style={styles.supportSection}>
+            <Text style={styles.sectionTitle}>Support & Help</Text>
+            
+            <View style={styles.supportCard}>
+              <TouchableOpacity style={styles.supportItem}>
+                <View style={styles.supportIcon}>
+                  <Phone size={20} color="#1E40AF" />
+                </View>
+                <View style={styles.supportContent}>
+                  <Text style={styles.supportLabel}>Call Support</Text>
+                  <Text style={styles.supportValue}>+91 98765 43210</Text>
+                </View>
+                <ChevronRight size={16} color="#9CA3AF" />
+              </TouchableOpacity>
+              
+              <View style={styles.divider} />
+              
+              <TouchableOpacity style={styles.supportItem}>
+                <View style={styles.supportIcon}>
+                  <Mail size={20} color="#3B82F6" />
+                </View>
+                <View style={styles.supportContent}>
+                  <Text style={styles.supportLabel}>Email Support</Text>
+                  <Text style={styles.supportValue}>support@dropcars.com</Text>
+                </View>
+                <ChevronRight size={16} color="#9CA3AF" />
+              </TouchableOpacity>
+              
+              <View style={styles.divider} />
+              
+              <TouchableOpacity style={styles.supportItem}>
+                <View style={styles.supportIcon}>
+                  <Globe size={20} color="#10B981" />
+                </View>
+                <View style={styles.supportContent}>
+                  <Text style={styles.supportLabel}>Website</Text>
+                  <Text style={styles.supportValue}>www.dropcars.com</Text>
+                </View>
+                <ChevronRight size={16} color="#9CA3AF" />
+              </TouchableOpacity>
+            </View>
+          </View>
+
+          {/* App Information */}
+          <View style={styles.appSection}>
+            <Text style={styles.sectionTitle}>App Information</Text>
+            
+            <View style={styles.appCard}>
+              <View style={styles.appInfo}>
+                <Text style={styles.appName}>Drop Cars Vendor</Text>
+                <Text style={styles.appVersion}>Version 1.0.0</Text>
+                <Text style={styles.appDescription}>
+                  Professional delivery management app for vendors. Manage your bookings, track earnings, and grow your business.
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Logout Button */}
+          <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+            <LogOut size={20} color="#EF4444" />
+            <Text style={styles.logoutButtonText}>Sign Out</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </View>
   );
@@ -357,14 +271,11 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F8FAFC',
   },
-  loadingContainer: {
+  scrollView: {
     flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#F8FAFC',
   },
-  header: {
-    paddingTop: 60,
+  headerSection: {
+    paddingTop: 50,
     paddingHorizontal: 20,
     paddingBottom: 30,
   },
@@ -377,97 +288,110 @@ const styles = StyleSheet.create({
   profileSection: {
     flex: 1,
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
+  },
+  profileImageContainer: {
+    position: 'relative',
+    marginRight: 16,
   },
   profileImage: {
-    width: 60,
-    height: 60,
-    borderRadius: 30,
+    width: 70,
+    height: 70,
+    borderRadius: 35,
     backgroundColor: 'rgba(255,255,255,0.2)',
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 16,
+    borderWidth: 3,
+    borderColor: 'rgba(255,255,255,0.3)',
+  },
+  profileInitials: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
+  },
+  statusIndicator: {
+    position: 'absolute',
+    bottom: 2,
+    right: 2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 3,
+    borderColor: '#FFFFFF',
   },
   profileInfo: {
     flex: 1,
   },
   profileName: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    marginBottom: 4,
-  },
-  profilePhone: {
-    fontSize: 14,
-    color: '#E2E8F0',
     marginBottom: 8,
   },
   statusContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  statusDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginRight: 8,
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
   },
   statusText: {
     fontSize: 12,
-    color: '#E2E8F0',
+    color: '#FFFFFF',
+    fontWeight: '600',
+    marginLeft: 4,
   },
   notificationButton: {
-    padding: 8,
-    borderRadius: 12,
+    padding: 12,
+    borderRadius: 16,
     backgroundColor: 'rgba(255,255,255,0.2)',
     position: 'relative',
   },
   notificationBadge: {
     position: 'absolute',
-    top: 6,
-    right: 6,
+    top: 8,
+    right: 8,
     width: 8,
     height: 8,
     borderRadius: 4,
     backgroundColor: '#EF4444',
   },
-  quickStats: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    borderRadius: 16,
-    padding: 20,
+  walletSection: {
+    marginTop: 20,
   },
-  statItem: {
-    alignItems: 'center',
-    flex: 1,
-  },
-  statIcon: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+  walletCard: {
     backgroundColor: 'rgba(255,255,255,0.2)',
-    justifyContent: 'center',
+    borderRadius: 16,
+    padding: 24,
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.3)',
     alignItems: 'center',
-    marginBottom: 8,
   },
-  statValue: {
-    fontSize: 18,
+  walletHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  walletLabel: {
+    fontSize: 16,
+    color: '#E2E8F0',
+    marginLeft: 8,
+    fontWeight: '500',
+  },
+  walletAmount: {
+    fontSize: 32,
     fontWeight: 'bold',
     color: '#FFFFFF',
-    marginBottom: 2,
+    textAlign: 'center',
   },
-  statLabel: {
-    fontSize: 12,
-    color: '#E2E8F0',
-  },
-  content: {
-    flex: 1,
+  contentSection: {
     paddingHorizontal: 20,
-  },
-  menuContainer: {
-    marginTop: 24,
-    marginBottom: 32,
+    paddingTop: 20,
   },
   sectionTitle: {
     fontSize: 18,
@@ -475,90 +399,55 @@ const styles = StyleSheet.create({
     color: '#1F2937',
     marginBottom: 16,
   },
+  menuContainer: {
+    marginBottom: 24,
+  },
+  menuGrid: {
+    gap: 12,
+  },
   menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    padding: 20,
-    marginBottom: 12,
+    padding: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
     shadowRadius: 8,
     elevation: 2,
   },
-  menuItemLeft: {
+  menuItemContent: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
   menuIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
   },
-  menuText: {
+  menuTextContainer: {
     flex: 1,
   },
   menuTitle: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1F2937',
-    marginBottom: 4,
-  },
-  menuSubtitle: {
-    fontSize: 14,
-    color: '#6B7280',
-  },
-  accountSection: {
-    marginBottom: 32,
-  },
-  infoCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  infoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  infoIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#F1F5F9',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 16,
-  },
-  infoContent: {
-    flex: 1,
-  },
-  infoLabel: {
-    fontSize: 14,
-    color: '#6B7280',
     marginBottom: 2,
   },
-  infoValue: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
+  menuSubtitle: {
+    fontSize: 12,
+    color: '#6B7280',
   },
-  contactSection: {
+  supportSection: {
     marginBottom: 32,
   },
-  contactCard: {
+  supportCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     overflow: 'hidden',
@@ -568,34 +457,37 @@ const styles = StyleSheet.create({
     shadowRadius: 8,
     elevation: 2,
   },
-  contactItem: {
+  supportItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: '#F1F5F9',
+    padding: 16,
   },
-  contactIcon: {
+  supportIcon: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#F1F5F9',
+    backgroundColor: '#F8FAFC',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
   },
-  contactContent: {
+  supportContent: {
     flex: 1,
   },
-  contactLabel: {
+  supportLabel: {
     fontSize: 14,
     color: '#6B7280',
     marginBottom: 2,
   },
-  contactValue: {
+  supportValue: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1F2937',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#F1F5F9',
+    marginLeft: 72,
   },
   appSection: {
     marginBottom: 32,
@@ -603,7 +495,7 @@ const styles = StyleSheet.create({
   appCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
-    padding: 20,
+    padding: 24,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.05,
@@ -614,15 +506,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   appName: {
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 4,
+    marginBottom: 6,
   },
   appVersion: {
     fontSize: 14,
     color: '#6B7280',
-    marginBottom: 8,
+    marginBottom: 12,
   },
   appDescription: {
     fontSize: 14,
@@ -634,7 +526,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 10,
     backgroundColor: '#FEF2F2',
     paddingVertical: 16,
     borderRadius: 16,

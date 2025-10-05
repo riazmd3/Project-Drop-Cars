@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Alert } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { getVendorSignupUrl, getVendorSigninUrl, API_CONFIG } from '../config/api';
 
@@ -86,6 +87,7 @@ export const useVendorAuth = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
+        Alert.alert('Sign up Failed',errorData.detail || 'Please check your details and try again.');
         throw new Error(errorData.detail || 'Signup failed');
       }
 
@@ -120,6 +122,7 @@ export const useVendorAuth = () => {
 
       if (!response.ok) {
         const errorData = await response.json();
+        Alert.alert('Sign in Failed', 'Please check your credentials and try again.');
         throw new Error(errorData.detail || 'Signin failed');
       }
 

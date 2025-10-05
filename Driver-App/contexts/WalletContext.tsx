@@ -1,9 +1,12 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { 
   getWalletBalance, 
-  getWalletTransactions, 
+  getWalletLedger, 
   addToWallet, 
   deductFromWallet,
+  processWalletTopup,
+  handleRazorpayPaymentSuccess,
+  handleRazorpayPaymentFailure,
   WalletBalance,
   WalletTransaction 
 } from '@/services/paymentService';
@@ -29,6 +32,9 @@ interface WalletContextType {
   refreshTransactions: () => Promise<void>;
   addMoney: (amount: number, description?: string, metadata?: Record<string, any>) => Promise<void>;
   deductMoney: (amount: number, description: string, metadata?: Record<string, any>) => Promise<void>;
+  processWalletTopup: (amount: number, userData: { name: string; email: string; contact: string }) => Promise<any>;
+  handlePaymentSuccess: (razorpayResponse: any) => Promise<void>;
+  handlePaymentFailure: (error: any) => void;
   syncWithBackend: () => Promise<void>;
 }
 
@@ -53,7 +59,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       // Fetch balance and transactions in parallel
       const [balanceData, transactionsData] = await Promise.all([
         getWalletBalance(),
-        getWalletTransactions()
+        getWalletLedger()
       ]);
 
       setBalance(balanceData.balance);
@@ -113,7 +119,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   const refreshTransactions = async () => {
     try {
-      const transactionsData = await getWalletTransactions();
+      const transactionsData = await getWalletLedger();
       setTransactions(transactionsData);
       console.log('✅ Transactions refreshed:', transactionsData.length);
     } catch (error: any) {
@@ -212,6 +218,59 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const processWalletTopupWithRazorpay = async (amount: number, userData: { name: string; email: string; contact: string }) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Create Razorpay order
+      const orderResponse = await processWalletTopup(amount, userData);
+      
+      if (orderResponse.success) {
+        console.log('✅ Razorpay order created for wallet top-up:', orderResponse.razorpay_order_id);
+        return orderResponse;
+      } else {
+        throw new Error('Failed to create Razorpay order');
+      }
+    } catch (error: any) {
+      console.error('❌ Failed to process wallet top-up:', error);
+      setError(error.message);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePaymentSuccess = async (razorpayResponse: any) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      // Verify payment and update wallet
+      const verificationResponse = await handleRazorpayPaymentSuccess(razorpayResponse);
+      
+      if (verificationResponse.success) {
+        // Refresh wallet data after successful payment
+        await syncWithBackend();
+        console.log('✅ Payment successful and wallet updated');
+      } else {
+        throw new Error('Payment verification failed');
+      }
+    } catch (error: any) {
+      console.error('❌ Failed to handle payment success:', error);
+      setError(error.message);
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handlePaymentFailure = (error: any) => {
+    const failureResponse = handleRazorpayPaymentFailure(error);
+    setError(failureResponse.message);
+    console.error('❌ Payment failed:', failureResponse.message);
+  };
+
   return (
     <WalletContext.Provider value={{ 
       balance, 
@@ -222,6 +281,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       refreshTransactions,
       addMoney, 
       deductMoney,
+      processWalletTopup: processWalletTopupWithRazorpay,
+      handlePaymentSuccess,
+      handlePaymentFailure,
       syncWithBackend
     }}>
       {children}

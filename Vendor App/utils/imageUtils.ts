@@ -9,14 +9,12 @@ export interface ImageInfo {
 
 export const pickImage = async (): Promise<ImageInfo | null> => {
   try {
-    // Request permissions
     const permissionResult = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    
-    if (permissionResult.granted === false) {
+
+    if (!permissionResult.granted) {
       throw new Error('Permission to access camera roll is required!');
     }
 
-    // Launch image picker
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: true,
@@ -27,21 +25,19 @@ export const pickImage = async (): Promise<ImageInfo | null> => {
 
     if (!result.canceled && result.assets && result.assets.length > 0) {
       const asset = result.assets[0];
-      
-      // Validate file size (5MB limit as per API docs)
+
       if (asset.fileSize && asset.fileSize > 5 * 1024 * 1024) {
         throw new Error('Image size must be less than 5MB');
       }
 
-      // Validate file type
-      if (!asset.type || !asset.type.startsWith('image/')) {
+      if (!asset.type || asset.type !== 'image') {
         throw new Error('File must be an image');
       }
 
       return {
         uri: asset.uri,
-        type: asset.type,
-        name: `aadhar_${Date.now()}.${asset.type.split('/')[1]}`,
+        type: asset.mimeType || 'image/jpeg', // fallback MIME type
+        name: `aadhar_${Date.now()}.${(asset.uri.split('.').pop() || 'jpg')}`,
         size: asset.fileSize || 0,
       };
     }
@@ -52,6 +48,7 @@ export const pickImage = async (): Promise<ImageInfo | null> => {
     throw error;
   }
 };
+
 
 export const validateImage = (imageInfo: ImageInfo): boolean => {
   // Check file size (5MB limit)

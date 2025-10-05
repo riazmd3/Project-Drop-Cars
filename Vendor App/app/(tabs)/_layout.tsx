@@ -1,6 +1,6 @@
 import React from 'react';
 import { Tabs } from 'expo-router';
-import { Chrome as Home, Plus, Menu as MenuIcon, User } from 'lucide-react-native';
+import { Chrome as Home, Plus, Menu as MenuIcon, Wallet,ArrowRightLeft,History } from 'lucide-react-native';
 
 export default function TabLayout() {
   return (
@@ -45,11 +45,20 @@ export default function TabLayout() {
         }}
       />
       <Tabs.Screen
-        name="profile"
+        name="transfer"
         options={{
-          title: 'Profile',
+          title: 'Transfer',
           tabBarIcon: ({ size, color }) => (
-            <User size={size} color={color} />
+            <ArrowRightLeft size={size} color={color} />
+          ),
+        }}
+      />
+        <Tabs.Screen
+        name="history"
+        options={{
+          title: 'History',
+          tabBarIcon: ({ size, color }) => (
+            <History size={size} color={color} />
           ),
         }}
       />

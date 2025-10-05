@@ -13,6 +13,7 @@ interface User {
   organizationId: string;
   languages: string[];
   documents: any;
+  driver_status?: string; // Add driver status for drivers
 }
 
 interface AuthContextType {

@@ -10,14 +10,12 @@ import { useRouter } from 'expo-router';
 import PersonalDetailsStep from '@/components/signup/PersonalDetailsStep';
 import DocumentsStep from '@/components/signup/DocumentsStep';
 import SuccessScreen from '@/components/SuccessScreen';
-import ConnectionTest from '@/components/ConnectionTest';
 import { ArrowLeft } from 'lucide-react-native';
 import { TouchableOpacity } from 'react-native';
 import { loginVehicleOwner } from '@/services/signupService';
 
 export default function SignupScreen() {
   const [currentStep, setCurrentStep] = useState(1);
-  const [showConnectionTest, setShowConnectionTest] = useState(false);
   const [formData, setFormData] = useState<{
     personalDetails: {
       fullName?: string;
@@ -91,10 +89,6 @@ export default function SignupScreen() {
   };
 
   const renderStep = () => {
-    if (showConnectionTest) {
-      return <ConnectionTest />;
-    }
-
     switch (currentStep) {
       case 1:
         return (
@@ -134,15 +128,7 @@ export default function SignupScreen() {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Driver Registration</Text>
         <View style={styles.headerRight}>
-          <TouchableOpacity 
-            onPress={() => setShowConnectionTest(!showConnectionTest)}
-            style={styles.debugButton}
-          >
-            <Text style={styles.debugButtonText}>
-              {showConnectionTest ? 'Hide Debug' : 'Debug API'}
-            </Text>
-          </TouchableOpacity>
-          {!showConnectionTest && currentStep < 3 && (
+          {currentStep < 3 && (
             <View style={styles.stepIndicator}>
               <Text style={styles.stepText}>{currentStep}/3</Text>
             </View>
@@ -150,7 +136,7 @@ export default function SignupScreen() {
         </View>
       </View>
 
-      {!showConnectionTest && currentStep < 3 && (
+      {currentStep < 3 && (
         <View style={styles.progressBar}>
           <View style={[styles.progressFill, { width: `${(currentStep / 3) * 100}%` }]} />
         </View>
@@ -189,12 +175,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
-  },
-  debugButton: {
-    backgroundColor: '#F59E0B',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
   },
   debugButtonText: {
     color: '#FFFFFF',
