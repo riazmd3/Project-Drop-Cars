@@ -324,7 +324,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   profileName: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#FFFFFF',
     marginBottom: 8,
