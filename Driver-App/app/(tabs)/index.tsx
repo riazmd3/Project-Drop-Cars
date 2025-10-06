@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   RefreshControl,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
@@ -52,6 +53,7 @@ export default function DashboardScreen() {
   // Available Bookings filters
   const [availableTab, setAvailableTab] = useState<'all' | 'multicity'>('all');
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
+  const [citySearch, setCitySearch] = useState('');
 
   // Compute available balance after reserving future rides' estimated totals
   const reservedForFuture = (futureRides || []).reduce((sum, r) => sum + Number((r as any).total_fare ?? 0), 0);
@@ -223,10 +225,19 @@ export default function DashboardScreen() {
     }
     // Multicity tab
     const onlyMulticity = pendingOrders.filter(o => isTripTypeMulticity(o.trip_type) || isNearCityMode(o) || hasCityTarget(o));
-    if (selectedCities.length === 0) return onlyMulticity;
+    if (selectedCities.length === 0) return [];
     const setSel = new Set(selectedCities.map(c => c.toUpperCase()));
     return onlyMulticity.filter(o => setSel.has(getNearCity(o)));
   })();
+
+  // Tab counts
+  const allTabCount = pendingOrders.filter(o => {
+    const isMulti = isTripTypeMulticity(o.trip_type) || isNearCityMode(o) || hasCityTarget(o);
+    const pickCity = getNearCity(o);
+    if (isMulti && pickCity !== 'ALL') return false;
+    return true;
+  }).length;
+  const multiTabCount = pendingOrders.filter(o => isTripTypeMulticity(o.trip_type) || isNearCityMode(o) || hasCityTarget(o)).length;
 
   const handleRefresh = async () => {
     try {
@@ -745,41 +756,81 @@ export default function DashboardScreen() {
                     <Text style={{
                       fontFamily: 'Inter-SemiBold',
                       color: availableTab === 'all' ? colors.primary : colors.textSecondary
-                    }}>All ({pendingOrders.length})</Text>
+                    }}>All ({allTabCount})</Text>
                   </TouchableOpacity>
                   <TouchableOpacity onPress={() => setAvailableTab('multicity')}>
                     <Text style={{
                       fontFamily: 'Inter-SemiBold',
                       color: availableTab === 'multicity' ? colors.primary : colors.textSecondary
-                    }}>Multicity ({pendingOrders.filter(o => {
-                      const val = String(o.trip_type || '').toLowerCase();
-                      const near = (o.pick_near_city || o.near_city || '').toUpperCase();
-                      return val.includes('multi') || String((o as any).send_to || '').toUpperCase() === 'NEAR_CITY' || (near !== '' && near !== 'ALL');
-                    }).length})</Text>
+                    }}>Multicity ({multiTabCount})</Text>
                   </TouchableOpacity>
                 </View>
 
                 {/* City chips for Multicity tab */}
                 {availableTab === 'multicity' && (
-                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 12 }}>
-                    {multiCityOptions.map((city) => {
-                      const selected = selectedCities.includes(city);
-                      return (
-                        <TouchableOpacity key={city} onPress={() => toggleCitySelection(city)} style={{
-                          paddingHorizontal: 12,
-                          paddingVertical: 6,
-                          borderRadius: 16,
-                          marginRight: 8,
-                          marginBottom: 8,
-                          backgroundColor: selected ? colors.primary : colors.surface,
-                          borderWidth: 1,
-                          borderColor: selected ? colors.primary : colors.border,
-                        }}>
-                          <Text style={{ color: selected ? '#FFFFFF' : colors.text }}>{city}</Text>
-                        </TouchableOpacity>
-                      );
-                    })}
-                  </View>
+                  <>
+                    {/* Selected cities on top */}
+                    {selectedCities.length > 0 && (
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
+                        {selectedCities.map((city) => (
+                          <TouchableOpacity key={`sel-${city}`} onPress={() => toggleCitySelection(city)} style={{
+                            paddingHorizontal: 12,
+                            paddingVertical: 6,
+                            borderRadius: 16,
+                            marginRight: 8,
+                            marginBottom: 8,
+                            backgroundColor: colors.primary,
+                            borderWidth: 1,
+                            borderColor: colors.primary,
+                          }}>
+                            <Text style={{ color: '#FFFFFF' }}>{city}</Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
+
+                    {/* Search input */}
+                    <View style={{
+                      borderWidth: 1,
+                      borderColor: colors.border,
+                      borderRadius: 8,
+                      paddingHorizontal: 12,
+                      paddingVertical: 8,
+                      marginBottom: 8,
+                      backgroundColor: colors.surface,
+                    }}>
+                      <TextInput
+                        placeholder="Search cities"
+                        placeholderTextColor={colors.textSecondary}
+                        value={citySearch}
+                        onChangeText={setCitySearch}
+                        style={{ color: colors.text }}
+                      />
+                    </View>
+
+                    {/* Options list (filtered) */}
+                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 12 }}>
+                      {multiCityOptions
+                        .filter(c => c.toLowerCase().includes(citySearch.toLowerCase()))
+                        .map((city) => {
+                          const selected = selectedCities.includes(city);
+                          return (
+                            <TouchableOpacity key={city} onPress={() => toggleCitySelection(city)} style={{
+                              paddingHorizontal: 12,
+                              paddingVertical: 6,
+                              borderRadius: 16,
+                              marginRight: 8,
+                              marginBottom: 8,
+                              backgroundColor: selected ? colors.primary : colors.surface,
+                              borderWidth: 1,
+                              borderColor: selected ? colors.primary : colors.border,
+                            }}>
+                              <Text style={{ color: selected ? '#FFFFFF' : colors.text }}>{city}</Text>
+                            </TouchableOpacity>
+                          );
+                        })}
+                    </View>
+                  </>
                 )}
                 {ordersLoading ? (
                   <View style={dynamicStyles.loadingContainer}>
