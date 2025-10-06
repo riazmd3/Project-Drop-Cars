@@ -181,7 +181,7 @@ export default function DashboardScreen() {
   const multiCityOptions = Array.from(
     new Set(
       pendingOrders
-        .map(o => (o.pick_near_city || '').trim())
+        .map(o => ((o.pick_near_city || o.near_city || '').trim()))
         .filter(city => city && city.toUpperCase() !== 'ALL')
     )
   ).sort();
@@ -199,21 +199,33 @@ export default function DashboardScreen() {
     });
   };
 
+  const isTripTypeMulticity = (t: any) => {
+    const val = String(t || '').toLowerCase();
+    return val.includes('multi'); // handles 'Multy City', 'Multicity', etc.
+  };
+
+  const getNearCity = (o: PendingOrder) => (o.pick_near_city || o.near_city || '').toUpperCase();
+  const isNearCityMode = (o: PendingOrder) => String((o as any).send_to || '').toUpperCase() === 'NEAR_CITY';
+  const hasCityTarget = (o: PendingOrder) => {
+    const city = getNearCity(o);
+    return city !== '' && city !== 'ALL';
+  };
+
   const filteredOrders: PendingOrder[] = (() => {
     if (availableTab === 'all') {
       return pendingOrders.filter(o => {
-        const isMulticity = (o.trip_type || '').toLowerCase() === 'multicity';
-        const pickCity = (o.pick_near_city || '').toUpperCase();
+        const isMulti = isTripTypeMulticity(o.trip_type) || isNearCityMode(o) || hasCityTarget(o);
+        const pickCity = getNearCity(o);
         // Hide multicity orders unless pick_near_city is 'ALL'
-        if (isMulticity && pickCity !== 'ALL') return false;
+        if (isMulti && pickCity !== 'ALL') return false;
         return true;
       });
     }
     // Multicity tab
-    const onlyMulticity = pendingOrders.filter(o => (o.trip_type || '').toLowerCase() === 'multicity');
+    const onlyMulticity = pendingOrders.filter(o => isTripTypeMulticity(o.trip_type) || isNearCityMode(o) || hasCityTarget(o));
     if (selectedCities.length === 0) return onlyMulticity;
     const setSel = new Set(selectedCities.map(c => c.toUpperCase()));
-    return onlyMulticity.filter(o => setSel.has((o.pick_near_city || '').toUpperCase()));
+    return onlyMulticity.filter(o => setSel.has(getNearCity(o)));
   })();
 
   const handleRefresh = async () => {
@@ -739,7 +751,11 @@ export default function DashboardScreen() {
                     <Text style={{
                       fontFamily: 'Inter-SemiBold',
                       color: availableTab === 'multicity' ? colors.primary : colors.textSecondary
-                    }}>Multicity ({pendingOrders.filter(o => (o.trip_type || '').toLowerCase() === 'multicity').length})</Text>
+                    }}>Multicity ({pendingOrders.filter(o => {
+                      const val = String(o.trip_type || '').toLowerCase();
+                      const near = (o.pick_near_city || o.near_city || '').toUpperCase();
+                      return val.includes('multi') || String((o as any).send_to || '').toUpperCase() === 'NEAR_CITY' || (near !== '' && near !== 'ALL');
+                    }).length})</Text>
                   </TouchableOpacity>
                 </View>
 

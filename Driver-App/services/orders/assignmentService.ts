@@ -9,6 +9,8 @@ export interface PendingOrder {
   drop_location: string;
   pickup_drop_location: string; // Added for compatibility
   pick_near_city?: string; // City hint for multicity discovery ("ALL" or specific city)
+  near_city?: string; // Alternate backend field name
+  send_to?: string; // e.g., 'NEAR_CITY'
   distance: number;
   trip_distance: number; // Added for compatibility
   estimated_price: number;
