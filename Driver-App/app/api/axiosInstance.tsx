@@ -2,7 +2,7 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
 // For React Native, use machine IP instead of localhost
-const API_BASE_URL = 'http://10.220.244.145:8000'; // Physical Emulatorm,kjuvb8
+const API_BASE_URL = 'http://10.106.202.145:8000'; // Physical Emulatorm,kjuvb8
 
 console.log('🔧 API Config:', { baseURL: API_BASE_URL });
 

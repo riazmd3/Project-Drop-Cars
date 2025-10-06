@@ -49,6 +49,9 @@ export default function DashboardScreen() {
   // Remove currentTrip concept from owner dashboard
   const [refreshing, setRefreshing] = useState(false);
   const [previousOrderCount, setPreviousOrderCount] = useState(0);
+  // Available Bookings filters
+  const [availableTab, setAvailableTab] = useState<'all' | 'multicity'>('all');
+  const [selectedCities, setSelectedCities] = useState<string[]>([]);
 
   // Compute available balance after reserving future rides' estimated totals
   const reservedForFuture = (futureRides || []).reduce((sum, r) => sum + Number((r as any).total_fare ?? 0), 0);
@@ -173,6 +176,45 @@ export default function DashboardScreen() {
       setOrdersLoading(false);
     }
   };
+
+  // Multicity city list derived from pending orders (exclude 'ALL')
+  const multiCityOptions = Array.from(
+    new Set(
+      pendingOrders
+        .map(o => (o.pick_near_city || '').trim())
+        .filter(city => city && city.toUpperCase() !== 'ALL')
+    )
+  ).sort();
+
+  const toggleCitySelection = (city: string) => {
+    setSelectedCities(prev => {
+      const exists = prev.includes(city);
+      if (exists) {
+        return prev.filter(c => c !== city);
+      }
+      if (prev.length >= 5) {
+        return prev; // limit to 5
+      }
+      return [...prev, city];
+    });
+  };
+
+  const filteredOrders: PendingOrder[] = (() => {
+    if (availableTab === 'all') {
+      return pendingOrders.filter(o => {
+        const isMulticity = (o.trip_type || '').toLowerCase() === 'multicity';
+        const pickCity = (o.pick_near_city || '').toUpperCase();
+        // Hide multicity orders unless pick_near_city is 'ALL'
+        if (isMulticity && pickCity !== 'ALL') return false;
+        return true;
+      });
+    }
+    // Multicity tab
+    const onlyMulticity = pendingOrders.filter(o => (o.trip_type || '').toLowerCase() === 'multicity');
+    if (selectedCities.length === 0) return onlyMulticity;
+    const setSel = new Set(selectedCities.map(c => c.toUpperCase()));
+    return onlyMulticity.filter(o => setSel.has((o.pick_near_city || '').toUpperCase()));
+  })();
 
   const handleRefresh = async () => {
     try {
@@ -684,12 +726,51 @@ export default function DashboardScreen() {
             {
               <View style={dynamicStyles.bookingsSection}>
                 <Text style={dynamicStyles.sectionTitle}>Available Bookings</Text>
+
+                {/* Tabs: All | Multicity */}
+                <View style={{ flexDirection: 'row', marginBottom: 12 }}>
+                  <TouchableOpacity onPress={() => setAvailableTab('all')} style={{ marginRight: 12 }}>
+                    <Text style={{
+                      fontFamily: 'Inter-SemiBold',
+                      color: availableTab === 'all' ? colors.primary : colors.textSecondary
+                    }}>All ({pendingOrders.length})</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setAvailableTab('multicity')}>
+                    <Text style={{
+                      fontFamily: 'Inter-SemiBold',
+                      color: availableTab === 'multicity' ? colors.primary : colors.textSecondary
+                    }}>Multicity ({pendingOrders.filter(o => (o.trip_type || '').toLowerCase() === 'multicity').length})</Text>
+                  </TouchableOpacity>
+                </View>
+
+                {/* City chips for Multicity tab */}
+                {availableTab === 'multicity' && (
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 12 }}>
+                    {multiCityOptions.map((city) => {
+                      const selected = selectedCities.includes(city);
+                      return (
+                        <TouchableOpacity key={city} onPress={() => toggleCitySelection(city)} style={{
+                          paddingHorizontal: 12,
+                          paddingVertical: 6,
+                          borderRadius: 16,
+                          marginRight: 8,
+                          marginBottom: 8,
+                          backgroundColor: selected ? colors.primary : colors.surface,
+                          borderWidth: 1,
+                          borderColor: selected ? colors.primary : colors.border,
+                        }}>
+                          <Text style={{ color: selected ? '#FFFFFF' : colors.text }}>{city}</Text>
+                        </TouchableOpacity>
+                      );
+                    })}
+                  </View>
+                )}
                 {ordersLoading ? (
                   <View style={dynamicStyles.loadingContainer}>
                     <Text style={dynamicStyles.loadingText}>Loading pending orders...</Text>
                   </View>
-                ) : pendingOrders.length > 0 ? (
-                  pendingOrders.map((order) => {
+                ) : filteredOrders.length > 0 ? (
+                  filteredOrders.map((order) => {
                     const locations = getPickupDropLocations(order.pickup_drop_location);
                     return (
                       <BookingCard
