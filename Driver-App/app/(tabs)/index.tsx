@@ -9,6 +9,7 @@ import {
   RefreshControl,
   TextInput,
 } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { useWallet } from '@/contexts/WalletContext';
@@ -54,6 +55,13 @@ export default function DashboardScreen() {
   const [availableTab, setAvailableTab] = useState<'all' | 'multicity'>('all');
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [citySearch, setCitySearch] = useState('');
+
+  const CITY_STORAGE_KEY = 'vo_multicity_selected_cities';
+
+  // Master list of cities (can be moved to a separate module later)
+  const MASTER_CITIES: string[] = [
+    'Chennai','Coimbatore','Madurai','Tiruchirappalli','Salem','Tirunelveli','Tiruppur','Vellore','Erode','Thoothukudi','Dindigul','Thanjavur','Hosur','Nagercoil','Avadi','Kancheepuram','Kumbakonam','Cuddalore','Karaikudi','Sivakasi','Ariyalur','Jayankondam','Varadarajanpettai','Udayarpalayam','Chengalpattu','Madurantakam','Mamallapuram','Tirukalukundram','Acharapakkam','Mettupalayam','Pollachi','Valparai','Annur','Karamadai','Sulur','Kinathukadavu','Chidambaram','Virudhachalam','Panruti','Nellikuppam','Parangipettai','Bhuvanagiri','Dharmapuri','Harur','Palacode','Pennagaram','Karimangalam','Palani','Kodaikanal','Oddanchatram','Nilakottai','Vedasandur','Batlagundu','Gobichettipalayam','Sathyamangalam','Bhavani','Perundurai','Anthiyur','Kallakurichi','Sankarapuram','Chinnasalem','Thiagadurgam','Sriperumbudur','Uthiramerur','Walajabad','Colachel','Kuzhithurai','Padmanabhapuram','Anjugramam','Tiruvannamalai','Tiruvannamalai District','Katpadi','Jolarpettai','Nagapattinam','Kanchipuram','Rameswaram','Villupuram','Gingee'
+  ];
 
   // Compute available balance after reserving future rides' estimated totals
   const reservedForFuture = (futureRides || []).reduce((sum, r) => sum + Number((r as any).total_fare ?? 0), 0);
@@ -181,11 +189,12 @@ export default function DashboardScreen() {
 
   // Multicity city list derived from pending orders (exclude 'ALL')
   const multiCityOptions = Array.from(
-    new Set(
-      pendingOrders
+    new Set([
+      ...MASTER_CITIES,
+      ...pendingOrders
         .map(o => ((o.pick_near_city || o.near_city || '').trim()))
         .filter(city => city && city.toUpperCase() !== 'ALL')
-    )
+    ])
   ).sort();
 
   const toggleCitySelection = (city: string) => {
@@ -200,6 +209,27 @@ export default function DashboardScreen() {
       return [...prev, city];
     });
   };
+
+  // Persist selected cities
+  useEffect(() => {
+    (async () => {
+      try {
+        const saved = await SecureStore.getItemAsync(CITY_STORAGE_KEY);
+        if (saved) {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed)) setSelectedCities(parsed);
+        }
+      } catch {}
+    })();
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        await SecureStore.setItemAsync(CITY_STORAGE_KEY, JSON.stringify(selectedCities));
+      } catch {}
+    })();
+  }, [selectedCities]);
 
   const isTripTypeMulticity = (t: any) => {
     const val = String(t || '').toLowerCase();
@@ -769,9 +799,9 @@ export default function DashboardScreen() {
                 {/* City chips for Multicity tab */}
                 {availableTab === 'multicity' && (
                   <>
-                    {/* Selected cities on top */}
+                    {/* Selected cities on top with Clear */}
                     {selectedCities.length > 0 && (
-                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8 }}>
+                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8, alignItems: 'center' }}>
                         {selectedCities.map((city) => (
                           <TouchableOpacity key={`sel-${city}`} onPress={() => toggleCitySelection(city)} style={{
                             paddingHorizontal: 12,
@@ -786,6 +816,18 @@ export default function DashboardScreen() {
                             <Text style={{ color: '#FFFFFF' }}>{city}</Text>
                           </TouchableOpacity>
                         ))}
+                        <TouchableOpacity onPress={() => setSelectedCities([])} style={{
+                          paddingHorizontal: 12,
+                          paddingVertical: 6,
+                          borderRadius: 16,
+                          marginRight: 8,
+                          marginBottom: 8,
+                          backgroundColor: colors.surface,
+                          borderWidth: 1,
+                          borderColor: colors.border,
+                        }}>
+                          <Text style={{ color: colors.textSecondary }}>Clear</Text>
+                        </TouchableOpacity>
                       </View>
                     )}
 
