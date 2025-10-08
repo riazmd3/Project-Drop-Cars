@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // import ENV from '../../config/'
 // Authenticated Axios instance
 const api = axios.create({
-  baseURL: "http://192.168.1.22:8000/api",
+  baseURL: "http://172.20.10.3:8000/api",
   headers: {
     'Content-Type': 'application/json',
   },
@@ -41,7 +41,7 @@ api.interceptors.response.use(
 
 // Public (unauthenticated) Axios instance
 const publicApi = axios.create({
-  baseURL: 'http://192.168.1.22:8000/api',
+  baseURL: 'http://172.20.10.3:8000/api',
   headers: {
     'Content-Type': 'application/json',
   },

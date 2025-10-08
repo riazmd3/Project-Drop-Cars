@@ -210,8 +210,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
 headerSection: {
-  paddingTop: height * 0.08,
-  paddingBottom: 40,
+  // paddingTop: height * 0.02,
+  paddingBottom: height * 0.04,
   alignItems: 'center',
   position: 'relative',
   overflow: 'visible',
@@ -247,6 +247,9 @@ headerSection: {
   },
   welcomeContainer: {
     alignItems: 'center',
+    marginTop: 40,
+    marginBottom: 10,
+    paddingHorizontal: 20,
   },
   topBar: {
   height: 8,

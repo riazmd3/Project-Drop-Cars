@@ -2,7 +2,7 @@
 export const ENV = {
   // Development environment
   development: {
-    API_BASE_URL: 'http://192.168.1.22:8000',
+    API_BASE_URL: 'http://172.20.10.3:8000',
     DEBUG: true,
     LOG_LEVEL: 'debug',
   },

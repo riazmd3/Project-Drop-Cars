@@ -10,6 +10,8 @@ interface QuoteData {
   start_date_time: string;
   customer_name: string;
   customer_number: string;
+  max_time_to_assign_order: number;
+  toll_charge_update: boolean;
   cost_per_km?: number;
   extra_cost_per_km?: number;
   driver_allowance?: number;
@@ -38,6 +40,9 @@ interface FormData {
   start_date_time: Date;
   customer_name: string;
   customer_number: string;
+  max_time_hours: string;
+  max_time_minutes: string;
+  toll_charge_update: boolean;
   // Common
   pickup_notes: string;
   // Regular trip
@@ -146,6 +151,11 @@ export const formatOrderData = (
   sendTo: string = 'ALL',
   nearCity: string = ''
 ): QuoteData => {
+  // Convert hours and minutes to total minutes
+  const hours = parseInt(formData.max_time_hours || '0');
+  const minutes = parseInt(formData.max_time_minutes || '0');
+  const totalMinutes = (hours * 60) + minutes;
+
   return {
     vendor_id: formData.vendor_id,
     trip_type: formData.trip_type,
@@ -154,6 +164,8 @@ export const formatOrderData = (
     start_date_time: formData.start_date_time.toISOString(),
     customer_name: formData.customer_name,
     customer_number: formData.customer_number,
+    max_time_to_assign_order: totalMinutes,
+    toll_charge_update: formData.toll_charge_update,
     pickup_notes: formData.pickup_notes,
     ...(formData.cost_per_km && { cost_per_km: parseFloat(formData.cost_per_km) }),
     ...(formData.extra_cost_per_km && { extra_cost_per_km: parseFloat(formData.extra_cost_per_km) }),
@@ -173,6 +185,11 @@ export const formatHourlyOrderData = (
   sendTo: string = 'ALL',
   nearCity: string = ''
 ): QuoteData => {
+  // Convert hours and minutes to total minutes
+  const hours = parseInt(formData.max_time_hours || '0');
+  const minutes = parseInt(formData.max_time_minutes || '0');
+  const totalMinutes = (hours * 60) + minutes;
+
   return {
     vendor_id: formData.vendor_id,
     trip_type: "Hourly Rental",
@@ -181,6 +198,8 @@ export const formatHourlyOrderData = (
     start_date_time: formData.start_date_time.toISOString(),
     customer_name: formData.customer_name,
     customer_number: formData.customer_number,
+    max_time_to_assign_order: totalMinutes,
+    toll_charge_update: formData.toll_charge_update,
     pickup_notes: formData.pickup_notes,
     package_hours: parseInt(formData.package_hours || '0'),
     cost_per_pack: parseFloat(formData.cost_per_pack || '0'),

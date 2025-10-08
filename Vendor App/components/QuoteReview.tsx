@@ -378,6 +378,7 @@ export default function QuoteReview({
                     <Text style={styles.totalLabel}>Total Amount</Text>
                     <Text style={styles.totalValue}>₹{quoteData.fare.total_amount}</Text>
                   </View>
+                  
                 </>
               )}
             </View>
@@ -456,6 +457,17 @@ export default function QuoteReview({
                   <View style={[styles.priceRow, styles.totalRow]}>
                     <Text style={styles.totalLabel}>Total Amount</Text>
                     <Text style={styles.totalValue}>₹{quoteData.fare.base_km_amount+quoteData.fare.driver_allowance+quoteData.fare.permit_charges+quoteData.fare.hill_charges+quoteData.fare.toll_charges}</Text>
+                  </View>
+                  {quoteData.echo.toll_charges > 0 && (
+                    <View style={styles.priceRow}>
+                      <Text style={styles.priceLabel}>Vendor Basic Commessions</Text>
+                      <Text style={styles.priceValue}>₹{(quoteData.fare.base_km_amount)*quoteData.fare.Commission_percent/100}</Text>
+                      {/* <Text style={styles.priceValue}>₹{100}</Text> */}
+                    </View>
+                  )}
+                  <View style={[styles.priceRow, styles.totalRow]}>
+                    <Text style={styles.totalLabel}>Net Amount</Text>
+                    <Text style={styles.totalValue}>₹{quoteData.fare.base_km_amount+quoteData.fare.driver_allowance+quoteData.fare.permit_charges+quoteData.fare.hill_charges+quoteData.fare.toll_charges-((quoteData.fare.base_km_amount)*quoteData.fare.Commission_percent/100)}</Text>
                   </View>
                 </>
               )}
@@ -635,7 +647,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8F9FA',
   },
   header: {
-    paddingTop: 60,
+    paddingTop: 20,
     paddingBottom: 30,
     paddingHorizontal: 24,
   },
@@ -651,16 +663,16 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1E40AF',
+    color: '#e9eeffff',
     marginBottom: 4,
   },
   headerSubtitle: {
     fontSize: 16,
-    color: 'rgba(13, 80, 205, 0.99)',
+    color: '#e9eeffff',
   },
   closeButton: {
     padding: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: '#e9eeffff',
     borderRadius: 20,
   },
   placeholder: {
