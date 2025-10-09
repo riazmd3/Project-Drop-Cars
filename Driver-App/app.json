@@ -1,7 +1,7 @@
 {
   "expo": {
-    "name": "Driver App",
-    "slug": "driver-app",
+    "name": "Drop cars2",
+    "slug": "drop-cars2",
     "version": "1.0.0",
     "newArchEnabled": true,
     "web": {
@@ -15,11 +15,15 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "f317ef72-93ae-427b-a6fa-1bee22c3138c"
+        "projectId": "ce3d1356-cccc-4b4c-bb24-a1aa39876e8e"
       }
     },
     "android": {
       "package": "com.dropcars.driverapp"
-    }
+    },
+    "owner": "dropcars",
+    "plugins": [
+      "expo-router"
+    ]
   }
 }
