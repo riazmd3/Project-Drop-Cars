@@ -218,7 +218,7 @@ const OrderSuccess: React.FC<OrderSuccessProps> = ({ visible, onClose, orderData
 
                   {orderData.vendor_price && (
                     <View style={styles.detailRow}>
-                      <Text style={styles.detailLabel}>Vendor Amount</Text>
+                      <Text style={styles.detailLabel}>Customer Amount</Text>
                       <Text style={styles.detailValue}>₹{orderData.vendor_price}</Text>
                     </View>
                   )}
@@ -252,8 +252,8 @@ const OrderSuccess: React.FC<OrderSuccessProps> = ({ visible, onClose, orderData
 
                     {orderData.fare.base_km_amount && (
                       <View style={styles.detailRow}>
-                        <Text style={styles.detailLabel}>Base Fare</Text>
-                        <Text style={styles.detailValue}>₹{orderData.fare.base_km_amount}</Text>
+                        <Text style={styles.detailLabel}>Customer Fare</Text>
+                        <Text style={styles.detailValue}>₹{orderData.fare.total_amount}</Text>
                       </View>
                     )}
                   </>

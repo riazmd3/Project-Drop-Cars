@@ -65,6 +65,8 @@ interface OrderDetail {
   assigned_car_name: string | null;
   assigned_car_number: string | null;
   vehicle_owner_name: string | null;
+  vendor_profit : number | null;
+  admin_profit : number | null;
 }
 
 interface Assignment {
@@ -413,13 +415,14 @@ export default function OrderDetailsComponent() {
             <View style={styles.financialRow}>
               <Text style={styles.financialLabel}>Your Earning</Text>
               <Text style={[styles.financialValue, styles.profit]}>
-                ₹{orderDetails.vendor_price - orderDetails.estimated_price}
+                -₹{orderDetails.vendor_profit? orderDetails.vendor_profit : "0"}
+                
               </Text>
             </View>
             <View style={styles.financialRow}>
               <Text style={styles.financialLabel}>Platform Fee ({orderDetails.platform_fees_percent}%)</Text>
               <Text style={[styles.financialValue, styles.fee]}>
-                -₹{Math.round((orderDetails.vendor_price * orderDetails.platform_fees_percent) / 100)}
+                -₹{orderDetails.admin_profit? orderDetails.admin_profit : "0"}
               </Text>
             </View>
             {orderDetails.closed_vendor_price && (

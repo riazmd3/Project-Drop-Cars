@@ -22,13 +22,15 @@ interface Order {
   customer_number: string;
   trip_status: string;
   pick_near_city: string;
-  trip_distance: number | null;
+  trip_distance: number;
   trip_time: string;
   estimated_price: number;
   vendor_price: number;
   platform_fees_percent: number;
   created_at: string;
-  cost_per_km: number | null;
+  cost_per_km: number;
+  venodr_profit: number | null;
+  admin_profit: number | null;
 }
 
 export default function OrdersComponent(){
@@ -194,7 +196,7 @@ export default function OrdersComponent(){
           <View style={styles.profitInfo}>
             <View style={styles.profitRow}>
               <Text style={styles.profitLabel}>Your Earning: </Text>
-              <Text style={styles.profitValue}>₹{item.vendor_price - item.estimated_price}</Text>
+              <Text style={styles.profitValue}>₹{item.trip_status === 'COMPLETED'? item.venodr_profit : Math.round((item.vendor_price - item.estimated_price)+((item.trip_distance * item.cost_per_km)*(item.platform_fees_percent/100))) - Math.round(((item.vendor_price - item.estimated_price)+((item.trip_distance * item.cost_per_km)*(item.platform_fees_percent/100)))*item.platform_fees_percent/100)}</Text>
             </View>
             <View style={styles.profitRow}>
               <Text style={styles.platformFeeLabel}>Platform Fee ({item.platform_fees_percent}%): </Text>
@@ -202,7 +204,7 @@ export default function OrdersComponent(){
               {item.trip_type !== 'Hourly Rental' ? (
                 <Text style={styles.platformFeeValue}>
                   {item.cost_per_km !== null && item.cost_per_km !== undefined && item.trip_distance !== null
-                    ? `-₹${Math.round((item.cost_per_km * item.trip_distance) / 10)}`
+                    ? `-₹${item.trip_status === 'COMPLETED'? item.admin_profit : Math.round((((item.vendor_price - item.estimated_price)+((item.trip_distance * item.cost_per_km)*(item.platform_fees_percent/100)))*item.platform_fees_percent/100))}`
                     : "Null"}
                 </Text>
               ) : (
