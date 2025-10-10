@@ -219,7 +219,7 @@ export default function QuoteReview({
                   <Timer size={20} color="#8B5A3C" style={styles.detailIcon} />
                   <View style={styles.detailContent}>
                     <Text style={styles.detailLabel}>Package Hours</Text>
-                    <Text style={styles.detailValue}>{quoteData.echo.package_hours} hours</Text>
+                    <Text style={styles.detailValue}>{quoteData.echo.package_hours?.hours || 0} hours ({quoteData.echo.package_hours?.km_range || 0} km)</Text>
                   </View>
                 </View>
               )}
@@ -275,12 +275,12 @@ export default function QuoteReview({
                   
                   <View style={styles.summaryRow}>
                     <Text style={styles.summaryLabel}>Package Hours</Text>
-                    <Text style={styles.summaryValue}>{quoteData.echo.package_hours} hours</Text>
+                    <Text style={styles.summaryValue}>{quoteData.echo.package_hours?.hours || 0} hours ({quoteData.echo.package_hours?.km_range || 0} km)</Text>
                   </View>
                   
                   <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Cost per Package</Text>
-                    <Text style={styles.summaryValue}>₹{quoteData.echo.cost_per_pack}</Text>
+                    <Text style={styles.summaryLabel}>Cost per Hour</Text>
+                    <Text style={styles.summaryValue}>₹{quoteData.echo.cost_per_hour}</Text>
                   </View>
                 </>
               ) : (
@@ -319,10 +319,10 @@ export default function QuoteReview({
                     <Text style={styles.priceValue}>₹{quoteData.fare.vendor_amount}</Text>
                   </View>
 
-                  {quoteData.echo.additional_cost_per_hour > 0 && (
+                  {quoteData.echo.extra_cost_per_hour > 0 && (
                     <View style={styles.priceRow}>
-                      <Text style={styles.priceLabel}>(Additional) Cost per Hour</Text>
-                      <Text style={styles.priceValue}>₹{quoteData.echo.additional_cost_per_hour+quoteData.echo.extra_additional_cost_per_hour}</Text>
+                      <Text style={styles.priceLabel}>Extra Cost per Hour</Text>
+                      <Text style={styles.priceValue}>₹{quoteData.echo.extra_cost_per_hour}</Text>
                     </View>
                   )}
 
@@ -400,10 +400,17 @@ export default function QuoteReview({
                     <Text style={styles.priceValue}>₹{quoteData.fare.estimate_price}</Text>
                   </View>
 
-                  {quoteData.echo.additional_cost_per_hour > 0 && (
+                  {quoteData.echo.cost_for_addon_km > 0 && (
                     <View style={styles.priceRow}>
-                      <Text style={styles.priceLabel}>(Additional) Cost per Hour</Text>
-                      <Text style={styles.priceValue}>₹{quoteData.echo.additional_cost_per_hour}</Text>
+                      <Text style={styles.priceLabel}>Cost for Addon KM</Text>
+                      <Text style={styles.priceValue}>₹{quoteData.echo.cost_for_addon_km}</Text>
+                    </View>
+                  )}
+
+                  {quoteData.echo.extra_cost_for_addon_km > 0 && (
+                    <View style={styles.priceRow}>
+                      <Text style={styles.priceLabel}>Extra Cost for Addon KM</Text>
+                      <Text style={styles.priceValue}>₹{quoteData.echo.extra_cost_for_addon_km}</Text>
                     </View>
                   )}
 

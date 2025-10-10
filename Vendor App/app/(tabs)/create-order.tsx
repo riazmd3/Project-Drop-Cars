@@ -69,11 +69,11 @@ interface FormData {
   hill_charges: string;
   toll_charges: string;
   // Hourly rental fields
-  package_hours: string;
-  cost_per_pack: string;
-  extra_cost_per_pack: string;
-  additional_cost_per_hour: string;
-  extra_additional_cost_per_hour: string;
+  package_hours: { hours: number; km_range: number } | null;
+  cost_per_hour: string;
+  extra_cost_per_hour: string;
+  cost_for_addon_km: string;
+  extra_cost_for_addon_km: string;
   pickup_notes: string;
   send_to: string;
   near_city: string;
@@ -117,11 +117,11 @@ export default function CreateOrderScreen() {
     hill_charges: '',
     toll_charges: '',
     // Hourly rental fields
-    package_hours: '',
-    cost_per_pack: '',
-    extra_cost_per_pack: '',
-    additional_cost_per_hour: '',
-    extra_additional_cost_per_hour: '',
+    package_hours: null,
+    cost_per_hour: '',
+    extra_cost_per_hour: '',
+    cost_for_addon_km: '',
+    extra_cost_for_addon_km: '',
     pickup_notes: '',
     send_to: 'ALL',
     near_city: ''
@@ -137,16 +137,17 @@ export default function CreateOrderScreen() {
   const [showQuoteReview, setShowQuoteReview] = useState(false);
   const [showOrderSuccess, setShowOrderSuccess] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [options, setOptions] = useState({});
+  const [packageHoursOptions, setPackageHoursOptions] = useState<Array<{hours: number, km_range: number}>>([]);
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [dateMode, setDateMode] = useState<'date' | 'time'>('date');
+  const [showPackageHoursPicker, setShowPackageHoursPicker] = useState(false);
   
 
   const fetchPackageHours = async () => {
     try {
       const response = await publicApi.get('/orders/rental_hrs_data');
-      setOptions(response.data);
+      setPackageHoursOptions(response.data);
       console.log('Fetched package hours:', response.data);
     } catch (error) {
       console.error('Failed to fetch package hours:', error);
@@ -300,7 +301,7 @@ export default function CreateOrderScreen() {
     }));
   };
 
-  const handleInputChange = (field: keyof FormData, value: string | Date | boolean) => {
+  const handleInputChange = (field: keyof FormData, value: string | Date | boolean | { hours: number; km_range: number } | null) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -383,11 +384,11 @@ export default function CreateOrderScreen() {
     // Different validation for hourly rental vs regular trips
     if (formData.trip_type === 'Hourly Rental') {
       if (!formData.package_hours) {
-        Alert.alert('Error', 'Please enter package hours');
+        Alert.alert('Error', 'Please select package hours');
         return;
       }
-      if (!formData.cost_per_pack) {
-        Alert.alert('Error', 'Please enter cost per package');
+      if (!formData.cost_per_hour) {
+        Alert.alert('Error', 'Please enter cost per hour');
         return;
       }
     } else {
@@ -730,14 +731,15 @@ export default function CreateOrderScreen() {
             
             <View style={styles.inputContainer}>
               <Timer size={20} color="#6B7280" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Package Hours"
-                value={formData.package_hours}
-                onChangeText={(value) => handleInputChange('package_hours', value)}
-                keyboardType="numeric"
-                placeholderTextColor="#9CA3AF"
-              />
+              <TouchableOpacity
+                style={styles.pickerButton}
+                onPress={() => setShowPackageHoursPicker(true)}
+              >
+                <Text style={[styles.pickerButtonText, formData.package_hours ? styles.pickerButtonTextActive : styles.pickerButtonTextPlaceholder]}>
+                  {formData.package_hours ? `${formData.package_hours.hours} hrs (${formData.package_hours.km_range} km)` : 'Select Package Hours'}
+                </Text>
+                <ChevronDown size={20} color="#6B7280" />
+              </TouchableOpacity>
             </View>
 
             <View style={styles.row}>
@@ -745,9 +747,9 @@ export default function CreateOrderScreen() {
                 <IndianRupee size={20} color="#6B7280" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Cost per Package"
-                  value={formData.cost_per_pack}
-                  onChangeText={(value) => handleInputChange('cost_per_pack', value)}
+                  placeholder="Cost per Hour"
+                  value={formData.cost_per_hour}
+                  onChangeText={(value) => handleInputChange('cost_per_hour', value)}
                   keyboardType="numeric"
                   placeholderTextColor="#9CA3AF"
                 />
@@ -757,9 +759,9 @@ export default function CreateOrderScreen() {
                 <IndianRupee size={20} color="#6B7280" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Extra Cost per Package"
-                  value={formData.extra_cost_per_pack}
-                  onChangeText={(value) => handleInputChange('extra_cost_per_pack', value)}
+                  placeholder="Extra Cost per Hour"
+                  value={formData.extra_cost_per_hour}
+                  onChangeText={(value) => handleInputChange('extra_cost_per_hour', value)}
                   keyboardType="numeric"
                   placeholderTextColor="#9CA3AF"
                 />
@@ -771,9 +773,9 @@ export default function CreateOrderScreen() {
                 <IndianRupee size={20} color="#6B7280" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Additional Cost per Hour"
-                  value={formData.additional_cost_per_hour}
-                  onChangeText={(value) => handleInputChange('additional_cost_per_hour', value)}
+                  placeholder="Cost for Addon KM"
+                  value={formData.cost_for_addon_km}
+                  onChangeText={(value) => handleInputChange('cost_for_addon_km', value)}
                   keyboardType="numeric"
                   placeholderTextColor="#9CA3AF"
                 />
@@ -783,9 +785,9 @@ export default function CreateOrderScreen() {
                 <IndianRupee size={20} color="#6B7280" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Extra Additional Cost per Hour"
-                  value={formData.extra_additional_cost_per_hour}
-                  onChangeText={(value) => handleInputChange('extra_additional_cost_per_hour', value)}
+                  placeholder="Extra Cost for Addon KM"
+                  value={formData.extra_cost_for_addon_km}
+                  onChangeText={(value) => handleInputChange('extra_cost_for_addon_km', value)}
                   keyboardType="numeric"
                   placeholderTextColor="#9CA3AF"
                 />
@@ -1052,6 +1054,48 @@ export default function CreateOrderScreen() {
         </View>
       </Modal>
 
+      {/* Package Hours Picker Modal */}
+      <Modal
+        visible={showPackageHoursPicker}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Select Package Hours</Text>
+            <TouchableOpacity
+              onPress={() => setShowPackageHoursPicker(false)}
+              style={styles.closeButton}
+            >
+              <X size={24} color="#5F6368" />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.modalContent}>
+            {packageHoursOptions.map((option, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[
+                  styles.modalOption,
+                  formData.package_hours?.hours === option.hours && formData.package_hours?.km_range === option.km_range && styles.modalOptionActive
+                ]}
+                onPress={() => {
+                  handleInputChange('package_hours', option);
+                  setShowPackageHoursPicker(false);
+                }}
+              >
+                <Timer size={20} color={formData.package_hours?.hours === option.hours && formData.package_hours?.km_range === option.km_range ? "#8B5A3C" : "#6B7280"} />
+                <Text style={[
+                  styles.modalOptionText,
+                  formData.package_hours?.hours === option.hours && formData.package_hours?.km_range === option.km_range && styles.modalOptionTextActive
+                ]}>
+                  {option.hours} hours ({option.km_range} km range)
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </Modal>
+
       {/* Location Picker */}
       <LocationPicker
         visible={showLocationPicker}
@@ -1101,11 +1145,11 @@ export default function CreateOrderScreen() {
             extra_permit_charges: '',
             hill_charges: '',
             toll_charges: '',
-            package_hours: '',
-            cost_per_pack: '',
-            extra_cost_per_pack: '',
-            additional_cost_per_hour: '',
-            extra_additional_cost_per_hour: '',
+            package_hours: null,
+            cost_per_hour: '',
+            extra_cost_per_hour: '',
+            cost_for_addon_km: '',
+            extra_cost_for_addon_km: '',
             pickup_notes: '',
             send_to: 'ALL',
             near_city: ''

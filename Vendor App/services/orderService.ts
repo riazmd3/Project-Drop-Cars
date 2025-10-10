@@ -24,11 +24,11 @@ interface QuoteData {
   send_to?: string;
   near_city?: string;
   // Hourly rental fields
-  package_hours?: number;
-  cost_per_pack?: number;
-  extra_cost_per_pack?: number;
-  additional_cost_per_hour?: number;
-  extra_additional_cost_per_hour?: number;
+  package_hours?: { hours: number; km_range: number };
+  cost_per_hour?: number;
+  extra_cost_per_hour?: number;
+  cost_for_addon_km?: number;
+  extra_cost_for_addon_km?: number;
   pick_near_city?: string;
 }
 
@@ -55,11 +55,11 @@ interface FormData {
   hill_charges?: string;
   toll_charges?: string;
   // Hourly rental
-  package_hours?: string;
-  cost_per_pack?: string;
-  extra_cost_per_pack?: string;
-  additional_cost_per_hour?: string;
-  extra_additional_cost_per_hour?: string;
+  package_hours?: { hours: number; km_range: number } | null;
+  cost_per_hour?: string;
+  extra_cost_per_hour?: string;
+  cost_for_addon_km?: string;
+  extra_cost_for_addon_km?: string;
 }
 
 // ----------------------
@@ -201,11 +201,11 @@ export const formatHourlyOrderData = (
     max_time_to_assign_order: totalMinutes,
     toll_charge_update: formData.toll_charge_update,
     pickup_notes: formData.pickup_notes,
-    package_hours: parseInt(formData.package_hours || '0'),
-    cost_per_pack: parseFloat(formData.cost_per_pack || '0'),
-    extra_cost_per_pack: parseFloat(formData.extra_cost_per_pack || '0'),
-    additional_cost_per_hour: parseFloat(formData.additional_cost_per_hour || '0'),
-    extra_additional_cost_per_hour: parseFloat(formData.extra_additional_cost_per_hour || '0'),
+    ...(formData.package_hours && { package_hours: formData.package_hours }),
+    ...(formData.cost_per_hour && { cost_per_hour: parseFloat(formData.cost_per_hour) }),
+    ...(formData.extra_cost_per_hour && { extra_cost_per_hour: parseFloat(formData.extra_cost_per_hour) }),
+    ...(formData.cost_for_addon_km && { cost_for_addon_km: parseFloat(formData.cost_for_addon_km) }),
+    ...(formData.extra_cost_for_addon_km && { extra_cost_for_addon_km: parseFloat(formData.extra_cost_for_addon_km) }),
     pick_near_city: sendTo === 'NEAR_CITY' ? nearCity : 'ALL',
     send_to: sendTo,
   };
