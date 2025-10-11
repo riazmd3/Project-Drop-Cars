@@ -53,15 +53,27 @@ export default function StartTripScreen() {
       setSubmitting(true);
       // Prefer assignment_id if provided (recommended)
       const assignment_id = String(params.assignment_id || '');
+      let tripStartResponse = null;
+      
       if (!assignment_id) {
         // If no assignment id, continue UI flow without API to prevent blocking
         console.warn('No assignment_id provided to start trip; navigating without API call');
       } else {
-        await startTrip(parseInt(params.order_id || ''), parseInt(startKm, 10), odometerPhoto);
+        tripStartResponse = await startTrip(parseInt(params.order_id || ''), parseInt(startKm, 10), odometerPhoto);
         
         // Update driver status to DRIVING after successful trip start
         // This will be handled by the backend, but we can also update locally
         console.log('🚗 Trip started successfully, driver status should be updated to DRIVING');
+        
+        // Log the API response
+        if (tripStartResponse) {
+          console.log('📊 Trip Start API Response:', {
+            message: tripStartResponse.message,
+            end_record_id: tripStartResponse.end_record_id,
+            start_km: tripStartResponse.start_km,
+            speedometer_img_url: tripStartResponse.speedometer_img_url
+          });
+        }
       }
 
       console.log('🚗 Navigating to end trip with params:', {

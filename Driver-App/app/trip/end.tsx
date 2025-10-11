@@ -8,6 +8,7 @@ import {
   Alert,
   Image,
   ScrollView,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -36,6 +37,18 @@ export default function EndTripScreen() {
   const startKm = parseInt(String(params.startKm || '0')) || 0;
   const farePerKm = parseFloat(String(params.farePerKm || '0')) || 0;
   const tollChargeUpdateEnabled = params.toll_charge_update === 'true';
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log('🏁 End trip screen received params:', {
+      startKm: params.startKm,
+      parsedStartKm: startKm,
+      farePerKm: params.farePerKm,
+      parsedFarePerKm: farePerKm,
+      toll_charge_update: params.toll_charge_update,
+      tollChargeUpdateEnabled,
+    });
+  }, [params]);
 
   // Initialize toll charge update state
   React.useEffect(() => {
@@ -90,10 +103,19 @@ export default function EndTripScreen() {
     try {
       setSubmitting(true);
       const assignment_id = String(params.assignment_id || '');
+      let tripEndResponse = null;
+      
       if (assignment_id) {
         // Create a dummy contact number since it's no longer required from user
         const dummyContact = '0000000000';
-        await endTrip(parseInt(params.order_id || ''), parseInt(endKm, 10), dummyContact, odometerPhoto, tollChargeUpdate ? parseFloat(tollCharge) : undefined);
+        tripEndResponse = await endTrip(
+          parseInt(params.order_id || ''), 
+          parseInt(endKm, 10), 
+          dummyContact, 
+          odometerPhoto, 
+          tollChargeUpdate ? parseFloat(tollCharge) : undefined,
+          tollChargeUpdate
+        );
       } else {
         console.warn('No assignment_id provided to end trip; finishing without API call');
       }
@@ -106,9 +128,16 @@ export default function EndTripScreen() {
       }
 
       const tollMessage = tollChargeUpdate ? `\nToll Charges: ₹${tollCharge}` : '';
+      
+      // Use API response data if available, otherwise use calculated values
+      const finalTotalKm = tripEndResponse?.total_km || totalKm;
+      const finalCalculatedFare = tripEndResponse?.calculated_fare || totalFare;
+      const driverAmount = tripEndResponse?.driver_amount || (totalFare - 50);
+      const vehicleOwnerAmount = tripEndResponse?.vehicle_owner_amount || 50;
+      
       Alert.alert(
         'Trip Completed',
-        `Trip completed successfully!\n\nDistance: ${totalKm} km\nTotal Fare: ₹${totalFare}${tollMessage}\nCommission: ₹50`,
+        `Trip completed successfully!\n\nDistance: ${finalTotalKm} km\nTotal Fare: ₹${finalCalculatedFare}${tollMessage}\nDriver Amount: ₹${driverAmount}\nVehicle Owner Amount: ₹${vehicleOwnerAmount}`,
         [{ text: 'OK', onPress: () => router.replace('/quick-dashboard') }]
       );
     } catch (error: any) {
@@ -219,11 +248,18 @@ export default function EndTripScreen() {
         )}
 
         <TouchableOpacity
-          style={[styles.endButton, (!endKm || !odometerPhoto || !thanked || (tollChargeUpdate && !tollCharge)) && styles.disabledButton]}
+          style={[styles.endButton, (!endKm || !odometerPhoto || !thanked || (tollChargeUpdate && !tollCharge) || submitting) && styles.disabledButton]}
           onPress={handleEndTrip}
           disabled={!endKm || !odometerPhoto || !thanked || (tollChargeUpdate && !tollCharge) || submitting}
         >
-          <Text style={styles.endButtonText}>Complete Trip</Text>
+          {submitting ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator color="white" size="small" />
+              <Text style={styles.endButtonText}>Completing Trip...</Text>
+            </View>
+          ) : (
+            <Text style={styles.endButtonText}>Complete Trip</Text>
+          )}
         </TouchableOpacity>
       </ScrollView>
     </SafeAreaView>
@@ -419,6 +455,11 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   helperText: {
     fontSize: 12,

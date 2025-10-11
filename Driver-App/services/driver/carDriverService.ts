@@ -30,13 +30,13 @@ export const startTrip = async (orderId: number, startKm?: number, imgUri?: stri
     
     const form = new FormData();
     
-    // Add required fields - the API expects these as Form fields
-    form.append('start_km', String(startKm)); // Must be > 0 
+    // Add required fields according to API specification
+    form.append('start_km', String(startKm)); // integer - required
     form.append('speedometer_img', { 
       uri: imgUri, 
       name: 'speedometer.jpg', 
       type: 'image/jpeg' 
-    } as any);
+    } as any); // string($binary) - required
     
     console.log('📤 Sending start trip request:', {
       orderId,
@@ -51,6 +51,17 @@ export const startTrip = async (orderId: number, startKm?: number, imgUri?: stri
     });
     
     console.log('✅ Trip started successfully:', response.data);
+    
+    // Log the response data according to API specification
+    if (response.data) {
+      console.log('📊 Trip Start Response:', {
+        message: response.data.message,
+        end_record_id: response.data.end_record_id,
+        start_km: response.data.start_km,
+        speedometer_img_url: response.data.speedometer_img_url
+      });
+    }
+    
     return response.data;
   } catch (error: any) {
     console.error('❌ Failed to start trip:', error);
