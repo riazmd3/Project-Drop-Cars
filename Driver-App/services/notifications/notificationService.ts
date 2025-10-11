@@ -3,6 +3,7 @@ import * as Device from 'expo-device';
 import { Platform } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import messaging from '@react-native-firebase/messaging';
+import firebaseApp from '@/services/firebase/firebaseConfig';
 
 // Configure notification behavior
 Notifications.setNotificationHandler({
@@ -51,20 +52,57 @@ class NotificationService {
     try {
       console.log('🔔 Initializing notification service...');
       
+      // Initialize Firebase first (but don't fail if it doesn't work)
+      try {
+        await this.initializeFirebase();
+      } catch (firebaseError) {
+        console.warn('⚠️ Firebase initialization failed, continuing without Firebase:', firebaseError);
+      }
+      
       // Request permissions
       await this.requestPermissions();
       
-      // Get push tokens
+      // Get push tokens (Expo will work even if Firebase fails)
       await this.getPushToken();
-      await this.getFirebaseToken();
+      
+      // Try to get Firebase token (but don't fail if it doesn't work)
+      try {
+        await this.getFirebaseToken();
+      } catch (firebaseError) {
+        console.warn('⚠️ Firebase token retrieval failed, continuing without Firebase:', firebaseError);
+      }
       
       // Set up notification listeners
       this.setupNotificationListeners();
-      this.setupFirebaseListeners();
+      
+      // Try to set up Firebase listeners (but don't fail if it doesn't work)
+      try {
+        this.setupFirebaseListeners();
+      } catch (firebaseError) {
+        console.warn('⚠️ Firebase listeners setup failed, continuing without Firebase:', firebaseError);
+      }
       
       console.log('✅ Notification service initialized successfully');
     } catch (error) {
       console.error('❌ Failed to initialize notification service:', error);
+    }
+  }
+
+  // Initialize Firebase
+  private async initializeFirebase(): Promise<void> {
+    try {
+      console.log('🔥 Initializing Firebase...');
+      
+      // Import and initialize Firebase
+      await import('@/services/firebase/firebaseConfig');
+      
+      // Wait a bit for Firebase to be ready
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      console.log('🔥 Firebase initialization completed');
+    } catch (error) {
+      console.error('❌ Error initializing Firebase:', error);
+      throw error;
     }
   }
 
@@ -98,18 +136,23 @@ class NotificationService {
   private async getPushToken(): Promise<void> {
     try {
       if (Device.isDevice) {
+        console.log('🔍 Requesting Expo push token...');
         const token = await Notifications.getExpoPushTokenAsync({
           projectId: 'f317ef72-93ae-427b-a6fa-1bee22c3138c', // Your actual Expo project ID
         });
         
         this.expoPushToken = token.data;
-        console.log('📱 Expo push token:', this.expoPushToken);
+        console.log('📱 ===== EXPO PUSH TOKEN =====');
+        console.log('📱 Token:', this.expoPushToken);
+        console.log('📱 ============================');
         
         // Store token securely
         await SecureStore.setItemAsync('expoPushToken', this.expoPushToken);
         
         // Send token to backend (you can implement this)
         await this.sendTokenToBackend(this.expoPushToken);
+      } else {
+        console.log('📱 Running on simulator, skipping Expo push token');
       }
     } catch (error) {
       console.error('❌ Error getting push token:', error);
@@ -120,16 +163,26 @@ class NotificationService {
   private async getFirebaseToken(): Promise<void> {
     try {
       if (Device.isDevice) {
+        console.log('🔍 Requesting Firebase messaging permission...');
+        
+        // Wait a bit for Firebase to be ready
+        await new Promise(resolve => setTimeout(resolve, 1000));
+        
         // Request permission for Firebase messaging
         const authStatus = await messaging().requestPermission();
+        console.log('🔍 Firebase permission status:', authStatus);
+        
         const enabled =
           authStatus === messaging.AuthorizationStatus.AUTHORIZED ||
           authStatus === messaging.AuthorizationStatus.PROVISIONAL;
 
         if (enabled) {
+          console.log('🔍 Getting Firebase device token...');
           const token = await messaging().getToken();
           this.firebaseToken = token;
-          console.log('🔥 Firebase device token:', this.firebaseToken);
+          console.log('🔥 ===== FIREBASE DEVICE TOKEN =====');
+          console.log('🔥 Token:', this.firebaseToken);
+          console.log('🔥 =================================');
           
           // Store token securely
           await SecureStore.setItemAsync('firebaseToken', this.firebaseToken);
@@ -139,9 +192,12 @@ class NotificationService {
         } else {
           console.warn('⚠️ Firebase messaging permission not granted');
         }
+      } else {
+        console.log('🔥 Running on simulator, skipping Firebase token');
       }
     } catch (error) {
       console.error('❌ Error getting Firebase token:', error);
+      // Don't throw error, just log it and continue
     }
   }
 
@@ -390,6 +446,81 @@ class NotificationService {
       return null;
     } catch (error) {
       console.error('❌ Error getting current Firebase token:', error);
+      return null;
+    }
+  }
+
+  // Debug method to print all tokens
+  async printAllTokens(): Promise<void> {
+    try {
+      console.log('🔍 ===== DEBUGGING TOKENS =====');
+      
+      // Get stored tokens
+      const storedExpoToken = await this.getStoredPushToken();
+      const storedFirebaseToken = await this.getStoredFirebaseToken();
+      
+      console.log('📱 Stored Expo Token:', storedExpoToken);
+      console.log('🔥 Stored Firebase Token:', storedFirebaseToken);
+      
+      // Get current tokens
+      if (Device.isDevice) {
+        try {
+          const currentFirebaseToken = await this.getCurrentFirebaseToken();
+          console.log('🔥 Current Firebase Token:', currentFirebaseToken);
+        } catch (error) {
+          console.log('🔥 Could not get current Firebase token:', error);
+        }
+      }
+      
+      console.log('🔍 ============================');
+    } catch (error) {
+      console.error('❌ Error printing tokens:', error);
+    }
+  }
+
+  // Manual method to force token retrieval
+  async forceTokenRetrieval(): Promise<void> {
+    try {
+      console.log('🔄 Force retrieving tokens...');
+      
+      // Force get Expo token (this should work)
+      await this.getPushToken();
+      
+      // Try to get Firebase token (but don't fail if it doesn't work)
+      try {
+        await this.getFirebaseToken();
+      } catch (firebaseError) {
+        console.warn('⚠️ Firebase token retrieval failed:', firebaseError);
+      }
+      
+      // Print all tokens
+      await this.printAllTokens();
+      
+      console.log('✅ Force token retrieval completed');
+    } catch (error) {
+      console.error('❌ Error in force token retrieval:', error);
+    }
+  }
+
+  // Simple method to get just Expo token (fallback)
+  async getExpoTokenOnly(): Promise<string | null> {
+    try {
+      if (Device.isDevice) {
+        console.log('🔍 Getting Expo push token only...');
+        const token = await Notifications.getExpoPushTokenAsync({
+          projectId: 'f317ef72-93ae-427b-a6fa-1bee22c3138c',
+        });
+        
+        this.expoPushToken = token.data;
+        console.log('📱 ===== EXPO PUSH TOKEN ONLY =====');
+        console.log('📱 Token:', this.expoPushToken);
+        console.log('📱 =================================');
+        
+        return this.expoPushToken;
+      }
+      return null;
+    } catch (error) {
+      console.error('❌ Error getting Expo token:', error);
       return null;
     }
   }

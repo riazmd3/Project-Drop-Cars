@@ -24,11 +24,16 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   const initializeNotifications = async () => {
     try {
+      console.log('🔔 Starting notification initialization...');
+      
       // Initialize notification service
       await notificationService.initialize();
       
       // Load notification settings from storage
       await loadNotificationSettings();
+      
+      // Print all tokens for debugging
+      await notificationService.printAllTokens();
       
       console.log('✅ Notification context initialized');
     } catch (error) {

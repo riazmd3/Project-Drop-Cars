@@ -75,7 +75,7 @@ export const startTrip = async (orderId: number, startKm?: number, imgUri?: stri
   }
 };
 
-export const endTrip = async (orderId: number, endKm?: number, contact?: string, imgUri?: string) => {
+export const endTrip = async (orderId: number, endKm?: number, contact?: string, imgUri?: string, tollCharges?: number) => {
   try {
     console.log('🏁 Ending trip for order:', orderId);
     
@@ -103,11 +103,18 @@ export const endTrip = async (orderId: number, endKm?: number, contact?: string,
       type: 'image/jpeg' 
     } as any);
     
+    // Add toll charges if provided
+    if (tollCharges !== undefined && tollCharges >= 0) {
+      form.append('toll_charges', String(tollCharges));
+      console.log('💰 Adding toll charges:', tollCharges);
+    }
+    
     console.log('📤 Sending end trip request:', {
       orderId,
       endKm,
       contact,
-      hasImage: !!imgUri
+      hasImage: !!imgUri,
+      tollCharges
     });
     
     const response = await axiosDriver.post(`/api/assignments/driver/end-trip/${orderId}`, form, { 

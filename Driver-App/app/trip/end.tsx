@@ -20,14 +20,27 @@ export default function EndTripScreen() {
   const [endKm, setEndKm] = useState('');
   const [odometerPhoto, setOdometerPhoto] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [contactNumber, setContactNumber] = useState('');
   const [thanked, setThanked] = useState(false);
+  const [tollCharge, setTollCharge] = useState('');
+  const [tollChargeUpdate, setTollChargeUpdate] = useState(false);
   const { deductMoney } = useWallet();
   const router = useRouter();
-  const params = useLocalSearchParams<{ order_id?: string; assignment_id?: string; startKm?: string; farePerKm?: string }>();
+  const params = useLocalSearchParams<{ 
+    order_id?: string; 
+    assignment_id?: string; 
+    startKm?: string; 
+    farePerKm?: string;
+    toll_charge_update?: string;
+  }>();
 
   const startKm = parseInt(String(params.startKm || '0')) || 0;
   const farePerKm = parseFloat(String(params.farePerKm || '0')) || 0;
+  const tollChargeUpdateEnabled = params.toll_charge_update === 'true';
+
+  // Initialize toll charge update state
+  React.useEffect(() => {
+    setTollChargeUpdate(tollChargeUpdateEnabled);
+  }, [tollChargeUpdateEnabled]);
 
   const takeOdometerPhoto = async () => {
     try {
@@ -52,10 +65,18 @@ export default function EndTripScreen() {
   };
 
   const handleEndTrip = async () => {
-    if (!endKm || !odometerPhoto || !contactNumber || !thanked) {
-      Alert.alert('Error', 'Please complete all fields including contact number and thank your customer.');
+    // Check required fields (removed contact number requirement)
+    if (!endKm || !odometerPhoto || !thanked) {
+      Alert.alert('Error', 'Please complete all required fields and thank your customer.');
       return;
     }
+
+    // Check toll charge if update is enabled
+    if (tollChargeUpdate && (!tollCharge || parseFloat(tollCharge) < 0)) {
+      Alert.alert('Error', 'Please enter a valid toll charge amount.');
+      return;
+    }
+
     if (submitting) return;
 
     const totalKm = parseInt(endKm) - startKm;
@@ -70,7 +91,9 @@ export default function EndTripScreen() {
       setSubmitting(true);
       const assignment_id = String(params.assignment_id || '');
       if (assignment_id) {
-        await endTrip(parseInt(params.order_id || ''), parseInt(endKm, 10), contactNumber, odometerPhoto);
+        // Create a dummy contact number since it's no longer required from user
+        const dummyContact = '0000000000';
+        await endTrip(parseInt(params.order_id || ''), parseInt(endKm, 10), dummyContact, odometerPhoto, tollChargeUpdate ? parseFloat(tollCharge) : undefined);
       } else {
         console.warn('No assignment_id provided to end trip; finishing without API call');
       }
@@ -82,9 +105,10 @@ export default function EndTripScreen() {
         console.warn('Commission deduction failed, continuing:', (e as any)?.message);
       }
 
+      const tollMessage = tollChargeUpdate ? `\nToll Charges: ₹${tollCharge}` : '';
       Alert.alert(
         'Trip Completed',
-        `Trip completed successfully!\n\nDistance: ${totalKm} km\nTotal Fare: ₹${totalFare}\nCommission: ₹50`,
+        `Trip completed successfully!\n\nDistance: ${totalKm} km\nTotal Fare: ₹${totalFare}${tollMessage}\nCommission: ₹50`,
         [{ text: 'OK', onPress: () => router.replace('/quick-dashboard') }]
       );
     } catch (error: any) {
@@ -177,23 +201,27 @@ export default function EndTripScreen() {
           />
         </View>
 
-        {/* Contact Number Input */}
-        <View style={styles.inputSection}>
-          <Text style={styles.sectionTitle}>Customer Contact Number</Text>
-          <TextInput
-            style={styles.kmInput}
-            placeholder="Enter customer mobile (10 digits)"
-            value={contactNumber}
-            onChangeText={setContactNumber}
-            keyboardType="phone-pad"
-            maxLength={10}
-          />
-        </View>
+        {/* Toll Charge Input - Only show if toll_charge_update is true */}
+        {tollChargeUpdate && (
+          <View style={styles.inputSection}>
+            <Text style={styles.sectionTitle}>Toll Charges</Text>
+            <TextInput
+              style={styles.kmInput}
+              placeholder="Enter toll charges (₹)"
+              value={tollCharge}
+              onChangeText={setTollCharge}
+              keyboardType="numeric"
+            />
+            <Text style={styles.helperText}>
+              Enter the toll charges incurred during the trip
+            </Text>
+          </View>
+        )}
 
         <TouchableOpacity
-          style={[styles.endButton, (!endKm || !odometerPhoto || !contactNumber || !thanked) && styles.disabledButton]}
+          style={[styles.endButton, (!endKm || !odometerPhoto || !thanked || (tollChargeUpdate && !tollCharge)) && styles.disabledButton]}
           onPress={handleEndTrip}
-          disabled={!endKm || !odometerPhoto || !contactNumber || !thanked || submitting}
+          disabled={!endKm || !odometerPhoto || !thanked || (tollChargeUpdate && !tollCharge) || submitting}
         >
           <Text style={styles.endButtonText}>Complete Trip</Text>
         </TouchableOpacity>
@@ -391,5 +419,11 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
+  },
+  helperText: {
+    fontSize: 12,
+    color: '#666',
+    marginTop: 4,
+    fontStyle: 'italic',
   },
 });
