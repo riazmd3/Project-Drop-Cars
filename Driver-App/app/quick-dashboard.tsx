@@ -52,6 +52,7 @@ interface DriverOrder {
   total_fare?: number;
   assignment_id?: number;
   scheduled_at?: string;
+  toll_charge_update?: boolean; // Add toll charge update flag
 }
 
 export default function QuickDashboardScreen() {
@@ -60,7 +61,7 @@ export default function QuickDashboardScreen() {
   const router = useRouter();
   
   // State management
-  const [driverStatus, setDriverStatus] = useState<'ONLINE' | 'OFFLINE'>('OFFLINE');
+  const [driverStatus, setDriverStatus] = useState<'ONLINE' | 'OFFLINE' | 'DRIVING'>('OFFLINE');
   const [driverOrders, setDriverOrders] = useState<DriverOrder[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -152,6 +153,7 @@ export default function QuickDashboardScreen() {
         total_fare: order.estimated_price || 0,
         assignment_id: order.id,
         scheduled_at: order.start_date_time,
+        toll_charge_update: order.toll_charge_update || false, // Map toll charge update flag
       }));
       
       setDriverOrders(mappedOrders);
@@ -220,6 +222,16 @@ export default function QuickDashboardScreen() {
   const toggleDriverStatus = useCallback(async (newValue: boolean) => {
     if (statusChanging) return;
     
+    // Prevent going online if currently driving
+    if (newValue && driverStatus === 'DRIVING') {
+      Alert.alert(
+        'Cannot Go Online',
+        'You are currently driving. Please end your current trip first before going online.',
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+    
     try {
       setStatusChanging(true);
       const newStatus = newValue ? 'ONLINE' : 'OFFLINE';
@@ -257,7 +269,34 @@ export default function QuickDashboardScreen() {
     } finally {
       setStatusChanging(false);
     }
-  }, [statusChanging, statusAnimation]);
+  }, [statusChanging, statusAnimation, driverStatus]);
+
+  // Check for active trips and update driver status
+  const checkActiveTrips = useCallback(() => {
+    const activeTripOrder = driverOrders.find(order => 
+      order.assignment_status === 'DRIVING' || 
+      order.assignment_status === 'STARTED'
+    );
+    
+    if (activeTripOrder) {
+      setActiveTrip(activeTripOrder);
+      if (driverStatus !== 'DRIVING') {
+        setDriverStatus('DRIVING');
+        console.log('🚗 Active trip detected, updating driver status to DRIVING');
+      }
+    } else {
+      setActiveTrip(null);
+      if (driverStatus === 'DRIVING') {
+        setDriverStatus('ONLINE');
+        console.log('✅ No active trip, updating driver status to ONLINE');
+      }
+    }
+  }, [driverOrders, driverStatus]);
+
+  // Check for active trips when orders change
+  useEffect(() => {
+    checkActiveTrips();
+  }, [checkActiveTrips]);
 
   // Initialize data
   useEffect(() => {
@@ -265,7 +304,11 @@ export default function QuickDashboardScreen() {
     if (user?.driver_status) {
       const status = user.driver_status.toUpperCase();
       console.log('🔍 Setting initial driver status from user data:', status);
-      setDriverStatus(status as 'ONLINE' | 'OFFLINE');
+      if (status === 'ONLINE' || status === 'OFFLINE' || status === 'DRIVING') {
+        setDriverStatus(status as 'ONLINE' | 'OFFLINE' | 'DRIVING');
+      } else {
+        setDriverStatus('OFFLINE');
+      }
     }
     
     // Debug authentication first
@@ -329,6 +372,7 @@ export default function QuickDashboardScreen() {
 
   // Trip management functions
   const handleStartTrip = useCallback(async (order: DriverOrder) => {
+    // Check if driver is already on a trip
     if (activeTrip) {
       Alert.alert(
         'Active Trip',
@@ -338,25 +382,46 @@ export default function QuickDashboardScreen() {
       return;
     }
 
-    // For now, show an alert that trip start requires additional data
-    // In a real implementation, you would navigate to a trip start screen
-    Alert.alert(
-      'Trip Start',
-      'To start a trip, you need to:\n• Enter starting odometer reading\n• Take a speedometer photo\n\nThis feature requires a trip start screen with camera functionality.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { 
-          text: 'Continue', 
-          onPress: () => {
-            // Navigate to trip start screen or show input modal
-            console.log('Navigate to trip start screen for order:', order.order_id);
-            // For now, just show a placeholder
-            Alert.alert('Info', 'Trip start screen would open here with camera and odometer input');
+    // Check driver status - can only start trip when ONLINE
+    if (driverStatus !== 'ONLINE') {
+      Alert.alert(
+        'Cannot Start Trip',
+        `You cannot start a trip while your status is ${driverStatus}. Please go online first to start trips.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { 
+            text: 'Go Online', 
+            onPress: () => {
+              if (driverStatus === 'OFFLINE') {
+                toggleDriverStatus(true);
+              } else {
+                Alert.alert(
+                  'Status Conflict',
+                  'You are currently driving. Please end your current trip first before going online.',
+                  [{ text: 'OK' }]
+                );
+              }
+            }
           }
-        }
-      ]
-    );
-  }, [activeTrip]);
+        ]
+      );
+      return;
+    }
+
+    // Navigate to trip start screen
+    router.push({
+      pathname: '/trip/start',
+      params: {
+        assignment_id: order.assignment_id,
+        order_id: order.order_id,
+        customerName: order.customer_name,
+        pickup: order.pickup,
+        drop: order.drop,
+        farePerKm: String(order.total_fare || 0),
+        toll_charge_update: order.toll_charge_update ? 'true' : 'false',
+      }
+    });
+  }, [activeTrip, driverStatus, router, toggleDriverStatus]);
 
   const handleEndTrip = useCallback(async (order: DriverOrder) => {
     // Navigate to trip end screen
@@ -370,6 +435,7 @@ export default function QuickDashboardScreen() {
         drop: order.drop,
         startKm: '0', // Default start KM, will be updated from trip start
         farePerKm: '0', // Default fare per KM
+        toll_charge_update: order.toll_charge_update ? 'true' : 'false', // Pass toll charge update flag
       }
     });
   }, [router]);
@@ -447,16 +513,21 @@ export default function QuickDashboardScreen() {
             <View style={styles.statusRow}>
               <View style={[
                 styles.statusDot, 
-                { backgroundColor: driverStatus === 'ONLINE' ? '#10B981' : '#EF4444' }
+                { 
+                  backgroundColor: driverStatus === 'ONLINE' ? '#10B981' : 
+                                  driverStatus === 'DRIVING' ? '#3B82F6' : '#EF4444' 
+                }
               ]} />
               <Text style={[
                 styles.statusText, 
                 { 
-                  color: driverStatus === 'ONLINE' ? '#10B981' : '#EF4444',
+                  color: driverStatus === 'ONLINE' ? '#10B981' : 
+                        driverStatus === 'DRIVING' ? '#3B82F6' : '#EF4444',
                   fontWeight: 'bold'
                 }
               ]}>
-                {driverStatus === 'ONLINE' ? 'ONLINE' : 'OFFLINE'}
+                {driverStatus === 'ONLINE' ? 'ONLINE' : 
+                 driverStatus === 'DRIVING' ? 'DRIVING' : 'OFFLINE'}
               </Text>
             </View>
           </View>
@@ -468,7 +539,7 @@ export default function QuickDashboardScreen() {
               <Switch
                 value={driverStatus === 'ONLINE'}
                 onValueChange={toggleDriverStatus}
-                disabled={statusChanging}
+                disabled={driverStatus === 'DRIVING' || statusChanging}
                 trackColor={{
                   false: '#EF4444',
                   true: '#10B981'
@@ -550,37 +621,79 @@ export default function QuickDashboardScreen() {
               />
             }
           >
-            {driverOrders.map((order, index) => (
-              <TouchableOpacity
-                key={`${order.order_id}-${index}`}
-                style={[styles.orderCard, { backgroundColor: colors.surface }]}
-                onPress={() => navigateToTrip(order)}
-              >
+            {driverOrders.map((order, index) => {
+              const isDisabled = driverStatus === 'DRIVING';
+              const isActiveTrip = activeTrip && activeTrip.order_id === order.order_id;
+              
+              return (
+                <TouchableOpacity
+                  key={`${order.order_id}-${index}`}
+                  style={[
+                    styles.orderCard, 
+                    { backgroundColor: colors.surface },
+                    isDisabled && !isActiveTrip && styles.disabledOrderCard
+                  ]}
+                  onPress={() => {
+                    if (isDisabled && !isActiveTrip) {
+                      Alert.alert(
+                        'Cannot Access Order',
+                        'You are currently driving. Please end your current trip first to access other orders.',
+                        [{ text: 'OK' }]
+                      );
+                      return;
+                    }
+                    navigateToTrip(order);
+                  }}
+                  disabled={isDisabled && !isActiveTrip}
+                >
                 <View style={styles.orderHeader}>
                   <View style={styles.orderInfo}>
-                    <Text style={[styles.orderId, { color: colors.text }]}>
+                    <Text style={[
+                      styles.orderId, 
+                      { color: isDisabled && !isActiveTrip ? colors.textSecondary : colors.text }
+                    ]}>
                       Order #{order.order_id}
                     </Text>
                     <View style={styles.statusBadge}>
                       {getStatusIcon(order.assignment_status)}
-                      <Text style={[styles.statusText, { color: getStatusColor(order.assignment_status) }]}>
+                      <Text style={[
+                        styles.statusText, 
+                        { 
+                          color: isDisabled && !isActiveTrip ? colors.textSecondary : getStatusColor(order.assignment_status)
+                        }
+                      ]}>
                         {order.assignment_status}
                       </Text>
                     </View>
                   </View>
-                  <ArrowRight size={20} color={colors.textSecondary} />
+                  <ArrowRight 
+                    size={20} 
+                    color={isDisabled && !isActiveTrip ? colors.textSecondary : colors.textSecondary} 
+                  />
                 </View>
 
                 <View style={styles.routeInfo}>
                   <View style={styles.locationRow}>
-                    <View style={[styles.locationDot, { backgroundColor: '#10B981' }]} />
-                    <Text style={[styles.locationText, { color: colors.text }]} numberOfLines={1}>
+                    <View style={[
+                      styles.locationDot, 
+                      { backgroundColor: isDisabled && !isActiveTrip ? colors.textSecondary : '#10B981' }
+                    ]} />
+                    <Text style={[
+                      styles.locationText, 
+                      { color: isDisabled && !isActiveTrip ? colors.textSecondary : colors.text }
+                    ]} numberOfLines={1}>
                       {order.pickup}
                     </Text>
                   </View>
                   <View style={styles.locationRow}>
-                    <View style={[styles.locationDot, { backgroundColor: '#EF4444' }]} />
-                    <Text style={[styles.locationText, { color: colors.text }]} numberOfLines={1}>
+                    <View style={[
+                      styles.locationDot, 
+                      { backgroundColor: isDisabled && !isActiveTrip ? colors.textSecondary : '#EF4444' }
+                    ]} />
+                    <Text style={[
+                      styles.locationText, 
+                      { color: isDisabled && !isActiveTrip ? colors.textSecondary : colors.text }
+                    ]} numberOfLines={1}>
                       {order.drop}
                     </Text>
                   </View>
@@ -588,29 +701,60 @@ export default function QuickDashboardScreen() {
 
                 <View style={styles.orderDetails}>
                   <View style={styles.detailRow}>
-                    <User size={16} color={colors.textSecondary} />
-                    <Text style={[styles.detailText, { color: colors.text }]}>
+                    <User size={16} color={isDisabled && !isActiveTrip ? colors.textSecondary : colors.textSecondary} />
+                    <Text style={[
+                      styles.detailText, 
+                      { color: isDisabled && !isActiveTrip ? colors.textSecondary : colors.text }
+                    ]}>
                       {order.customer_name}
                     </Text>
                   </View>
                   <View style={styles.detailRow}>
-                    <Phone size={16} color={colors.textSecondary} />
-                    <Text style={[styles.detailText, { color: colors.text }]}>
+                    <Phone size={16} color={isDisabled && !isActiveTrip ? colors.textSecondary : colors.textSecondary} />
+                    <Text style={[
+                      styles.detailText, 
+                      { color: isDisabled && !isActiveTrip ? colors.textSecondary : colors.text }
+                    ]}>
                       {order.customer_mobile}
                     </Text>
                   </View>
                   <View style={styles.detailRow}>
-                    <Car size={16} color={colors.textSecondary} />
-                    <Text style={[styles.detailText, { color: colors.text }]}>
+                    <Car size={16} color={isDisabled && !isActiveTrip ? colors.textSecondary : colors.textSecondary} />
+                    <Text style={[
+                      styles.detailText, 
+                      { color: isDisabled && !isActiveTrip ? colors.textSecondary : colors.text }
+                    ]}>
                       {order.car_type} • {order.trip_type}
                     </Text>
                   </View>
                   <View style={styles.detailRow}>
-                    <Clock size={16} color={colors.textSecondary} />
-                    <Text style={[styles.detailText, { color: colors.text }]}>
+                    <Clock size={16} color={isDisabled && !isActiveTrip ? colors.textSecondary : colors.textSecondary} />
+                    <Text style={[
+                      styles.detailText, 
+                      { color: isDisabled && !isActiveTrip ? colors.textSecondary : colors.text }
+                    ]}>
                       {formatDateTime(order.scheduled_at || order.start_date_time).date} at {formatDateTime(order.scheduled_at || order.start_date_time).time}
                     </Text>
                   </View>
+                  {order.toll_charge_update && (
+                    <View style={styles.detailRow}>
+                      <View style={[
+                        styles.tollIndicator, 
+                        { 
+                          backgroundColor: isDisabled && !isActiveTrip ? colors.textSecondary : '#FEF3C7' 
+                        }
+                      ]}>
+                        <Text style={[
+                          styles.tollText, 
+                          { 
+                            color: isDisabled && !isActiveTrip ? colors.textSecondary : '#92400E' 
+                          }
+                        ]}>
+                          💰 Toll charges can be updated
+                        </Text>
+                      </View>
+                    </View>
+                  )}
                 </View>
 
                 <View style={styles.orderFooter}>
@@ -664,7 +808,8 @@ export default function QuickDashboardScreen() {
                   )}
                 </View>
               </TouchableOpacity>
-            ))}
+              );
+            })}
           </ScrollView>
         )}
       </View>
@@ -843,7 +988,11 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 2,
-    },
+  },
+  disabledOrderCard: {
+    opacity: 0.5,
+    backgroundColor: '#F3F4F6',
+  },
     orderHeader: {
       flexDirection: 'row',
     alignItems: 'center',
@@ -933,5 +1082,15 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     marginLeft: 4,
     },
+  tollIndicator: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+    marginTop: 4,
+  },
+  tollText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
   });
 

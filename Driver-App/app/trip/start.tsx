@@ -7,6 +7,7 @@ import {
   StyleSheet,
   Alert,
   Image,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -19,7 +20,12 @@ export default function StartTripScreen() {
   const [odometerPhoto, setOdometerPhoto] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const router = useRouter();
-  const params = useLocalSearchParams<{ order_id?: string; farePerKm?: string; assignment_id?: string }>();
+  const params = useLocalSearchParams<{ 
+    order_id?: string; 
+    farePerKm?: string; 
+    assignment_id?: string;
+    toll_charge_update?: string;
+  }>();
 
   const takeOdometerPhoto = async () => {
     try {
@@ -52,7 +58,19 @@ export default function StartTripScreen() {
         console.warn('No assignment_id provided to start trip; navigating without API call');
       } else {
         await startTrip(parseInt(params.order_id || ''), parseInt(startKm, 10), odometerPhoto);
+        
+        // Update driver status to DRIVING after successful trip start
+        // This will be handled by the backend, but we can also update locally
+        console.log('🚗 Trip started successfully, driver status should be updated to DRIVING');
       }
+
+      console.log('🚗 Navigating to end trip with params:', {
+        order_id: String(params.order_id || ''),
+        assignment_id,
+        startKm: String(startKm),
+        farePerKm: String(params.farePerKm || '0'),
+        toll_charge_update: params.toll_charge_update || 'false',
+      });
 
       router.replace({
         pathname: '/trip/end',
@@ -61,6 +79,7 @@ export default function StartTripScreen() {
           assignment_id,
           startKm: String(startKm),
           farePerKm: String(params.farePerKm || '0'),
+          toll_charge_update: params.toll_charge_update || 'false',
         }
       });
     } catch (error: any) {
@@ -113,11 +132,18 @@ export default function StartTripScreen() {
         </View>
 
         <TouchableOpacity
-          style={[styles.startButton, (!startKm || !odometerPhoto) && styles.disabledButton]}
+          style={[styles.startButton, (!startKm || !odometerPhoto || submitting) && styles.disabledButton]}
           onPress={handleStartTrip}
-          disabled={!startKm || !odometerPhoto}
+          disabled={!startKm || !odometerPhoto || submitting}
         >
-          <Text style={styles.startButtonText}>Start Trip</Text>
+          {submitting ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator color="white" size="small" />
+              <Text style={styles.startButtonText}>Starting Trip...</Text>
+            </View>
+          ) : (
+            <Text style={styles.startButtonText}>Start Trip</Text>
+          )}
         </TouchableOpacity>
       </View>
     </SafeAreaView>
@@ -233,5 +259,10 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
+  },
+  loadingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });

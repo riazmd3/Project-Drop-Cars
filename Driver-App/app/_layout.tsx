@@ -12,6 +12,9 @@ import { CarDriverProvider } from '@/contexts/CarDriverContext';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 import * as SplashScreen from 'expo-splash-screen';
 
+// Initialize Firebase early
+import '@/services/firebase/firebaseConfig';
+
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {

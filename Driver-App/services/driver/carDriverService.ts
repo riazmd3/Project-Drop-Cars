@@ -75,7 +75,7 @@ export const startTrip = async (orderId: number, startKm?: number, imgUri?: stri
   }
 };
 
-export const endTrip = async (orderId: number, endKm?: number, contact?: string, imgUri?: string, tollCharges?: number) => {
+export const endTrip = async (orderId: number, endKm?: number, contact?: string, imgUri?: string, tollCharges?: number, tollChargeUpdate?: boolean) => {
   try {
     console.log('🏁 Ending trip for order:', orderId);
     
@@ -84,37 +84,42 @@ export const endTrip = async (orderId: number, endKm?: number, contact?: string,
       throw new Error('End KM must be provided and greater than 0');
     }
     
-    if (!contact) {
-      throw new Error('Contact number is required to end trip');
-    }
-    
     if (!imgUri) {
       throw new Error('End speedometer image is required to end trip');
     }
     
     const form = new FormData();
     
-    // Add required fields - the API expects these as Form fields
-    form.append('end_km', String(endKm)); // Must be > 0
-    form.append('contact_number', contact);
+    // Add required fields according to API specification
+    form.append('end_km', String(endKm)); // integer - required
     form.append('close_speedometer_img', { 
       uri: imgUri, 
       name: 'close_speedometer.jpg', 
       type: 'image/jpeg' 
-    } as any);
+    } as any); // string($binary) - required
     
-    // Add toll charges if provided
+    // Add toll charge update flag if provided
+    if (tollChargeUpdate !== undefined) {
+      form.append('toll_charge_update', String(tollChargeUpdate));
+      console.log('💰 Toll charge update flag:', tollChargeUpdate);
+    }
+    
+    // Add updated toll charges if provided (integer | null)
     if (tollCharges !== undefined && tollCharges >= 0) {
-      form.append('toll_charges', String(tollCharges));
-      console.log('💰 Adding toll charges:', tollCharges);
+      form.append('updated_toll_charges', String(tollCharges));
+      console.log('💰 Adding updated toll charges:', tollCharges);
+    } else if (tollChargeUpdate && tollCharges === undefined) {
+      // If toll charge update is enabled but no amount provided, send null
+      form.append('updated_toll_charges', '');
+      console.log('💰 Toll charge update enabled but no amount provided, sending empty');
     }
     
     console.log('📤 Sending end trip request:', {
       orderId,
       endKm,
-      contact,
       hasImage: !!imgUri,
-      tollCharges
+      tollCharges,
+      tollChargeUpdate
     });
     
     const response = await axiosDriver.post(`/api/assignments/driver/end-trip/${orderId}`, form, { 
@@ -124,6 +129,21 @@ export const endTrip = async (orderId: number, endKm?: number, contact?: string,
     });
     
     console.log('✅ Trip ended successfully:', response.data);
+    
+    // Log the response data according to API specification
+    if (response.data) {
+      console.log('📊 Trip End Response:', {
+        message: response.data.message,
+        end_record_id: response.data.end_record_id,
+        end_km: response.data.end_km,
+        close_speedometer_img_url: response.data.close_speedometer_img_url,
+        total_km: response.data.total_km,
+        calculated_fare: response.data.calculated_fare,
+        driver_amount: response.data.driver_amount,
+        vehicle_owner_amount: response.data.vehicle_owner_amount
+      });
+    }
+    
     return response.data;
   } catch (error: any) {
     console.error('❌ Failed to end trip:', error);

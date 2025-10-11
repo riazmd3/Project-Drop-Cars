@@ -6,7 +6,7 @@ const API_BASE_URL = 'https://drop-cars-api-1049299844333.asia-south2.run.app/';
 
 const axiosDriver = axios.create({
   baseURL: API_BASE_URL,
-  timeout: 60000,
+  timeout: 30000, // Reduced from 60s to 30s
   headers: {
     'Accept': 'application/json',
   },
