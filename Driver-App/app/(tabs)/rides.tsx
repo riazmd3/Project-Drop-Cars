@@ -44,6 +44,7 @@ export default function RidesScreen() {
       // Fetch completed orders
       const completedOrders = await getCompletedOrdersForVehicleOwner();
       console.log('✅ Completed orders fetched:', completedOrders.length);
+      console.log('📊 Completed orders data:', completedOrders);
       
       // Categorize the rides
       const driving: RideData[] = [];
@@ -73,10 +74,27 @@ export default function RidesScreen() {
           trip_status: order.trip_status || 'COMPLETED',
         };
         
+        console.log('🔄 Processing completed order:', {
+          orderId: order.id,
+          order_id: order.order_id,
+          assignmentStatus: rideData.assignment_status,
+          tripStatus: rideData.trip_status,
+          status: rideData.status,
+          allFields: Object.keys(order)
+        });
+        
         if (rideData.assignment_status === 'COMPLETED' || rideData.trip_status === 'COMPLETED') {
           completed.push(rideData);
+          console.log('✅ Added to completed:', order.id);
         } else if (rideData.assignment_status === 'CANCELLED' || rideData.trip_status === 'CANCELLED') {
           cancelled.push(rideData);
+          console.log('❌ Added to cancelled:', order.id);
+        } else {
+          console.log('⚠️ Order not categorized:', {
+            orderId: order.id,
+            assignmentStatus: rideData.assignment_status,
+            tripStatus: rideData.trip_status
+          });
         }
       });
       
@@ -158,19 +176,29 @@ export default function RidesScreen() {
     }
   };
 
-  const renderRideCard = (ride: RideData) => (
-    <View key={`${ride.id}-${ride.order_id}-${ride.assignment_id || ride.id}`} style={[styles.rideCard, { backgroundColor: colors.surface }]}>
-      <View style={styles.rideHeader}>
-        <View style={styles.statusBadge}>
-          <Text style={styles.statusIcon}>{getStatusIcon(ride.status)}</Text>
-          <Text style={[styles.statusText, { color: getStatusColor(ride.status) }]}>
-            {ride.status.toUpperCase()}
+  const renderRideCard = (ride: RideData) => {
+    console.log('🎨 Rendering ride card:', {
+      id: ride.id,
+      order_id: ride.order_id,
+      status: ride.status,
+      assignment_status: ride.assignment_status,
+      trip_status: ride.trip_status,
+      allFields: Object.keys(ride)
+    });
+    
+    return (
+      <View key={`${ride.id}-${ride.order_id}-${ride.assignment_id || ride.id}`} style={[styles.rideCard, { backgroundColor: colors.surface }]}>
+        <View style={styles.rideHeader}>
+          <View style={styles.statusBadge}>
+            <Text style={styles.statusIcon}>{getStatusIcon(ride.status)}</Text>
+            <Text style={[styles.statusText, { color: getStatusColor(ride.status) }]}>
+              {ride.status.toUpperCase()}
+            </Text>
+          </View>
+          <Text style={[styles.orderId, { color: colors.textSecondary }]}>
+            Order #{ride.order_id || ride.id || 'N/A'}
           </Text>
         </View>
-        <Text style={[styles.orderId, { color: colors.textSecondary }]}>
-          Order #{ride.order_id}
-        </Text>
-      </View>
 
       <View style={styles.routeInfo}>
         <View style={styles.locationRow}>
@@ -229,7 +257,8 @@ export default function RidesScreen() {
         </View>
       </View>
     </View>
-  );
+    );
+  };
 
   const renderEmptyState = () => (
     <View style={styles.emptyState}>

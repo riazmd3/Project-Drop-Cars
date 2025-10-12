@@ -180,18 +180,7 @@ export async function getFutureRidesForVehicleOwner(): Promise<FutureRideView[]>
     const authHeaders = await getAuthHeaders();
     console.log('🔑 Auth headers ready:', !!(authHeaders as any)?.Authorization);
 
-    // Get current user ID from token
-    const token = await SecureStore.getItemAsync('authToken');
-    if (!token) {
-      throw new Error('No authentication token found');
-    }
-
-    const currentUserId = extractUserIdFromJWT(token);
-    if (!currentUserId) {
-      throw new Error('Could not extract user ID from token');
-    }
-
-    console.log('🔍 Current user ID:', currentUserId);
+    // No need to extract user ID - the API uses JWT token to identify the vehicle owner
 
     // Fetch pending orders using the correct API
     const response = await axiosInstance.get('/api/orders/vehicle-owner/pending', {
@@ -199,26 +188,14 @@ export async function getFutureRidesForVehicleOwner(): Promise<FutureRideView[]>
     });
 
     const data: PendingOrder[] = Array.isArray(response.data) ? response.data : [];
-    console.log(`✅ Future rides fetched: ${data.length} orders (before filtering)`);
+    console.log(`✅ Future rides fetched: ${data.length} orders`);
 
-    // Filter orders to only show those belonging to the current user
-    const filteredData = data.filter((order) => {
-      // Check if the order belongs to the current user
-      const orderBelongsToUser = order.vendor_id === currentUserId;
-      
-      // Also filter out orders with alphanumeric IDs (like B43) as they seem to be from other accounts
-      const hasValidId = order.id && typeof order.id === 'number' && order.id > 0;
-      
-      return orderBelongsToUser && hasValidId;
-    });
-
-    console.log(`🔍 Filtered future rides: ${filteredData.length} orders (after filtering)`);
+    // No filtering needed - API already returns orders for the authenticated vehicle owner
+    const filteredData = data;
 
     if (filteredData.length > 0) {
-      console.log('📦 Sample filtered future ride:', {
+      console.log('📦 Sample future ride:', {
         id: filteredData[0].id,
-        vendor_id: filteredData[0].vendor_id,
-        currentUserId,
         trip_type: filteredData[0].trip_type,
         car_type: filteredData[0].car_type,
         estimated_price: filteredData[0].estimated_price,
@@ -279,45 +256,30 @@ export async function getCompletedOrdersForVehicleOwner(): Promise<FutureRideVie
     const authHeaders = await getAuthHeaders();
     console.log('🔑 Auth headers ready:', !!(authHeaders as any)?.Authorization);
 
-    // Get current user ID from token
-  const token = await SecureStore.getItemAsync('authToken');
-    if (!token) {
-      throw new Error('No authentication token found');
-    }
-
-    const currentUserId = extractUserIdFromJWT(token);
-    if (!currentUserId) {
-      throw new Error('Could not extract user ID from token');
-    }
-
-    console.log('🔍 Current user ID:', currentUserId);
+    // No need to extract user ID - the API uses JWT token to identify the vehicle owner
 
     // Fetch non-pending orders using the correct API
     const response = await axiosInstance.get('/api/orders/vehicle-owner/non-pending', {
       headers: authHeaders,
     });
 
-    const data: PendingOrder[] = Array.isArray(response.data) ? response.data : [];
-    console.log(`✅ Completed orders fetched: ${data.length} orders (before filtering)`);
-
-    // Filter orders to only show those belonging to the current user
-    const filteredData = data.filter((order) => {
-      // Check if the order belongs to the current user
-      const orderBelongsToUser = order.vendor_id === currentUserId;
-      
-      // Also filter out orders with alphanumeric IDs (like B43) as they seem to be from other accounts
-      const hasValidId = order.id && typeof order.id === 'number' && order.id > 0;
-      
-      return orderBelongsToUser && hasValidId;
+    console.log('📊 API Response:', {
+      status: response.status,
+      dataLength: response.data?.length,
+      dataType: typeof response.data,
+      isArray: Array.isArray(response.data),
+      sampleData: response.data?.[0] || 'No data'
     });
 
-    console.log(`🔍 Filtered completed orders: ${filteredData.length} orders (after filtering)`);
+    const data: PendingOrder[] = Array.isArray(response.data) ? response.data : [];
+    console.log(`✅ Completed orders fetched: ${data.length} orders`);
+
+    // No filtering needed - API already returns orders for the authenticated vehicle owner
+    const filteredData = data;
 
     if (filteredData.length > 0) {
-      console.log('📦 Sample filtered completed order:', {
+      console.log('📦 Sample completed order:', {
         id: filteredData[0].id,
-        vendor_id: filteredData[0].vendor_id,
-        currentUserId,
         trip_status: filteredData[0].trip_status,
         assignment_status: filteredData[0].assignment_status,
         estimated_price: filteredData[0].estimated_price,
