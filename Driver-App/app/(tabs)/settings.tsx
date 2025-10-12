@@ -8,6 +8,8 @@ import {
   Switch,
   Alert,
   ActivityIndicator,
+  Modal,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -15,7 +17,9 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { useDashboard } from '@/contexts/DashboardContext';
-import { Moon, Sun, LogOut, ChevronRight, User, Bell, Shield, Car, Users } from 'lucide-react-native';
+import { Moon, Sun, LogOut, ChevronRight, User, Bell, Shield, Car, Users, X } from 'lucide-react-native';
+
+const { height: screenHeight } = Dimensions.get('window');
 
 export default function SettingsScreen() {
   const { user, logout } = useAuth();
@@ -23,6 +27,108 @@ export default function SettingsScreen() {
   const { notificationsEnabled, toggleNotifications } = useNotifications();
   const { dashboardData, loading } = useDashboard();
   const router = useRouter();
+  const [showTermsModal, setShowTermsModal] = useState(false);
+
+  const termsAndConditions = `
+Terms and Conditions – Drop Cars
+
+Effective Date: from 2025 November
+
+Welcome to Drop Cars. These Terms and Conditions ("Terms") govern your use of the Drop Cars mobile application and related services (collectively, the "App"). By registering or using the App, you agree to comply with and be bound by these Terms. Please read them carefully.
+
+1. Definitions
+
+"App" refers to the Drop Cars mobile application and related services.
+
+"Vehicle Owner" means the registered owner of a vehicle who offers ride services using their own vehicle and driver.
+
+"Driver" refers to the person assigned by the Vehicle Owner to operate the vehicle.
+
+"Customer" means the individual booking rides through the App.
+
+"We," "Us," or "Company" refers to Drop Cars and its administrators.
+
+2. Eligibility
+
+Vehicle Owners must:
+
+• Own validly registered vehicles with all required permits and insurance.
+• Employ or assign licensed drivers who meet legal driving requirements.
+• Ensure vehicles are in safe, roadworthy condition.
+
+3. Registration and Account
+
+• Vehicle Owners must create an account on the App using accurate and verifiable details.
+• The Company reserves the right to verify information and suspend or terminate accounts found to be fraudulent or misleading.
+
+4. Services Provided
+
+• Drop Cars acts as a technology platform connecting customers with vehicle owners for ride bookings.
+• The Company does not own vehicles or employ drivers.
+• All rides and payments are facilitated through the App, but the service agreement for transportation is between the customer and the vehicle owner.
+
+5. Payments and Settlements
+
+• All ride payments are processed through the App's payment gateway.
+• After service completion, payment will be automatically settled to the vehicle owner's registered account, after deducting applicable service charges or commissions.
+• The Company is not responsible for any disputes between vehicle owners and drivers regarding internal payments or settlements.
+• Taxes, tolls, and additional charges (if applicable) must comply with government laws and policies.
+
+6. Vehicle Owner Responsibilities
+
+Vehicle Owners must:
+
+• Ensure their drivers follow traffic laws and maintain courteous behavior.
+• Keep the vehicle clean, insured, and regularly serviced.
+• Immediately report accidents, breakdowns, or incidents involving customers.
+• Not engage in unlawful or unsafe transportation activities through the App.
+
+7. Driver Conduct
+
+Drivers must:
+
+• Possess a valid driving license and required documents.
+• Refrain from alcohol, drugs, or any illegal activity while operating the vehicle.
+• Follow all safety and traffic regulations.
+• Treat passengers respectfully and maintain professionalism at all times.
+
+8. Commission and Fees
+
+• The Company may charge a commission or service fee on each completed ride.
+• Fees may vary based on service type or promotional offers and are subject to change with prior notice.
+
+9. Liability
+
+• The Company is not liable for any accidents, damages, or losses arising from rides booked through the App.
+• The Vehicle Owner and Driver are solely responsible for compliance with local laws and passenger safety.
+• The Company provides technology support only and is not a transport service provider.
+
+10. Data and Privacy
+
+• User data (vehicle details, contact info, payment details) will be stored and used as per the Drop Cars Privacy Policy.
+• The Company ensures reasonable security measures to protect user information.
+
+11. Suspension or Termination
+
+The Company reserves the right to:
+
+• Suspend or terminate any account found violating these Terms or engaging in fraudulent activity.
+• Withhold payments for review in case of reported disputes or fraudulent transactions.
+
+12. Amendments
+
+• Drop Cars may modify these Terms from time to time. Any updates will be notified through the App or website. Continued use after such updates constitutes acceptance of the revised Terms.
+
+13. Governing Law
+
+• These Terms are governed by the laws of India. Any disputes shall be subject to the exclusive jurisdiction of the courts in [Your City/State].
+
+14. Contact Us
+
+For any queries or support, contact us at:
+📧 support@dropcars.com
+📞 1234567890
+`;
 
   const handleLogout = () => {
     Alert.alert(
@@ -195,6 +301,43 @@ export default function SettingsScreen() {
       fontFamily: 'Inter-Medium',
       textAlign: 'center',
     },
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'flex-end',
+    },
+    modalContainer: {
+      height: screenHeight * 0.8,
+      borderTopLeftRadius: 20,
+      borderTopRightRadius: 20,
+      paddingTop: 20,
+    },
+    modalHeader: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      paddingHorizontal: 20,
+      paddingBottom: 16,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    modalTitle: {
+      fontSize: 20,
+      fontFamily: 'Inter-Bold',
+    },
+    closeButton: {
+      padding: 8,
+    },
+    modalContent: {
+      flex: 1,
+      paddingHorizontal: 20,
+      paddingTop: 16,
+    },
+    termsText: {
+      fontSize: 14,
+      fontFamily: 'Inter-Regular',
+      lineHeight: 22,
+    },
   });
   const SettingItem = ({ icon, title, subtitle, onPress, rightComponent }) => (
     <TouchableOpacity style={dynamicStyles.settingItem} onPress={onPress}>
@@ -302,8 +445,8 @@ export default function SettingsScreen() {
           <SettingItem
             icon={<Shield color={colors.textSecondary} size={20} />}
             title="Privacy & Security"
-            subtitle="Manage your privacy settings"
-            onPress={() => Alert.alert('Privacy', 'Privacy settings coming soon')}
+            subtitle="View Terms and Conditions"
+            onPress={() => setShowTermsModal(true)}
           />
         </View>
 
@@ -315,6 +458,39 @@ export default function SettingsScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
+      {/* Terms and Conditions Modal */}
+      <Modal
+        visible={showTermsModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowTermsModal(false)}
+      >
+        <View style={dynamicStyles.modalOverlay}>
+          <View style={[dynamicStyles.modalContainer, { backgroundColor: colors.surface }]}>
+            <View style={dynamicStyles.modalHeader}>
+              <Text style={[dynamicStyles.modalTitle, { color: colors.text }]}>
+                Terms and Conditions
+              </Text>
+              <TouchableOpacity 
+                onPress={() => setShowTermsModal(false)}
+                style={dynamicStyles.closeButton}
+              >
+                <X color={colors.textSecondary} size={24} />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView 
+              style={dynamicStyles.modalContent}
+              showsVerticalScrollIndicator={true}
+            >
+              <Text style={[dynamicStyles.termsText, { color: colors.text }]}>
+                {termsAndConditions}
+              </Text>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

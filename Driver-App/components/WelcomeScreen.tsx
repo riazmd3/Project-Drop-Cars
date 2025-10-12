@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   Animated,
   Dimensions,
+  ScrollView,
+  Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,7 +20,8 @@ import {
   ArrowRight, 
   CheckCircle,
   Clock,
-  TrendingUp
+  TrendingUp,
+  X
 } from 'lucide-react-native';
 
 const { width, height } = Dimensions.get('window');
@@ -31,6 +34,109 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps) {
   const { user } = useAuth();
   const router = useRouter();
   const [currentStep, setCurrentStep] = useState(0);
+  const [showTermsModal, setShowTermsModal] = useState(false);
+  const [termsAccepted, setTermsAccepted] = useState(false);
+
+  const termsAndConditions = `
+Terms and Conditions – Drop Cars
+
+Effective Date: from 2025 November
+
+Welcome to Drop Cars. These Terms and Conditions ("Terms") govern your use of the Drop Cars mobile application and related services (collectively, the "App"). By registering or using the App, you agree to comply with and be bound by these Terms. Please read them carefully.
+
+1. Definitions
+
+"App" refers to the Drop Cars mobile application and related services.
+
+"Vehicle Owner" means the registered owner of a vehicle who offers ride services using their own vehicle and driver.
+
+"Driver" refers to the person assigned by the Vehicle Owner to operate the vehicle.
+
+"Customer" means the individual booking rides through the App.
+
+"We," "Us," or "Company" refers to Drop Cars and its administrators.
+
+2. Eligibility
+
+Vehicle Owners must:
+
+• Own validly registered vehicles with all required permits and insurance.
+• Employ or assign licensed drivers who meet legal driving requirements.
+• Ensure vehicles are in safe, roadworthy condition.
+
+3. Registration and Account
+
+• Vehicle Owners must create an account on the App using accurate and verifiable details.
+• The Company reserves the right to verify information and suspend or terminate accounts found to be fraudulent or misleading.
+
+4. Services Provided
+
+• Drop Cars acts as a technology platform connecting customers with vehicle owners for ride bookings.
+• The Company does not own vehicles or employ drivers.
+• All rides and payments are facilitated through the App, but the service agreement for transportation is between the customer and the vehicle owner.
+
+5. Payments and Settlements
+
+• All ride payments are processed through the App's payment gateway.
+• After service completion, payment will be automatically settled to the vehicle owner's registered account, after deducting applicable service charges or commissions.
+• The Company is not responsible for any disputes between vehicle owners and drivers regarding internal payments or settlements.
+• Taxes, tolls, and additional charges (if applicable) must comply with government laws and policies.
+
+6. Vehicle Owner Responsibilities
+
+Vehicle Owners must:
+
+• Ensure their drivers follow traffic laws and maintain courteous behavior.
+• Keep the vehicle clean, insured, and regularly serviced.
+• Immediately report accidents, breakdowns, or incidents involving customers.
+• Not engage in unlawful or unsafe transportation activities through the App.
+
+7. Driver Conduct
+
+Drivers must:
+
+• Possess a valid driving license and required documents.
+• Refrain from alcohol, drugs, or any illegal activity while operating the vehicle.
+• Follow all safety and traffic regulations.
+• Treat passengers respectfully and maintain professionalism at all times.
+
+8. Commission and Fees
+
+• The Company may charge a commission or service fee on each completed ride.
+• Fees may vary based on service type or promotional offers and are subject to change with prior notice.
+
+9. Liability
+
+• The Company is not liable for any accidents, damages, or losses arising from rides booked through the App.
+• The Vehicle Owner and Driver are solely responsible for compliance with local laws and passenger safety.
+• The Company provides technology support only and is not a transport service provider.
+
+10. Data and Privacy
+
+• User data (vehicle details, contact info, payment details) will be stored and used as per the Drop Cars Privacy Policy.
+• The Company ensures reasonable security measures to protect user information.
+
+11. Suspension or Termination
+
+The Company reserves the right to:
+
+• Suspend or terminate any account found violating these Terms or engaging in fraudulent activity.
+• Withhold payments for review in case of reported disputes or fraudulent transactions.
+
+12. Amendments
+
+• Drop Cars may modify these Terms from time to time. Any updates will be notified through the App or website. Continued use after such updates constitutes acceptance of the revised Terms.
+
+13. Governing Law
+
+• These Terms are governed by the laws of India. Any disputes shall be subject to the exclusive jurisdiction of the courts in [Your City/State].
+
+14. Contact Us
+
+For any queries or support, contact us at:
+📧 support@dropcars.com
+📞 1234567890
+`;
   
   // Animation values
   const fadeAnim = new Animated.Value(0);
@@ -100,12 +206,14 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps) {
     if (currentStep < welcomeSteps.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
-      onComplete();
+      // On the last step, check if terms are accepted
+      if (termsAccepted) {
+        onComplete();
+      } else {
+        // Show alert to accept terms
+        setShowTermsModal(true);
+      }
     }
-  };
-
-  const skipWelcome = () => {
-    onComplete();
   };
 
   const currentStepData = welcomeSteps[currentStep];
@@ -120,10 +228,6 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps) {
       >
         {/* Header */}
         <View style={styles.header}>
-          <TouchableOpacity onPress={skipWelcome} style={styles.skipButton}>
-            <Text style={styles.skipText}>Skip</Text>
-          </TouchableOpacity>
-          
           <View style={styles.progressContainer}>
             {welcomeSteps.map((_, index) => (
               <View 
@@ -171,10 +275,41 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps) {
 
         {/* Footer */}
         <View style={styles.footer}>
+          {/* Terms and Conditions Section - Only show on last step */}
+          {currentStep === welcomeSteps.length - 1 && (
+            <View style={styles.termsSection}>
+              <TouchableOpacity 
+                style={styles.termsCheckbox}
+                onPress={() => setTermsAccepted(!termsAccepted)}
+                activeOpacity={0.7}
+              >
+                <View style={[
+                  styles.checkbox,
+                  termsAccepted && styles.checkboxChecked
+                ]}>
+                  {termsAccepted && <CheckCircle size={16} color="#FFFFFF" />}
+                </View>
+                <Text style={styles.termsText}>
+                  I have read and agree to the{' '}
+                  <Text 
+                    style={styles.termsLink}
+                    onPress={() => setShowTermsModal(true)}
+                  >
+                    Terms and Conditions
+                  </Text>
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
           <TouchableOpacity 
-            style={styles.nextButton} 
+            style={[
+              styles.nextButton,
+              currentStep === welcomeSteps.length - 1 && !termsAccepted && styles.nextButtonDisabled
+            ]} 
             onPress={nextStep}
             activeOpacity={0.8}
+            disabled={currentStep === welcomeSteps.length - 1 && !termsAccepted}
           >
             <Text style={styles.nextButtonText}>
               {currentStep === welcomeSteps.length - 1 ? 'Get Started' : 'Next'}
@@ -189,6 +324,39 @@ export default function WelcomeScreen({ onComplete }: WelcomeScreenProps) {
           </View>
         </View>
       </LinearGradient>
+
+      {/* Terms and Conditions Modal */}
+      <Modal
+        visible={showTermsModal}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setShowTermsModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContainer}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>
+                Terms and Conditions
+              </Text>
+              <TouchableOpacity 
+                onPress={() => setShowTermsModal(false)}
+                style={styles.closeButton}
+              >
+                <X color="#666666" size={24} />
+              </TouchableOpacity>
+            </View>
+            
+            <ScrollView 
+              style={styles.modalContent}
+              showsVerticalScrollIndicator={true}
+            >
+              <Text style={styles.termsModalText}>
+                {termsAndConditions}
+              </Text>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -201,19 +369,9 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
     alignItems: 'center',
     paddingHorizontal: 24,
     paddingTop: 20,
-  },
-  skipButton: {
-    padding: 8,
-  },
-  skipText: {
-    color: 'rgba(255, 255, 255, 0.8)',
-    fontSize: 16,
-    fontFamily: 'Inter-Medium',
   },
   progressContainer: {
     flexDirection: 'row',
@@ -295,5 +453,83 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.7)',
     fontSize: 14,
     fontFamily: 'Inter-Medium',
+  },
+  termsSection: {
+    marginBottom: 20,
+    paddingHorizontal: 8,
+  },
+  termsCheckbox: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  checkbox: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: 'rgba(255, 255, 255, 0.6)',
+    marginRight: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkboxChecked: {
+    backgroundColor: '#10B981',
+    borderColor: '#10B981',
+  },
+  termsText: {
+    color: 'rgba(255, 255, 255, 0.9)',
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    flex: 1,
+    lineHeight: 20,
+  },
+  termsLink: {
+    color: '#FFFFFF',
+    fontFamily: 'Inter-SemiBold',
+    textDecorationLine: 'underline',
+  },
+  nextButtonDisabled: {
+    opacity: 0.5,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContainer: {
+    height: height * 0.8,
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 20,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  modalTitle: {
+    fontSize: 20,
+    fontFamily: 'Inter-Bold',
+    color: '#1F2937',
+  },
+  closeButton: {
+    padding: 8,
+  },
+  modalContent: {
+    flex: 1,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+  },
+  termsModalText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: '#374151',
+    lineHeight: 22,
   },
 });

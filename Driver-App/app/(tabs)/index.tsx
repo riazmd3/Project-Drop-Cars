@@ -545,6 +545,20 @@ export default function DashboardScreen() {
       color: '#6B7280',
       marginBottom: 4,
     },
+    termsButton: {
+      marginTop: 12,
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+      backgroundColor: 'rgba(255, 255, 255, 0.2)',
+      borderRadius: 20,
+      alignSelf: 'center',
+    },
+    termsButtonText: {
+      fontSize: 12,
+      fontFamily: 'Inter-Medium',
+      color: 'rgba(255, 255, 255, 0.9)',
+      textAlign: 'center',
+    },
   });
   const handleAcceptBooking = (order: PendingOrder) => {
     if (processingOrderId && processingOrderId !== order.order_id.toString()) return;
@@ -764,6 +778,18 @@ export default function DashboardScreen() {
                   : 'Complete your profile setup to start earning!'
                 }
               </Text>
+              <TouchableOpacity 
+                style={dynamicStyles.termsButton}
+                onPress={() => Alert.alert(
+                  'Terms and Conditions',
+                  'By using Drop Cars, you agree to our Terms and Conditions. Please review them in Settings > Privacy & Security.',
+                  [{ text: 'OK' }]
+                )}
+              >
+                <Text style={dynamicStyles.termsButtonText}>
+                  Terms and Conditions
+                </Text>
+              </TouchableOpacity>
             </View>
 
             {/* Quick Stats */}
