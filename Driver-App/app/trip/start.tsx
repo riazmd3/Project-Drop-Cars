@@ -14,6 +14,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Camera, Upload, ArrowLeft } from 'lucide-react-native';
 import { startTrip } from '@/services/driver/carDriverService';
 import * as ImagePicker from 'expo-image-picker';
+import LoadingOverlay from '@/components/LoadingOverlay';
 
 export default function StartTripScreen() {
   const [startKm, setStartKm] = useState('');
@@ -103,6 +104,11 @@ export default function StartTripScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <LoadingOverlay 
+        visible={submitting} 
+        message="Starting trip..." 
+      />
+      
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <ArrowLeft color="#1F2937" size={24} />

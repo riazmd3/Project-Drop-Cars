@@ -267,7 +267,14 @@ export default function DashboardScreen() {
     if (isMulti && pickCity !== 'ALL') return false;
     return true;
   }).length;
-  const multiTabCount = pendingOrders.filter(o => isTripTypeMulticity(o.trip_type) || isNearCityMode(o) || hasCityTarget(o)).length;
+  
+  // Multicity count should only show selected cities
+  const multiTabCount = (() => {
+    if (selectedCities.length === 0) return 0;
+    const onlyMulticity = pendingOrders.filter(o => isTripTypeMulticity(o.trip_type) || isNearCityMode(o) || hasCityTarget(o));
+    const setSel = new Set(selectedCities.map(c => c.toUpperCase()));
+    return onlyMulticity.filter(o => setSel.has(getNearCity(o))).length;
+  })();
 
   const handleRefresh = async () => {
     try {
@@ -796,37 +803,36 @@ export default function DashboardScreen() {
                   </TouchableOpacity>
                 </View>
 
-                {/* City chips for Multicity tab */}
+                {/* City search for Multicity tab */}
                 {availableTab === 'multicity' && (
                   <>
-                    {/* Selected cities on top with Clear */}
+                    {/* Selected cities count display */}
                     {selectedCities.length > 0 && (
-                      <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 8, alignItems: 'center' }}>
-                        {selectedCities.map((city) => (
-                          <TouchableOpacity key={`sel-${city}`} onPress={() => toggleCitySelection(city)} style={{
-                            paddingHorizontal: 12,
-                            paddingVertical: 6,
-                            borderRadius: 16,
-                            marginRight: 8,
-                            marginBottom: 8,
-                            backgroundColor: colors.primary,
-                            borderWidth: 1,
-                            borderColor: colors.primary,
-                          }}>
-                            <Text style={{ color: '#FFFFFF' }}>{city}</Text>
-                          </TouchableOpacity>
-                        ))}
-                        <TouchableOpacity onPress={() => setSelectedCities([])} style={{
-                          paddingHorizontal: 12,
-                          paddingVertical: 6,
-                          borderRadius: 16,
-                          marginRight: 8,
-                          marginBottom: 8,
-                          backgroundColor: colors.surface,
-                          borderWidth: 1,
-                          borderColor: colors.border,
+                      <View style={{ 
+                        flexDirection: 'row', 
+                        alignItems: 'center', 
+                        marginBottom: 8,
+                        paddingHorizontal: 12,
+                        paddingVertical: 8,
+                        backgroundColor: colors.primary + '20',
+                        borderRadius: 8,
+                      }}>
+                        <Text style={{ 
+                          color: colors.primary, 
+                          fontFamily: 'Inter-SemiBold',
+                          fontSize: 14 
                         }}>
-                          <Text style={{ color: colors.textSecondary }}>Clear</Text>
+                          {selectedCities.length} cities selected
+                        </Text>
+                        <TouchableOpacity 
+                          onPress={() => setSelectedCities([])} 
+                          style={{ marginLeft: 8 }}
+                        >
+                          <Text style={{ 
+                            color: colors.error,
+                            fontFamily: 'Inter-Medium',
+                            fontSize: 12 
+                          }}>Clear All</Text>
                         </TouchableOpacity>
                       </View>
                     )}
@@ -842,7 +848,7 @@ export default function DashboardScreen() {
                       backgroundColor: colors.surface,
                     }}>
                       <TextInput
-                        placeholder="Search cities"
+                        placeholder="Search and select cities..."
                         placeholderTextColor={colors.textSecondary}
                         value={citySearch}
                         onChangeText={setCitySearch}
@@ -850,28 +856,55 @@ export default function DashboardScreen() {
                       />
                     </View>
 
-                    {/* Options list (filtered) */}
-                    <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 12 }}>
-                      {multiCityOptions
-                        .filter(c => c.toLowerCase().includes(citySearch.toLowerCase()))
-                        .map((city) => {
-                          const selected = selectedCities.includes(city);
-                          return (
-                            <TouchableOpacity key={city} onPress={() => toggleCitySelection(city)} style={{
-                              paddingHorizontal: 12,
-                              paddingVertical: 6,
-                              borderRadius: 16,
-                              marginRight: 8,
-                              marginBottom: 8,
-                              backgroundColor: selected ? colors.primary : colors.surface,
-                              borderWidth: 1,
-                              borderColor: selected ? colors.primary : colors.border,
-                            }}>
-                              <Text style={{ color: selected ? '#FFFFFF' : colors.text }}>{city}</Text>
-                            </TouchableOpacity>
-                          );
-                        })}
-                    </View>
+                    {/* Options list (filtered) - only show when searching */}
+                    {citySearch.length > 0 && (
+                      <View style={{ 
+                        flexDirection: 'row', 
+                        flexWrap: 'wrap', 
+                        marginBottom: 12,
+                        maxHeight: 200,
+                        backgroundColor: colors.surface,
+                        borderRadius: 8,
+                        padding: 8,
+                        borderWidth: 1,
+                        borderColor: colors.border,
+                      }}>
+                        {multiCityOptions
+                          .filter(c => c.toLowerCase().includes(citySearch.toLowerCase()))
+                          .slice(0, 20) // Limit to 20 results for performance
+                          .map((city) => {
+                            const selected = selectedCities.includes(city);
+                            return (
+                              <TouchableOpacity key={city} onPress={() => toggleCitySelection(city)} style={{
+                                paddingHorizontal: 12,
+                                paddingVertical: 6,
+                                borderRadius: 16,
+                                marginRight: 8,
+                                marginBottom: 8,
+                                backgroundColor: selected ? colors.primary : colors.background,
+                                borderWidth: 1,
+                                borderColor: selected ? colors.primary : colors.border,
+                              }}>
+                                <Text style={{ 
+                                  color: selected ? '#FFFFFF' : colors.text,
+                                  fontSize: 12,
+                                  fontFamily: 'Inter-Medium'
+                                }}>{city}</Text>
+                              </TouchableOpacity>
+                            );
+                          })}
+                        {multiCityOptions.filter(c => c.toLowerCase().includes(citySearch.toLowerCase())).length === 0 && (
+                          <Text style={{ 
+                            color: colors.textSecondary, 
+                            fontFamily: 'Inter-Medium',
+                            textAlign: 'center',
+                            padding: 20 
+                          }}>
+                            No cities found
+                          </Text>
+                        )}
+                      </View>
+                    )}
                   </>
                 )}
                 {ordersLoading ? (

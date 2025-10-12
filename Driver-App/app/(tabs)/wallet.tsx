@@ -484,12 +484,12 @@ export default function WalletScreen() {
       <View style={dynamicStyles.transactionLeft}>
         <View style={[
           dynamicStyles.transactionIcon,
-          { backgroundColor: transaction.type === 'credit' ? '#D1FAE5' : '#FEE2E2' }
+          { backgroundColor: transaction.type === 'credit' ? '#D1FAE5' : '#D1FAE5' }
         ]}>
           {transaction.type === 'credit' ? (
             <ArrowUpRight color={colors.success} size={16} />
           ) : (
-            <ArrowDownLeft color={colors.error} size={16} />
+            <ArrowUpRight color={colors.success} size={16} />
           )}
         </View>
         <View style={dynamicStyles.transactionInfo}>
@@ -510,9 +510,9 @@ export default function WalletScreen() {
       </View>
       <Text style={[
         dynamicStyles.transactionAmount,
-        { color: transaction.type === 'credit' ? colors.success : colors.error }
+        { color: transaction.type === 'credit' ? colors.success : colors.success }
       ]}>
-        {transaction.type === 'credit' ? '+' : '-'}₹{transaction.amount}
+        {transaction.type === 'credit' ? '+' : '+'}₹{transaction.amount}
       </Text>
     </View>
   );

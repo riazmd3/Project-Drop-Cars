@@ -31,6 +31,7 @@ import {
 } from 'lucide-react-native';
 import { startTrip, endTrip } from '@/services/driver/carDriverService';
 import axiosDriver from '@/app/api/axiosDriver';
+import LoadingOverlay from '@/components/LoadingOverlay';
 import * as SecureStore from 'expo-secure-store';
 
 interface DriverOrder {
@@ -68,6 +69,7 @@ export default function QuickDashboardScreen() {
   const [statusChanging, setStatusChanging] = useState(false);
   const [activeTrip, setActiveTrip] = useState<DriverOrder | null>(null);
   const [tripActionLoading, setTripActionLoading] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   
   // Animation values
   const statusAnimation = useState(new Animated.Value(0))[0];
@@ -220,7 +222,7 @@ export default function QuickDashboardScreen() {
 
   // Optimized status toggle with new API
   const toggleDriverStatus = useCallback(async (newValue: boolean) => {
-    if (statusChanging) return;
+    if (statusChanging || isLoading) return;
     
     // Prevent going online if currently driving
     if (newValue && driverStatus === 'DRIVING') {
@@ -234,6 +236,7 @@ export default function QuickDashboardScreen() {
     
     try {
       setStatusChanging(true);
+      setIsLoading(true);
       const newStatus = newValue ? 'ONLINE' : 'OFFLINE';
       
       // Animate status change
@@ -268,8 +271,9 @@ export default function QuickDashboardScreen() {
       );
     } finally {
       setStatusChanging(false);
+      setIsLoading(false);
     }
-  }, [statusChanging, statusAnimation, driverStatus]);
+  }, [statusChanging, statusAnimation, driverStatus, isLoading]);
 
   // Check for active trips and update driver status
   const checkActiveTrips = useCallback(() => {
@@ -372,6 +376,8 @@ export default function QuickDashboardScreen() {
 
   // Trip management functions
   const handleStartTrip = useCallback(async (order: DriverOrder) => {
+    if (isLoading || tripActionLoading === order.order_id) return;
+    
     // Check if driver is already on a trip
     if (activeTrip) {
       Alert.alert(
@@ -408,37 +414,61 @@ export default function QuickDashboardScreen() {
       return;
     }
 
-    // Navigate to trip start screen
-    router.push({
-      pathname: '/trip/start',
-      params: {
-        assignment_id: order.assignment_id,
-        order_id: order.order_id,
-        customerName: order.customer_name,
-        pickup: order.pickup,
-        drop: order.drop,
-        farePerKm: String(order.total_fare || 0),
-        toll_charge_update: order.toll_charge_update ? 'true' : 'false',
-      }
-    });
-  }, [activeTrip, driverStatus, router, toggleDriverStatus]);
+    try {
+      setTripActionLoading(order.order_id);
+      setIsLoading(true);
+      
+      // Navigate to trip start screen
+      router.push({
+        pathname: '/trip/start',
+        params: {
+          assignment_id: order.assignment_id,
+          order_id: order.order_id,
+          customerName: order.customer_name,
+          pickup: order.pickup,
+          drop: order.drop,
+          farePerKm: String(order.total_fare || 0),
+          toll_charge_update: order.toll_charge_update ? 'true' : 'false',
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error starting trip:', error);
+      Alert.alert('Error', 'Failed to start trip');
+    } finally {
+      setTripActionLoading(null);
+      setIsLoading(false);
+    }
+  }, [activeTrip, driverStatus, router, toggleDriverStatus, isLoading, tripActionLoading]);
 
   const handleEndTrip = useCallback(async (order: DriverOrder) => {
-    // Navigate to trip end screen
-    router.push({
-      pathname: '/trip/end',
-      params: {
-        assignment_id: order.assignment_id,
-        order_id: order.order_id,
-        customerName: order.customer_name,
-        pickup: order.pickup,
-        drop: order.drop,
-        startKm: '0', // Default start KM, will be updated from trip start
-        farePerKm: '0', // Default fare per KM
-        toll_charge_update: order.toll_charge_update ? 'true' : 'false', // Pass toll charge update flag
-      }
-    });
-  }, [router]);
+    if (isLoading || tripActionLoading === order.order_id) return;
+    
+    try {
+      setTripActionLoading(order.order_id);
+      setIsLoading(true);
+      
+      // Navigate to trip end screen
+      router.push({
+        pathname: '/trip/end',
+        params: {
+          assignment_id: order.assignment_id,
+          order_id: order.order_id,
+          customerName: order.customer_name,
+          pickup: order.pickup,
+          drop: order.drop,
+          startKm: '0', // Default start KM, will be updated from trip start
+          farePerKm: '0', // Default fare per KM
+          toll_charge_update: order.toll_charge_update ? 'true' : 'false', // Pass toll charge update flag
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error ending trip:', error);
+      Alert.alert('Error', 'Failed to end trip');
+    } finally {
+      setTripActionLoading(null);
+      setIsLoading(false);
+    }
+  }, [router, isLoading, tripActionLoading]);
 
   const navigateToTrip = useCallback((order: DriverOrder) => {
     router.push({
@@ -480,6 +510,11 @@ export default function QuickDashboardScreen() {
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      <LoadingOverlay 
+        visible={isLoading || statusChanging} 
+        message={statusChanging ? "Updating status..." : "Loading..."} 
+      />
+      
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.surface }]}>
         <View style={styles.headerContent}>

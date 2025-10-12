@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,18 +7,21 @@ import {
   TouchableOpacity,
   Switch,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useNotifications } from '@/contexts/NotificationContext';
-import { Moon, Sun, LogOut, ChevronRight, User, Bell, Shield } from 'lucide-react-native';
+import { useDashboard } from '@/contexts/DashboardContext';
+import { Moon, Sun, LogOut, ChevronRight, User, Bell, Shield, Car, Users } from 'lucide-react-native';
 
 export default function SettingsScreen() {
   const { user, logout } = useAuth();
   const { isDarkMode, toggleTheme, colors } = useTheme();
   const { notificationsEnabled, toggleNotifications } = useNotifications();
+  const { dashboardData, loading } = useDashboard();
   const router = useRouter();
 
   const handleLogout = () => {
@@ -131,6 +134,67 @@ export default function SettingsScreen() {
       fontFamily: 'Inter-SemiBold',
       marginLeft: 8,
     },
+    profileCard: {
+      borderRadius: 16,
+      padding: 20,
+      marginBottom: 16,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.1,
+      shadowRadius: 8,
+      elevation: 4,
+    },
+    profileHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 16,
+    },
+    profileAvatar: {
+      width: 60,
+      height: 60,
+      borderRadius: 30,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 16,
+    },
+    profileAvatarText: {
+      fontSize: 24,
+      fontFamily: 'Inter-Bold',
+      color: '#FFFFFF',
+    },
+    profileInfo: {
+      flex: 1,
+    },
+    profileName: {
+      fontSize: 20,
+      fontFamily: 'Inter-Bold',
+      marginBottom: 4,
+    },
+    profileSubtitle: {
+      fontSize: 14,
+      fontFamily: 'Inter-Medium',
+    },
+    profileStats: {
+      flexDirection: 'row',
+      justifyContent: 'space-around',
+      paddingTop: 16,
+      borderTopWidth: 1,
+      borderTopColor: colors.border,
+    },
+    statItem: {
+      alignItems: 'center',
+    },
+    statValue: {
+      fontSize: 24,
+      fontFamily: 'Inter-Bold',
+      marginTop: 8,
+      marginBottom: 4,
+    },
+    statLabel: {
+      fontSize: 12,
+      fontFamily: 'Inter-Medium',
+      textAlign: 'center',
+    },
   });
   const SettingItem = ({ icon, title, subtitle, onPress, rightComponent }) => (
     <TouchableOpacity style={dynamicStyles.settingItem} onPress={onPress}>
@@ -188,12 +252,52 @@ export default function SettingsScreen() {
         <View style={dynamicStyles.section}>
           <Text style={dynamicStyles.sectionTitle}>Account</Text>
           
-          <SettingItem
+          {/* Profile Card */}
+          <View style={[dynamicStyles.profileCard, { backgroundColor: colors.surface }]}>
+            <View style={dynamicStyles.profileHeader}>
+              <View style={[dynamicStyles.profileAvatar, { backgroundColor: colors.primary }]}>
+                <Text style={dynamicStyles.profileAvatarText}>
+                  {(dashboardData?.user_info?.full_name || user?.fullName || 'V').charAt(0).toUpperCase()}
+                </Text>
+              </View>
+              <View style={dynamicStyles.profileInfo}>
+                <Text style={[dynamicStyles.profileName, { color: colors.text }]}>
+                  {dashboardData?.user_info?.full_name || user?.fullName || 'Vehicle Owner'}
+                </Text>
+                <Text style={[dynamicStyles.profileSubtitle, { color: colors.textSecondary }]}>
+                  Vehicle Owner
+                </Text>
+              </View>
+            </View>
+            
+            <View style={dynamicStyles.profileStats}>
+              <View style={dynamicStyles.statItem}>
+                <Car color={colors.primary} size={20} />
+                <Text style={[dynamicStyles.statValue, { color: colors.text }]}>
+                  {dashboardData?.cars?.length || 0}
+                </Text>
+                <Text style={[dynamicStyles.statLabel, { color: colors.textSecondary }]}>
+                  Total Cars
+                </Text>
+              </View>
+              <View style={dynamicStyles.statItem}>
+                <Users color={colors.primary} size={20} />
+                <Text style={[dynamicStyles.statValue, { color: colors.text }]}>
+                  {dashboardData?.drivers?.length || 0}
+                </Text>
+                <Text style={[dynamicStyles.statLabel, { color: colors.textSecondary }]}>
+                  Total Drivers
+                </Text>
+              </View>
+            </View>
+          </View>
+
+          {/* <SettingItem
             icon={<User color={colors.textSecondary} size={20} />}
-            title="Profile"
-            subtitle="View and edit your profile information"
-            onPress={() => Alert.alert('Profile', 'Profile settings coming soon')}
-          />
+            title="Edit Profile"
+            subtitle="Update your personal information"
+            onPress={() => Alert.alert('Edit Profile', 'Profile editing coming soon')}
+          /> */}
 
           <SettingItem
             icon={<Shield color={colors.textSecondary} size={20} />}

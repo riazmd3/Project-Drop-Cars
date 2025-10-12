@@ -16,6 +16,7 @@ import { useWallet } from '@/contexts/WalletContext';
 import { Camera, ArrowLeft, Check, IndianRupee } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { endTrip } from '@/services/driver/carDriverService';
+import LoadingOverlay from '@/components/LoadingOverlay';
 
 export default function EndTripScreen() {
   const [endKm, setEndKm] = useState('');
@@ -149,6 +150,11 @@ export default function EndTripScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <LoadingOverlay 
+        visible={submitting} 
+        message="Completing trip..." 
+      />
+      
       <View style={styles.header}>
         <TouchableOpacity onPress={() => router.back()}>
           <ArrowLeft color="#1F2937" size={24} />
