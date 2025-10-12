@@ -85,8 +85,8 @@ export default function EndTripScreen() {
       return;
     }
 
-    // Check toll charge if update is enabled
-    if (tollChargeUpdate && (!tollCharge || parseFloat(tollCharge) < 0)) {
+    // Check toll charge if update is required (when toll_charge_update is false)
+    if (tollChargeUpdate === false && (!tollCharge || parseFloat(tollCharge) < 0)) {
       Alert.alert('Error', 'Please enter a valid toll charge amount.');
       return;
     }
@@ -114,7 +114,7 @@ export default function EndTripScreen() {
           parseInt(endKm, 10), 
           dummyContact, 
           odometerPhoto, 
-          tollChargeUpdate ? parseFloat(tollCharge) : undefined,
+          tollChargeUpdate === false ? parseFloat(tollCharge) : undefined,
           tollChargeUpdate
         );
       } else {
@@ -128,7 +128,7 @@ export default function EndTripScreen() {
         console.warn('Commission deduction failed, continuing:', (e as any)?.message);
       }
 
-      const tollMessage = tollChargeUpdate ? `\nToll Charges: ₹${tollCharge}` : '';
+      const tollMessage = tollChargeUpdate === false ? `\nToll Charges: ₹${tollCharge}` : '';
       
       // Use API response data if available, otherwise use calculated values
       const finalTotalKm = tripEndResponse?.total_km || totalKm;
@@ -236,8 +236,8 @@ export default function EndTripScreen() {
           />
         </View>
 
-        {/* Toll Charge Input - Only show if toll_charge_update is true */}
-        {tollChargeUpdate && (
+        {/* Toll Charge Input - Only show if toll_charge_update is false */}
+        {tollChargeUpdate === false && (
           <View style={styles.inputSection}>
             <Text style={styles.sectionTitle}>Toll Charges</Text>
             <TextInput
@@ -254,9 +254,9 @@ export default function EndTripScreen() {
         )}
 
         <TouchableOpacity
-          style={[styles.endButton, (!endKm || !odometerPhoto || !thanked || (tollChargeUpdate && !tollCharge) || submitting) && styles.disabledButton]}
+          style={[styles.endButton, (!endKm || !odometerPhoto || !thanked || (tollChargeUpdate === false && !tollCharge) || submitting) && styles.disabledButton]}
           onPress={handleEndTrip}
-          disabled={!endKm || !odometerPhoto || !thanked || (tollChargeUpdate && !tollCharge) || submitting}
+          disabled={!endKm || !odometerPhoto || !thanked || (tollChargeUpdate === false && !tollCharge) || submitting}
         >
           {submitting ? (
             <View style={styles.loadingContainer}>

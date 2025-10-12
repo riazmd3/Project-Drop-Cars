@@ -115,14 +115,20 @@ export const endTrip = async (orderId: number, endKm?: number, contact?: string,
       console.log('💰 Toll charge update flag:', tollChargeUpdate);
     }
     
-    // Add updated toll charges if provided (integer | null)
-    if (tollCharges !== undefined && tollCharges >= 0) {
-      form.append('updated_toll_charges', String(tollCharges));
-      console.log('💰 Adding updated toll charges:', tollCharges);
-    } else if (tollChargeUpdate && tollCharges === undefined) {
-      // If toll charge update is enabled but no amount provided, send null
-      form.append('updated_toll_charges', '');
-      console.log('💰 Toll charge update enabled but no amount provided, sending empty');
+    // Add updated toll charges - only when toll_charge_update is false
+    // When false, the quick driver needs to put the toll charge in this parameter
+    if (tollChargeUpdate === false) {
+      if (tollCharges !== undefined && tollCharges >= 0) {
+        form.append('updated_toll_charges', String(tollCharges));
+        console.log('💰 Adding updated toll charges (toll_charge_update=false):', tollCharges);
+      } else {
+        // Send null when toll_charge_update is false but no amount provided
+        form.append('updated_toll_charges', '');
+        console.log('💰 Toll charge update is false but no amount provided, sending null');
+      }
+    } else if (tollChargeUpdate === true) {
+      // When true, toll charges are handled automatically, don't send updated_toll_charges
+      console.log('💰 Toll charge update is true, not sending updated_toll_charges');
     }
     
     console.log('📤 Sending end trip request:', {
