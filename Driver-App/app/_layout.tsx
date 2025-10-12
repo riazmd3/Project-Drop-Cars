@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import '@/utils/quietConsole';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { WalletProvider } from '@/contexts/WalletContext';
@@ -38,6 +39,7 @@ export default function RootLayout() {
   }
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
         <AuthProvider>
           <WalletProvider>
@@ -60,5 +62,6 @@ export default function RootLayout() {
           </WalletProvider>
         </AuthProvider>
       </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }

@@ -9,6 +9,7 @@ import {
   ScrollView,
   Modal,
 } from 'react-native';
+import { PanGestureHandler, State } from 'react-native-gesture-handler';
 import { LinearGradient } from 'expo-linear-gradient';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -21,10 +22,15 @@ import {
   CheckCircle,
   Clock,
   TrendingUp,
-  X
+  X,
+  Users,
+  Shield,
+  Zap,
+  Heart
 } from 'lucide-react-native';
 
 const { width, height } = Dimensions.get('window');
+
 
 interface WelcomeScreenProps {
   onComplete: () => void;
@@ -139,45 +145,58 @@ For any queries or support, contact us at:
 `;
   
   // Animation values
-  const fadeAnim = new Animated.Value(0);
-  const slideAnim = new Animated.Value(50);
-  const scaleAnim = new Animated.Value(0.8);
-
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+  const slideAnim = React.useRef(new Animated.Value(50)).current;
+  const scaleAnim = React.useRef(new Animated.Value(0.8)).current;
   const welcomeSteps = [
     {
-      icon: <CheckCircle size={80} color="#10B981" />,
+      icon: <CheckCircle size={80} color="#FFFFFF" />,
       title: `Welcome to Drop Cars, ${user?.fullName || 'Driver'}!`,
       subtitle: "Your Professional Journey Starts Here",
       description: "Drop Cars is India's premier vehicle rental platform connecting vehicle owners with customers. Start earning by providing reliable transportation services.",
-      color: ['#10B981', '#059669']
+      backgroundColor: '#10B981'
     },
     {
-      icon: <Car size={80} color="#3B82F6" />,
-      title: "Step 1: Accept Bookings",
+      icon: <Car size={80} color="#FFFFFF" />,
+      title: "Step 1: Add Cars & Drivers",
+      subtitle: "Register Your Fleet & Team",
+      description: "Add your vehicles with details like model, year, and capacity. Register drivers with their licenses and contact information. Build your fleet to accept more bookings.",
+      backgroundColor: '#3B82F6'
+    },
+    {
+      icon: <MapPin size={80} color="#FFFFFF" />,
+      title: "Step 2: Accept Bookings",
       subtitle: "View & Accept Available Orders",
       description: "Browse pending bookings on your dashboard. Each booking shows pickup/drop locations, customer details, and fare. Accept orders that match your schedule and route.",
-      color: ['#3B82F6', '#1E40AF']
+      backgroundColor: '#8B5CF6'
     },
     {
-      icon: <MapPin size={80} color="#8B5CF6" />,
-      title: "Step 2: Assign Driver & Vehicle",
+      icon: <Users size={80} color="#FFFFFF" />,
+      title: "Step 3: Assign Driver & Vehicle",
       subtitle: "Match Orders with Your Resources",
       description: "After accepting an order, assign one of your registered drivers and vehicles. Ensure your driver is available and vehicle is ready for the trip.",
-      color: ['#8B5CF6', '#7C3AED']
+      backgroundColor: '#F59E0B'
     },
     {
-      icon: <Clock size={80} color="#F59E0B" />,
-      title: "Step 3: Track Trip Progress",
+      icon: <Clock size={80} color="#FFFFFF" />,
+      title: "Step 4: Track Trip Progress",
       subtitle: "Monitor Real-time Trip Status",
       description: "Your assigned driver can start/end trips with odometer readings. Track trip progress, distance covered, and fare calculation in real-time.",
-      color: ['#F59E0B', '#D97706']
+      backgroundColor: '#EF4444'
     },
     {
-      icon: <TrendingUp size={80} color="#EF4444" />,
-      title: "Step 4: Earn & Grow",
+      icon: <TrendingUp size={80} color="#FFFFFF" />,
+      title: "Step 5: Earn & Grow",
       subtitle: "Maximize Your Revenue",
       description: "Earn from every completed trip. Build your reputation with quality service. Access detailed analytics and expand your fleet to increase earnings.",
-      color: ['#EF4444', '#DC2626']
+      backgroundColor: '#10B981'
+    },
+    {
+      icon: <Shield size={80} color="#FFFFFF" />,
+      title: "Terms and Conditions",
+      subtitle: "Drop Cars",
+      description: "Please read and accept our Terms and Conditions to continue using the app.",
+      backgroundColor: '#8B5CF6'
     }
   ];
 
@@ -216,16 +235,32 @@ For any queries or support, contact us at:
     }
   };
 
+  const prevStep = () => {
+    if (currentStep > 0) {
+      setCurrentStep(currentStep - 1);
+    }
+  };
+
+  const onSwipeGesture = (event: any) => {
+    const { translationX, state } = event.nativeEvent;
+    
+    if (state === State.END) {
+      if (translationX > 50 && currentStep > 0) {
+        // Swipe right - go to previous step
+        prevStep();
+      } else if (translationX < -50 && currentStep < welcomeSteps.length - 1) {
+        // Swipe left - go to next step
+        nextStep();
+      }
+    }
+  };
+
   const currentStepData = welcomeSteps[currentStep];
 
   return (
     <SafeAreaView style={styles.container}>
-      <LinearGradient 
-        colors={currentStepData.color as [string, string]} 
-        style={styles.gradient}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-      >
+      <PanGestureHandler onHandlerStateChange={onSwipeGesture}>
+        <Animated.View style={[styles.container, { backgroundColor: currentStepData.backgroundColor }]}>
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.progressContainer}>
@@ -302,28 +337,45 @@ For any queries or support, contact us at:
             </View>
           )}
 
-          <TouchableOpacity 
-            style={[
-              styles.nextButton,
-              currentStep === welcomeSteps.length - 1 && !termsAccepted && styles.nextButtonDisabled
-            ]} 
-            onPress={nextStep}
-            activeOpacity={0.8}
-            disabled={currentStep === welcomeSteps.length - 1 && !termsAccepted}
-          >
-            <Text style={styles.nextButtonText}>
-              {currentStep === welcomeSteps.length - 1 ? 'Get Started' : 'Next'}
-            </Text>
-            <ArrowRight size={20} color="#FFFFFF" />
-          </TouchableOpacity>
+          <View style={styles.navigationButtons}>
+            {currentStep > 0 && (
+              <TouchableOpacity 
+                style={styles.prevButton} 
+                onPress={prevStep}
+                activeOpacity={0.8}
+              >
+                <ArrowRight size={20} color="#FFFFFF" style={{ transform: [{ rotate: '180deg' }] }} />
+                <Text style={styles.prevButtonText}>Previous</Text>
+              </TouchableOpacity>
+            )}
+            
+            <TouchableOpacity 
+              style={[
+                styles.nextButton,
+                currentStep === welcomeSteps.length - 1 && !termsAccepted && styles.nextButtonDisabled
+              ]} 
+              onPress={nextStep}
+              activeOpacity={0.8}
+              disabled={currentStep === welcomeSteps.length - 1 && !termsAccepted}
+            >
+              <Text style={styles.nextButtonText}>
+                {currentStep === welcomeSteps.length - 1 ? 'Get Started' : 'Next'}
+              </Text>
+              <ArrowRight size={20} color="#FFFFFF" />
+            </TouchableOpacity>
+          </View>
 
           <View style={styles.stepIndicator}>
             <Text style={styles.stepText}>
               {currentStep + 1} of {welcomeSteps.length}
             </Text>
+            <Text style={styles.swipeHint}>
+              ← Swipe left/right to navigate →
+            </Text>
           </View>
         </View>
-      </LinearGradient>
+        </Animated.View>
+      </PanGestureHandler>
 
       {/* Terms and Conditions Modal */}
       <Modal
@@ -363,9 +415,6 @@ For any queries or support, contact us at:
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-  },
-  gradient: {
     flex: 1,
   },
   header: {
@@ -412,7 +461,7 @@ const styles = StyleSheet.create({
   subtitle: {
     fontSize: 18,
     fontFamily: 'Inter-SemiBold',
-    color: 'rgba(255, 255, 255, 0.9)',
+    color: '#FFFFFF',
     textAlign: 'center',
     marginBottom: 16,
     lineHeight: 24,
@@ -420,13 +469,45 @@ const styles = StyleSheet.create({
   description: {
     fontSize: 16,
     fontFamily: 'Inter-Regular',
-    color: 'rgba(255, 255, 255, 0.8)',
+    color: '#FFFFFF',
     textAlign: 'center',
     lineHeight: 24,
+    opacity: 0.9,
+  },
+  featureDescription: {
+    fontSize: 18,
+    fontFamily: 'Inter-Medium',
+    color: '#FFFFFF',
+    textAlign: 'center',
+    lineHeight: 28,
   },
   footer: {
     paddingHorizontal: 24,
     paddingBottom: 40,
+  },
+  navigationButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  prevButton: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 16,
+    paddingVertical: 18,
+    paddingHorizontal: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(255, 255, 255, 0.2)',
+    flex: 0.4,
+  },
+  prevButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    marginLeft: 8,
   },
   nextButton: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
@@ -438,7 +519,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: 'rgba(255, 255, 255, 0.3)',
-    marginBottom: 20,
+    flex: 0.5,
   },
   nextButtonText: {
     color: '#FFFFFF',
@@ -453,6 +534,13 @@ const styles = StyleSheet.create({
     color: 'rgba(255, 255, 255, 0.7)',
     fontSize: 14,
     fontFamily: 'Inter-Medium',
+    marginBottom: 4,
+  },
+  swipeHint: {
+    color: 'rgba(255, 255, 255, 0.5)',
+    fontSize: 12,
+    fontFamily: 'Inter-Regular',
+    textAlign: 'center',
   },
   termsSection: {
     marginBottom: 20,

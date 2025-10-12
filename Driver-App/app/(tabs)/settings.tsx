@@ -339,7 +339,16 @@ For any queries or support, contact us at:
       lineHeight: 22,
     },
   });
-  const SettingItem = ({ icon, title, subtitle, onPress, rightComponent }) => (
+
+  type SettingItemProps = {
+    icon: React.ReactNode;
+    title: string;
+    subtitle?: string;
+    onPress?: () => void;
+    rightComponent?: React.ReactNode;
+  };
+
+  const SettingItem: React.FC<SettingItemProps> = ({ icon, title, subtitle, onPress, rightComponent }) => (
     <TouchableOpacity style={dynamicStyles.settingItem} onPress={onPress}>
       <View style={dynamicStyles.settingLeft}>
         <View style={dynamicStyles.settingIcon}>{icon}</View>
@@ -356,7 +365,9 @@ For any queries or support, contact us at:
     <SafeAreaView style={dynamicStyles.container}>
       <View style={dynamicStyles.header}>
         <Text style={dynamicStyles.headerTitle}>Settings</Text>
-        <Text style={dynamicStyles.headerSubtitle}>Welcome back, {user?.name}!</Text>
+        <Text style={dynamicStyles.headerSubtitle}>
+          Welcome back, {(dashboardData?.user_info?.full_name || user?.fullName || 'Driver')}!
+        </Text>
       </View>
 
       <ScrollView style={dynamicStyles.content} showsVerticalScrollIndicator={false}>

@@ -20,6 +20,7 @@ import { useRouter } from 'expo-router';
 import { Menu, Wallet, MapPin, Clock, User, Phone, Car, RefreshCw } from 'lucide-react-native';
 import BookingCard from '@/components/BookingCard';
 import DrawerNavigation from '@/components/DrawerNavigation';
+import WelcomeScreen from '@/components/WelcomeScreen';
 import { fetchDashboardData, DashboardData, forceRefreshDashboardData } from '@/services/orders/dashboardService';
 import { getPendingOrders, PendingOrder } from '@/services/orders/assignmentService';
 import axiosInstance from '@/app/api/axiosInstance';
@@ -48,6 +49,7 @@ export default function DashboardScreen() {
   const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [processingOrderId, setProcessingOrderId] = useState<string | null>(null);
+  const [showWelcome, setShowWelcome] = useState(false);
   // Remove currentTrip concept from owner dashboard
   const [refreshing, setRefreshing] = useState(false);
   const [previousOrderCount, setPreviousOrderCount] = useState(0);
@@ -294,8 +296,9 @@ export default function DashboardScreen() {
     }
   };
 
-
-
+  const handleWelcomeComplete = () => {
+    setShowWelcome(false);
+  };
 
   const dynamicStyles = StyleSheet.create({
     container: {
@@ -708,6 +711,10 @@ export default function DashboardScreen() {
       setProcessingOrderId(null);
     }
   };
+
+  if (showWelcome) {
+    return <WelcomeScreen onComplete={handleWelcomeComplete} />;
+  }
 
   return (
     <SafeAreaView style={dynamicStyles.container}>
