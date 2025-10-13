@@ -390,7 +390,7 @@ export default function DashboardScreen() {
                         Order {order.order_accept_status ? 'Accepted' : 'Pending'}
                       </Text>
                     </View>
-                    
+           
                     <View style={styles.statusItem}>
                       <Car size={16} color={order.Car_assigned ? '#10B981' : '#9CA3AF'} />
                       <Text style={[styles.statusItemText, { color: order.Car_assigned ? '#10B981' : '#9CA3AF' }]}>
@@ -431,6 +431,11 @@ export default function DashboardScreen() {
                     <View style={styles.metaItem}>
                       <Calendar size={14} color="#6B7280" />
                       <Text style={styles.metaText}>{order.trip_type}</Text>
+                    </View>
+
+                    <View style={styles.metaItem}>
+                      <Text style={styles.metaText}>ID:</Text>
+                      <Text style={styles.metaText}>{order.id}</Text>
                     </View>
                   </View>
                   

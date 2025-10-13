@@ -149,10 +149,10 @@ export default function MenuScreen() {
               </View>
             </View>
             
-            <TouchableOpacity style={styles.notificationButton}>
+            {/* <TouchableOpacity style={styles.notificationButton}>
               <Bell size={24} color="#FFFFFF" />
               <View style={styles.notificationBadge} />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
 
           {/* Wallet Balance Card */}
