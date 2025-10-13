@@ -60,6 +60,7 @@ export default function AuthLayout() {
       <Stack.Screen name="profile" />
       <Stack.Screen name="orders" />
       <Stack.Screen name="order-details" />
+      <Stack.Screen name="wallet" />
     </Stack>
   );
 }

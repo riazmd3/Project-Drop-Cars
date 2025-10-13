@@ -2,7 +2,7 @@
 export const ENV = {
   // Development environment
   development: {
-    API_BASE_URL: 'https://drop-cars-api-1049299844333.asia-south2.run.app/',
+    API_BASE_URL: 'http://172.20.10.7:8000',
     DEBUG: true,
     LOG_LEVEL: 'debug',
   },
@@ -10,14 +10,14 @@ export const ENV = {
   // Production environment
   // 34.126.222.137
   production: {
-    API_BASE_URL: 'https://your-production-backend.com', // Update this
+    API_BASE_URL: 'https://drop-cars-api-1049299844333.asia-south2.run.app', // Update this
     DEBUG: false,
     LOG_LEVEL: 'error',
   },
   
   // Staging environment
   staging: {
-    API_BASE_URL: 'https://your-staging-backend.com', // Update this
+    API_BASE_URL: 'https://drop-cars-api-1049299844333.asia-south2.run.app', // Update this
     DEBUG: true,
     LOG_LEVEL: 'info',
   },

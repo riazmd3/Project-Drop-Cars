@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,14 +7,28 @@ import {
   TouchableOpacity,
   StatusBar,
   RefreshControl,
+  Dimensions,
+  TextInput,
+  Modal,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Bell, Search, Filter, Calendar, MapPin, Clock, DollarSign, ArrowRight, Eye, CircleCheck as CheckCircle, TrendingUp, Car } from 'lucide-react-native';
-// import api, { Order, VendorData } from '../api/api';
-import api from '../api/api';
+import { Car, Clock, MapPin, DollarSign, TrendingUp, Users, Search, ListFilter as Filter, X, CircleCheck as CheckCircle, Circle as XCircle, User, Calendar } from 'lucide-react-native';
+import api from '../api/api'; // Adjust the path as necessary
+const { width } = Dimensions.get('window');
+
+interface VendorData {
+  id: string;
+  full_name: string;
+  primary_number: string;
+  account_status: string;
+  branch_name: string;
+}
 
 interface Order {
   id: number;
+  source: string;
+  source_order_id: number;
+  vendor_id: string;
   trip_type: string;
   car_type: string;
   pickup_drop_location: {
@@ -31,22 +45,26 @@ interface Order {
   vendor_price: number;
   platform_fees_percent: number;
   created_at: string;
+  order_accept_status: boolean;
+  Driver_assigned: boolean;
+  Car_assigned: boolean;
 }
 
-interface VendorData {
-  id: string;
-  full_name: string;
-  primary_number: string;
-  account_status: string;
-  branch_name: string;
-}
+const ORDERS_DATA: Order[] = [];
 
 export default function DashboardScreen() {
+  const [refreshing, setRefreshing] = useState(false);
   const [orders, setOrders] = useState<Order[]>([]);
   const [vendorData, setVendorData] = useState<VendorData | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [newOrderNotification, setNewOrderNotification] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterModalVisible, setFilterModalVisible] = useState(false);
+  const [selectedFilters, setSelectedFilters] = useState({
+    status: 'all',
+    tripType: 'all',
+    carType: 'all',
+    acceptStatus: 'all'
+  });
 
   useEffect(() => {
     loadInitialData();
@@ -95,6 +113,9 @@ export default function DashboardScreen() {
       console.log("API response:", response.data);
       const ordersData: Order[] = response.data;
       
+      // For now, using static data - replace with API call when ready
+      // const ordersData: Order[] = ORDERS_DATA;
+      
       // Sort orders by creation date (latest first)
       const sortedOrders = ordersData.sort((a, b) => 
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -102,19 +123,63 @@ export default function DashboardScreen() {
       
       setOrders(sortedOrders);
       console.log("Fetched orders:", sortedOrders.length);
-      
-      // Show notification if there are new pending orders
-      const pendingCount = sortedOrders.filter(order => order.trip_status === 'PENDING').length;
-      if (pendingCount > 0) {
-        setNewOrderNotification(true);
-        setTimeout(() => setNewOrderNotification(false), 5000);
-      }
     } catch (err: any) {
       console.error("Error fetching vendor orders:", err);
+      // Fallback to static data on error
+      setOrders(ORDERS_DATA);
     } finally {
       setRefreshing(false);
     }
   };
+
+  const stats = useMemo(() => {
+    const totalOrders = orders.length;
+    const acceptedOrders = orders.filter(order => order.order_accept_status === true).length;
+    const totalRevenue = orders.reduce((sum, order) => sum + order.vendor_price, 0);
+
+    return {
+      totalOrders,
+      acceptedOrders,
+      totalRevenue,
+    };
+  }, [orders]);
+
+  const filteredOrders = useMemo(() => {
+    let filtered = orders;
+
+    // Search filter
+    if (searchQuery.trim()) {
+      filtered = filtered.filter(order =>
+        order.customer_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        order.pickup_drop_location['0'].toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (order.pickup_drop_location['1'] && order.pickup_drop_location['1'].toLowerCase().includes(searchQuery.toLowerCase())) ||
+        order.customer_number.includes(searchQuery)
+      );
+    }
+
+    // Status filter
+    if (selectedFilters.status !== 'all') {
+      filtered = filtered.filter(order => order.trip_status === selectedFilters.status);
+    }
+
+    // Trip type filter
+    if (selectedFilters.tripType !== 'all') {
+      filtered = filtered.filter(order => order.trip_type === selectedFilters.tripType);
+    }
+
+    // Car type filter
+    if (selectedFilters.carType !== 'all') {
+      filtered = filtered.filter(order => order.car_type === selectedFilters.carType);
+    }
+
+    // Accept status filter
+    if (selectedFilters.acceptStatus !== 'all') {
+      const isAccepted = selectedFilters.acceptStatus === 'accepted';
+      filtered = filtered.filter(order => order.order_accept_status === isAccepted);
+    }
+
+    return filtered;
+  }, [orders, searchQuery, selectedFilters]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -122,69 +187,40 @@ export default function DashboardScreen() {
   };
 
   const getStatusColor = (status: string) => {
-    switch (status) {
+    switch (status.toUpperCase()) {
       case 'PENDING': return '#F59E0B';
-      case 'ACCEPTED': return '#3B82F6';
-      case 'IN_PROGRESS': return '#8B5CF6';
-      case 'COMPLETED': return '#10B981';
+      case 'ACCEPTED': return '#10B981';
+      case 'COMPLETED': return '#3B82F6';
       case 'CANCELLED': return '#EF4444';
       default: return '#6B7280';
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'PENDING': return 'Pending';
-      case 'ACCEPTED': return 'Accepted';
-      case 'IN_PROGRESS': return 'In Progress';
-      case 'COMPLETED': return 'Completed';
-      case 'CANCELLED': return 'Cancelled';
-      default: return 'Unknown';
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'PENDING': return <Clock size={16} color="#F59E0B" />;
-      case 'ACCEPTED': return <Calendar size={16} color="#3B82F6" />;
-      case 'IN_PROGRESS': return <MapPin size={16} color="#8B5CF6" />;
-      case 'COMPLETED': return <DollarSign size={16} color="#10B981" />;
-      case 'CANCELLED': return <Eye size={16} color="#EF4444" />;
-      default: return <Clock size={16} color="#6B7280" />;
     }
   };
 
   const formatTime = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
-    const diffInHours = Math.floor((now.getTime() - date.getTime()) / (1000 * 60 * 60));
+    const diffInMinutes = Math.floor((now.getTime() - date.getTime()) / (1000 * 60));
     
-    if (diffInHours < 1) return 'Just now';
-    if (diffInHours < 24) return `${diffInHours}h ago`;
-    if (diffInHours < 48) return '1 day ago';
+    if (diffInMinutes < 1) return 'Just now';
+    if (diffInMinutes < 60) return `${diffInMinutes}m ago`;
+    if (diffInMinutes < 1440) return `${Math.floor(diffInMinutes / 60)}h ago`;
     return date.toLocaleDateString();
   };
 
-  const calculateTotalProfit = () => {
-    return orders.reduce((total, order) => {
-      if (order.estimated_price && order.vendor_price) {
-        return total + (order.vendor_price - order.estimated_price);
-      }
-      return total;
-    }, 0);
+  const formatDuration = (tripTime: string) => {
+    if (tripTime.includes('hour')) {
+      return tripTime;
+    }
+    return `${tripTime} hours`;
   };
 
-  const calculateTotalRevenue = () => {
-    return orders.reduce((total, order) => {
-      if (order.vendor_price) {
-        return total + order.vendor_price;
-      }
-      return total;
-    }, 0);
-  };
-
-  const getPendingOrdersCount = () => {
-    return orders.filter(order => order.trip_status === 'PENDING').length;
+  const clearFilters = () => {
+    setSelectedFilters({
+      status: 'all',
+      tripType: 'all',
+      carType: 'all',
+      acceptStatus: 'all'
+    });
   };
 
   if (loading) {
@@ -208,213 +244,287 @@ export default function DashboardScreen() {
 
   return (
     <View style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor="#1E40AF" />
+      <StatusBar barStyle="light-content" backgroundColor="#6366F1" />
       
       {/* Header */}
       <LinearGradient
-        colors={['#1E40AF', '#3B82F6']}
+        colors={['#6366F1', '#8B5CF6']}
         style={styles.header}
+        start={{ x: 0, y: 0 }}
+        end={{ x: 1, y: 1 }}
       >
-        <View style={styles.headerTop}>
-          <View style={styles.branchSection}>
-            <Text style={styles.branchName}>{vendorData.branch_name}</Text>
-            <Text style={styles.accountStatus}>
-              {vendorData.account_status === 'Active' ? '● Active' : '● Pending Verification'}
-            </Text>
+        <View style={styles.headerContent}>
+          <View>
+            <Text style={styles.welcomeText}>Welcome back!</Text>
+            <Text style={styles.companyName}>{vendorData.branch_name}</Text>
           </View>
-          <TouchableOpacity style={styles.notificationButton}>
-            <Bell size={24} color="#FFFFFF" />
-            {getPendingOrdersCount() > 0 && <View style={styles.notificationBadge} />}
+          <TouchableOpacity style={styles.profileButton}>
+            <Text style={styles.profileInitial}>D</Text>
           </TouchableOpacity>
         </View>
       </LinearGradient>
 
-      {/* New Order Notification */}
-      {newOrderNotification && (
-        <View style={styles.newOrderBanner}>
-          <CheckCircle size={20} color="#10B981" />
-          <Text style={styles.newOrderText}>
-            {getPendingOrdersCount()} new order{getPendingOrdersCount() > 1 ? 's' : ''} received!
-          </Text>
-        </View>
-      )}
-
-      <ScrollView 
+      <ScrollView
         style={styles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
         }
       >
-        {/* Statistics Cards */}
-        <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <View style={styles.statIconContainer}>
-              <Car size={24} color="#3B82F6" />
+        {/* Compact Stats Section */}
+        <View style={styles.statsSection}>
+          <Text style={styles.sectionTitle}>Overview</Text>
+          <View style={styles.compactStatsGrid}>
+            <View style={styles.compactStatCard}>
+              <View style={styles.statIconContainer}>
+                <Car size={20} color="#6366F1" />
+              </View>
+              <Text style={styles.compactStatValue}>{stats.totalOrders}</Text>
+              <Text style={styles.compactStatLabel}>Total Orders</Text>
             </View>
-            <View style={styles.statContent}>
-              <Text style={styles.statValue}>{orders.length}</Text>
-              <Text style={styles.statLabel}>Total Orders</Text>
+            
+            <View style={styles.compactStatCard}>
+              <View style={[styles.statIconContainer, { backgroundColor: '#D1FAE5' }]}>
+                <Users size={20} color="#10B981" />
+              </View>
+              <Text style={styles.compactStatValue}>{stats.acceptedOrders}</Text>
+              <Text style={styles.compactStatLabel}>Accepted</Text>
             </View>
-          </View>
-          
-          <View style={styles.statCard}>
-            <View style={[styles.statIconContainer, { backgroundColor: '#FEF3C7' }]}>
-              <Clock size={24} color="#F59E0B" />
-            </View>
-            <View style={styles.statContent}>
-              <Text style={styles.statValue}>{getPendingOrdersCount()}</Text>
-              <Text style={styles.statLabel}>Pending</Text>
+            
+            <View style={styles.compactStatCard}>
+              <View style={[styles.statIconContainer, { backgroundColor: '#FEF3C7' }]}>
+                <TrendingUp size={20} color="#F59E0B" />
+              </View>
+              <Text style={styles.compactStatValue}>₹{stats.totalRevenue.toLocaleString()}</Text>
+              <Text style={styles.compactStatLabel}>Revenue</Text>
             </View>
           </View>
         </View>
 
-        <View style={styles.statsContainer}>
-          <View style={styles.statCard}>
-            <View style={[styles.statIconContainer, { backgroundColor: '#D1FAE5' }]}>
-              <TrendingUp size={24} color="#10B981" />
-            </View>
-            <View style={styles.statContent}>
-              <Text style={styles.statValue}>₹{calculateTotalProfit()}</Text>
-              <Text style={styles.statLabel}>Total Profit</Text>
-            </View>
+        {/* Search and Filter Section */}
+        <View style={styles.searchFilterSection}>
+          <View style={styles.searchContainer}>
+            <Search size={20} color="#6B7280" style={styles.searchIcon} />
+            <TextInput
+              style={styles.searchInput}
+              placeholder="Search by customer, location, or phone..."
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholderTextColor="#9CA3AF"
+            />
+            {searchQuery.length > 0 && (
+              <TouchableOpacity onPress={() => setSearchQuery('')} style={styles.clearSearch}>
+                <X size={16} color="#6B7280" />
+              </TouchableOpacity>
+            )}
           </View>
           
-          <View style={styles.statCard}>
-            <View style={[styles.statIconContainer, { backgroundColor: '#E0E7FF' }]}>
-              <DollarSign size={24} color="#6366F1" />
-            </View>
-            <View style={styles.statContent}>
-              <Text style={styles.statValue}>₹{calculateTotalRevenue()}</Text>
-              <Text style={styles.statLabel}>Total Revenue</Text>
-            </View>
-          </View>
+          <TouchableOpacity 
+            style={styles.filterButton}
+            onPress={() => setFilterModalVisible(true)}
+          >
+            <Filter size={20} color="#6366F1" />
+          </TouchableOpacity>
         </View>
 
         {/* Orders Section */}
-        <View style={styles.ordersContainer}>
-          <View style={styles.ordersHeader}>
+        <View style={styles.ordersSection}>
+          <View style={styles.orderHeader}>
             <View>
-              <Text style={styles.sectionTitle}>Recent Orders</Text>
-              <Text style={styles.sectionSubtitle}>Manage your car bookings</Text>
-            </View>
-            <View style={styles.ordersActions}>
-              <TouchableOpacity style={styles.actionIcon}>
-                <Search size={20} color="#6B7280" />
-              </TouchableOpacity>
-              <TouchableOpacity style={styles.actionIcon}>
-                <Filter size={20} color="#6B7280" />
-              </TouchableOpacity>
+              <Text style={styles.sectionTitle}>All Orders</Text>
+              <Text style={styles.sectionSubtitle}>
+                {filteredOrders.length} of {orders.length} orders
+              </Text>
             </View>
           </View>
 
-          {orders.length === 0 ? (
-            <View style={styles.emptyState}>
-              <Car size={48} color="#9CA3AF" />
-              <Text style={styles.emptyStateText}>No orders yet</Text>
-              <Text style={styles.emptyStateSubtext}>Creae an Order from New Order Page</Text>
-            </View>
-          ) : (
-            <>
-              {orders.slice(0, 8).map((order) => (
-                <TouchableOpacity key={order.id} style={styles.orderCard}>
-                  <View style={styles.orderHeader}>
-                    <View style={styles.customerInfo}>
-                      <View style={styles.customerAvatar}>
-                        <Text style={styles.customerInitial}>
-                          {order.customer_name.charAt(0)}
-                        </Text>
-                      </View>
-                      <View>
-                        <Text style={styles.customerName}>{order.customer_name}</Text>
-                        <Text style={styles.orderTime}>{formatTime(order.created_at)}</Text>
-                      </View>
+          {filteredOrders.map((order) => (
+            <TouchableOpacity key={order.id} style={styles.orderCard}>
+              <View style={styles.orderCardHeader}>
+                <View style={styles.customerInfo}>
+                  <View style={styles.customerAvatar}>
+                    <Text style={styles.customerInitial}>
+                      {order.customer_name.charAt(0).toUpperCase()}
+                    </Text>
+                  </View>
+                  <View style={styles.customerDetails}>
+                    <Text style={styles.customerName}>{order.customer_name}</Text>
+                    <Text style={styles.customerPhone}>{order.customer_number}</Text>
+                    <Text style={styles.orderTime}>{formatTime(order.created_at)}</Text>
+                  </View>
+                </View>
+                
+                <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(order.trip_status)}15` }]}>
+                  <View style={[styles.statusDot, { backgroundColor: getStatusColor(order.trip_status) }]} />
+                  <Text style={[styles.statusText, { color: getStatusColor(order.trip_status) }]}>
+                    {order.trip_status}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.orderDetails}>
+                <View style={styles.locationContainer}>
+                  <View style={styles.locationItem}>
+                    <View style={[styles.locationDot, { backgroundColor: '#3B82F6' }]} />
+                    <Text style={styles.locationText} numberOfLines={1}>
+                      {order.pickup_drop_location['0']}
+                    </Text>
+                  </View>
+                  
+                  {order.pickup_drop_location['1'] && (
+                    <View style={styles.locationItem}>
+                      <View style={[styles.locationDot, { backgroundColor: '#10B981' }]} />
+                      <Text style={styles.locationText} numberOfLines={1}>
+                        {order.pickup_drop_location['1']}
+                      </Text>
                     </View>
-                    <View style={styles.orderStatus}>
-                      <View style={[styles.statusBadge, { backgroundColor: `${getStatusColor(order.trip_status)}20` }]}>
-                        {getStatusIcon(order.trip_status)}
-                        <Text style={[styles.orderStatusText, { color: getStatusColor(order.trip_status) }]}>
-                          {getStatusText(order.trip_status)}
-                        </Text>
-                      </View>
+                  )}
+                </View>
+
+                {/* Status Information */}
+                <View style={styles.statusInfoContainer}>
+                  <View style={styles.statusInfoRow}>
+                    <View style={styles.statusItem}>
+                      <CheckCircle size={16} color={order.order_accept_status ? '#10B981' : '#9CA3AF'} />
+                      <Text style={[styles.statusItemText, { color: order.order_accept_status ? '#10B981' : '#9CA3AF' }]}>
+                        Order {order.order_accept_status ? 'Accepted' : 'Pending'}
+                      </Text>
+                    </View>
+                    
+                    <View style={styles.statusItem}>
+                      <Car size={16} color={order.Car_assigned ? '#10B981' : '#9CA3AF'} />
+                      <Text style={[styles.statusItemText, { color: order.Car_assigned ? '#10B981' : '#9CA3AF' }]}>
+                        Car {order.Car_assigned ? 'Assigned' : 'Not Assigned'}
+                      </Text>
                     </View>
                   </View>
-
-                  <View style={styles.orderDetails}>
-                    <View style={styles.locationRow}>
-                      <View style={styles.locationItem}>
-                        <View style={[styles.locationDot, { backgroundColor: '#3B82F6' }]} />
-                        <Text style={styles.locationText} numberOfLines={1}>
-                          {order.pickup_drop_location['0']}
-                        </Text>
-                      </View>
-                      {order.pickup_drop_location['1'] && (
-                        <View style={styles.locationItem}>
-                          <View style={[styles.locationDot, { backgroundColor: '#10B981' }]} />
-                          <Text style={styles.locationText} numberOfLines={1}>
-                            {order.pickup_drop_location['1']}
-                          </Text>
-                        </View>
-                      )}
+                  
+                  <View style={styles.statusInfoRow}>
+                    <View style={styles.statusItem}>
+                      <User size={16} color={order.Driver_assigned ? '#10B981' : '#9CA3AF'} />
+                      <Text style={[styles.statusItemText, { color: order.Driver_assigned ? '#10B981' : '#9CA3AF' }]}>
+                        Driver {order.Driver_assigned ? 'Assigned' : 'Not Assigned'}
+                      </Text>
                     </View>
-
-                    <View style={styles.orderMeta}>
-                      {order.trip_distance && (
-                        <View style={styles.metaItem}>
-                          <MapPin size={14} color="#6B7280" />
-                          <Text style={styles.metaText}>{order.trip_distance} km</Text>
-                        </View>
-                      )}
-                      <View style={styles.metaItem}>
-                        <Clock size={14} color="#6B7280" />
-                        <Text style={styles.metaText}>
-                          {order.trip_type === 'Hourly Rental' ? `${order.trip_time} hours` : order.trip_time}
-                        </Text>
-                      </View>
-                      <View style={styles.metaItem}>
-                        <DollarSign size={14} color="#6B7280" />
-                        <Text style={styles.metaText}>₹{order.vendor_price}</Text>
-                      </View>
-                    </View>
-
-                    {/* Price and Profit Information */}
-                    <View style={styles.priceInfo}>
-                      <View style={styles.priceRow}>
-                        <Text style={styles.priceLabel}>Estimated Price:</Text>
-                        <Text style={styles.estimatedPrice}>₹{order.estimated_price}</Text>
-                      </View>
-                      <View style={styles.priceRow}>
-                        <Text style={styles.priceLabel}>Your Price:</Text>
-                        <Text style={styles.vendorPrice}>₹{order.vendor_price}</Text>
-                      </View>
-                      <View style={styles.priceRow}>
-                        <Text style={styles.priceLabel}>Profit:</Text>
-                        <Text style={styles.profitText}>₹{order.vendor_price - order.estimated_price}</Text>
-                      </View>
-                    </View>
-
-                    <View style={styles.carInfo}>
-                      <Text style={styles.carTypeText}>{order.car_type} • {order.trip_type}</Text>
-                    </View>
-
-                    <View style={styles.orderActions}>
-                      <TouchableOpacity style={styles.viewButton}>
-                        <Eye size={16} color="#3B82F6" />
-                        <Text style={styles.viewButtonText}>View Details</Text>
-                      </TouchableOpacity>
+                    
+                    <View style={styles.statusItem}>
+                      <Clock size={16} color="#6B7280" />
+                      <Text style={styles.statusItemText}>
+                        Duration: {formatDuration(order.trip_time)}
+                      </Text>
                     </View>
                   </View>
-                </TouchableOpacity>
-              ))}
+                </View>
 
-              <TouchableOpacity style={styles.viewAllOrdersButton}>
-                <Text style={styles.viewAllOrdersText}>View All Orders</Text>
-                <ArrowRight size={20} color="#3B82F6" />
-              </TouchableOpacity>
-            </>
-          )}
+                <View style={styles.orderMeta}>
+                  <View style={styles.metaGroup}>
+                    <View style={styles.metaItem}>
+                      <Car size={14} color="#6B7280" />
+                      <Text style={styles.metaText}>{order.car_type}</Text>
+                    </View>
+                    {order.trip_distance && (
+                      <View style={styles.metaItem}>
+                        <MapPin size={14} color="#6B7280" />
+                        <Text style={styles.metaText}>{order.trip_distance} km</Text>
+                      </View>
+                    )}
+                    <View style={styles.metaItem}>
+                      <Calendar size={14} color="#6B7280" />
+                      <Text style={styles.metaText}>{order.trip_type}</Text>
+                    </View>
+                  </View>
+                  
+                  <Text style={styles.priceText}>₹{order.vendor_price}</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          ))}
         </View>
       </ScrollView>
+
+      {/* Filter Modal */}
+      <Modal
+        visible={filterModalVisible}
+        animationType="slide"
+        transparent={true}
+        onRequestClose={() => setFilterModalVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Filter Orders</Text>
+              <TouchableOpacity onPress={() => setFilterModalVisible(false)}>
+                <X size={24} color="#6B7280" />
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView style={styles.filterOptions}>
+              {/* Status Filter */}
+
+
+              {/* Trip Type Filter */}
+              <View style={styles.filterGroup}>
+                <Text style={styles.filterGroupTitle}>Trip Type</Text>
+                <View style={styles.filterButtons}>
+                  {['all', 'Oneway', 'Hourly Rental'].map((type) => (
+                    <TouchableOpacity
+                      key={type}
+                      style={[
+                        styles.filterButton,
+                        selectedFilters.tripType === type && styles.filterButtonActive
+                      ]}
+                      onPress={() => setSelectedFilters(prev => ({ ...prev, tripType: type }))}
+                    >
+                      <Text style={[
+                        styles.filterButtonText,
+                        selectedFilters.tripType === type && styles.filterButtonTextActive
+                      ]}>
+                        {type === 'all' ? 'All' : type}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+
+              {/* Accept Status Filter */}
+              <View style={styles.filterGroup}>
+                <Text style={styles.filterGroupTitle}>Accept Status</Text>
+                <View style={styles.filterButtons}>
+                  {['all', 'accepted', 'pending'].map((status) => (
+                    <TouchableOpacity
+                      key={status}
+                      style={[
+                        styles.filterButton,
+                        selectedFilters.acceptStatus === status && styles.filterButtonActive
+                      ]}
+                      onPress={() => setSelectedFilters(prev => ({ ...prev, acceptStatus: status }))}
+                    >
+                      <Text style={[
+                        styles.filterButtonText,
+                        selectedFilters.acceptStatus === status && styles.filterButtonTextActive
+                      ]}>
+                        {status === 'all' ? 'All' : status === 'accepted' ? 'Accepted' : 'Pending'}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </View>
+            </ScrollView>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity style={styles.clearButton} onPress={clearFilters}>
+                <Text style={styles.clearButtonText}>Clear All</Text>
+              </TouchableOpacity>
+              <TouchableOpacity 
+                style={styles.applyButton} 
+                onPress={() => setFilterModalVisible(false)}
+              >
+                <Text style={styles.applyButtonText}>Apply Filters</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -444,7 +554,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   retryButton: {
-    backgroundColor: '#3B82F6',
+    backgroundColor: '#6366F1',
     paddingHorizontal: 24,
     paddingVertical: 12,
     borderRadius: 8,
@@ -456,165 +566,131 @@ const styles = StyleSheet.create({
   },
   header: {
     paddingTop: 60,
+    paddingBottom: 20,
     paddingHorizontal: 20,
-    paddingBottom: 30,
   },
-  headerTop: {
+  headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  branchSection: {
-    flex: 1,
-  },
-  branchName: {
-    fontSize: 28,
-    fontWeight: 'bold',
-    color: '#FFFFFF',
+  welcomeText: {
+    fontSize: 16,
+    color: '#E2E8F0',
     marginBottom: 4,
   },
-  accountStatus: {
-    fontSize: 14,
-    color: '#E2E8F0',
+  companyName: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
   },
-  notificationButton: {
-    padding: 8,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.1)',
-    position: 'relative',
-  },
-  notificationBadge: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#EF4444',
-  },
-  newOrderBanner: {
-    flexDirection: 'row',
+  profileButton: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255,255,255,0.2)',
+    justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#EFF6FF',
-    paddingVertical: 12,
-    paddingHorizontal: 16,
-    marginHorizontal: 20,
-    marginTop: 10,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: '#D1FAE5',
-    borderLeftWidth: 5,
-    borderLeftColor: '#10B981',
   },
-  newOrderText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#065F46',
-    marginLeft: 8,
+  profileInitial: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#FFFFFF',
   },
   content: {
     flex: 1,
     paddingHorizontal: 20,
   },
-  statsContainer: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+  statsSection: {
     marginTop: 20,
-    marginBottom: 10,
-  },
-  statCard: {
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    flex: 0.48,
-    flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  statIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: '#EBF4FF',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  statContent: {
-    flex: 1,
-  },
-  statValue: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#1F2937',
-    marginBottom: 2,
-  },
-  statLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  ordersContainer: {
-    marginBottom: 30,
-    marginTop: 20,
+    marginBottom: 20,
   },
   sectionTitle: {
     fontSize: 20,
     fontWeight: 'bold',
     color: '#1F2937',
-    marginBottom: 4,
+    marginBottom: 12,
   },
-  ordersHeader: {
+  compactStatsGrid: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    marginBottom: 20,
+    gap: 8,
   },
-  sectionSubtitle: {
-    fontSize: 14,
+  compactStatCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 12,
+    flex: 1,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  statIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 8,
+    backgroundColor: '#EEF2FF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  compactStatValue: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#1F2937',
+    marginBottom: 2,
+  },
+  compactStatLabel: {
+    fontSize: 10,
     color: '#6B7280',
+    textAlign: 'center',
   },
-  ordersActions: {
+  searchFilterSection: {
     flexDirection: 'row',
     alignItems: 'center',
+    marginBottom: 20,
     gap: 12,
   },
-  actionIcon: {
-    padding: 8,
-    borderRadius: 8,
-    backgroundColor: '#F3F4F6',
-  },
-  emptyState: {
+  searchContainer: {
+    flex: 1,
+    flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 40,
-    paddingHorizontal: 20,
-  },
-  emptyStateText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#4B5563',
-    marginTop: 16,
-    marginBottom: 8,
-  },
-  emptyStateSubtext: {
-    fontSize: 14,
-    color: '#9CA3AF',
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  orderCard: {
     backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    padding: 20,
-    marginBottom: 16,
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
-    shadowRadius: 8,
+    shadowRadius: 4,
     elevation: 2,
+  },
+  searchIcon: {
+    marginRight: 12,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#1F2937',
+  },
+  clearSearch: {
+    padding: 4,
+  },
+  filterButton: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  ordersSection: {
+    marginBottom: 30,
   },
   orderHeader: {
     flexDirection: 'row',
@@ -622,24 +698,48 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
     marginBottom: 16,
   },
+  sectionSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  orderCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 16,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 10,
+    elevation: 3,
+  },
+  orderCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
   customerInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     flex: 1,
   },
   customerAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#3B82F6',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#6366F1',
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   customerInitial: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#FFFFFF',
+  },
+  customerDetails: {
+    flex: 1,
   },
   customerName: {
     fontSize: 16,
@@ -647,12 +747,14 @@ const styles = StyleSheet.create({
     color: '#1F2937',
     marginBottom: 2,
   },
-  orderTime: {
+  customerPhone: {
     fontSize: 12,
     color: '#6B7280',
+    marginBottom: 2,
   },
-  orderStatus: {
-    alignItems: 'flex-end',
+  orderTime: {
+    fontSize: 12,
+    color: '#9CA3AF',
   },
   statusBadge: {
     flexDirection: 'row',
@@ -662,15 +764,20 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 4,
   },
-  orderStatusText: {
+  statusDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  statusText: {
     fontSize: 12,
     fontWeight: '600',
   },
   orderDetails: {
-    gap: 16,
-  },
-  locationRow: {
     gap: 12,
+  },
+  locationContainer: {
+    gap: 8,
   },
   locationItem: {
     flexDirection: 'row',
@@ -687,98 +794,135 @@ const styles = StyleSheet.create({
     color: '#374151',
     flex: 1,
   },
+  statusInfoContainer: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 8,
+    padding: 12,
+    gap: 8,
+  },
+  statusInfoRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  statusItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    flex: 1,
+  },
+  statusItemText: {
+    fontSize: 12,
+    fontWeight: '500',
+  },
   orderMeta: {
     flexDirection: 'row',
-    gap: 20,
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  metaGroup: {
+    flexDirection: 'row',
+    gap: 16,
   },
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
   metaText: {
     fontSize: 12,
     color: '#6B7280',
   },
-  priceInfo: {
-    marginTop: 12,
-    paddingTop: 12,
-    borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
+  priceText: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#10B981',
   },
-  priceRow: {
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    paddingTop: 20,
+    maxHeight: '80%',
+  },
+  modalHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  priceLabel: {
-    fontSize: 12,
-    color: '#6B7280',
-  },
-  estimatedPrice: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#3B82F6',
-  },
-  vendorPrice: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#10B981',
-  },
-  profitText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#10B981',
-  },
-  carInfo: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: '#F3F4F6',
-    borderRadius: 8,
-    alignSelf: 'flex-start',
-  },
-  carTypeText: {
-    fontSize: 12,
-    fontWeight: '500',
-    color: '#6B7280',
-  },
-  orderActions: {
-    alignItems: 'flex-end',
-  },
-  viewButton: {
-    flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 8,
-    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 20,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
   },
-  viewButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#3B82F6',
+  modalTitle: {
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#1F2937',
   },
-  viewAllOrdersButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    paddingVertical: 16,
-    marginTop: 8,
-    borderWidth: 2,
-    borderColor: '#3B82F6',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+  filterOptions: {
+    paddingHorizontal: 20,
+    paddingVertical: 20,
   },
-  viewAllOrdersText: {
+  filterGroup: {
+    marginBottom: 24,
+  },
+  filterGroupTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#3B82F6',
-    marginRight: 8,
+    color: '#1F2937',
+    marginBottom: 12,
+  },
+  filterButtons: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  filterButtonActive: {
+    backgroundColor: '#6366F1',
+  },
+  filterButtonText: {
+    fontSize: 14,
+    color: '#6B7280',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
+  filterButtonTextActive: {
+    color: '#FFFFFF',
+  },
+  modalActions: {
+    flexDirection: 'row',
+    paddingHorizontal: 20,
+    paddingVertical: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    gap: 12,
+  },
+  clearButton: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  clearButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6B7280',
+  },
+  applyButton: {
+    flex: 1,
+    backgroundColor: '#6366F1',
+    borderRadius: 12,
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  applyButtonText: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#FFFFFF',
   },
 });

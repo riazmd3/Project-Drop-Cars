@@ -10,7 +10,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import api from '../../app/api/api'; // Adjust the path as necessary
-import { User, Package, DollarSign, TrendingUp, Calendar, Settings, CircleHelp as HelpCircle, Info, LogOut, Bell, Shield, Star, Phone, Mail, Globe, FileText, CreditCard, Clock, Award, ChevronRight, Wallet } from 'lucide-react-native';
+import { User, Package, DollarSign, TrendingUp, Calendar,ArrowRight, Settings, CircleHelp as HelpCircle, Info, LogOut, Bell, Shield, Star, Phone, Mail, Globe, FileText, CreditCard, Clock, Award, ChevronRight, Wallet } from 'lucide-react-native';
 
 interface VendorData {
   id: string;
@@ -73,12 +73,12 @@ export default function MenuScreen() {
       action: () => router.push('/(menu)/orders'),
     },
     {
-      id: 'earnings',
-      title: 'Earnings',
+      id: 'Statement',
+      title: 'Statement',
       subtitle: 'Track your income',
       icon: DollarSign,
       iconColor: '#60A5FA',
-      action: () => console.log('Navigate to Earnings'),
+      action: () => router.push('/(menu)/wallet'),
     },
     {
       id: 'settings',
@@ -191,7 +191,7 @@ export default function MenuScreen() {
                       <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
                     </View>
                   </View>
-                  <ChevronRight size={16} color="#9CA3AF" />
+                 <ArrowRight size={20} color="#9ca3af" />
                 </TouchableOpacity>
               ))}
             </View>
@@ -250,7 +250,7 @@ export default function MenuScreen() {
                 <Text style={styles.appName}>Drop Cars Vendor</Text>
                 <Text style={styles.appVersion}>Version 1.0.0</Text>
                 <Text style={styles.appDescription}>
-                  Professional delivery management app for vendors. Manage your bookings, track earnings, and grow your business.
+                  Professional delivery management app for vendors. Manage your bookings, track Statement, and grow your business.
                 </Text>
               </View>
             </View>
@@ -427,7 +427,7 @@ const styles = StyleSheet.create({
   menuIcon: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -437,9 +437,9 @@ const styles = StyleSheet.create({
   },
   menuTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 2,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 4,
   },
   menuSubtitle: {
     fontSize: 12,

@@ -32,6 +32,12 @@
     },
     "android": {
       "package": "com.pugazheas.dropcarsvendor"
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/6ad24ec4-662c-4da2-bc6e-17b09235aab1"
     }
   }
 }
