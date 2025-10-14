@@ -44,7 +44,7 @@ export const startTrip = async (orderId: number, startKm?: number, imgUri?: stri
       hasImage: !!imgUri
     });
     
-    const response = await axiosDriver.post(`/api/orders/driver/start-trip/${orderId}`, form, { 
+    const response = await axiosDriver.post(`/api/assignments/driver/start-trip/${orderId}`, form, { 
       headers: { 
         'Content-Type': 'multipart/form-data' 
       } 
@@ -115,20 +115,19 @@ export const endTrip = async (orderId: number, endKm?: number, contact?: string,
       console.log('💰 Toll charge update flag:', tollChargeUpdate);
     }
     
-    // Add updated toll charges - only when toll_charge_update is false
-    // When false, the quick driver needs to put the toll charge in this parameter
-    if (tollChargeUpdate === false) {
+    // Add updated toll charges - only when toll_charge_update is true (per latest spec)
+    if (tollChargeUpdate === true) {
       if (tollCharges !== undefined && tollCharges >= 0) {
         form.append('updated_toll_charges', String(tollCharges));
-        console.log('💰 Adding updated toll charges (toll_charge_update=false):', tollCharges);
+        console.log('💰 Adding updated toll charges (toll_charge_update=true):', tollCharges);
       } else {
-        // Send null when toll_charge_update is false but no amount provided
+        // Send empty to indicate no value when required field is missing
         form.append('updated_toll_charges', '');
-        console.log('💰 Toll charge update is false but no amount provided, sending null');
+        console.log('💰 Toll charge update is true but no amount provided, sending empty');
       }
-    } else if (tollChargeUpdate === true) {
-      // When true, toll charges are handled automatically, don't send updated_toll_charges
-      console.log('💰 Toll charge update is true, not sending updated_toll_charges');
+    } else {
+      // When false, do not send updated_toll_charges
+      console.log('💰 Toll charge update is false, not sending updated_toll_charges');
     }
     
     console.log('📤 Sending end trip request:', {
@@ -139,7 +138,7 @@ export const endTrip = async (orderId: number, endKm?: number, contact?: string,
       tollChargeUpdate
     });
     
-    const response = await axiosDriver.post(`/api/assignments/driver/end-trip/${orderId}`, form, { 
+    const response = await axiosDriver.post(`/api/orders/driver/end-trip/${orderId}`, form, { 
       headers: { 
         'Content-Type': 'multipart/form-data' 
       } 
@@ -191,7 +190,7 @@ export const getDriverAssignedOrderReport = async (orderId: number): Promise<any
     console.log('🧾 Fetching driver assigned order report for order:', orderId);
     // Ensure driver bearer is attached explicitly (in addition to interceptor)
     const token = await SecureStore.getItemAsync('driverAuthToken');
-    const response = await axiosDriver.get(`/api/orders/driver/assigned-orders/${orderId}`, {
+    const response = await axiosDriver.get(`/api/assignments/driver/assigned-orders/${orderId}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });
     const data = Array.isArray(response.data) ? response.data : [];

@@ -12,10 +12,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useWallet } from '@/contexts/WalletContext';
 import { Camera, ArrowLeft, Check, IndianRupee } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { endTrip, getDriverAssignedOrderReport } from '@/services/driver/carDriverService';
+import { endTrip } from '@/services/driver/carDriverService';
 import LoadingOverlay from '@/components/LoadingOverlay';
 
 export default function EndTripScreen() {
@@ -25,7 +24,6 @@ export default function EndTripScreen() {
   const [thanked, setThanked] = useState(false);
   const [tollCharge, setTollCharge] = useState('');
   const [tollChargeUpdate, setTollChargeUpdate] = useState(false);
-  const { deductMoney } = useWallet();
   const router = useRouter();
   const params = useLocalSearchParams<{ 
     order_id?: string; 
@@ -85,8 +83,8 @@ export default function EndTripScreen() {
       return;
     }
 
-    // Check toll charge if update is required (when toll_charge_update is false)
-    if (tollChargeUpdate === false && (!tollCharge || parseFloat(tollCharge) < 0)) {
+    // Toll must be entered ONLY if tollChargeUpdate is true
+    if (tollChargeUpdate === true && (!tollCharge || parseFloat(tollCharge) < 0)) {
       Alert.alert('Error', 'Please enter a valid toll charge amount.');
       return;
     }
@@ -114,47 +112,18 @@ export default function EndTripScreen() {
           parseInt(endKm, 10), 
           dummyContact, 
           odometerPhoto, 
-          tollChargeUpdate === false ? parseFloat(tollCharge) : undefined,
+          tollChargeUpdate === true ? parseFloat(tollCharge) : undefined,
           tollChargeUpdate
         );
       } else {
         console.warn('No assignment_id provided to end trip; finishing without API call');
       }
 
-      // Deduct commission (ignore backend errors for missing route)
-      try {
-        await deductMoney(50, 'Trip Commission');
-      } catch (e) {
-        console.warn('Commission deduction failed, continuing:', (e as any)?.message);
-      }
-
-      const tollMessage = tollChargeUpdate === false ? `\nToll Charges: ₹${tollCharge}` : '';
-
-      // Fetch assigned order report to show collection details
-      let reportLine = '';
-      try {
-        const assigned = await getDriverAssignedOrderReport(parseInt(String(params.order_id || '0')));
-        if (Array.isArray(assigned) && assigned.length > 0) {
-          const r = assigned[0];
-          const reportTotalKm = r.total_km ?? (tripEndResponse?.total_km || totalKm);
-          const customerPrice = r.customer_price ?? 0;
-          const updatedToll = r.updated_toll_charge ?? r.toll_charges ?? null;
-          reportLine = `Distance: ${reportTotalKm} km\nCustomer To Pay: ₹${customerPrice}` + (updatedToll != null ? `\nUpdated Toll: ₹${updatedToll}` : '');
-        }
-      } catch (e: any) {
-        console.warn('Assigned order report fetch failed:', e?.message || e);
-      }
-
-      const finalDistance = tripEndResponse?.total_km || totalKm;
-      const baseMessage = reportLine
-        ? `Trip completed successfully!\n\n${reportLine}${tollMessage}`
-        : `Trip completed successfully!\n\nDistance: ${finalDistance} km${tollMessage}`;
-
-      Alert.alert(
-        'Trip Completed',
-        baseMessage,
-        [{ text: 'OK', onPress: () => router.replace('/quick-dashboard') }]
-      );
+      // Navigate to trip report screen (shows collection details)
+      router.replace({
+        pathname: '/trip/report',
+        params: { order_id: String(params.order_id || '0') }
+      });
     } catch (error: any) {
       Alert.alert('Error', error.message || 'Failed to end trip');
     } finally {
@@ -250,8 +219,8 @@ export default function EndTripScreen() {
           />
         </View>
 
-        {/* Toll Charge Input - Only show if toll_charge_update is false */}
-        {tollChargeUpdate === false && (
+        {/* Toll Charge Input - Only show if toll_charge_update is true */}
+        {tollChargeUpdate === true && (
           <View style={styles.inputSection}>
             <Text style={styles.sectionTitle}>Toll Charges</Text>
             <TextInput
@@ -268,7 +237,10 @@ export default function EndTripScreen() {
         )}
 
         <TouchableOpacity
-          style={[styles.endButton, (!endKm || !odometerPhoto || !thanked || (tollChargeUpdate === false && !tollCharge) || submitting) && styles.disabledButton]}
+          style={[
+            styles.endButton,
+            (!endKm || !odometerPhoto || !thanked || (tollChargeUpdate === false && !tollCharge) || submitting) && styles.disabledButton,
+          ]}
           onPress={handleEndTrip}
           disabled={!endKm || !odometerPhoto || !thanked || (tollChargeUpdate === false && !tollCharge) || submitting}
         >
