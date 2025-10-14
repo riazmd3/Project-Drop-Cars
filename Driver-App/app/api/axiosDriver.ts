@@ -2,7 +2,7 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
 // Use same API base as VO
-const API_BASE_URL = 'http://10.153.75.145:8000';
+const API_BASE_URL = 'https://drop-cars-api-1049299844333.asia-south2.run.app/';
 
 const axiosDriver = axios.create({
   baseURL: API_BASE_URL,

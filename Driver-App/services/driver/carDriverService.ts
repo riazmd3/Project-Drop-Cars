@@ -35,8 +35,7 @@ export const startTrip = async (orderId: number, startKm?: number, imgUri?: stri
     form.append('speedometer_img', { 
       uri: imgUri, 
       name: 'speedometer.jpg', 
-      type: 'image/jpeg',
-      fileName: 'speedometer.jpg'
+      type: 'image/jpeg' 
     } as any); // string($binary) - required
     
     console.log('📤 Sending start trip request:', {
@@ -44,16 +43,12 @@ export const startTrip = async (orderId: number, startKm?: number, imgUri?: stri
       startKm,
       hasImage: !!imgUri
     });
-
-    const response = await axiosDriver.post(
-      `/api/assignments/driver/start-trip/${orderId}`,
-      form,
-      {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      }
-    );
+    
+    const response = await axiosDriver.post(`/api/orders/driver/start-trip/${orderId}`, form, { 
+      headers: { 
+        'Content-Type': 'multipart/form-data' 
+      } 
+    });
     
     console.log('✅ Trip started successfully:', response.data);
     
@@ -111,8 +106,7 @@ export const endTrip = async (orderId: number, endKm?: number, contact?: string,
     form.append('close_speedometer_img', { 
       uri: imgUri, 
       name: 'close_speedometer.jpg', 
-      type: 'image/jpeg',
-      fileName: 'close_speedometer.jpg'
+      type: 'image/jpeg' 
     } as any); // string($binary) - required
     
     // Add toll charge update flag if provided
@@ -197,7 +191,7 @@ export const getDriverAssignedOrderReport = async (orderId: number): Promise<any
     console.log('🧾 Fetching driver assigned order report for order:', orderId);
     // Ensure driver bearer is attached explicitly (in addition to interceptor)
     const token = await SecureStore.getItemAsync('driverAuthToken');
-    const response = await axiosDriver.get(`/api/assignments/driver/assigned-orders/${orderId}`, {
+    const response = await axiosDriver.get(`/api/orders/driver/assigned-orders/${orderId}`, {
       headers: token ? { Authorization: `Bearer ${token}` } : undefined,
     });
     const data = Array.isArray(response.data) ? response.data : [];
