@@ -15,7 +15,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useWallet } from '@/contexts/WalletContext';
 import { Camera, ArrowLeft, Check, IndianRupee } from 'lucide-react-native';
 import * as ImagePicker from 'expo-image-picker';
-import { endTrip } from '@/services/driver/carDriverService';
+import { endTrip, getDriverAssignedOrderReport } from '@/services/driver/carDriverService';
 import LoadingOverlay from '@/components/LoadingOverlay';
 
 export default function EndTripScreen() {
@@ -129,16 +129,30 @@ export default function EndTripScreen() {
       }
 
       const tollMessage = tollChargeUpdate === false ? `\nToll Charges: ₹${tollCharge}` : '';
-      
-      // Use API response data if available, otherwise use calculated values
-      const finalTotalKm = tripEndResponse?.total_km || totalKm;
-      const finalCalculatedFare = tripEndResponse?.calculated_fare || totalFare;
-      const driverAmount = tripEndResponse?.driver_amount || (totalFare - 50);
-      const vehicleOwnerAmount = tripEndResponse?.vehicle_owner_amount || 50;
-      
+
+      // Fetch assigned order report to show collection details
+      let reportLine = '';
+      try {
+        const assigned = await getDriverAssignedOrderReport(parseInt(String(params.order_id || '0')));
+        if (Array.isArray(assigned) && assigned.length > 0) {
+          const r = assigned[0];
+          const reportTotalKm = r.total_km ?? (tripEndResponse?.total_km || totalKm);
+          const customerPrice = r.customer_price ?? 0;
+          const updatedToll = r.updated_toll_charge ?? r.toll_charges ?? null;
+          reportLine = `Distance: ${reportTotalKm} km\nCustomer To Pay: ₹${customerPrice}` + (updatedToll != null ? `\nUpdated Toll: ₹${updatedToll}` : '');
+        }
+      } catch (e: any) {
+        console.warn('Assigned order report fetch failed:', e?.message || e);
+      }
+
+      const finalDistance = tripEndResponse?.total_km || totalKm;
+      const baseMessage = reportLine
+        ? `Trip completed successfully!\n\n${reportLine}${tollMessage}`
+        : `Trip completed successfully!\n\nDistance: ${finalDistance} km${tollMessage}`;
+
       Alert.alert(
         'Trip Completed',
-        `Trip completed successfully!\n\nDistance: ${finalTotalKm} km\nTotal Fare: ₹${finalCalculatedFare}${tollMessage}\nDriver Amount: ₹${driverAmount}\nVehicle Owner Amount: ₹${vehicleOwnerAmount}`,
+        baseMessage,
         [{ text: 'OK', onPress: () => router.replace('/quick-dashboard') }]
       );
     } catch (error: any) {

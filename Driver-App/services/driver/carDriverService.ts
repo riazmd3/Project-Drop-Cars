@@ -35,7 +35,8 @@ export const startTrip = async (orderId: number, startKm?: number, imgUri?: stri
     form.append('speedometer_img', { 
       uri: imgUri, 
       name: 'speedometer.jpg', 
-      type: 'image/jpeg' 
+      type: 'image/jpeg',
+      fileName: 'speedometer.jpg'
     } as any); // string($binary) - required
     
     console.log('📤 Sending start trip request:', {
@@ -43,12 +44,16 @@ export const startTrip = async (orderId: number, startKm?: number, imgUri?: stri
       startKm,
       hasImage: !!imgUri
     });
-    
-    const response = await axiosDriver.post(`/api/assignments/driver/start-trip/${orderId}`, form, { 
-      headers: { 
-        'Content-Type': 'multipart/form-data' 
-      } 
-    });
+
+    const response = await axiosDriver.post(
+      `/api/assignments/driver/start-trip/${orderId}`,
+      form,
+      {
+        headers: {
+          'Content-Type': 'multipart/form-data'
+        }
+      }
+    );
     
     console.log('✅ Trip started successfully:', response.data);
     
@@ -106,7 +111,8 @@ export const endTrip = async (orderId: number, endKm?: number, contact?: string,
     form.append('close_speedometer_img', { 
       uri: imgUri, 
       name: 'close_speedometer.jpg', 
-      type: 'image/jpeg' 
+      type: 'image/jpeg',
+      fileName: 'close_speedometer.jpg'
     } as any); // string($binary) - required
     
     // Add toll charge update flag if provided
@@ -155,9 +161,6 @@ export const endTrip = async (orderId: number, endKm?: number, contact?: string,
         end_km: response.data.end_km,
         close_speedometer_img_url: response.data.close_speedometer_img_url,
         total_km: response.data.total_km,
-        calculated_fare: response.data.calculated_fare,
-        driver_amount: response.data.driver_amount,
-        vehicle_owner_amount: response.data.vehicle_owner_amount
       });
     }
     
@@ -181,6 +184,48 @@ export const endTrip = async (orderId: number, endKm?: number, contact?: string,
       }
     }
     
+    throw error;
+  }
+};
+
+/**
+ * Get driver assigned order report for a specific order
+ * GET /api/orders/driver/assigned-orders/{order_id} 
+ */
+export const getDriverAssignedOrderReport = async (orderId: number): Promise<any[]> => {
+  try {
+    console.log('🧾 Fetching driver assigned order report for order:', orderId);
+    // Ensure driver bearer is attached explicitly (in addition to interceptor)
+    const token = await SecureStore.getItemAsync('driverAuthToken');
+    const response = await axiosDriver.get(`/api/assignments/driver/assigned-orders/${orderId}`, {
+      headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+    });
+    const data = Array.isArray(response.data) ? response.data : [];
+    if (data.length > 0) {
+      const s = data[0];
+      console.log('📄 Assigned order report sample:', {
+        order_id: s.order_id,
+        total_km: s.total_km,
+        customer_price: s.customer_price,
+        updated_toll_charge: s.updated_toll_charge,
+        toll_charges: s.toll_charges,
+      });
+    }
+    return data;
+  } catch (error: any) {
+    console.error('❌ Failed to fetch driver assigned order report:', error);
+    if (error.response?.status === 422) {
+      const validationErrors = error.response.data?.detail || [];
+      if (Array.isArray(validationErrors)) {
+        const errorMessages = validationErrors.map((err: any) => err.msg || err.message).join(', ');
+        throw new Error(`Validation error: ${errorMessages}`);
+      } else {
+        throw new Error(`Validation error: ${error.response.data?.detail}`);
+      }
+    }
+    if (error.response?.status === 401) {
+      throw new Error('Authentication failed. Please login again.');
+    }
     throw error;
   }
 };
