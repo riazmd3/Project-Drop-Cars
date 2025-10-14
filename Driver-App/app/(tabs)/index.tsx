@@ -832,7 +832,7 @@ export default function DashboardScreen() {
                     <Text style={{
                       fontFamily: 'Inter-SemiBold',
                       color: availableTab === 'multicity' ? colors.primary : colors.textSecondary
-                    }}>Multicity ({multiTabCount})</Text>
+                    }}>Near City ({multiTabCount})</Text>
                   </TouchableOpacity>
                 </View>
 
@@ -960,6 +960,11 @@ export default function DashboardScreen() {
                           trip_distance: Number(order.trip_distance ?? 0),
                           fare_per_km: Number(order.cost_per_km ?? 0),
                           car_type: String(order.car_type || ''),
+                          trip_type: String(order.trip_type || ''),
+                          pick_near_city: String((order as any).pick_near_city || (order as any).near_city || ''),
+                          start_date_time: String(order.start_date_time || ''),
+                          trip_time: String(order.trip_time || ''),
+                          // created_at, max_time_to_assign_order, expires_at are inside card via (any)
                         }}
                         onAccept={() => handleAcceptBooking(order)}
                         disabled={!canAcceptOrder(order) || processingOrderId === order.order_id.toString()}

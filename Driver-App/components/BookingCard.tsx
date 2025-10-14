@@ -19,6 +19,10 @@ interface Booking {
   trip_distance?: number;
   fare_per_km?: number;
   car_type?: string;
+  trip_type?: string;
+  pick_near_city?: string;
+  start_date_time?: string;
+  trip_time?: string;
 }
 
 interface BookingCardProps {
@@ -55,6 +59,27 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
   const displayPrice = toNumber((booking as any).estimated_price ?? (booking as any).vendor_price ?? (booking as any).total_fare);
   const customerNumber = (booking as any).customer_number || (booking as any).customer_mobile || '';
   const carType = (booking as any).car_type || booking.car_type || '';
+  const tripType = (booking as any).trip_type || booking.trip_type || '';
+  const nearCity = (booking as any).pick_near_city || (booking as any).near_city || '';
+  const startDateTime = (booking as any).start_date_time || '';
+  const estimatedTime = (booking as any).trip_time || booking.trip_time || '';
+  const createdAt = (booking as any).created_at || '';
+  const maxAssignMs = Number((booking as any).max_time_to_assign_order || 0);
+  const expiresAt = (booking as any).expires_at || '';
+  const computeDeadline = (): string => {
+    try {
+      if (expiresAt) {
+        const d = new Date(expiresAt);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+      if (createdAt && maxAssignMs > 0) {
+        const d = new Date(new Date(createdAt).getTime() + maxAssignMs);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+    } catch {}
+    return '';
+  };
+  const deadlineTime = computeDeadline();
   const dynamicStyles = StyleSheet.create({
     card: {
       backgroundColor: colors.surface,
@@ -201,6 +226,36 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
           <View style={dynamicStyles.detailRow}>
             <Car color={colors.textSecondary} size={14} />
             <Text style={dynamicStyles.detailText}>Car Type: {carType}</Text>
+          </View>
+        )}
+        {!!tripType && (
+          <View style={dynamicStyles.detailRow}>
+            <Clock color={colors.textSecondary} size={14} />
+            <Text style={dynamicStyles.detailText}>Trip: {tripType}</Text>
+          </View>
+        )}
+        {!!nearCity && (
+          <View style={dynamicStyles.detailRow}>
+            <MapPin color={colors.textSecondary} size={14} />
+            <Text style={dynamicStyles.detailText}>City: {nearCity}</Text>
+          </View>
+        )}
+        {!!startDateTime && (
+          <View style={dynamicStyles.detailRow}>
+            <Clock color={colors.textSecondary} size={14} />
+            <Text style={dynamicStyles.detailText}>Start: {new Date(startDateTime).toLocaleString()}</Text>
+          </View>
+        )}
+        {!!estimatedTime && (
+          <View style={dynamicStyles.detailRow}>
+            <Clock color={colors.textSecondary} size={14} />
+            <Text style={dynamicStyles.detailText}>Estimated time: {estimatedTime}</Text>
+          </View>
+        )}
+        {!!deadlineTime && (
+          <View style={dynamicStyles.detailRow}>
+            <Clock color={colors.textSecondary} size={14} />
+            <Text style={dynamicStyles.detailText}>Max assign by: {deadlineTime}</Text>
           </View>
         )}
       </View>

@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { 
   MapPin, 
   User, 
@@ -160,6 +161,16 @@ export default function QuickDashboardScreen() {
       
       setDriverOrders(mappedOrders);
       console.log('✅ Driver data loaded:', mappedOrders.length, 'orders');
+
+      // Derive active trip and status
+      const drivingOrder = mappedOrders.find((o: any) => String(o.assignment_status).toUpperCase() === 'DRIVING');
+      if (drivingOrder) {
+        setActiveTrip(drivingOrder);
+        setDriverStatus('DRIVING');
+      } else {
+        setActiveTrip(null);
+        if (driverStatus === 'DRIVING') setDriverStatus('ONLINE');
+      }
       
     } catch (error: any) {
       console.error('❌ Failed to load driver data:', error);
@@ -194,6 +205,14 @@ export default function QuickDashboardScreen() {
       setLoading(false);
     }
   }, [user?.id, router]);
+
+  // Refresh when screen gains focus
+  useFocusEffect(
+    useCallback(() => {
+      loadDriverData();
+      return () => {};
+    }, [loadDriverData])
+  );
 
   // New API functions for driver status
   const setDriverOnlineAPI = async () => {
@@ -431,6 +450,10 @@ export default function QuickDashboardScreen() {
           toll_charge_update: order.toll_charge_update ? 'true' : 'false',
         }
       });
+
+      // Optimistically set active trip and status
+      setActiveTrip(order);
+      setDriverStatus('DRIVING');
     } catch (error) {
       console.error('❌ Error starting trip:', error);
       Alert.alert('Error', 'Failed to start trip');
@@ -461,6 +484,10 @@ export default function QuickDashboardScreen() {
           toll_charge_update: order.toll_charge_update ? 'true' : 'false', // Pass toll charge update flag
         }
       });
+
+      // Optimistically clear active trip and status
+      setActiveTrip(null);
+      setDriverStatus('ONLINE');
     } catch (error) {
       console.error('❌ Error ending trip:', error);
       Alert.alert('Error', 'Failed to end trip');
@@ -471,17 +498,37 @@ export default function QuickDashboardScreen() {
   }, [router, isLoading, tripActionLoading]);
 
   const navigateToTrip = useCallback((order: DriverOrder) => {
-    router.push({
-      pathname: '/trip/start',
-      params: {
-        assignment_id: order.assignment_id,
-        order_id: order.order_id,
-        customerName: order.customer_name,
-        pickup: order.pickup,
-        drop: order.drop,
-      }
-    });
-  }, [router]);
+    const isThisActive = activeTrip && activeTrip.order_id === order.order_id;
+    const isDriving = String(order.assignment_status).toUpperCase() === 'DRIVING';
+    if (isThisActive || isDriving) {
+      router.push({
+        pathname: '/trip/end',
+        params: {
+          assignment_id: order.assignment_id,
+          order_id: order.order_id,
+          customerName: order.customer_name,
+          pickup: order.pickup,
+          drop: order.drop,
+          startKm: '0',
+          farePerKm: '0',
+          toll_charge_update: order.toll_charge_update ? 'true' : 'false',
+        }
+      });
+    } else {
+      router.push({
+        pathname: '/trip/start',
+        params: {
+          assignment_id: order.assignment_id,
+          order_id: order.order_id,
+          customerName: order.customer_name,
+          pickup: order.pickup,
+          drop: order.drop,
+          farePerKm: String(order.total_fare || 0),
+          toll_charge_update: order.toll_charge_update ? 'true' : 'false',
+        }
+      });
+    }
+  }, [router, activeTrip]);
 
   const formatDateTime = (dateTime: string) => {
     const date = new Date(dateTime);

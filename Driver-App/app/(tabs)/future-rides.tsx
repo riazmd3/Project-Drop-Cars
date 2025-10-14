@@ -97,6 +97,24 @@ export default function FutureRidesScreen() {
     }
   };
 
+  // Simple search state
+  const [search, setSearch] = useState('');
+  const normalized = (s: string) => String(s || '').toLowerCase();
+  const filteredFutureRides = futureRides.filter((r) => {
+    const q = normalized(search);
+    if (!q) return true;
+    return [
+      r.customer_name,
+      r.customer_number,
+      r.trip_type,
+      r.car_type,
+      r.pick_near_city,
+      r.start_date_time,
+      r.trip_time,
+      r.source,
+    ].some((v: any) => normalized(v).includes(q));
+  });
+
   // Refresh function for pull-to-refresh
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -429,7 +447,26 @@ export default function FutureRidesScreen() {
           renderErrorState()
         ) : futureRides.length > 0 ? (
           <View style={styles.ridesContainer}>
-            {futureRides.map(renderRideCard)}
+            {/* Search input */}
+            <View style={{
+              borderWidth: 1,
+              borderColor: colors.border,
+              borderRadius: 8,
+              paddingHorizontal: 12,
+              paddingVertical: 8,
+              marginBottom: 12,
+              backgroundColor: colors.surface,
+            }}>
+              <TextInput
+                placeholder="Search rides..."
+                placeholderTextColor={colors.textSecondary}
+                value={search}
+                onChangeText={setSearch}
+                style={{ color: colors.text }}
+              />
+            </View>
+
+            {filteredFutureRides.map(renderRideCard)}
           </View>
         ) : (
           renderEmptyState()
