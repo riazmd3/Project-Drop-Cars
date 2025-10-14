@@ -34,5 +34,5 @@ yarn-error.*
 # typescript
 *.tsbuildinfo
 
-# Ignore everything in android except google-services.json
-
+android/
+!android/app/google-services.json
