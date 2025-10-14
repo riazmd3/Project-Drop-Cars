@@ -329,7 +329,7 @@ export default function AddDriverScreen() {
         <View style={styles.form}>
           <Text style={styles.sectionTitle}>Driver Details</Text>
           
-          <View style={styles.inputGroup}>
+          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }] }>
             <User color="#6B7280" size={20} />
             <TextInput
               style={[styles.input, { color: colors.text }, errors.full_name && styles.inputError]}
@@ -340,7 +340,7 @@ export default function AddDriverScreen() {
           </View>
           {errors.full_name && <Text style={styles.errorText}>{errors.full_name}</Text>}
 
-          <View style={styles.inputGroup}>
+          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }] }>
             <Phone color="#6B7280" size={20} />
             <TextInput
               style={[styles.input, { color: colors.text }, errors.primary_number && styles.inputError]}
@@ -355,7 +355,7 @@ export default function AddDriverScreen() {
             Enter your mobile number exactly as you want it stored
           </Text>
 
-          <View style={styles.inputGroup}>
+          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }] }>
             <Phone color="#6B7280" size={20} />
             <TextInput
               style={[styles.input, { color: colors.text }, errors.secondary_number && styles.inputError]}
@@ -366,7 +366,7 @@ export default function AddDriverScreen() {
             />
           </View>
 
-          <View style={styles.inputGroup}>
+          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }] }>
             <Lock color="#6B7280" size={20} />
             <TextInput
               style={[styles.input, { color: colors.text }, errors.password && styles.inputError]}
@@ -378,7 +378,7 @@ export default function AddDriverScreen() {
           </View>
           {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
 
-          <View style={styles.inputGroup}>
+          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }] }>
             <CreditCard color="#6B7280" size={20} />
             <TextInput
               style={[styles.input, { color: colors.text }, errors.licence_number && styles.inputError]}
@@ -393,7 +393,7 @@ export default function AddDriverScreen() {
             Enter your driving licence number exactly as it appears on your licence
           </Text>
 
-          <View style={styles.inputGroup}>
+          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }] }>
             <MapPin color="#6B7280" size={20} />
             <TextInput
               style={[styles.input, { color: colors.text }, errors.adress && styles.inputError]}

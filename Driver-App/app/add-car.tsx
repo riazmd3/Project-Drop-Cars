@@ -262,10 +262,10 @@ export default function AddCarScreen() {
         <View style={styles.form}>
           <Text style={styles.sectionTitle}>Car Details</Text>
           
-          <View style={styles.inputGroup}>
+          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }] }>
             <Car color="#6B7280" size={20} />
             <TextInput
-              style={[styles.input, errors.name && styles.inputError]}
+              style={[styles.input, { color: colors.text }, errors.name && styles.inputError]}
               placeholder="Car Name (e.g., Toyota Camry)"
               placeholderTextColor="#9CA3AF"
               value={carData.name}
@@ -274,20 +274,20 @@ export default function AddCarScreen() {
           </View>
           {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
 
-          <View style={styles.inputGroup}>
+          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }] }>
             <Car color="#6B7280" size={20} />
             <TouchableOpacity 
               style={[styles.dropdownButton, errors.type && styles.inputError]}
               onPress={() => setShowTypeDropdown(!showTypeDropdown)}
             >
-              <Text style={[styles.dropdownText, !carData.type && styles.placeholderText]}>
+              <Text style={[styles.dropdownText, { color: colors.text }, !carData.type && styles.placeholderText]}>
                 {carData.type || 'Select Car Type'}
               </Text>
               <ChevronDown color="#6B7280" size={20} />
             </TouchableOpacity>
           </View>
           {showTypeDropdown && (
-            <View style={styles.dropdown}>
+            <View style={[styles.dropdown, { backgroundColor: colors.surface, borderColor: colors.border }] }>
               {carTypes.map((type) => (
                 <TouchableOpacity
                   key={type}
@@ -298,17 +298,17 @@ export default function AddCarScreen() {
                     if (errors.type) setErrors(prev => ({ ...prev, type: '' }));
                   }}
                 >
-                  <Text style={styles.dropdownItemText}>{type}</Text>
+                  <Text style={[styles.dropdownItemText, { color: colors.text }]}>{type}</Text>
                 </TouchableOpacity>
               ))}
             </View>
           )}
           {errors.type && <Text style={styles.errorText}>{errors.type}</Text>}
 
-          <View style={styles.inputGroup}>
+          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Car color="#6B7280" size={20} />
             <TextInput
-              style={[styles.input, errors.registration && styles.inputError]}
+              style={[styles.input, { color: colors.text }, errors.registration && styles.inputError]}
               placeholder="Registration Number (e.g., MH 12 AB 1234)"
               placeholderTextColor="#9CA3AF"
               value={carData.registration}
@@ -321,10 +321,10 @@ export default function AddCarScreen() {
             Enter your car registration number exactly as it appears on your RC
           </Text>
 
-          <View style={styles.inputGroup}>
+          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Car color="#6B7280" size={20} />
             <TextInput
-              style={[styles.input, errors.year && styles.inputError]}
+              style={[styles.input, { color: colors.text }, errors.year && styles.inputError]}
               placeholder="Model Year (e.g., 2023)"
               placeholderTextColor="#9CA3AF"
               value={carData.year}
@@ -335,10 +335,10 @@ export default function AddCarScreen() {
           </View>
           {errors.year && <Text style={styles.errorText}>{errors.year}</Text>}
 
-          <View style={styles.inputGroup}>
+          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Car color="#6B7280" size={20} />
             <TextInput
-              style={styles.input}
+              style={[styles.input, { color: colors.text }]}
               placeholder="Color (e.g., White, Black, Red)"
               placeholderTextColor="#9CA3AF"
               value={carData.color}
