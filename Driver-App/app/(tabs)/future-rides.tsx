@@ -530,7 +530,24 @@ export default function FutureRidesScreen() {
                   </Text>
                 </View>
               ) : availableCars.length > 0 ? (
-                availableCars.map((car) => (
+                // Filter cars by seat capacity: allow same or greater class than order's car_type
+                (availableCars
+                  .filter((car) => {
+                    if (!selectedRide) return true;
+                    const rank = (type: string) => {
+                      switch ((type || '').toUpperCase()) {
+                        case 'HATCHBACK': return 1; // 4–5 seats
+                        case 'SEDAN':
+                        case 'NEW_SEDAN': return 2; // 5 seats
+                        case 'SUV': return 3; // 5–7 seats
+                        case 'INNOVA': return 4; // 7 seats
+                        case 'INNOVA_CRYSTA': return 5; // 7–8 seats
+                        default: return 0;
+                      }
+                    };
+                    return rank(car.car_type) >= rank(selectedRide.car_type);
+                  }))
+                  .map((car) => (
                   <TouchableOpacity
                     key={car.id}
                     style={[styles.carCard, { backgroundColor: colors.background }]}

@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
-import { MapPin, Clock, IndianRupee, User, Phone } from 'lucide-react-native';
+import { MapPin, Clock, IndianRupee, User, Phone, Car } from 'lucide-react-native';
 
 interface Booking {
   order_id: number;
@@ -18,6 +18,7 @@ interface Booking {
   estimated_price: number;
   trip_distance?: number;
   fare_per_km?: number;
+  car_type?: string;
 }
 
 interface BookingCardProps {
@@ -53,6 +54,7 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
 
   const displayPrice = toNumber((booking as any).estimated_price ?? (booking as any).vendor_price ?? (booking as any).total_fare);
   const customerNumber = (booking as any).customer_number || (booking as any).customer_mobile || '';
+  const carType = (booking as any).car_type || booking.car_type || '';
   const dynamicStyles = StyleSheet.create({
     card: {
       backgroundColor: colors.surface,
@@ -195,6 +197,12 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
           <Phone color={colors.textSecondary} size={14} />
           <Text style={dynamicStyles.detailText}>{customerNumber}</Text>
         </View>
+        {!!carType && (
+          <View style={dynamicStyles.detailRow}>
+            <Car color={colors.textSecondary} size={14} />
+            <Text style={dynamicStyles.detailText}>{carType}</Text>
+          </View>
+        )}
       </View>
 
       {!!((booking as any).trip_distance || booking.fare_per_km) && (

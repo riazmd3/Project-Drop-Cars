@@ -150,7 +150,7 @@ export default function EndTripScreen() {
         <Text style={styles.title}>Complete Your Trip</Text>
         <Text style={styles.subtitle}>Upload final odometer photo and reading</Text>
 
-        {/* Trip Summary */}
+        {/* Trip Summary (no local fare calculation) */}
         <View style={styles.summaryCard}>
           <Text style={styles.summaryTitle}>Trip Summary</Text>
           <View style={styles.summaryRow}>
@@ -166,13 +166,6 @@ export default function EndTripScreen() {
               <View style={styles.summaryRow}>
                 <Text style={styles.summaryLabel}>Distance:</Text>
                 <Text style={styles.summaryValue}>{parseInt(endKm) - startKm} km</Text>
-              </View>
-              <View style={[styles.summaryRow, styles.fareRow]}>
-                <Text style={styles.fareLabel}>Total Fare:</Text>
-                <View style={styles.fareContainer}>
-                  <IndianRupee color="#10B981" size={16} />
-                  <Text style={styles.fareValue}>{calculateFare()}</Text>
-                </View>
               </View>
             </>
           )}

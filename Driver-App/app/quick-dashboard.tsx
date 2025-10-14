@@ -795,7 +795,8 @@ export default function QuickDashboardScreen() {
                 <View style={styles.orderFooter}>
                   <View style={styles.fareContainer}>
                     <DollarSign size={20} color="#10B981" />
-                    <Text style={styles.fareAmount}>₹{order.total_fare}</Text>
+                    //fare 
+                    <Text style={styles.fareAmount}>₹{(order as any).customer_price ?? order.total_fare ?? order.estimated_price}</Text>
                   </View>
                   
                   {/* Show different buttons based on trip state */}

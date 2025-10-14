@@ -959,6 +959,7 @@ export default function DashboardScreen() {
                           estimated_price: Number(order.estimated_price),
                           trip_distance: Number(order.trip_distance ?? 0),
                           fare_per_km: Number(order.cost_per_km ?? 0),
+                          car_type: String(order.car_type || ''),
                         }}
                         onAccept={() => handleAcceptBooking(order)}
                         disabled={!canAcceptOrder(order) || processingOrderId === order.order_id.toString()}
