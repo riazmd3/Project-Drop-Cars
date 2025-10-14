@@ -39,7 +39,7 @@
     },
     "android": {
       "package": "com.pugazheas.dropcarsvendor",
-      "googleServicesFile": "./android/app/google-services.json"
+      "googleServicesFile": "./assets/google-services.json"
     },
     "runtimeVersion": {
       "policy": "appVersion"
