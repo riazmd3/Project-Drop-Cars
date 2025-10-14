@@ -54,11 +54,11 @@ export default function DashboardScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [previousOrderCount, setPreviousOrderCount] = useState(0);
   // Available Bookings filters
-  const [availableTab, setAvailableTab] = useState<'all' | 'multicity'>('all');
+  const [availableTab, setAvailableTab] = useState<'all' | 'nearcity'>('all');
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [citySearch, setCitySearch] = useState('');
 
-  const CITY_STORAGE_KEY = 'vo_multicity_selected_cities';
+  const CITY_STORAGE_KEY = 'vo_nearcity_selected_cities';
 
   // Master list of cities (can be moved to a separate module later)
   const MASTER_CITIES: string[] = [
@@ -189,8 +189,8 @@ export default function DashboardScreen() {
     }
   };
 
-  // Multicity city list derived from pending orders (exclude 'ALL')
-  const multiCityOptions = Array.from(
+  // nearcity city list derived from pending orders (exclude 'ALL')
+  const nearcityOptions = Array.from(
     new Set([
       ...MASTER_CITIES,
       ...pendingOrders
@@ -233,9 +233,9 @@ export default function DashboardScreen() {
     })();
   }, [selectedCities]);
 
-  const isTripTypeMulticity = (t: any) => {
+  const isTripTypenearcity = (t: any) => {
     const val = String(t || '').toLowerCase();
-    return val.includes('multi'); // handles 'Multy City', 'Multicity', etc.
+    return val.includes('multi'); // handles 'Multy City', 'nearcity', etc.
   };
 
   const getNearCity = (o: PendingOrder) => (o.pick_near_city || o.near_city || '').toUpperCase();
@@ -248,34 +248,34 @@ export default function DashboardScreen() {
   const filteredOrders: PendingOrder[] = (() => {
     if (availableTab === 'all') {
       return pendingOrders.filter(o => {
-        const isMulti = isTripTypeMulticity(o.trip_type) || isNearCityMode(o) || hasCityTarget(o);
+        const isMulti = isTripTypenearcity(o.trip_type) || isNearCityMode(o) || hasCityTarget(o);
         const pickCity = getNearCity(o);
-        // Hide multicity orders unless pick_near_city is 'ALL'
+        // Hide nearcity orders unless pick_near_city is 'ALL'
         if (isMulti && pickCity !== 'ALL') return false;
         return true;
       });
     }
-    // Multicity tab
-    const onlyMulticity = pendingOrders.filter(o => isTripTypeMulticity(o.trip_type) || isNearCityMode(o) || hasCityTarget(o));
+    // nearcity tab
+    const onlynearcity = pendingOrders.filter(o => isTripTypenearcity(o.trip_type) || isNearCityMode(o) || hasCityTarget(o));
     if (selectedCities.length === 0) return [];
     const setSel = new Set(selectedCities.map(c => c.toUpperCase()));
-    return onlyMulticity.filter(o => setSel.has(getNearCity(o)));
+    return onlynearcity.filter(o => setSel.has(getNearCity(o)));
   })();
 
   // Tab counts
   const allTabCount = pendingOrders.filter(o => {
-    const isMulti = isTripTypeMulticity(o.trip_type) || isNearCityMode(o) || hasCityTarget(o);
+    const isMulti = isTripTypenearcity(o.trip_type) || isNearCityMode(o) || hasCityTarget(o);
     const pickCity = getNearCity(o);
     if (isMulti && pickCity !== 'ALL') return false;
     return true;
   }).length;
   
-  // Multicity count should only show selected cities
+  // nearcity count should only show selected cities
   const multiTabCount = (() => {
     if (selectedCities.length === 0) return 0;
-    const onlyMulticity = pendingOrders.filter(o => isTripTypeMulticity(o.trip_type) || isNearCityMode(o) || hasCityTarget(o));
+    const onlynearcity = pendingOrders.filter(o => isTripTypenearcity(o.trip_type) || isNearCityMode(o) || hasCityTarget(o));
     const setSel = new Set(selectedCities.map(c => c.toUpperCase()));
-    return onlyMulticity.filter(o => setSel.has(getNearCity(o))).length;
+    return onlynearcity.filter(o => setSel.has(getNearCity(o))).length;
   })();
 
   const handleRefresh = async () => {
@@ -820,7 +820,7 @@ export default function DashboardScreen() {
               <View style={dynamicStyles.bookingsSection}>
                 <Text style={dynamicStyles.sectionTitle}>Available Bookings</Text>
 
-                {/* Tabs: All | Multicity */}
+                {/* Tabs: All | nearcity */}
                 <View style={{ flexDirection: 'row', marginBottom: 12 }}>
                   <TouchableOpacity onPress={() => setAvailableTab('all')} style={{ marginRight: 12 }}>
                     <Text style={{
@@ -828,16 +828,16 @@ export default function DashboardScreen() {
                       color: availableTab === 'all' ? colors.primary : colors.textSecondary
                     }}>All ({allTabCount})</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setAvailableTab('multicity')}>
+                  <TouchableOpacity onPress={() => setAvailableTab('nearcity')}>
                     <Text style={{
                       fontFamily: 'Inter-SemiBold',
-                      color: availableTab === 'multicity' ? colors.primary : colors.textSecondary
+                      color: availableTab === 'nearcity' ? colors.primary : colors.textSecondary
                     }}>Near City ({multiTabCount})</Text>
                   </TouchableOpacity>
                 </View>
 
-                {/* City search for Multicity tab */}
-                {availableTab === 'multicity' && (
+                {/* City search for nearcity tab */}
+                {availableTab === 'nearcity' && (
                   <>
                     {/* Selected cities count display */}
                     {selectedCities.length > 0 && (
@@ -902,7 +902,7 @@ export default function DashboardScreen() {
                         borderWidth: 1,
                         borderColor: colors.border,
                       }}>
-                        {multiCityOptions
+                        {nearcityOptions
                           .filter(c => c.toLowerCase().includes(citySearch.toLowerCase()))
                           .slice(0, 20) // Limit to 20 results for performance
                           .map((city) => {
@@ -926,7 +926,7 @@ export default function DashboardScreen() {
                               </TouchableOpacity>
                             );
                           })}
-                        {multiCityOptions.filter(c => c.toLowerCase().includes(citySearch.toLowerCase())).length === 0 && (
+                        {nearcityOptions.filter(c => c.toLowerCase().includes(citySearch.toLowerCase())).length === 0 && (
                           <Text style={{ 
                             color: colors.textSecondary, 
                             fontFamily: 'Inter-Medium',
