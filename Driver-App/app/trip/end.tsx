@@ -149,29 +149,6 @@ export default function EndTripScreen() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>Complete Your Trip</Text>
         <Text style={styles.subtitle}>Upload final odometer photo and reading</Text>
-
-        {/* Trip Summary (no local fare calculation) */}
-        <View style={styles.summaryCard}>
-          <Text style={styles.summaryTitle}>Trip Summary</Text>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Start KM:</Text>
-            <Text style={styles.summaryValue}>{startKm.toLocaleString()}</Text>
-          </View>
-          {endKm && (
-            <>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>End KM:</Text>
-                <Text style={styles.summaryValue}>{parseInt(endKm).toLocaleString()}</Text>
-              </View>
-              <View style={styles.summaryRow}>
-                <Text style={styles.summaryLabel}>Distance:</Text>
-                <Text style={styles.summaryValue}>{parseInt(endKm) - startKm} km</Text>
-              </View>
-            </>
-          )}
-        </View>
-
-        {/* Thank Customer Checkbox */}
         <TouchableOpacity 
           style={styles.checkboxContainer}
           onPress={() => setThanked(!thanked)}

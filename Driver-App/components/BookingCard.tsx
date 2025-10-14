@@ -200,7 +200,7 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
         {!!carType && (
           <View style={dynamicStyles.detailRow}>
             <Car color={colors.textSecondary} size={14} />
-            <Text style={dynamicStyles.detailText}>{carType}</Text>
+            <Text style={dynamicStyles.detailText}>Car Type: {carType}</Text>
           </View>
         )}
       </View>

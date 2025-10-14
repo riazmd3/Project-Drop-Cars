@@ -13,6 +13,8 @@ import {
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Car, Save, Upload, CheckCircle, FileText, Image, ChevronDown } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
+import { useDashboard } from '@/contexts/DashboardContext';
 import { addCarDetails } from '@/services/auth/signupService';
 import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store';
@@ -42,6 +44,8 @@ export default function AddCarScreen() {
   
   const router = useRouter();
   const { user } = useAuth();
+  const { colors } = useTheme();
+  const { dashboardData } = useDashboard();
 
   const carTypes = ['HATCHBACK', 'SEDAN', 'NEW_SEDAN', 'SUV', 'INNOVA', 'INNOVA_CRYSTA'];
 
@@ -49,16 +53,17 @@ export default function AddCarScreen() {
   const redirectAfterCarAddition = async () => {
     try {
       console.log('🚗 Car added successfully, determining next step...');
-      
-      // Since we just successfully added a car, we know the user has at least 1 car
-      // The typical flow is: Add Car → Add Driver → Dashboard
-      // So let's redirect to add driver page
-      console.log('👤 Redirecting to add driver page...');
-      router.replace('/add-driver');
+      const driverCount = Number(dashboardData?.drivers?.length || 0);
+      if (driverCount === 0) {
+        console.log('👤 No drivers yet → go to Add Driver');
+        router.replace('/add-driver');
+      } else {
+        console.log('🏠 Drivers already present → return to dashboard');
+        router.replace('/(tabs)');
+      }
     } catch (error) {
       console.error('❌ Error during redirect:', error);
-      // Fallback to add driver page
-      router.replace('/add-driver');
+      router.replace('/(tabs)');
     }
   };
 
@@ -231,16 +236,16 @@ export default function AddCarScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
         <TouchableOpacity 
           onPress={() => router.back()} 
           style={[styles.backButton, isLoading && styles.backButtonDisabled]}
           disabled={isLoading}
         >
-          <ArrowLeft color={isLoading ? "#9CA3AF" : "#1F2937"} size={24} />
+          <ArrowLeft color={isLoading ? colors.textSecondary : colors.text} size={24} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Add Your First Car</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Add Your First Car</Text>
         <View style={styles.stepIndicator}>
           <Text style={styles.stepText}>Step 1/3</Text>
         </View>
@@ -248,7 +253,7 @@ export default function AddCarScreen() {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.welcomeSection}>
-          <Text style={styles.welcomeTitle}>Welcome to Drop Cars!</Text>
+          <Text style={[styles.welcomeTitle, { color: colors.text }]}>Welcome to Drop Cars!</Text>
           <Text style={styles.welcomeSubtitle}>
             Hi {user?.fullName}, let's get you started by adding your first car and driver.
           </Text>

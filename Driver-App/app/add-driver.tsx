@@ -13,6 +13,7 @@ import {
 import { useRouter } from 'expo-router';
 import { ArrowLeft, User, Save, Upload, CheckCircle, FileText, Image, Phone, Lock, MapPin, CreditCard } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
+import { useTheme } from '@/contexts/ThemeContext';
 import { addDriverDetails, DriverDetails } from '@/services/driver/driverService';
 import * as ImagePicker from 'expo-image-picker';
 import axiosInstance from '@/app/api/axiosInstance';
@@ -49,6 +50,7 @@ export default function AddDriverScreen() {
   
   const router = useRouter();
   const { user } = useAuth();
+  const { colors } = useTheme();
 
   // Function to check account status and redirect accordingly
   const checkAccountStatusAndRedirect = async () => {
@@ -301,16 +303,16 @@ export default function AddDriverScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <View style={styles.header}>
         <TouchableOpacity 
           onPress={() => router.back()} 
           style={[styles.backButton, isLoading && styles.backButtonDisabled]}
           disabled={isLoading}
         >
-          <ArrowLeft color={isLoading ? "#9CA3AF" : "#1F2937"} size={24} />
+          <ArrowLeft color={isLoading ? colors.textSecondary : colors.text} size={24} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Add Your First Driver</Text>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Add Your First Driver</Text>
         <View style={styles.stepIndicator}>
           <Text style={styles.stepText}>Step 2/3</Text>
         </View>
@@ -318,7 +320,7 @@ export default function AddDriverScreen() {
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.welcomeSection}>
-          <Text style={styles.welcomeTitle}>Driver Registration</Text>
+          <Text style={[styles.welcomeTitle, { color: colors.text }]}>Driver Registration</Text>
           <Text style={styles.welcomeSubtitle}>
             Hi {user?.fullName}, let's add your first driver to complete the setup.
           </Text>
@@ -330,7 +332,7 @@ export default function AddDriverScreen() {
           <View style={styles.inputGroup}>
             <User color="#6B7280" size={20} />
             <TextInput
-              style={[styles.input, errors.full_name && styles.inputError]}
+              style={[styles.input, { color: colors.text }, errors.full_name && styles.inputError]}
               placeholder="Full Name (e.g., John Doe)"
               value={driverData.full_name}
               onChangeText={(text) => handleInputChange('full_name', text)}
@@ -341,7 +343,7 @@ export default function AddDriverScreen() {
           <View style={styles.inputGroup}>
             <Phone color="#6B7280" size={20} />
             <TextInput
-              style={[styles.input, errors.primary_number && styles.inputError]}
+              style={[styles.input, { color: colors.text }, errors.primary_number && styles.inputError]}
               placeholder="Primary Mobile Number (+91XXXXXXXXXX)"
               value={driverData.primary_number}
               onChangeText={(text) => handleInputChange('primary_number', text)}
@@ -356,7 +358,7 @@ export default function AddDriverScreen() {
           <View style={styles.inputGroup}>
             <Phone color="#6B7280" size={20} />
             <TextInput
-              style={[styles.input, errors.secondary_number && styles.inputError]}
+              style={[styles.input, { color: colors.text }, errors.secondary_number && styles.inputError]}
               placeholder="Secondary Mobile Number (Optional)"
               value={driverData.secondary_number}
               onChangeText={(text) => handleInputChange('secondary_number', text)}
@@ -367,7 +369,7 @@ export default function AddDriverScreen() {
           <View style={styles.inputGroup}>
             <Lock color="#6B7280" size={20} />
             <TextInput
-              style={[styles.input, errors.password && styles.inputError]}
+              style={[styles.input, { color: colors.text }, errors.password && styles.inputError]}
               placeholder="Password"
               value={driverData.password}
               onChangeText={(text) => handleInputChange('password', text)}
@@ -379,7 +381,7 @@ export default function AddDriverScreen() {
           <View style={styles.inputGroup}>
             <CreditCard color="#6B7280" size={20} />
             <TextInput
-              style={[styles.input, errors.licence_number && styles.inputError]}
+              style={[styles.input, { color: colors.text }, errors.licence_number && styles.inputError]}
               placeholder="Driving Licence Number (e.g., MH-12-1990-1234567)"
               value={driverData.licence_number}
               onChangeText={(text) => handleInputChange('licence_number', text)}
@@ -394,7 +396,7 @@ export default function AddDriverScreen() {
           <View style={styles.inputGroup}>
             <MapPin color="#6B7280" size={20} />
             <TextInput
-              style={[styles.input, errors.adress && styles.inputError]}
+              style={[styles.input, { color: colors.text }, errors.adress && styles.inputError]}
               placeholder="Address (e.g., 123 Main Street, Mumbai, Maharashtra)"
               value={driverData.adress}
               onChangeText={(text) => handleInputChange('adress', text)}
