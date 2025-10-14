@@ -88,14 +88,14 @@ export default function MenuScreen() {
     //   iconColor: '#6B7280',
     //   action: () => console.log('Navigate to Settings'),
     // },
-    // {
-    //   id: 'support',
-    //   title: 'Support',
-    //   subtitle: 'Get help and contact us',
-    //   icon: HelpCircle,
-    //   iconColor: '#F59E0B',
-    //   action: () => console.log('Navigate to Support'),
-    // },
+    {
+      id: 'support',
+      title: 'Support',
+      subtitle: 'Get help and contact us',
+      icon: HelpCircle,
+      iconColor: '#F59E0B',
+      action: () => router.push('/(menu)/about'),
+    },
     {
       id: 'about',
       title: 'About',
