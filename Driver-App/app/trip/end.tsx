@@ -239,10 +239,10 @@ export default function EndTripScreen() {
         <TouchableOpacity
           style={[
             styles.endButton,
-            (!endKm || !odometerPhoto || !thanked || (tollChargeUpdate === false && !tollCharge) || submitting) && styles.disabledButton,
+            (!endKm || !odometerPhoto || !thanked || (tollChargeUpdate === true && !tollCharge) || submitting) && styles.disabledButton,
           ]}
           onPress={handleEndTrip}
-          disabled={!endKm || !odometerPhoto || !thanked || (tollChargeUpdate === false && !tollCharge) || submitting}
+          disabled={!endKm || !odometerPhoto || !thanked || (tollChargeUpdate === true && !tollCharge) || submitting}
         >
           {submitting ? (
             <View style={styles.loadingContainer}>
