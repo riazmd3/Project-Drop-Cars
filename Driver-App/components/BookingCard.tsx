@@ -144,6 +144,18 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
     detailsContainer: {
       marginBottom: 12,
     },
+    detailRowMatrix: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: 12,
+      marginBottom: 6,
+    },
+    detailCol: {
+      flex: 1,
+    },
+    detailColLabel: {
+      color: colors.textSecondary,
+    },
     detailRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -222,40 +234,46 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
           <Phone color={colors.textSecondary} size={14} />
           <Text style={dynamicStyles.detailText}>{customerNumber}</Text>
         </View>
-        {!!carType && (
-          <View style={dynamicStyles.detailRow}>
-            <Car color={colors.textSecondary} size={14} />
-            <Text style={dynamicStyles.detailText}>Car Type: {carType}</Text>
+        {(carType || tripType) && (
+          <View style={dynamicStyles.detailRowMatrix}>
+            <View style={dynamicStyles.detailCol}>
+              {!!carType && (
+                <Text style={dynamicStyles.detailText}><Text style={dynamicStyles.detailColLabel}>Car:</Text> {carType}</Text>
+              )}
+            </View>
+            <View style={dynamicStyles.detailCol}>
+              {!!tripType && (
+                <Text style={dynamicStyles.detailText}><Text style={dynamicStyles.detailColLabel}>Trip:</Text> {tripType}</Text>
+              )}
+            </View>
           </View>
         )}
-        {!!tripType && (
-          <View style={dynamicStyles.detailRow}>
-            <Clock color={colors.textSecondary} size={14} />
-            <Text style={dynamicStyles.detailText}>Trip: {tripType}</Text>
+        {(nearCity || startDateTime) && (
+          <View style={dynamicStyles.detailRowMatrix}>
+            <View style={dynamicStyles.detailCol}>
+              {!!nearCity && (
+                <Text style={dynamicStyles.detailText}><Text style={dynamicStyles.detailColLabel}>City:</Text> {nearCity}</Text>
+              )}
+            </View>
+            <View style={dynamicStyles.detailCol}>
+              {!!startDateTime && (
+                <Text style={dynamicStyles.detailText}><Text style={dynamicStyles.detailColLabel}>Start:</Text> {new Date(startDateTime).toLocaleString()}</Text>
+              )}
+            </View>
           </View>
         )}
-        {!!nearCity && (
-          <View style={dynamicStyles.detailRow}>
-            <MapPin color={colors.textSecondary} size={14} />
-            <Text style={dynamicStyles.detailText}>City: {nearCity}</Text>
-          </View>
-        )}
-        {!!startDateTime && (
-          <View style={dynamicStyles.detailRow}>
-            <Clock color={colors.textSecondary} size={14} />
-            <Text style={dynamicStyles.detailText}>Start: {new Date(startDateTime).toLocaleString()}</Text>
-          </View>
-        )}
-        {!!estimatedTime && (
-          <View style={dynamicStyles.detailRow}>
-            <Clock color={colors.textSecondary} size={14} />
-            <Text style={dynamicStyles.detailText}>Estimated time: {estimatedTime}</Text>
-          </View>
-        )}
-        {!!deadlineTime && (
-          <View style={dynamicStyles.detailRow}>
-            <Clock color={colors.textSecondary} size={14} />
-            <Text style={dynamicStyles.detailText}>Max assign by: {deadlineTime}</Text>
+        {(estimatedTime || deadlineTime) && (
+          <View style={dynamicStyles.detailRowMatrix}>
+            <View style={dynamicStyles.detailCol}>
+              {!!estimatedTime && (
+                <Text style={dynamicStyles.detailText}><Text style={dynamicStyles.detailColLabel}>ETA:</Text> {estimatedTime}</Text>
+              )}
+            </View>
+            <View style={dynamicStyles.detailCol}>
+              {!!deadlineTime && (
+                <Text style={dynamicStyles.detailText}><Text style={dynamicStyles.detailColLabel}>Assign by:</Text> {deadlineTime}</Text>
+              )}
+            </View>
           </View>
         )}
       </View>
