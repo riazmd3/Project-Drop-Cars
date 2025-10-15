@@ -12,10 +12,12 @@ export default function Index() {
 
   const checkAuthStatus = async () => {
     try {
-      const userSession = await AsyncStorage.getItem('userSession');
+      const userSession = await AsyncStorage.getItem('accessToken');
       if (userSession) {
-        const session = JSON.parse(userSession);
-        if (session.isLoggedIn) {
+        const session = true;
+        console.log("Session:", session);
+        if (session) {
+          console.log("Check Login")
           router.replace('/(tabs)');
         } else {
           router.replace('/(auth)/sign-in');

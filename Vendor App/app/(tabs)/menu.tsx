@@ -10,6 +10,7 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import api from '../../app/api/api'; // Adjust the path as necessary
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User, Package, DollarSign, TrendingUp, Calendar,ArrowRight, Settings, CircleHelp as HelpCircle, Info, LogOut, Bell, Shield, Star, Phone, Mail, Globe, FileText, CreditCard, Clock, Award, ChevronRight, Wallet } from 'lucide-react-native';
 
 interface VendorData {
@@ -49,9 +50,19 @@ export default function MenuScreen() {
     fetchVendorData();
   }, []);
 
+const removeAccessToken = async () => {
+  try {
+    await AsyncStorage.removeItem('accessToken');
+    console.log('Access token removed successfully');
+  } catch (error) {
+    console.error('Error removing access token:', error);
+  }
+};
+
   const handleLogout = () => {
     // Implement logout functionality
     console.log('Logging out...');
+    removeAccessToken();
     router.replace('/(auth)/sign-in');// Navigate to login screen after logout
   };
 
