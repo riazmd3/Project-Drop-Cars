@@ -151,20 +151,20 @@ export default function DashboardScreen() {
       setPreviousOrderCount(pendingOrders.length);
     } else if (pendingOrders.length > previousOrderCount && previousOrderCount > 0) {
       // New orders received
-      const newOrders = pendingOrders.slice(previousOrderCount);
-      newOrders.forEach(order => {
-        const locations = getPickupDropLocations(order.pickup_drop_location);
-        sendNewOrderNotification({
-          orderId: order.order_id.toString(),
-          pickup: locations.pickup,
-          drop: locations.drop,
-          customerName: order.customer_name,
-          customerMobile: order.customer_number,
-          distance: order.trip_distance,
-          fare: (order.cost_per_km * order.trip_distance) + order.driver_allowance + order.permit_charges + order.hill_charges + order.toll_charges,
-          orderType: 'new'
-        });
-      });
+          const newOrders = pendingOrders.slice(previousOrderCount);
+          newOrders.forEach(order => {
+            const locations = getPickupDropLocations(order.pickup_drop_location);
+            sendNewOrderNotification({
+              orderId: order.order_id.toString(),
+              pickup: locations.pickup,
+              drop: locations.drop,
+              customerName: 'Hidden',
+              customerMobile: 'Hidden',
+              distance: order.trip_distance,
+              fare: (order.cost_per_km * order.trip_distance) + order.driver_allowance + order.permit_charges + order.hill_charges + order.toll_charges,
+              orderType: 'new'
+            });
+          });
       setPreviousOrderCount(pendingOrders.length);
     } else if (pendingOrders.length !== previousOrderCount) {
       // Update count if it changed
@@ -954,8 +954,8 @@ export default function DashboardScreen() {
                           order_id: Number(order.order_id),
                           pickup: locations.pickup,
                           drop: locations.drop,
-                          customer_name: order.customer_name,
-                          customer_number: order.customer_number,
+                          customer_name: undefined as any,
+                          customer_number: undefined as any,
                           estimated_price: Number(order.estimated_price),
                           trip_distance: Number(order.trip_distance ?? 0),
                           fare_per_km: Number(order.cost_per_km ?? 0),
@@ -963,7 +963,7 @@ export default function DashboardScreen() {
                           trip_type: String(order.trip_type || ''),
                           pick_near_city: String((order as any).pick_near_city || (order as any).near_city || ''),
                           start_date_time: String(order.start_date_time || ''),
-                          trip_time: String(order.trip_time || ''),
+                          trip_time: String(((order as any).trip_time) || ''),
                           // created_at, max_time_to_assign_order, expires_at are inside card via (any)
                         }}
                         onAccept={() => handleAcceptBooking(order)}

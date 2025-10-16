@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { notificationService, OrderNotificationData } from '@/services/notifications/notificationService';
+import { getNotificationSettings, updateNotificationPermissions } from '@/services/notifications/notificationApi';
 import * as SecureStore from 'expo-secure-store';
 
 interface NotificationContextType {
@@ -10,12 +11,18 @@ interface NotificationContextType {
   sendOrderCompletedNotification: (orderData: OrderNotificationData) => Promise<void>;
   clearAllNotifications: () => Promise<void>;
   getNotificationStatus: () => Promise<boolean>;
+  permission1: boolean;
+  permission2: boolean;
+  setPermission1: (v: boolean) => Promise<void>;
+  setPermission2: (v: boolean) => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
   const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [permission1, setPermission1] = useState<boolean>(true);
+  const [permission2, setPermission2] = useState<boolean>(true);
 
   // Initialize notification service and load settings
   useEffect(() => {
@@ -29,7 +36,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       // Initialize notification service
       await notificationService.initialize();
       
-      // Load notification settings from storage
+      // Load notification settings from backend (fallback to local storage)
       await loadNotificationSettings();
       
       // Print all tokens for debugging
@@ -43,14 +50,19 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
 
   const loadNotificationSettings = async () => {
     try {
-      const stored = await SecureStore.getItemAsync('notificationsEnabled');
-      if (stored !== null) {
-        setNotificationsEnabled(JSON.parse(stored));
+      const remote = await getNotificationSettings();
+      if (remote) {
+        setPermission1(!!remote.permission1);
+        setPermission2(!!remote.permission2);
+        setNotificationsEnabled(!!(remote.permission1 || remote.permission2));
+      } else {
+        const stored = await SecureStore.getItemAsync('notificationsEnabled');
+        if (stored !== null) {
+          setNotificationsEnabled(JSON.parse(stored));
+        }
+        const hasPermission = await notificationService.areNotificationsEnabled();
+        setNotificationsEnabled(hasPermission);
       }
-      
-      // Check actual notification permissions
-      const hasPermission = await notificationService.areNotificationsEnabled();
-      setNotificationsEnabled(hasPermission);
     } catch (error) {
       console.error('❌ Failed to load notification settings:', error);
     }
@@ -74,6 +86,22 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       console.error('❌ Failed to toggle notifications:', error);
     }
   };
+
+  // Dedicated setters for permission1 and permission2
+  const setPermission = async (key: 'permission1' | 'permission2', value: boolean) => {
+    try {
+      const payload = key === 'permission1' ? { permission1: value } : { permission2: value };
+      const res = await updateNotificationPermissions(payload);
+      setPermission1(!!res.permission1);
+      setPermission2(!!res.permission2);
+      setNotificationsEnabled(!!(res.permission1 || res.permission2));
+    } catch (error) {
+      console.error('❌ Failed to update notification permission:', error);
+    }
+  };
+
+  const onSetPermission1 = async (v: boolean) => setPermission('permission1', v);
+  const onSetPermission2 = async (v: boolean) => setPermission('permission2', v);
 
   const sendNewOrderNotification = async (orderData: OrderNotificationData) => {
     if (!notificationsEnabled) {
@@ -142,6 +170,10 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       sendOrderCompletedNotification,
       clearAllNotifications,
       getNotificationStatus,
+      permission1,
+      permission2,
+      setPermission1: onSetPermission1,
+      setPermission2: onSetPermission2,
     }}>
       {children}
     </NotificationContext.Provider>
