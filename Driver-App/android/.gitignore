@@ -5,6 +5,7 @@
 # Android/IntelliJ
 #
 build/
+Project-Drop-Cars\Driver-App\android
 .idea
 .gradle
 local.properties
