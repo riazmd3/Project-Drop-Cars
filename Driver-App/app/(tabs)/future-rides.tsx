@@ -231,7 +231,25 @@ export default function FutureRidesScreen() {
       console.log('✅ Assignment completed successfully');
     } catch (error: any) {
       console.error('❌ Failed to assign driver and car:', error);
-      Alert.alert('Error', error.message || 'Failed to assign driver and car');
+      
+      // Check for specific "Updated" error message
+      if (error?.response?.data?.detail === "Updated") {
+        Alert.alert(
+          'Quick Driver Assignment', 
+          'This order has been updated and assigned to a quick driver. Please check the updated status.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Refresh the data to show updated status
+                fetchFutureRides();
+              }
+            }
+          ]
+        );
+      } else {
+        Alert.alert('Error', error.message || 'Failed to assign driver and car');
+      }
     } finally {
       setAssignmentsLoading(false);
     }
