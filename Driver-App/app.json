@@ -32,7 +32,7 @@
     },
     "android": {
       "package": "com.dropcars.driverapp",
-      "googleServicesFile": "./assets/google-services.json"
+      "googleServicesFile": ".android/app/google-services.json"
     },
     "runtimeVersion": {
       "policy": "appVersion"
