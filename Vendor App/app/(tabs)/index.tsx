@@ -110,7 +110,6 @@ export default function DashboardScreen() {
   const fetchOrders = async () => {
     try {
       const response = await api.get('/orders/pending/vendor');
-      console.log("API response:", response.data);
       const ordersData: Order[] = response.data;
       
       // For now, using static data - replace with API call when ready

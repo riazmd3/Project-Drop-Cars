@@ -62,6 +62,7 @@ export default function AuthLayout() {
       <Stack.Screen name="order-details" />
       <Stack.Screen name="wallet" />
       <Stack.Screen name="notify" />
+      <Stack.Screen name="notification" />
 
     </Stack>
   );

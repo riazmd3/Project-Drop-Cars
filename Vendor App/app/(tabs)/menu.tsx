@@ -91,14 +91,14 @@ const removeAccessToken = async () => {
       iconColor: '#60A5FA',
       action: () => router.push('/(menu)/wallet'),
     },
-    // {
-    //   id: 'settings',
-    //   title: 'Settings',
-    //   subtitle: 'App preferences',
-    //   icon: Settings,
-    //   iconColor: '#6B7280',
-    //   action: () => console.log('Navigate to Settings'),
-    // },
+    {
+      id: 'settings',
+      title: 'Settings',
+      subtitle: 'App preferences',
+      icon: Settings,
+      iconColor: '#6B7280',
+      action: () => router.push('/(menu)/notification'),
+    },
     {
       id: 'support',
       title: 'Support',
