@@ -9,7 +9,7 @@ import { Alert } from 'react-native';
 // Authenticated Axios instance
 const api = axios.create({
   // baseURL: "https://drop-cars-api-1049299844333.asia-south2.run.app/api",
-  baseURL: "http://10.61.174.247:8000/api",
+  baseURL: "http://10.153.75.247:8000/api",
   headers: {
     'Content-Type': 'application/json',
   },
@@ -68,7 +68,7 @@ api.interceptors.response.use(
 // Public (unauthenticated) Axios instance
 const publicApi = axios.create({
   // baseURL: 'https://drop-cars-api-1049299844333.asia-south2.run.app/api',
-  baseURL: "http://10.61.174.247:8000/api",
+  baseURL: "http://10.153.75.247:8000/api",
   headers: {
     'Content-Type': 'application/json',
   },
