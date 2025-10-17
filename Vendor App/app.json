@@ -20,7 +20,7 @@
       "expo-router",
       "expo-font",
       "expo-web-browser",
-        [
+      [
         "expo-notifications",
         {
           "icon": "./assets/notification-icon.png",
@@ -34,7 +34,7 @@
     "extra": {
       "router": {},
       "eas": {
-        "projectId": "6ad24ec4-662c-4da2-bc6e-17b09235aab1"
+        "projectId": "006d0dbc-80eb-4f34-94dc-f7357b36fd43"
       }
     },
     "android": {
@@ -45,7 +45,8 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/6ad24ec4-662c-4da2-bc6e-17b09235aab1"
-    }
+      "url": "https://u.expo.dev/006d0dbc-80eb-4f34-94dc-f7357b36fd43"
+    },
+    "owner": "dropcars"
   }
 }

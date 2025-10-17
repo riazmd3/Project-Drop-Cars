@@ -1,13 +1,32 @@
 {
   "project_info": {
-    "project_number": "668401113955",
-    "project_id": "notification-4db9d",
-    "storage_bucket": "notification-4db9d.firebasestorage.app"
+    "project_number": "207918408785",
+    "project_id": "drop-cars2",
+    "storage_bucket": "drop-cars2.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:668401113955:android:a28223007312b988fa5156",
+        "mobilesdk_app_id": "1:207918408785:android:f655a017a43d049b510470",
+        "android_client_info": {
+          "package_name": "com.dropcars.driverapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyB9PRbHFzcClj7wrji_xyM2IpqWBvJuIgI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:207918408785:android:6682fe7f563dc675510470",
         "android_client_info": {
           "package_name": "com.pugazheas.dropcarsvendor"
         }
@@ -15,7 +34,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyC6CerUemlgZl2J6oREfWy9PyIwdi9qLYw"
+          "current_key": "AIzaSyB9PRbHFzcClj7wrji_xyM2IpqWBvJuIgI"
         }
       ],
       "services": {
