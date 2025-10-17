@@ -52,9 +52,10 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
 
   // Derive fields robustly in case parent passes raw VO pending order
   const loc = safePickLoc((booking as any).pickup_drop_location);
-  const cities = Object.values(loc || {});
-  const pickup = booking.pickup || String(cities[0] ?? '');
-  const drop = booking.drop || String(cities[1] ?? '');
+  const pickupFromLoc = (loc && (loc['0'] || (loc as any).pickup)) || '';
+  const dropFromLoc = (loc && (loc['1'] || (loc as any).drop)) || '';
+  const pickup = booking.pickup || String(pickupFromLoc);
+  const drop = booking.drop || String(dropFromLoc);
 
   const displayPrice = toNumber((booking as any).estimated_price ?? (booking as any).vendor_price ?? (booking as any).total_fare);
   const customerNumber = (booking as any).customer_number || (booking as any).customer_mobile || '';
@@ -210,8 +211,9 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
       <View style={dynamicStyles.header}>
         <Text style={dynamicStyles.bookingId}>#{booking.order_id}</Text>
         <View style={dynamicStyles.fareContainer}>
+          {/* Avoid double currency symbol; just show the number, UI adds symbol elsewhere if needed */}
           <IndianRupee color={colors.success} size={16} />
-          <Text style={dynamicStyles.totalFare}>₹{displayPrice}</Text>
+          <Text style={dynamicStyles.totalFare}>{displayPrice}</Text>
         </View>
       </View>
 

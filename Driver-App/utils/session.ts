@@ -1,16 +1,16 @@
-import { EventEmitter } from 'events';
+type Listener = (reason: string) => void;
 
-class SessionEvents extends EventEmitter {}
-
-export const sessionEvents = new SessionEvents();
+const listeners = new Set<Listener>();
 
 export function emitSessionExpired(reason: string = 'Session expired'): void {
-  sessionEvents.emit('expired', reason);
+  for (const l of Array.from(listeners)) {
+    try { l(reason); } catch {}
+  }
 }
 
-export function onSessionExpired(listener: (reason: string) => void): () => void {
-  sessionEvents.on('expired', listener);
-  return () => sessionEvents.off('expired', listener);
+export function onSessionExpired(listener: Listener): () => void {
+  listeners.add(listener);
+  return () => listeners.delete(listener);
 }
 
 

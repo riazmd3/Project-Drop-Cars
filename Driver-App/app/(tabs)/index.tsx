@@ -73,26 +73,23 @@ export default function DashboardScreen() {
 
   // Helper function to extract pickup and drop locations from the API response
   const getPickupDropLocations = (pickupDropLocation: any) => {
-    if (!pickupDropLocation) return { pickup: 'Unknown', drop: 'Unknown' };
-    
-    // Handle array format: { "0": "Chennai", "1": "Gingee" }
-    if (typeof pickupDropLocation === 'object' && pickupDropLocation['0'] && pickupDropLocation['1']) {
-      return {
-        pickup: pickupDropLocation['0'],
-        drop: pickupDropLocation['1']
-      };
+    if (!pickupDropLocation) return { pickup: 'Unknown', drop: '' };
+    if (typeof pickupDropLocation === 'object') {
+      // Numeric-key shape
+      const has0 = Object.prototype.hasOwnProperty.call(pickupDropLocation, '0');
+      const has1 = Object.prototype.hasOwnProperty.call(pickupDropLocation, '1');
+      if (has0 && has1) {
+        return { pickup: String(pickupDropLocation['0'] || 'Unknown'), drop: String(pickupDropLocation['1'] || '') };
+      }
+      if (has0) {
+        return { pickup: String(pickupDropLocation['0'] || 'Unknown'), drop: '' };
+      }
+      // Named-key shape
+      if (pickupDropLocation.pickup || pickupDropLocation.drop) {
+        return { pickup: String(pickupDropLocation.pickup || 'Unknown'), drop: String(pickupDropLocation.drop || '') };
+      }
     }
-    
-    // Handle object format: { pickup: "Chennai", drop: "Gingee" }
-    if (pickupDropLocation.pickup && pickupDropLocation.drop) {
-      return {
-        pickup: pickupDropLocation.pickup,
-        drop: pickupDropLocation.drop
-      };
-    }
-    
-    // Fallback
-    return { pickup: 'Unknown', drop: 'Unknown' };
+    return { pickup: 'Unknown', drop: '' };
   };
 
   // Debug logging
