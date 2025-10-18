@@ -3,7 +3,7 @@ import * as SecureStore from 'expo-secure-store';
 import { emitSessionExpired } from '@/utils/session';
 
 // For React Native, use machine IP instead of localhost
-const API_BASE_URL = 'https://drop-cars-api-1049299844333.asia-south2.run.app/'; // Physical Emulatorm,kjuvb8
+const API_BASE_URL = 'http://10.153.75.247:8000/';
 
 console.log('🔧 API Config:', { baseURL: API_BASE_URL });
 
