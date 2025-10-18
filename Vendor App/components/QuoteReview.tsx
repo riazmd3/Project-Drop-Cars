@@ -132,9 +132,9 @@ export default function QuoteReview({
             tripType === 'Hourly Rental'
               ? ['#8B5A3C', '#A0522D', '#CD853F']
               : tripType === 'Round Trip' 
-              ? ['#FFF', '#FFF', '#C084FC']
+              ? ['#cc80d1ff', '#b123caff', '#C084FC']
               : tripType === 'Multy City'
-              ? ['#dccdcdff', '#e5e3e3ff', '#4075d8ff'] 
+              ? ['#1d83b3ff', '#4d749dff', '#4075d8ff'] 
               : ['#1E40AF', '#3B82F6', '#60A5FA']
           }
           style={styles.header}
@@ -219,7 +219,7 @@ export default function QuoteReview({
                   <Timer size={20} color="#8B5A3C" style={styles.detailIcon} />
                   <View style={styles.detailContent}>
                     <Text style={styles.detailLabel}>Package Hours</Text>
-                    <Text style={styles.detailValue}>{quoteData.echo.package_hours} hours</Text>
+                    <Text style={styles.detailValue}>{quoteData.echo.package_hours?.hours || 0} hours ({quoteData.echo.package_hours?.km_range || 0} km)</Text>
                   </View>
                 </View>
               )}
@@ -275,12 +275,22 @@ export default function QuoteReview({
                   
                   <View style={styles.summaryRow}>
                     <Text style={styles.summaryLabel}>Package Hours</Text>
-                    <Text style={styles.summaryValue}>{quoteData.echo.package_hours} hours</Text>
+                    <Text style={styles.summaryValue}>{quoteData.echo.package_hours?.hours || 0} hours ({quoteData.echo.package_hours?.km_range || 0} km)</Text>
                   </View>
-                  
+{/*                   
                   <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Cost per Package</Text>
-                    <Text style={styles.summaryValue}>₹{quoteData.echo.cost_per_pack}</Text>
+                    <Text style={styles.summaryLabel}>Cost per Hour</Text>
+                    <Text style={styles.summaryValue}>₹{quoteData.echo.cost_per_hour}</Text>
+                  </View> */}
+
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Max Time(Report Details)</Text>
+                    <Text style={styles.summaryValue}>{quoteData.echo.max_time_to_assign_order} Min</Text>
+                  </View>
+
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Driver(Update Toll)</Text>
+                    <Text style={styles.summaryValue}>{quoteData.echo.toll_charge_update ? "YES" : "NO"}</Text>
                   </View>
                 </>
               ) : (
@@ -296,8 +306,13 @@ export default function QuoteReview({
                   </View>
                   
                   <View style={styles.summaryRow}>
-                    <Text style={styles.summaryLabel}>Cost per KM</Text>
-                    <Text style={styles.summaryValue}>₹{quoteData.echo.cost_per_km}</Text>
+                    <Text style={styles.summaryLabel}>Max Time(Report Details)</Text>
+                    <Text style={styles.summaryValue}>{quoteData.echo.max_time_to_assign_order} Min</Text>
+                  </View>
+
+                  <View style={styles.summaryRow}>
+                    <Text style={styles.summaryLabel}>Driver(Update Toll)</Text>
+                    <Text style={styles.summaryValue}>{quoteData.echo.toll_charge_update ? "YES" : "NO"}</Text>
                   </View>
                 </>
               )}
@@ -308,21 +323,28 @@ export default function QuoteReview({
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <IndianRupee size={24} color={tripType === 'Hourly Rental' ? "#8B5A3C" : "#1E40AF"} />
-              <Text style={styles.sectionTitle}>Pricing Breakdown - Vendor</Text>
+              <Text style={styles.sectionTitle}>Customer Pricing</Text>
             </View>
             
             <View style={styles.priceCard}>
               {isHourlyRental ? (
                 <>
                   <View style={styles.priceRow}>
-                    <Text style={styles.priceLabel}>Vendor Amount</Text>
+                    <Text style={styles.priceLabel}>Customer Amount (₹{(quoteData.echo.cost_per_hour+ quoteData.echo.extra_cost_per_hour)} X {quoteData.echo.package_hours.hours} )</Text>
                     <Text style={styles.priceValue}>₹{quoteData.fare.vendor_amount}</Text>
                   </View>
 
-                  {quoteData.echo.additional_cost_per_hour > 0 && (
+                  {quoteData.echo.extra_cost_per_hour > 0 && (
                     <View style={styles.priceRow}>
-                      <Text style={styles.priceLabel}>(Additional) Cost per Hour</Text>
-                      <Text style={styles.priceValue}>₹{quoteData.echo.additional_cost_per_hour+quoteData.echo.extra_additional_cost_per_hour}</Text>
+                      <Text style={styles.priceLabel}>Maximum Km</Text>
+                      <Text style={styles.priceValue}>{quoteData.echo.package_hours.km_range} KM</Text>
+                    </View>
+                  )}
+
+                  {quoteData.echo.extra_cost_per_hour > 0 && (
+                    <View style={styles.priceRow}>
+                      <Text style={styles.priceLabel}>Extra Price (Addon KM)</Text>
+                      <Text style={styles.priceValue}>₹{(quoteData.echo.cost_for_addon_km+quoteData.echo.extra_cost_for_addon_km)}</Text>
                     </View>
                   )}
 
@@ -341,7 +363,7 @@ export default function QuoteReview({
               ) : (
                 <>
                   <View style={styles.priceRow}>
-                    <Text style={styles.priceLabel}>Vendor Amount ({quoteData.fare.total_km} km × ₹{quoteData.echo.cost_per_km+quoteData.echo.extra_cost_per_km})</Text>
+                    <Text style={styles.priceLabel}>Customer Amount ({quoteData.fare.total_km} km × ₹{quoteData.echo.cost_per_km+quoteData.echo.extra_cost_per_km})</Text>
                     <Text style={styles.priceValue}>₹{quoteData.fare.base_km_amount+Math.round(quoteData.fare.total_km * quoteData.echo.extra_cost_per_km)}</Text>
                   </View>
                 
@@ -378,6 +400,7 @@ export default function QuoteReview({
                     <Text style={styles.totalLabel}>Total Amount</Text>
                     <Text style={styles.totalValue}>₹{quoteData.fare.total_amount}</Text>
                   </View>
+                  
                 </>
               )}
             </View>
@@ -388,23 +411,37 @@ export default function QuoteReview({
           <View style={styles.section}>
             <View style={styles.sectionHeader}>
               <IndianRupee size={24} color={tripType === 'Hourly Rental' ? "#8B5A3C" : "#1E40AF"} />
-              <Text style={styles.sectionTitle}>Pricing Breakdown - Driver</Text>
+              <Text style={styles.sectionTitle}>Driver Pricing</Text>
             </View>
             
             <View style={styles.priceCard}>
               {isHourlyRental ? (
                 <>
                   <View style={styles.priceRow}>
-                    <Text style={styles.priceLabel}>Driver Amount</Text>
+                    <Text style={styles.priceLabel}>Driver Amount (₹{(quoteData.echo.cost_per_hour)} X {quoteData.echo.package_hours.hours} )</Text>
                     <Text style={styles.priceValue}>₹{quoteData.fare.estimate_price}</Text>
                   </View>
 
-                  {quoteData.echo.additional_cost_per_hour > 0 && (
+                  {quoteData.echo.extra_cost_per_hour > 0 && (
                     <View style={styles.priceRow}>
-                      <Text style={styles.priceLabel}>(Additional) Cost per Hour</Text>
-                      <Text style={styles.priceValue}>₹{quoteData.echo.additional_cost_per_hour}</Text>
+                      <Text style={styles.priceLabel}>Maximum Km</Text>
+                      <Text style={styles.priceValue}>{quoteData.echo.package_hours.km_range} KM</Text>
                     </View>
                   )}
+
+                  {quoteData.echo.cost_for_addon_km > 0 && (
+                    <View style={styles.priceRow}>
+                      <Text style={styles.priceLabel}>Cost for Addon KM</Text>
+                      <Text style={styles.priceValue}>₹{quoteData.echo.cost_for_addon_km}</Text>
+                    </View>
+                  )}
+
+                  {/* {quoteData.echo.extra_cost_for_addon_km > 0 && (
+                    <View style={styles.priceRow}>
+                      <Text style={styles.priceLabel}>Extra Cost for Addon KM</Text>
+                      <Text style={styles.priceValue}>₹{quoteData.echo.extra_cost_for_addon_km}</Text>
+                    </View>
+                  )} */}
 
                   {/* {quoteData.echo.extra_additional_cost_per_hour > 0 && (
                     <View style={styles.priceRow}>
@@ -456,6 +493,20 @@ export default function QuoteReview({
                   <View style={[styles.priceRow, styles.totalRow]}>
                     <Text style={styles.totalLabel}>Total Amount</Text>
                     <Text style={styles.totalValue}>₹{quoteData.fare.base_km_amount+quoteData.fare.driver_allowance+quoteData.fare.permit_charges+quoteData.fare.hill_charges+quoteData.fare.toll_charges}</Text>
+                  </View>
+                  {quoteData.echo.toll_charges > 0 && (
+                    <View style={styles.priceRow}>
+                      <Text style={styles.priceLabel}>Vendor Basic Commessions</Text>
+                      {/* <Text style={styles.priceValue}>₹{Math.round((quoteData.fare.base_km_amount)*quoteData.fare.Commission_percent/100)}</Text> */}
+                      <Text style={[styles.priceValue, { color: 'red' }]}>
+                        ₹{Math.round((quoteData.fare.base_km_amount) * quoteData.fare.Commission_percent / 100)}
+                      </Text>
+                      {/* <Text style={styles.priceValue}>₹{100}</Text> */}
+                    </View>
+                  )}
+                  <View style={[styles.priceRow, styles.totalRow]}>
+                    <Text style={styles.totalLabel}>Net Amount</Text>
+                    <Text style={styles.totalValue}>₹{quoteData.fare.base_km_amount+quoteData.fare.driver_allowance+quoteData.fare.permit_charges+quoteData.fare.hill_charges+quoteData.fare.toll_charges-(Math.round((quoteData.fare.base_km_amount)*quoteData.fare.Commission_percent/100))}</Text>
                   </View>
                 </>
               )}
@@ -635,7 +686,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#F8F9FA',
   },
   header: {
-    paddingTop: 60,
+    paddingTop: 20,
     paddingBottom: 30,
     paddingHorizontal: 24,
   },
@@ -651,16 +702,16 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#1E40AF',
+    color: '#e9eeffff',
     marginBottom: 4,
   },
   headerSubtitle: {
     fontSize: 16,
-    color: 'rgba(13, 80, 205, 0.99)',
+    color: '#e9eeffff',
   },
   closeButton: {
     padding: 8,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: '#e9eeffff',
     borderRadius: 20,
   },
   placeholder: {

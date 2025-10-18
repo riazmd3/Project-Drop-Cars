@@ -10,7 +10,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import api from '../../app/api/api'; // Adjust the path as necessary
-import { User, Package, DollarSign, TrendingUp, Calendar, Settings, CircleHelp as HelpCircle, Info, LogOut, Bell, Shield, Star, Phone, Mail, Globe, FileText, CreditCard, Clock, Award, ChevronRight, Wallet } from 'lucide-react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { User, Package, DollarSign, TrendingUp, Calendar,ArrowRight, Settings, CircleHelp as HelpCircle, Info, LogOut, Bell, Shield, Star, Phone, Mail, Globe, FileText, CreditCard, Clock, Award, ChevronRight, Wallet } from 'lucide-react-native';
 
 interface VendorData {
   id: string;
@@ -49,9 +50,20 @@ export default function MenuScreen() {
     fetchVendorData();
   }, []);
 
+const removeAccessToken = async () => {
+  try {
+    await AsyncStorage.removeItem('accessToken');
+    console.log('Access token removed successfully');
+  } catch (error) {
+    console.error('Error removing access token:', error);
+  }
+};
+
   const handleLogout = () => {
     // Implement logout functionality
     console.log('Logging out...');
+    removeAccessToken();
+    router.replace('/(auth)/sign-in');// Navigate to login screen after logout
   };
 
   const menuItems = [
@@ -72,12 +84,12 @@ export default function MenuScreen() {
       action: () => router.push('/(menu)/orders'),
     },
     {
-      id: 'earnings',
-      title: 'Earnings',
+      id: 'Statement',
+      title: 'Statement',
       subtitle: 'Track your income',
       icon: DollarSign,
       iconColor: '#60A5FA',
-      action: () => console.log('Navigate to Earnings'),
+      action: () => router.push('/(menu)/wallet'),
     },
     {
       id: 'settings',
@@ -85,7 +97,7 @@ export default function MenuScreen() {
       subtitle: 'App preferences',
       icon: Settings,
       iconColor: '#6B7280',
-      action: () => console.log('Navigate to Settings'),
+      action: () => router.push('/(menu)/notification'),
     },
     {
       id: 'support',
@@ -93,7 +105,7 @@ export default function MenuScreen() {
       subtitle: 'Get help and contact us',
       icon: HelpCircle,
       iconColor: '#F59E0B',
-      action: () => console.log('Navigate to Support'),
+      action: () => router.push('/(menu)/about'),
     },
     {
       id: 'about',
@@ -101,7 +113,7 @@ export default function MenuScreen() {
       subtitle: 'App information',
       icon: Info,
       iconColor: '#8B5CF6',
-      action: () => console.log('Navigate to About'),
+      action: () => router.push('/(menu)/about'),
     },
   ];
 
@@ -148,10 +160,10 @@ export default function MenuScreen() {
               </View>
             </View>
             
-            <TouchableOpacity style={styles.notificationButton}>
+            {/* <TouchableOpacity style={styles.notificationButton}>
               <Bell size={24} color="#FFFFFF" />
               <View style={styles.notificationBadge} />
-            </TouchableOpacity>
+            </TouchableOpacity> */}
           </View>
 
           {/* Wallet Balance Card */}
@@ -190,7 +202,7 @@ export default function MenuScreen() {
                       <Text style={styles.menuSubtitle}>{item.subtitle}</Text>
                     </View>
                   </View>
-                  <ChevronRight size={16} color="#9CA3AF" />
+                 <ArrowRight size={20} color="#9ca3af" />
                 </TouchableOpacity>
               ))}
             </View>
@@ -249,7 +261,7 @@ export default function MenuScreen() {
                 <Text style={styles.appName}>Drop Cars Vendor</Text>
                 <Text style={styles.appVersion}>Version 1.0.0</Text>
                 <Text style={styles.appDescription}>
-                  Professional delivery management app for vendors. Manage your bookings, track earnings, and grow your business.
+                  Professional delivery management app for vendors. Manage your bookings, track Statement, and grow your business.
                 </Text>
               </View>
             </View>
@@ -323,7 +335,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   profileName: {
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: 'bold',
     color: '#FFFFFF',
     marginBottom: 8,
@@ -426,7 +438,7 @@ const styles = StyleSheet.create({
   menuIcon: {
     width: 44,
     height: 44,
-    borderRadius: 22,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 16,
@@ -436,9 +448,9 @@ const styles = StyleSheet.create({
   },
   menuTitle: {
     fontSize: 16,
-    fontWeight: '600',
-    color: '#1F2937',
-    marginBottom: 2,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 4,
   },
   menuSubtitle: {
     fontSize: 12,

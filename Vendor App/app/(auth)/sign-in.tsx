@@ -92,7 +92,7 @@ export default function SignIn() {
           
           {/* Your existing content */}
           <View style={styles.welcomeContainer}>
-            <Text style={styles.welcomeTitle}>Welcome Back!</Text>
+            <Text style={styles.welcomeTitle}>Welcome Back Testing Mode</Text>
             <Text style={styles.welcomeSubtitle}>Sign in to your vendor account to continue</Text>
           </View>
         </View>
@@ -210,8 +210,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
   },
 headerSection: {
-  paddingTop: height * 0.08,
-  paddingBottom: 40,
+  // paddingTop: height * 0.02,
+  paddingBottom: height * 0.04,
   alignItems: 'center',
   position: 'relative',
   overflow: 'visible',
@@ -247,6 +247,9 @@ headerSection: {
   },
   welcomeContainer: {
     alignItems: 'center',
+    marginTop: 40,
+    marginBottom: 10,
+    paddingHorizontal: 20,
   },
   topBar: {
   height: 8,

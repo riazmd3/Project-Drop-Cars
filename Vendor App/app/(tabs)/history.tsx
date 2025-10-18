@@ -136,7 +136,7 @@ export default function HistoryScreen() {
               <FilterButton status="all" label="All" />
               <FilterButton status="pending" label="Pending" />
               <FilterButton status="approved" label="Approved" />
-              <FilterButton status="rejected" label="Rejected" />
+              {/* <FilterButton status="rejected" label="Rejected" /> */}
             </View>
           </ScrollView>
         </View>
@@ -168,7 +168,7 @@ export default function HistoryScreen() {
                     </View>
                     <View style={styles.transferInfo}>
                       <Text style={styles.transferAmount}>
-                        ${transfer.requested_amount.toLocaleString()}
+                        ₹{transfer.requested_amount.toLocaleString('en-IN')}
                       </Text>
                       <Text style={styles.transferDate}>
                         {formatDate(transfer.created_at)}
@@ -192,13 +192,13 @@ export default function HistoryScreen() {
                     <View style={styles.balanceRow}>
                       <Text style={styles.balanceLabel}>Wallet Before</Text>
                       <Text style={styles.balanceValue}>
-                        ${transfer.wallet_balance_before.toLocaleString()}
+                        ₹{transfer.wallet_balance_before.toLocaleString('en-IN')}
                       </Text>
                     </View>
                     <View style={styles.balanceRow}>
                       <Text style={styles.balanceLabel}>Bank Before</Text>
                       <Text style={styles.balanceValue}>
-                        ${transfer.bank_balance_before.toLocaleString()}
+                        ₹{transfer.bank_balance_before.toLocaleString('en-IN')}
                       </Text>
                     </View>
                     
@@ -208,13 +208,13 @@ export default function HistoryScreen() {
                         <View style={styles.balanceRow}>
                           <Text style={styles.balanceLabel}>Wallet After</Text>
                           <Text style={[styles.balanceValue, { color: '#10B981' }]}>
-                            ${transfer.wallet_balance_after.toLocaleString()}
+                            ₹{transfer.wallet_balance_after.toLocaleString('en-IN')}
                           </Text>
                         </View>
                         <View style={styles.balanceRow}>
                           <Text style={styles.balanceLabel}>Bank After</Text>
                           <Text style={[styles.balanceValue, { color: '#10B981' }]}>
-                            ${transfer.bank_balance_after.toLocaleString()}
+                            ₹{transfer.bank_balance_after.toLocaleString('en-IN')}
                           </Text>
                         </View>
                       </>

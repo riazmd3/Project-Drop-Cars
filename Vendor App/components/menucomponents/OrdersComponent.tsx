@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   ActivityIndicator
 } from 'react-native';
+import { useRouter } from 'expo-router';
 import api from '../../app/api/api'; // Adjust the path as necessary
 import { LinearGradient } from 'expo-linear-gradient';
 import { FileText, Calendar, Car, User, ArrowRight, Clock, MapPin, DollarSign, CircleAlert as AlertCircle, CircleCheck as CheckCircle } from 'lucide-react-native';
@@ -21,22 +22,28 @@ interface Order {
   customer_number: string;
   trip_status: string;
   pick_near_city: string;
-  trip_distance: number | null;
+  trip_distance: number;
   trip_time: string;
   estimated_price: number;
   vendor_price: number;
   platform_fees_percent: number;
   created_at: string;
+  cost_per_km: number;
+  venodr_profit: number | null;
+  admin_profit: number | null;
 }
 
 export default function OrdersComponent(){
+  const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
-    useEffect(() => {
+    
+  useEffect(() => {
     fetchOrders();
   }, []);
+  
   const fetchOrders = async () => {
-  try {
+    try {
       const response = await api.get('/orders/vendor');
       const sortedOrders = response.data.sort((a: Order, b: Order) =>
         new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
@@ -48,15 +55,6 @@ export default function OrdersComponent(){
     } finally {
       setLoading(false);
     }
-
-  // ✅ Correct usage of useEffect
-    // Sort orders by creation date (latest first)
-    // const sortedOrders = orders.sort((a, b) => 
-    //   new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    // );
-    
-    // setOrders(sortedOrders);
-    setLoading(false);
   };
 
   const getStatusColor = (status: string) => {
@@ -82,7 +80,7 @@ export default function OrdersComponent(){
       default: return <AlertCircle size={16} color="#6B7280" />;
     }
   };
-
+  
   const formatDate = (dateString: string) => {
     const date = new Date(dateString);
     return date.toLocaleDateString('en-IN', {
@@ -101,12 +99,16 @@ export default function OrdersComponent(){
     return Object.entries(locations || {}).sort(([a], [b]) => parseInt(a) - parseInt(b));
   };
 
+  const handleOrderPress = (orderId: number) => {
+    router.push(`/order-details?orderId=${orderId}`);
+  };
+
   const renderOrderItem = ({ item }: { item: Order }) => {
     const locations = getLocationEntries(item.pickup_drop_location);
     const status = item.trip_status;
 
     return (
-      <TouchableOpacity style={styles.orderCard}>
+      <TouchableOpacity style={styles.orderCard} onPress={() => handleOrderPress(item.id)}>
         <View style={styles.orderHeader}>
           <View style={styles.orderIdContainer}>
             <Text style={styles.orderIdText}>#{item.id}</Text>
@@ -194,11 +196,20 @@ export default function OrdersComponent(){
           <View style={styles.profitInfo}>
             <View style={styles.profitRow}>
               <Text style={styles.profitLabel}>Your Earning: </Text>
-              <Text style={styles.profitValue}>₹{item.vendor_price - item.estimated_price}</Text>
+              <Text style={styles.profitValue}>₹{item.trip_status === 'COMPLETED'? item.venodr_profit : Math.round((item.vendor_price - item.estimated_price)+((item.trip_distance * item.cost_per_km)*(item.platform_fees_percent/100))) - Math.round(((item.vendor_price - item.estimated_price)+((item.trip_distance * item.cost_per_km)*(item.platform_fees_percent/100)))*item.platform_fees_percent/100)}</Text>
             </View>
             <View style={styles.profitRow}>
               <Text style={styles.platformFeeLabel}>Platform Fee ({item.platform_fees_percent}%): </Text>
-              <Text style={styles.platformFeeValue}>-₹{Math.round((item.vendor_price * item.platform_fees_percent) / 100)}</Text>
+              {/* <Text style={styles.platformFeeValue}>-₹{Math.round((item.cost_per_km * item.platform_fees_percent) / 100)}</Text> */}
+              {item.trip_type !== 'Hourly Rental' ? (
+                <Text style={styles.platformFeeValue}>
+                  {item.cost_per_km !== null && item.cost_per_km !== undefined && item.trip_distance !== null
+                    ? `-₹${item.trip_status === 'COMPLETED'? item.admin_profit : Math.round((((item.vendor_price - item.estimated_price)+((item.trip_distance * item.cost_per_km)*(item.platform_fees_percent/100)))*item.platform_fees_percent/100))}`
+                    : "Null"}
+                </Text>
+              ) : (
+                <Text style={styles.platformFeeValue}>₹{item.estimated_price/10}</Text>
+              )}
             </View>
           </View>
         </View>

@@ -41,7 +41,7 @@ export default function TransferScreen() {
     }
 
     if (transferAmount > balance.wallet_balance) {
-      Alert.alert('Insufficient Balance', `You only have Rs.${balance.wallet_balance.toLocaleString()} in your wallet`);
+      Alert.alert('Insufficient Balance', `You only have Rs.${balance.wallet_balance.toLocaleString('en-IN')} in your wallet`);
       return;
     }
 
@@ -90,14 +90,14 @@ export default function TransferScreen() {
                 <Wallet size={20} color="#3B82F6" />
                 <Text style={styles.balanceLabel}>Wallet</Text>
               </View>
-              <Text style={styles.balanceAmount}>${balance.wallet_balance.toLocaleString()}</Text>
+              <Text style={styles.balanceAmount}>₹{balance.wallet_balance.toLocaleString('en-IN')}</Text>
             </View>
             <View style={styles.balanceCard}>
               <View style={styles.balanceHeader}>
                 <Building2 size={20} color="#10B981" />
                 <Text style={styles.balanceLabel}>Bank</Text>
               </View>
-              <Text style={styles.balanceAmount}>${balance.bank_balance.toLocaleString()}</Text>
+              <Text style={styles.balanceAmount}>₹{balance.bank_balance.toLocaleString('en-IN')}</Text>
             </View>
           </View>
         </View>
@@ -121,7 +121,7 @@ export default function TransferScreen() {
             <View style={styles.amountSection}>
               <Text style={styles.inputLabel}>Transfer Amount</Text>
               <View style={styles.inputContainer}>
-                <Text style={styles.currencySymbol}>$</Text>
+                <Text style={styles.currencySymbol}>₹</Text>
                 <TextInput
                   style={styles.amountInput}
                   value={amount}
@@ -132,7 +132,7 @@ export default function TransferScreen() {
                 />
               </View>
               <Text style={styles.maxAmount}>
-                Max: Rs.{balance.wallet_balance.toLocaleString()}
+                Max: Rs.{balance.wallet_balance.toLocaleString('en-IN')}
               </Text>
             </View>
 
