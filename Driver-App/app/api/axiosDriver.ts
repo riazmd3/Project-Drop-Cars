@@ -1,8 +1,9 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
-
+import { emitSessionExpired } from '@/utils/session';
+const API_BASE_URL = 'http://10.153.75.247:8000/';
 // Use same API base as VO
-const API_BASE_URL = 'https://drop-cars-api-1049299844333.asia-south2.run.app/';
+// const API_BASE_URL = 'https://drop-cars-api-1049299844333.asia-south2.run.app/';
 
 const axiosDriver = axios.create({
   baseURL: API_BASE_URL,
@@ -41,6 +42,11 @@ axiosDriver.interceptors.response.use(
       method: error.config?.method,
       data: error.response?.data,
     });
+    if (error.response?.status === 401) {
+      try { SecureStore.deleteItemAsync('driverAuthToken'); } catch {}
+      try { SecureStore.deleteItemAsync('driverAuthInfo'); } catch {}
+      emitSessionExpired('Session expired');
+    }
     return Promise.reject(error);
   }
 );

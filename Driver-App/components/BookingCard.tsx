@@ -52,9 +52,10 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
 
   // Derive fields robustly in case parent passes raw VO pending order
   const loc = safePickLoc((booking as any).pickup_drop_location);
-  const cities = Object.values(loc || {});
-  const pickup = booking.pickup || String(cities[0] ?? '');
-  const drop = booking.drop || String(cities[1] ?? '');
+  const pickupFromLoc = (loc && (loc['0'] || (loc as any).pickup)) || '';
+  const dropFromLoc = (loc && (loc['1'] || (loc as any).drop)) || '';
+  const pickup = booking.pickup || String(pickupFromLoc);
+  const drop = booking.drop || String(dropFromLoc);
 
   const displayPrice = toNumber((booking as any).estimated_price ?? (booking as any).vendor_price ?? (booking as any).total_fare);
   const customerNumber = (booking as any).customer_number || (booking as any).customer_mobile || '';
@@ -63,6 +64,8 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
   const nearCity = (booking as any).pick_near_city || (booking as any).near_city || '';
   const startDateTime = (booking as any).start_date_time || '';
   const estimatedTime = (booking as any).trip_time || booking.trip_time || '';
+  const chargesToDeduct = Number((booking as any).charges_to_deduct || 0);
+  const isHourlyRental = String(tripType || '').toLowerCase().includes('hour');
   const createdAt = (booking as any).created_at || '';
   const maxAssignMs = Number((booking as any).max_time_to_assign_order || 0);
   const expiresAt = (booking as any).expires_at || '';
@@ -208,8 +211,9 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
       <View style={dynamicStyles.header}>
         <Text style={dynamicStyles.bookingId}>#{booking.order_id}</Text>
         <View style={dynamicStyles.fareContainer}>
+          {/* Avoid double currency symbol; just show the number, UI adds symbol elsewhere if needed */}
           <IndianRupee color={colors.success} size={16} />
-          <Text style={dynamicStyles.totalFare}>₹{displayPrice}</Text>
+          <Text style={dynamicStyles.totalFare}>{displayPrice}</Text>
         </View>
       </View>
 
@@ -218,22 +222,30 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
           <MapPin color={colors.success} size={16} />
           <Text style={dynamicStyles.routeText}>{pickup}</Text>
         </View>
-        <View style={dynamicStyles.routeLine} />
-        <View style={dynamicStyles.routeRow}>
-          <MapPin color={colors.error} size={16} />
-          <Text style={dynamicStyles.routeText}>{drop}</Text>
-        </View>
+        {!isHourlyRental && (
+          <>
+            <View style={dynamicStyles.routeLine} />
+            <View style={dynamicStyles.routeRow}>
+              <MapPin color={colors.error} size={16} />
+              <Text style={dynamicStyles.routeText}>{drop}</Text>
+            </View>
+          </>
+        )}
       </View>
 
       <View style={dynamicStyles.detailsContainer}>
-        <View style={dynamicStyles.detailRow}>
-          <User color={colors.textSecondary} size={14} />
-          <Text style={dynamicStyles.detailText}>{booking.customer_name}</Text>
-        </View>
-        <View style={dynamicStyles.detailRow}>
-          <Phone color={colors.textSecondary} size={14} />
-          <Text style={dynamicStyles.detailText}>{customerNumber}</Text>
-        </View>
+        {!!booking.customer_name && (
+          <View style={dynamicStyles.detailRow}>
+            <User color={colors.textSecondary} size={14} />
+            <Text style={dynamicStyles.detailText}>{booking.customer_name}</Text>
+          </View>
+        )}
+        {!!customerNumber && (
+          <View style={dynamicStyles.detailRow}>
+            <Phone color={colors.textSecondary} size={14} />
+            <Text style={dynamicStyles.detailText}>{customerNumber}</Text>
+          </View>
+        )}
         {(carType || tripType) && (
           <View style={dynamicStyles.detailRowMatrix}>
             <View style={dynamicStyles.detailCol}>
@@ -283,6 +295,12 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
           <Text style={dynamicStyles.tripInfoText}>
             {(booking as any).trip_distance ?? 0} km {booking.fare_per_km ? `• ₹${booking.fare_per_km}/km` : ''}
           </Text>
+        </View>
+      )}
+
+      {chargesToDeduct > 0 && (
+        <View style={dynamicStyles.tripInfo}>
+          <Text style={dynamicStyles.tripInfoText}>Charges to deduct on accept: ₹{chargesToDeduct}</Text>
         </View>
       )}
 

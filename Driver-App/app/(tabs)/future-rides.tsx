@@ -257,17 +257,21 @@ export default function FutureRidesScreen() {
 
   // Helper function to get pickup and drop locations
   const getPickupDrop = (pickupDropLocation: any) => {
-    if (!pickupDropLocation) return { pickup: 'Unknown', drop: 'Unknown' };
-    
-    // Handle the format from API: { "0": "gingee", "1": "Tiruvannamalai" }
-    if (pickupDropLocation["0"] && pickupDropLocation["1"]) {
-      return {
-        pickup: pickupDropLocation["0"],
-        drop: pickupDropLocation["1"]
-      };
+    if (!pickupDropLocation) return { pickup: 'Unknown', drop: '' };
+    if (typeof pickupDropLocation === 'object') {
+      const has0 = Object.prototype.hasOwnProperty.call(pickupDropLocation, '0');
+      const has1 = Object.prototype.hasOwnProperty.call(pickupDropLocation, '1');
+      if (has0 && has1) {
+        return { pickup: String(pickupDropLocation['0'] || 'Unknown'), drop: String(pickupDropLocation['1'] || '') };
+      }
+      if (has0) {
+        return { pickup: String(pickupDropLocation['0'] || 'Unknown'), drop: '' };
+      }
+      if (pickupDropLocation.pickup || pickupDropLocation.drop) {
+        return { pickup: String(pickupDropLocation.pickup || 'Unknown'), drop: String(pickupDropLocation.drop || '') };
+      }
     }
-    
-    return { pickup: 'Unknown', drop: 'Unknown' };
+    return { pickup: 'Unknown', drop: '' };
   };
 
   // Helper function to format date
@@ -294,6 +298,7 @@ export default function FutureRidesScreen() {
   // Render ride card
   const renderRideCard = (ride: FutureRide) => {
     const { pickup, drop } = getPickupDrop(ride.pickup_drop_location);
+    const isHourly = String(ride.trip_type || '').toLowerCase().includes('hour');
     
     return (
       <View key={ride.id} style={[styles.rideCard, { backgroundColor: colors.surface }]}>
@@ -317,16 +322,25 @@ export default function FutureRidesScreen() {
               {pickup}
             </Text>
           </View>
-          <View style={styles.routeRow}>
-            <View style={[styles.locationDot, { backgroundColor: '#EF4444' }]} />
-            <Text style={[styles.locationText, { color: colors.text }]} numberOfLines={1}>
-              {drop}
-            </Text>
-          </View>
+          {!isHourly && !!drop && (
+            <View style={styles.routeRow}>
+              <View style={[styles.locationDot, { backgroundColor: '#EF4444' }]} />
+              <Text style={[styles.locationText, { color: colors.text }]} numberOfLines={1}>
+                {drop}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Details */}
         <View style={styles.detailsContainer}>
+          {/* Trip Type */}
+          {!!ride.trip_type && (
+            <View style={styles.detailRow}>
+              <Car size={16} color={colors.textSecondary} />
+              <Text style={[styles.detailText, { color: colors.textSecondary }]}>Trip: {ride.trip_type}</Text>
+            </View>
+          )}
           <View style={styles.detailRow}>
             <User size={16} color={colors.textSecondary} />
             <Text style={[styles.detailText, { color: colors.textSecondary }]}>
