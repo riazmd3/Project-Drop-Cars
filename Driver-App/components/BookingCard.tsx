@@ -7,17 +7,22 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
-import { MapPin, Clock, IndianRupee, User, Phone } from 'lucide-react-native';
+import { MapPin, Clock, IndianRupee, User, Phone, Car } from 'lucide-react-native';
 
 interface Booking {
-  booking_id: string;
+  order_id: number;
   pickup: string;
   drop: string;
   customer_name: string;
-  customer_mobile: string;
-  fare_per_km: number;
-  distance_km: number;
-  total_fare: number;
+  customer_number: string;
+  estimated_price: number;
+  trip_distance?: number;
+  fare_per_km?: number;
+  car_type?: string;
+  trip_type?: string;
+  pick_near_city?: string;
+  start_date_time?: string;
+  trip_time?: string;
 }
 
 interface BookingCardProps {
@@ -29,7 +34,52 @@ interface BookingCardProps {
 
 export default function BookingCard({ booking, onAccept, disabled, loading }: BookingCardProps) {
   const { colors } = useTheme();
+  console.log('booking data', booking);
 
+  const toNumber = (v: any): number => {
+    if (v === null || v === undefined || v === '') return 0;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const safePickLoc = (v: any): Record<string, string> => {
+    if (!v) return {};
+    if (typeof v === 'string') {
+      try { return JSON.parse(v); } catch { return {}; }
+    }
+    return v;
+  };
+
+  // Derive fields robustly in case parent passes raw VO pending order
+  const loc = safePickLoc((booking as any).pickup_drop_location);
+  const cities = Object.values(loc || {});
+  const pickup = booking.pickup || String(cities[0] ?? '');
+  const drop = booking.drop || String(cities[1] ?? '');
+
+  const displayPrice = toNumber((booking as any).estimated_price ?? (booking as any).vendor_price ?? (booking as any).total_fare);
+  const customerNumber = (booking as any).customer_number || (booking as any).customer_mobile || '';
+  const carType = (booking as any).car_type || booking.car_type || '';
+  const tripType = (booking as any).trip_type || booking.trip_type || '';
+  const nearCity = (booking as any).pick_near_city || (booking as any).near_city || '';
+  const startDateTime = (booking as any).start_date_time || '';
+  const estimatedTime = (booking as any).trip_time || booking.trip_time || '';
+  const createdAt = (booking as any).created_at || '';
+  const maxAssignMs = Number((booking as any).max_time_to_assign_order || 0);
+  const expiresAt = (booking as any).expires_at || '';
+  const computeDeadline = (): string => {
+    try {
+      if (expiresAt) {
+        const d = new Date(expiresAt);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+      if (createdAt && maxAssignMs > 0) {
+        const d = new Date(new Date(createdAt).getTime() + maxAssignMs);
+        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      }
+    } catch {}
+    return '';
+  };
+  const deadlineTime = computeDeadline();
   const dynamicStyles = StyleSheet.create({
     card: {
       backgroundColor: colors.surface,
@@ -94,6 +144,18 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
     detailsContainer: {
       marginBottom: 12,
     },
+    detailRowMatrix: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      gap: 12,
+      marginBottom: 6,
+    },
+    detailCol: {
+      flex: 1,
+    },
+    detailColLabel: {
+      color: colors.textSecondary,
+    },
     detailRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -144,22 +206,22 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
   return (
     <View style={[dynamicStyles.card, disabled && dynamicStyles.disabledCard]}>
       <View style={dynamicStyles.header}>
-        <Text style={dynamicStyles.bookingId}>#{booking.booking_id}</Text>
+        <Text style={dynamicStyles.bookingId}>#{booking.order_id}</Text>
         <View style={dynamicStyles.fareContainer}>
           <IndianRupee color={colors.success} size={16} />
-          <Text style={dynamicStyles.totalFare}>₹{booking.total_fare}</Text>
+          <Text style={dynamicStyles.totalFare}>₹{displayPrice}</Text>
         </View>
       </View>
 
       <View style={dynamicStyles.routeContainer}>
         <View style={dynamicStyles.routeRow}>
           <MapPin color={colors.success} size={16} />
-          <Text style={dynamicStyles.routeText}>{booking.pickup}</Text>
+          <Text style={dynamicStyles.routeText}>{pickup}</Text>
         </View>
         <View style={dynamicStyles.routeLine} />
         <View style={dynamicStyles.routeRow}>
           <MapPin color={colors.error} size={16} />
-          <Text style={dynamicStyles.routeText}>{booking.drop}</Text>
+          <Text style={dynamicStyles.routeText}>{drop}</Text>
         </View>
       </View>
 
@@ -170,15 +232,59 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
         </View>
         <View style={dynamicStyles.detailRow}>
           <Phone color={colors.textSecondary} size={14} />
-          <Text style={dynamicStyles.detailText}>{booking.customer_mobile}</Text>
+          <Text style={dynamicStyles.detailText}>{customerNumber}</Text>
         </View>
+        {(carType || tripType) && (
+          <View style={dynamicStyles.detailRowMatrix}>
+            <View style={dynamicStyles.detailCol}>
+              {!!carType && (
+                <Text style={dynamicStyles.detailText}><Text style={dynamicStyles.detailColLabel}>Car:</Text> {carType}</Text>
+              )}
+            </View>
+            <View style={dynamicStyles.detailCol}>
+              {!!tripType && (
+                <Text style={dynamicStyles.detailText}><Text style={dynamicStyles.detailColLabel}>Trip:</Text> {tripType}</Text>
+              )}
+            </View>
+          </View>
+        )}
+        {(nearCity || startDateTime) && (
+          <View style={dynamicStyles.detailRowMatrix}>
+            <View style={dynamicStyles.detailCol}>
+              {!!nearCity && (
+                <Text style={dynamicStyles.detailText}><Text style={dynamicStyles.detailColLabel}>City:</Text> {nearCity}</Text>
+              )}
+            </View>
+            <View style={dynamicStyles.detailCol}>
+              {!!startDateTime && (
+                <Text style={dynamicStyles.detailText}><Text style={dynamicStyles.detailColLabel}>Start:</Text> {new Date(startDateTime).toLocaleString()}</Text>
+              )}
+            </View>
+          </View>
+        )}
+        {(estimatedTime || deadlineTime) && (
+          <View style={dynamicStyles.detailRowMatrix}>
+            <View style={dynamicStyles.detailCol}>
+              {!!estimatedTime && (
+                <Text style={dynamicStyles.detailText}><Text style={dynamicStyles.detailColLabel}>ETA:</Text> {estimatedTime}</Text>
+              )}
+            </View>
+            <View style={dynamicStyles.detailCol}>
+              {!!deadlineTime && (
+                <Text style={dynamicStyles.detailText}><Text style={dynamicStyles.detailColLabel}>Assign by:</Text> {deadlineTime}</Text>
+              )}
+            </View>
+          </View>
+        )}
       </View>
 
-      <View style={dynamicStyles.tripInfo}>
-        <Text style={dynamicStyles.tripInfoText}>
-          {booking.distance_km} km • ₹{booking.fare_per_km}/km
-        </Text>
-      </View>
+      {!!((booking as any).trip_distance || booking.fare_per_km) && (
+        <View style={dynamicStyles.tripInfo}>
+          <Text style={dynamicStyles.tripInfoText}>
+            {(booking as any).trip_distance ?? 0} km {booking.fare_per_km ? `• ₹${booking.fare_per_km}/km` : ''}
+          </Text>
+        </View>
+      )}
 
       <TouchableOpacity
         style={[

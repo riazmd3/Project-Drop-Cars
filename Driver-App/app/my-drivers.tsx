@@ -14,7 +14,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Users, Plus, Edit, Trash2, Phone, MapPin, CreditCard, RefreshCw } from 'lucide-react-native';
-import { fetchDashboardData } from '@/services/dashboardService';
+import { fetchDashboardData } from '@/services/orders/dashboardService';
 
 export default function MyDriversScreen() {
   const { user } = useAuth();

@@ -34,7 +34,7 @@ import {
   handleRazorpayPaymentSuccess,
   handleRazorpayPaymentFailure,
   getRazorpayOptions
-} from '@/services/paymentService';
+} from '@/services/payment/paymentService';
 
 export default function WalletScreen() {
   const { 
@@ -84,7 +84,7 @@ export default function WalletScreen() {
       // Step 1: Create Razorpay order using the new API
       const orderResponse = await processTopup(amount, {
         name: user.fullName || 'Driver',
-        email: `${user.primaryMobile}@dropcars.com`, // Fallback email
+        email: `${user.primaryMobile}@dropcars.com`, // Fallback email 
         contact: user.primaryMobile
       });
       
@@ -153,7 +153,14 @@ export default function WalletScreen() {
         }
       );
 
-      console.log('🔧 Razorpay options:', razorpayOptions);
+      console.warn('Razorpay debug: options prepared', {
+        hasKey: !!razorpayOptions?.key,
+        originalAmount: amount, // rupees entered by user
+        razorpayAmount: razorpayOptions?.amount, // amount in paise sent to SDK
+        currency: razorpayOptions?.currency,
+        orderId: razorpayOptions?.order_id,
+        platform: Platform.OS
+      });
 
       // Step 3: Open Razorpay checkout
       console.log('🔧 Opening Razorpay checkout...');
@@ -185,6 +192,23 @@ export default function WalletScreen() {
 
     } catch (error: any) {
       console.error('❌ Payment failed:', error);
+
+      // Razorpay detailed error parsing
+      try {
+        const rawDescription = error?.description || error?.error?.description;
+        const parsed = rawDescription ? JSON.parse(rawDescription) : null;
+        const rzpErr = parsed?.error || error?.error || {};
+        console.warn('Razorpay debug: failure details', {
+          code: rzpErr.code,
+          step: rzpErr.step,
+          reason: rzpErr.reason,
+          source: rzpErr.source,
+          description: rzpErr.description,
+          metadata: rzpErr.metadata,
+        });
+      } catch (parseErr) {
+        console.warn('Razorpay debug: could not parse error description JSON', parseErr);
+      }
       
       // Check if it's a Razorpay SDK issue and offer fallback
       if (error.message.includes('Razorpay SDK not available') || 
@@ -194,9 +218,10 @@ export default function WalletScreen() {
         
         try {
           // Use mock payment as fallback
+          // Use mock payment as fallback
           const mockPaymentResponse = {
             razorpay_payment_id: `mock_pay_${Date.now()}`,
-            razorpay_order_id: orderResponse.razorpay_order_id,
+            razorpay_order_id: `mock_order_${Date.now()}`,
             razorpay_signature: `mock_signature_${Date.now()}`
           };
 
@@ -232,6 +257,8 @@ export default function WalletScreen() {
         errorMessage = 'Unable to create payment order. Please try again.';
       } else if (error.message.includes('Payment data is invalid')) {
         errorMessage = 'Payment was cancelled or failed. Please try again.';
+      } else if (error?.error?.reason === 'payment_cancelled') {
+        errorMessage = 'UPI app cancelled the payment or timed out. Please retry.';
       }
       
       Alert.alert('Payment Failed', errorMessage);
@@ -457,12 +484,12 @@ export default function WalletScreen() {
       <View style={dynamicStyles.transactionLeft}>
         <View style={[
           dynamicStyles.transactionIcon,
-          { backgroundColor: transaction.type === 'credit' ? '#D1FAE5' : '#FEE2E2' }
+          { backgroundColor: transaction.type === 'credit' ? '#D1FAE5' : '#D1FAE5' }
         ]}>
           {transaction.type === 'credit' ? (
             <ArrowUpRight color={colors.success} size={16} />
           ) : (
-            <ArrowDownLeft color={colors.error} size={16} />
+            <ArrowUpRight color={colors.success} size={16} />
           )}
         </View>
         <View style={dynamicStyles.transactionInfo}>
@@ -483,9 +510,9 @@ export default function WalletScreen() {
       </View>
       <Text style={[
         dynamicStyles.transactionAmount,
-        { color: transaction.type === 'credit' ? colors.success : colors.error }
+        { color: transaction.type === 'credit' ? colors.success : colors.success }
       ]}>
-        {transaction.type === 'credit' ? '+' : '-'}₹{transaction.amount}
+        {transaction.type === 'credit' ? '+' : '+'}₹{transaction.amount}
       </Text>
     </View>
   );
@@ -495,7 +522,7 @@ export default function WalletScreen() {
       <View style={dynamicStyles.header}>
         <Text style={dynamicStyles.headerTitle}>Wallet</Text>
         <Text style={dynamicStyles.headerSubtitle}>
-          Welcome back, {user?.fullName || 'Driver'}!
+          Welcome back, {user?.fullName || 'Vehicle Owner'}!
         </Text>
       </View>
 
@@ -511,7 +538,7 @@ export default function WalletScreen() {
           {loading ? (
             <ActivityIndicator color="#FFFFFF" size="large" />
           ) : (
-            <Text style={dynamicStyles.balanceAmount}>₹{balance}</Text>
+            <Text style={dynamicStyles.balanceAmount}>₹{Math.round(Number(balance) || 0)}</Text>
           )}
           {balance < 1000 && (
             <View style={dynamicStyles.lowBalanceWarning}>
@@ -593,7 +620,7 @@ export default function WalletScreen() {
               <ActivityIndicator color={colors.primary} size="large" />
               <Text style={dynamicStyles.emptyStateText}>Loading transactions...</Text>
             </View>
-          ) : transactions.length === 0 ? (
+          ) : !transactions || transactions.length === 0 ? (
             <View style={dynamicStyles.emptyState}>
               <Text style={dynamicStyles.emptyStateText}>No transactions yet</Text>
             </View>

@@ -7,9 +7,10 @@ import {
   processWalletTopup,
   handleRazorpayPaymentSuccess,
   handleRazorpayPaymentFailure,
+  completePaymentFlow,
   WalletBalance,
   WalletTransaction 
-} from '@/services/paymentService';
+} from '@/services/payment/paymentService';
 
 interface Transaction {
   id: string;
@@ -73,34 +74,9 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       console.error('❌ Failed to sync wallet with backend:', error);
       setError(error.message);
       
-      // Fallback to local data if backend fails
-      setBalance(1500);
-      setTransactions([
-        {
-          id: '1',
-          type: 'credit',
-          amount: 2000,
-          description: 'Initial Balance',
-          date: '2025-01-20 10:30 AM',
-          status: 'completed'
-        },
-        {
-          id: '2',
-          type: 'debit',
-          amount: 50,
-          description: 'Trip Commission',
-          date: '2025-01-19 05:45 PM',
-          status: 'completed'
-        },
-        {
-          id: '3',
-          type: 'debit',
-          amount: 450,
-          description: 'Trip Earnings Payout',
-          date: '2025-01-19 05:45 PM',
-          status: 'completed'
-        }
-      ]);
+      // No fallback data - show empty state if backend fails
+      setBalance(0);
+      setTransactions([]);
     } finally {
       setLoading(false);
     }
@@ -246,13 +222,26 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       setLoading(true);
       setError(null);
       
-      // Verify payment and update wallet
-      const verificationResponse = await handleRazorpayPaymentSuccess(razorpayResponse);
+      console.log('🎉 Processing payment success with complete flow...');
       
-      if (verificationResponse.success) {
-        // Refresh wallet data after successful payment
-        await syncWithBackend();
-        console.log('✅ Payment successful and wallet updated');
+      // Use the complete payment flow that includes wallet refresh
+      const result = await completePaymentFlow(
+        razorpayResponse.razorpay_order_id,
+        razorpayResponse.razorpay_payment_id,
+        razorpayResponse.razorpay_signature
+      );
+      
+      if (result.payment.success) {
+        // Update local state with fresh wallet data
+        setBalance(result.wallet.balance);
+        
+        // Refresh transactions as well
+        await refreshTransactions();
+        
+        console.log('✅ Payment successful and wallet updated:', {
+          newBalance: result.wallet.balance,
+          paymentId: result.payment.payment_id
+        });
       } else {
         throw new Error('Payment verification failed');
       }

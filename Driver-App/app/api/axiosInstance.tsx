@@ -2,7 +2,7 @@ import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 
 // For React Native, use machine IP instead of localhost
-const API_BASE_URL = 'http://10.100.155.145:8000'; // Physical Emulator
+const API_BASE_URL = 'https://drop-cars-api-1049299844333.asia-south2.run.app/'; // Physical Emulatorm,kjuvb8
 
 console.log('🔧 API Config:', { baseURL: API_BASE_URL });
 
@@ -15,8 +15,18 @@ const axiosInstance = axios.create({
   },
   // Add retry configuration
   maxRedirects: 5,
-  validateStatus: (status) => status < 500, // Don't treat 4xx as errors
+  // Treat only 2xx as success so 4xx surfaces to catch blocks
+  validateStatus: (status) => status >= 200 && status < 300,
 });
+
+// Mask sensitive values in logs
+const mask = (key: string, value: any) => {
+  const k = (key || '').toLowerCase();
+  if (k.includes('password') || k.includes('token') || k.includes('authorization')) {
+    return '***';
+  }
+  return value;
+};
 
 // Request interceptor with logging
 axiosInstance.interceptors.request.use(
@@ -29,10 +39,12 @@ axiosInstance.interceptors.request.use(
       timeout: config.timeout
     });
 
+    // Align with authService storage key
     const token = await SecureStore.getItemAsync('authToken');
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
+    console.log('🔐 Auth attached:', !!config.headers.Authorization);
     
     // Ensure proper Content-Type for FormData (matches Postman form-data)
     if (config.data instanceof FormData) {
@@ -40,6 +52,21 @@ axiosInstance.interceptors.request.use(
       // Increase timeout for file uploads
       config.timeout = 120000; // 2 minutes for file uploads
       console.log('📤 FormData detected, setting Content-Type to multipart/form-data and timeout to 120s');
+
+      // React Native FormData does not expose entries(); it keeps an internal _parts array
+      // We will log keys and basic meta only (masking sensitive text)
+      const parts = (config.data as any)?._parts;
+      if (Array.isArray(parts)) {
+        const debugParts = parts.map((p: any) => {
+          const [key, value] = p || [];
+          if (!key) return null;
+          if (value && typeof value === 'object' && (value.uri || value.name)) {
+            return { key, value: { uri: !!value.uri, name: value.name || 'file', type: value.type || 'binary' } };
+          }
+          return { key, value: mask(key, value) };
+        }).filter(Boolean);
+        console.log('🧾 FormData fields:', debugParts);
+      }
     }
     
     return config;

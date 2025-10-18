@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { DashboardData, fetchDashboardData, fetchAvailableDrivers, DriverDetail } from '@/services/dashboardService';
+import { DashboardData, fetchDashboardData, fetchAvailableDrivers, DriverDetail } from '@/services/orders/dashboardService';
 
 export interface FutureRide {
   id: string;
@@ -25,6 +25,8 @@ interface DashboardContextType {
   error: string | null;
   fetchData: () => Promise<void>;
   refreshData: () => Promise<void>;
+  forceRefreshDashboardData: () => Promise<void>;
+  clearAllData: () => void;
   clearError: () => void;
   futureRides: FutureRide[];
   addFutureRide: (ride: FutureRide) => void;
@@ -47,11 +49,19 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [availableDriversLoading, setAvailableDriversLoading] = useState(false);
   const [availableDriversError, setAvailableDriversError] = useState<string | null>(null);
 
-  // Auto-fetch data when context is created
-  useEffect(() => {
-    console.log('🚀 DashboardContext created, auto-fetching data...');
-    fetchData();
-  }, []);
+  // Clear all dashboard data when component unmounts or resets
+  const clearAllData = () => {
+    console.log('🧹 Clearing all dashboard data...');
+    setDashboardData(null);
+    setError(null);
+    setFutureRides([]);
+    setAvailableDrivers([]);
+    setAvailableDriversError(null);
+    console.log('✅ All dashboard data cleared');
+  };
+
+  // Remove auto-fetching to improve app startup performance
+  // Data will be fetched only when explicitly requested
 
   const fetchData = async () => {
     try {
@@ -80,6 +90,11 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   };
 
   const refreshData = async () => {
+    await fetchData();
+  };
+
+  const forceRefreshDashboardData = async () => {
+    console.log('🔄 Force refreshing dashboard data...');
     await fetchData();
   };
 
@@ -134,6 +149,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       error,
       fetchData,
       refreshData,
+      forceRefreshDashboardData,
+      clearAllData,
       clearError,
       futureRides,
       addFutureRide,
