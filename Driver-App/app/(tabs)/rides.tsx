@@ -86,9 +86,12 @@ export default function RidesScreen() {
         if (rideData.assignment_status === 'COMPLETED' || rideData.trip_status === 'COMPLETED') {
           completed.push(rideData);
           console.log('✅ Added to completed:', order.id);
-        } else if (rideData.assignment_status === 'CANCELLED' || rideData.trip_status === 'CANCELLED') {
+        } else if (rideData.assignment_status === 'CANCELLED' || 
+                   rideData.assignment_status === 'AUTO_CANCELLED' || 
+                   rideData.assignment_status === 'CANCELLED_BY_VENDOR' ||
+                   rideData.trip_status === 'CANCELLED') {
           cancelled.push(rideData);
-          console.log('❌ Added to cancelled:', order.id);
+          console.log('❌ Added to cancelled:', order.id, 'with status:', rideData.assignment_status);
         } else {
           console.log('⚠️ Order not categorized:', {
             orderId: order.id,
@@ -176,6 +179,19 @@ export default function RidesScreen() {
     }
   };
 
+  const getCancellationLabel = (assignmentStatus: string) => {
+    switch (assignmentStatus) {
+      case 'AUTO_CANCELLED':
+        return 'Auto Cancelled';
+      case 'CANCELLED_BY_VENDOR':
+        return 'Cancelled by Vendor';
+      case 'CANCELLED':
+        return 'Cancelled';
+      default:
+        return 'Cancelled';
+    }
+  };
+
   const renderRideCard = (ride: RideData) => {
     console.log('🎨 Rendering ride card:', {
       id: ride.id,
@@ -192,7 +208,7 @@ export default function RidesScreen() {
           <View style={styles.statusBadge}>
             <Text style={styles.statusIcon}>{getStatusIcon(ride.status)}</Text>
             <Text style={[styles.statusText, { color: getStatusColor(ride.status) }]}>
-              {ride.status.toUpperCase()}
+              {activeTab === 'cancelled' ? getCancellationLabel(ride.assignment_status) : ride.status.toUpperCase()}
             </Text>
           </View>
           <Text style={[styles.orderId, { color: colors.textSecondary }]}>

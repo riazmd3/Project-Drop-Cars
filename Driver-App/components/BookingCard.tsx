@@ -23,6 +23,10 @@ interface Booking {
   pick_near_city?: string;
   start_date_time?: string;
   trip_time?: string;
+  created_at?: string;
+  max_time_to_assign_order?: string;
+  expires_at?: string;
+  charges_to_deduct?: number;
 }
 
 interface BookingCardProps {
@@ -65,22 +69,40 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
   const nearCity = (booking as any).pick_near_city || (booking as any).near_city || '';
   const startDateTime = (booking as any).start_date_time || '';
   const estimatedTime = (booking as any).trip_time || booking.trip_time || '';
-  const chargesToDeduct = Number((booking as any).charges_to_deduct || 0);
+  const chargesToDeduct = Number(booking.charges_to_deduct || 0);
   const isHourlyRental = String(tripType || '').toLowerCase().includes('hour');
-  const createdAt = (booking as any).created_at || '';
-  const maxAssignMs = Number((booking as any).max_time_to_assign_order || 0);
-  const expiresAt = (booking as any).expires_at || '';
+  const createdAt = booking.created_at || '';
+  const maxTimeToAssign = booking.max_time_to_assign_order || '';
+  const expiresAt = booking.expires_at || '';
+  
   const computeDeadline = (): string => {
     try {
+      console.log('🕐 Computing deadline:', { 
+        createdAt, 
+        maxTimeToAssign, 
+        expiresAt,
+        bookingData: booking 
+      });
+      
+      // If expires_at is provided, use it directly
       if (expiresAt) {
         const d = new Date(expiresAt);
-        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        const deadline = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        console.log('🕐 Using expires_at deadline:', deadline);
+        return deadline;
       }
-      if (createdAt && maxAssignMs > 0) {
-        const d = new Date(new Date(createdAt).getTime() + maxAssignMs);
-        return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      // If max_time_to_assign_order is provided as a timestamp, use it directly
+      if (maxTimeToAssign) {
+        const d = new Date(maxTimeToAssign);
+        const deadline = d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        console.log('🕐 Using max_time_to_assign_order deadline:', deadline);
+        return deadline;
       }
-    } catch {}
+      
+      console.log('🕐 No deadline data available');
+    } catch (error) {
+      console.error('Error computing deadline:', error);
+    }
     return '';
   };
   const deadlineTime = computeDeadline();
@@ -89,10 +111,17 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
   useEffect(() => {
     const calculateTimeRemaining = () => {
       try {
-        const createdAt = (booking as any).created_at;
-        const maxTimeToAssign = (booking as any).max_time_to_assign_order;
+        const createdAt = booking.created_at;
+        const maxTimeToAssign = booking.max_time_to_assign_order;
+        
+        console.log('⏰ Calculating time remaining:', { 
+          createdAt, 
+          maxTimeToAssign,
+          bookingOrderId: booking.order_id 
+        });
         
         if (!createdAt || !maxTimeToAssign) {
+          console.log('⏰ Missing data for time calculation');
           setTimeRemaining('');
           return;
         }
@@ -101,9 +130,18 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
         const maxAssignDate = new Date(maxTimeToAssign);
         const now = new Date();
         
+        console.log('⏰ Date calculations:', {
+          createdDate: createdDate.toISOString(),
+          maxAssignDate: maxAssignDate.toISOString(),
+          now: now.toISOString()
+        });
+        
         const timeDiff = maxAssignDate.getTime() - now.getTime();
         
+        console.log('⏰ Time difference (ms):', timeDiff);
+        
         if (timeDiff <= 0) {
+          console.log('⏰ Time expired');
           setTimeRemaining('EXPIRED');
           return;
         }
@@ -112,13 +150,17 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
         const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
         const seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
         
+        let timeString = '';
         if (hours > 0) {
-          setTimeRemaining(`${hours}h ${minutes}m`);
+          timeString = `${hours}h ${minutes}m`;
         } else if (minutes > 0) {
-          setTimeRemaining(`${minutes}m ${seconds}s`);
+          timeString = `${minutes}m ${seconds}s`;
         } else {
-          setTimeRemaining(`${seconds}s`);
+          timeString = `${seconds}s`;
         }
+        
+        console.log('⏰ Calculated time remaining:', timeString);
+        setTimeRemaining(timeString);
       } catch (error) {
         console.error('Error calculating time remaining:', error);
         setTimeRemaining('');
