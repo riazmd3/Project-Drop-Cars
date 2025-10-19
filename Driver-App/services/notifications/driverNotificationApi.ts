@@ -30,17 +30,25 @@ export async function updateDriverNotificationPermissions(payload: {
   permission1?: boolean; 
   permission2?: boolean 
 }): Promise<NotificationResponse> {
-  // Try PATCH first, if it fails, fall back to POST
+  // For drivers, use POST to the main endpoint since PATCH might not be supported
+  // We need to get the current token first, then update with new permissions
   try {
-    const response = await axiosDriver.patch('/api/notifications/permissions/', payload);
+    // First, get current settings to preserve the token
+    const currentSettings = await getDriverNotificationSettings();
+    const token = currentSettings?.token || '';
+    
+    // Update with new permissions and existing token
+    const updatePayload = {
+      permission1: payload.permission1 ?? currentSettings?.permission1 ?? true,
+      permission2: payload.permission2 ?? currentSettings?.permission2 ?? true,
+      token: token
+    };
+    
+    console.log('🔄 Updating driver notification permissions:', updatePayload);
+    const response = await axiosDriver.post('/api/notifications/', updatePayload);
     return response.data as NotificationResponse;
   } catch (error: any) {
-    if (error?.response?.status === 405) {
-      // If PATCH is not allowed, try POST to the main endpoint
-      console.log('⚠️ PATCH not supported, trying POST to main endpoint');
-      const response = await axiosDriver.post('/api/notifications/', payload);
-      return response.data as NotificationResponse;
-    }
+    console.error('❌ Failed to update driver notification permissions:', error);
     throw error;
   }
 }
