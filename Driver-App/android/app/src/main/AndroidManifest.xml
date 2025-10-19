@@ -33,6 +33,7 @@
         <category android:name="android.intent.category.DEFAULT"/>
         <category android:name="android.intent.category.BROWSABLE"/>
         <data android:scheme="exp+drop-cars2"/>
+        <data android:scheme="exp+dropcars3"/>
       </intent-filter>
     </activity>
   </application>
