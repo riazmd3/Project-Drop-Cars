@@ -40,15 +40,29 @@ axiosInstance.interceptors.request.use(
       timeout: config.timeout
     });
 
-    // Check for valid token before making request
-    const token = await SecureStore.getItemAsync('authToken');
-    if (!token) {
-      console.log('❌ No auth token found, emitting session expired');
-      emitSessionExpired('No authentication token found');
-      return Promise.reject(new Error('No authentication token found. Please login first.'));
+    // Skip token validation for login and registration endpoints
+    const isAuthEndpoint = config.url?.includes('/login') || 
+                          config.url?.includes('/register') || 
+                          config.url?.includes('/signup') ||
+                          config.url?.includes('/auth/');
+    
+    if (!isAuthEndpoint) {
+      // Check for valid token before making request (only for non-auth endpoints)
+      const token = await SecureStore.getItemAsync('authToken');
+      if (!token) {
+        console.log('❌ No auth token found, emitting session expired');
+        emitSessionExpired('No authentication token found');
+        return Promise.reject(new Error('No authentication token found. Please login first.'));
+      }
+      config.headers.Authorization = `Bearer ${token}`;
+    } else {
+      // For auth endpoints, try to attach token if available (for refresh scenarios)
+      const token = await SecureStore.getItemAsync('authToken');
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
     }
     
-    config.headers.Authorization = `Bearer ${token}`;
     console.log('🔐 Auth attached:', !!config.headers.Authorization);
     
     // Ensure proper Content-Type for FormData (matches Postman form-data)

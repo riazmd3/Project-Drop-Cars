@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
-import { MapPin, Clock, IndianRupee, User, Phone, Car } from 'lucide-react-native';
+import { MapPin, Clock, IndianRupee, User, Phone, Car, AlertCircle } from 'lucide-react-native';
 
 interface Booking {
   order_id: number;
@@ -34,6 +34,7 @@ interface BookingCardProps {
 
 export default function BookingCard({ booking, onAccept, disabled, loading }: BookingCardProps) {
   const { colors } = useTheme();
+  const [timeRemaining, setTimeRemaining] = useState<string>('');
   console.log('booking data', booking);
 
   const toNumber = (v: any): number => {
@@ -83,6 +84,55 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
     return '';
   };
   const deadlineTime = computeDeadline();
+
+  // Calculate time remaining for assignment
+  useEffect(() => {
+    const calculateTimeRemaining = () => {
+      try {
+        const createdAt = (booking as any).created_at;
+        const maxTimeToAssign = (booking as any).max_time_to_assign_order;
+        
+        if (!createdAt || !maxTimeToAssign) {
+          setTimeRemaining('');
+          return;
+        }
+
+        const createdDate = new Date(createdAt);
+        const maxAssignDate = new Date(maxTimeToAssign);
+        const now = new Date();
+        
+        const timeDiff = maxAssignDate.getTime() - now.getTime();
+        
+        if (timeDiff <= 0) {
+          setTimeRemaining('EXPIRED');
+          return;
+        }
+        
+        const hours = Math.floor(timeDiff / (1000 * 60 * 60));
+        const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
+        
+        if (hours > 0) {
+          setTimeRemaining(`${hours}h ${minutes}m`);
+        } else if (minutes > 0) {
+          setTimeRemaining(`${minutes}m ${seconds}s`);
+        } else {
+          setTimeRemaining(`${seconds}s`);
+        }
+      } catch (error) {
+        console.error('Error calculating time remaining:', error);
+        setTimeRemaining('');
+      }
+    };
+
+    calculateTimeRemaining();
+    
+    // Update every second
+    const interval = setInterval(calculateTimeRemaining, 1000);
+    
+    return () => clearInterval(interval);
+  }, [booking]);
+
   const dynamicStyles = StyleSheet.create({
     card: {
       backgroundColor: colors.surface,
@@ -205,6 +255,30 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
       backgroundColor: colors.primary,
       opacity: 0.8,
     },
+    assignmentTimer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: '#FEF2F2',
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: '#FECACA',
+    },
+    timerText: {
+      fontSize: 14,
+      fontFamily: 'Inter-Bold',
+      color: '#DC2626',
+      marginLeft: 6,
+    },
+    expiredTimer: {
+      backgroundColor: '#FEE2E2',
+      borderColor: '#FCA5A5',
+    },
+    expiredText: {
+      color: '#B91C1C',
+    },
   });
   return (
     <View style={[dynamicStyles.card, disabled && dynamicStyles.disabledCard]}>
@@ -216,6 +290,28 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
           <Text style={dynamicStyles.totalFare}>{displayPrice}</Text>
         </View>
       </View>
+
+      {/* Assignment Timer */}
+      {timeRemaining && (
+        <View style={[
+          dynamicStyles.assignmentTimer,
+          timeRemaining === 'EXPIRED' && dynamicStyles.expiredTimer
+        ]}>
+          <AlertCircle 
+            color={timeRemaining === 'EXPIRED' ? '#B91C1C' : '#DC2626'} 
+            size={16} 
+          />
+          <Text style={[
+            dynamicStyles.timerText,
+            timeRemaining === 'EXPIRED' && dynamicStyles.expiredText
+          ]}>
+            {timeRemaining === 'EXPIRED' 
+              ? 'Assignment time expired!' 
+              : `Assign car & driver in ${timeRemaining}`
+            }
+          </Text>
+        </View>
+      )}
 
       <View style={dynamicStyles.routeContainer}>
         <View style={dynamicStyles.routeRow}>
