@@ -601,10 +601,15 @@ export default function WalletScreen() {
               style={dynamicStyles.input}
               placeholder="Enter amount"
               value={addAmount}
-              onChangeText={setAddAmount}
-              keyboardType="numeric"
+              onChangeText={(text) => {
+                // Allow only numbers (integers only)
+                const cleanText = text.replace(/[^0-9]/g, '');
+                setAddAmount(cleanText);
+              }}
+              keyboardType="number-pad"
               placeholderTextColor={colors.textSecondary}
               editable={!paymentLoading}
+              autoFocus={false}
             />
           </View>
 

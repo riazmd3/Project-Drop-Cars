@@ -88,14 +88,14 @@ export const createRazorpayOrder = async (amount: number, currency: string = 'IN
     
     const authHeaders = await getAuthHeaders();
     const orderPayload = {
-      amount: amount * 100, // Convert rupees to paisa for Razorpay
+      amount: amount, // Send amount in rupees directly
       currency: currency,
       receipt: `receipt_${Date.now()}`,
       payment_capture: 1,
       notes: notes
     };
     
-    console.log('💰 Creating Razorpay order with payload (paisa):', orderPayload);
+    console.log('💰 Creating Razorpay order with payload (rupees):', orderPayload);
     
     const response = await axiosInstance.post('/api/wallet/razorpay/order', orderPayload, {
       headers: authHeaders
@@ -108,7 +108,7 @@ export const createRazorpayOrder = async (amount: number, currency: string = 'IN
         message: 'Razorpay order created successfully',
         order_id: response.data.rp_order_id,
         razorpay_order_id: response.data.rp_order_id,
-        amount: response.data.amount / 100, 
+        amount: response.data.amount, 
         currency: response.data.currency,
         status: 'created'
       };
@@ -232,8 +232,8 @@ export const getWalletBalance = async (): Promise<WalletBalance> => {
     if (response.data) {
       console.log('✅ Wallet balance fetched:', response.data);
       return {
-      // Backend returns balance in paise; convert to rupees for UI/logic
-      balance: ((response.data.balance ?? response.data.current_balance ?? 0) / 100) as number,
+      // Backend returns balance in rupees
+      balance: (response.data.balance ?? response.data.current_balance ?? 0) as number,
         currency: 'INR',
         last_updated: new Date().toISOString()
       };
@@ -420,7 +420,7 @@ export const getRazorpayOptions = (
     image: RAZORPAY_CONFIG.company_logo,
     currency: RAZORPAY_CONFIG.currency,
     key: RAZORPAY_CONFIG.key_id,
-    amount: amount * 100, // Convert rupees to paisa for Razorpay
+    amount: amount, // Send amount in rupees directly
     name: RAZORPAY_CONFIG.company_name,
     order_id: orderId,
     prefill: {
@@ -442,7 +442,7 @@ export const getRazorpayOptions = (
       }
     }
   };
-  // Razorpay expects amount in paisa (multiply by 100)
+  // Razorpay expects amount in rupees
   return options;
 };
 
