@@ -961,7 +961,11 @@ export default function DashboardScreen() {
                           pick_near_city: String((order as any).pick_near_city || (order as any).near_city || ''),
                           start_date_time: String(order.start_date_time || ''),
                           trip_time: String(((order as any).trip_time) || ''),
-                          // created_at, max_time_to_assign_order, expires_at are inside card via (any)
+                          // Add the timer fields explicitly
+                          created_at: String((order as any).created_at || ''),
+                          max_time_to_assign_order: String((order as any).max_time_to_assign_order || ''),
+                          expires_at: String((order as any).expires_at || ''),
+                          charges_to_deduct: Number((order as any).charges_to_deduct || 0),
                         }}
                         onAccept={() => handleAcceptBooking(order)}
                         disabled={!canAcceptOrder(order) || processingOrderId === order.order_id.toString()}
