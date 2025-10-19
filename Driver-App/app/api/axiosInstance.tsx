@@ -3,8 +3,8 @@ import * as SecureStore from 'expo-secure-store';
 import { emitSessionExpired } from '@/utils/session';
 
 // For React Native, use machine IP instead of localhost
-const API_BASE_URL = 'http://10.153.75.247:8000/';
-
+// const API_BASE_URL = 'http://10.153.75.247:8000/';
+const API_BASE_URL = 'https://drop-cars-api-1049299844333.asia-south2.run.app/';
 console.log('🔧 API Config:', { baseURL: API_BASE_URL });
 
 const axiosInstance = axios.create({
@@ -115,17 +115,25 @@ axiosInstance.interceptors.response.use(
       return Promise.resolve(error.response);
     }
     
-    // Don't convert 4xx and 5xx errors to success
-    if (error.response?.status >= 400) {
-      console.log('❌ HTTP error response, not converting to success:', error.response.status);
-      if (error.response?.status === 401) {
-        // Clear tokens and emit session expired
-        try { SecureStore.deleteItemAsync('authToken'); } catch {}
-        try { SecureStore.deleteItemAsync('userData'); } catch {}
-        emitSessionExpired('Session expired');
-      }
-      return Promise.reject(error);
+    // Handle all axios errors as potential session expiration
+    console.log('❌ Axios error detected, treating as potential session expiration');
+    
+    // Clear tokens and emit session expired for ANY axios error
+    try { 
+      SecureStore.deleteItemAsync('authToken'); 
+      console.log('🗑️ Cleared authToken');
+    } catch (e) { 
+      console.error('Error clearing authToken:', e); 
     }
+    try { 
+      SecureStore.deleteItemAsync('userData'); 
+      console.log('🗑️ Cleared userData');
+    } catch (e) { 
+      console.error('Error clearing userData:', e); 
+    }
+    
+    // Emit session expired event
+    emitSessionExpired('Session expired - Network or authentication error');
     
     return Promise.reject(error);
   }

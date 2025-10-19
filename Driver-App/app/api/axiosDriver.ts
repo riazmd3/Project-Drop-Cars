@@ -1,9 +1,9 @@
 import axios from 'axios';
 import * as SecureStore from 'expo-secure-store';
 import { emitSessionExpired } from '@/utils/session';
-const API_BASE_URL = 'http://10.153.75.247:8000/';
-// Use same API base as VO
-// const API_BASE_URL = 'https://drop-cars-api-1049299844333.asia-south2.run.app/';
+// const API_BASE_URL = 'http://10.153.75.247:8000/';
+// // Use same API base as VO
+const API_BASE_URL = 'https://drop-cars-api-1049299844333.asia-south2.run.app/';
 
 const axiosDriver = axios.create({
   baseURL: API_BASE_URL,
@@ -42,11 +42,27 @@ axiosDriver.interceptors.response.use(
       method: error.config?.method,
       data: error.response?.data,
     });
-    if (error.response?.status === 401) {
-      try { SecureStore.deleteItemAsync('driverAuthToken'); } catch {}
-      try { SecureStore.deleteItemAsync('driverAuthInfo'); } catch {}
-      emitSessionExpired('Session expired');
+    
+    // Handle all axios errors as potential session expiration
+    console.log('❌ Driver axios error detected, treating as potential session expiration');
+    
+    // Clear tokens and emit session expired for ANY axios error
+    try { 
+      SecureStore.deleteItemAsync('driverAuthToken'); 
+      console.log('🗑️ Cleared driverAuthToken');
+    } catch (e) { 
+      console.error('Error clearing driverAuthToken:', e); 
     }
+    try { 
+      SecureStore.deleteItemAsync('driverAuthInfo'); 
+      console.log('🗑️ Cleared driverAuthInfo');
+    } catch (e) { 
+      console.error('Error clearing driverAuthInfo:', e); 
+    }
+    
+    // Emit session expired event
+    emitSessionExpired('Driver session expired - Network or authentication error');
+    
     return Promise.reject(error);
   }
 );
