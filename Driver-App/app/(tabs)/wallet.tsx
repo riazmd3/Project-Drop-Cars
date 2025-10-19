@@ -250,9 +250,9 @@ export default function WalletScreen() {
       if (error.code === 'PAYMENT_CANCELLED') {
         errorMessage = 'Payment was cancelled by the user.';
       } else if (error.code === 'NETWORK_ERROR') {
-        errorMessage = 'Network error. Please check your internet connection.';
+        errorMessage = 'Network error. Please check your internet connection. If the issue persists, contact our team at 7092959900 for payment verification.';
       } else if (error.message.includes('verification failed')) {
-        errorMessage = 'Payment verification failed. Please contact support.';
+        errorMessage = 'Payment verification failed. Please contact our team at 7092959900 for payment verification.';
       } else if (error.message.includes('order creation failed')) {
         errorMessage = 'Unable to create payment order. Please try again.';
       } else if (error.message.includes('Payment data is invalid')) {
@@ -337,6 +337,33 @@ export default function WalletScreen() {
       fontFamily: 'Inter-Medium',
       color: colors.error,
       marginLeft: 8,
+    },
+    networkInfoBanner: {
+      backgroundColor: '#3B82F6',
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 16,
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      shadowColor: '#3B82F6',
+      shadowOffset: { width: 0, height: 2 },
+      shadowOpacity: 0.3,
+      shadowRadius: 4,
+      elevation: 4,
+    },
+    networkInfoText: {
+      fontSize: 14,
+      fontFamily: 'Inter-SemiBold',
+      color: '#FFFFFF',
+      flex: 1,
+      marginLeft: 12,
+      lineHeight: 20,
+    },
+    contactNumber: {
+      fontSize: 16,
+      fontFamily: 'Inter-Bold',
+      color: '#FEF3C7',
+      fontWeight: 'bold',
     },
     addMoneySection: {
       backgroundColor: colors.surface,
@@ -558,6 +585,15 @@ export default function WalletScreen() {
 
         <View style={dynamicStyles.addMoneySection}>
           <Text style={dynamicStyles.sectionTitle}>Add Money</Text>
+          
+          {/* Network Issue Fallback Info */}
+          <View style={[dynamicStyles.networkInfoBanner]}>
+            <AlertCircle color="#FFFFFF" size={18} />
+            <Text style={dynamicStyles.networkInfoText}>
+              If any network issue occurs in Razorpay payment, kindly use this number to GPay and call to verify the payment ID with our team: 
+              <Text style={dynamicStyles.contactNumber}> 7092959900</Text>
+            </Text>
+          </View>
           
           <View style={dynamicStyles.amountInput}>
             <IndianRupee color={colors.textSecondary} size={20} />

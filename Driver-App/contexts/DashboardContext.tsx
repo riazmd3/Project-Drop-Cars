@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { DashboardData, fetchDashboardData, fetchAvailableDrivers, DriverDetail } from '@/services/orders/dashboardService';
+import { useAuth } from './AuthContext';
+import { validateTokenBeforeApiCall } from '@/utils/tokenValidator';
 
 export interface FutureRide {
   id: string;
@@ -41,6 +43,7 @@ interface DashboardContextType {
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
 
 export function DashboardProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,6 +51,9 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [availableDrivers, setAvailableDrivers] = useState<DriverDetail[]>([]);
   const [availableDriversLoading, setAvailableDriversLoading] = useState(false);
   const [availableDriversError, setAvailableDriversError] = useState<string | null>(null);
+
+  // Check if user is a Vehicle Owner (not a driver)
+  const isVehicleOwner = user && !user.driver_status;
 
   // Clear all dashboard data when component unmounts or resets
   const clearAllData = () => {
@@ -64,6 +70,19 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   // Data will be fetched only when explicitly requested
 
   const fetchData = async () => {
+    // Only fetch data if user is a Vehicle Owner
+    if (!isVehicleOwner) {
+      console.log('ℹ️ Skipping dashboard data fetch - user is not a Vehicle Owner');
+      return;
+    }
+
+    // Validate token before making API call
+    const isTokenValid = await validateTokenBeforeApiCall('owner');
+    if (!isTokenValid) {
+      console.log('❌ Token validation failed, skipping dashboard data fetch');
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
@@ -117,6 +136,19 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   };
 
   const fetchAvailableDriversData = async () => {
+    // Only fetch data if user is a Vehicle Owner
+    if (!isVehicleOwner) {
+      console.log('ℹ️ Skipping available drivers fetch - user is not a Vehicle Owner');
+      return;
+    }
+
+    // Validate token before making API call
+    const isTokenValid = await validateTokenBeforeApiCall('owner');
+    if (!isTokenValid) {
+      console.log('❌ Token validation failed, skipping available drivers fetch');
+      return;
+    }
+
     try {
       setAvailableDriversLoading(true);
       setAvailableDriversError(null);

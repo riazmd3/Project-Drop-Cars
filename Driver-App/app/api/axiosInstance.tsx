@@ -40,11 +40,15 @@ axiosInstance.interceptors.request.use(
       timeout: config.timeout
     });
 
-    // Align with authService storage key
+    // Check for valid token before making request
     const token = await SecureStore.getItemAsync('authToken');
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
+    if (!token) {
+      console.log('❌ No auth token found, emitting session expired');
+      emitSessionExpired('No authentication token found');
+      return Promise.reject(new Error('No authentication token found. Please login first.'));
     }
+    
+    config.headers.Authorization = `Bearer ${token}`;
     console.log('🔐 Auth attached:', !!config.headers.Authorization);
     
     // Ensure proper Content-Type for FormData (matches Postman form-data)

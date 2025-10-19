@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,14 +10,22 @@ export default function IndexScreen() {
   const router = useRouter();
   const { setUser } = useAuth();
   const { signout } = useCarDriver();
+  const [userRole, setUserRole] = useState<'owner' | 'driver' | null>(null);
 
   useEffect(() => {
     checkAuthStatus();
     const off = onSessionExpired(async () => {
       try { Alert.alert('Session expired', 'Please login again.'); } catch {}
-      try { await SecureStore.deleteItemAsync('authToken'); } catch {}
-      try { await SecureStore.deleteItemAsync('userData'); } catch {}
-      try { await signout(); } catch {}
+      
+      // Clear data based on current role
+      if (userRole === 'owner') {
+        try { await SecureStore.deleteItemAsync('authToken'); } catch {}
+        try { await SecureStore.deleteItemAsync('userData'); } catch {}
+      } else if (userRole === 'driver') {
+        try { await signout(); } catch {}
+      }
+      
+      setUserRole(null);
       router.replace('/login');
     });
     return off;
@@ -35,19 +43,26 @@ export default function IndexScreen() {
       
       if (voToken && voUserData) {
         // Vehicle Owner logged in
+        console.log('✅ Vehicle Owner authentication found');
+        setUserRole('owner');
         setUser(JSON.parse(voUserData));
         router.replace('/(tabs)');
       } else if (driverToken && driverUserData) {
         // Quick Driver logged in
+        console.log('✅ Quick Driver authentication found');
+        setUserRole('driver');
         const driverInfo = JSON.parse(driverUserData);
         setUser(driverInfo);
         router.replace('/quick-dashboard');
       } else {
         // No authentication found
+        console.log('❌ No authentication found');
+        setUserRole(null);
         router.replace('/login');
       }
     } catch (error) {
       console.error('❌ Auth check failed:', error);
+      setUserRole(null);
       router.replace('/login');
     }
   };

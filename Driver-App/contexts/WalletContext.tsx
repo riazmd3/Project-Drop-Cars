@@ -11,6 +11,8 @@ import {
   WalletBalance,
   WalletTransaction 
 } from '@/services/payment/paymentService';
+import { useAuth } from './AuthContext';
+import { validateTokenBeforeApiCall } from '@/utils/tokenValidator';
 
 interface Transaction {
   id: string;
@@ -42,17 +44,38 @@ interface WalletContextType {
 const WalletContext = createContext<WalletContextType | undefined>(undefined);
 
 export function WalletProvider({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
   const [balance, setBalance] = useState(0);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Check if user is a Vehicle Owner (not a driver)
+  const isVehicleOwner = user && !user.driver_status;
+
   // Load initial data
   useEffect(() => {
-    syncWithBackend();
-  }, []);
+    if (isVehicleOwner) {
+      syncWithBackend();
+    } else {
+      console.log('ℹ️ Skipping wallet sync - user is not a Vehicle Owner');
+    }
+  }, [isVehicleOwner]);
 
   const syncWithBackend = async () => {
+    // Only sync if user is a Vehicle Owner
+    if (!isVehicleOwner) {
+      console.log('ℹ️ Skipping wallet sync - user is not a Vehicle Owner');
+      return;
+    }
+
+    // Validate token before making API call
+    const isTokenValid = await validateTokenBeforeApiCall('owner');
+    if (!isTokenValid) {
+      console.log('❌ Token validation failed, skipping wallet sync');
+      return;
+    }
+
     try {
       setLoading(true);
       setError(null);
