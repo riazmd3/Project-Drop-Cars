@@ -38,8 +38,9 @@
       "policy": "appVersion"
     },
     "updates": {
-      "url": "https://u.expo.dev/ce3d1356-cccc-4b4c-bb24-a1aa39876e8e"
+      "url": "https://u.expo.dev/31f4ffee-37b4-4db6-a102-1cd99bd74f8e"
     },
-    "owner": "dropcars"
+    "owner": "dropcars",
+    "ios": {}
   }
 }

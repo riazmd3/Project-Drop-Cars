@@ -324,7 +324,17 @@ export default function LoginScreen() {
               </Text>
             </TouchableOpacity>
 
-            <TouchableOpacity onPress={() => router.push('/quick-login')} style={styles.quickDriverButton}>
+            <TouchableOpacity onPress={async () => {
+              // Clear any existing owner data before switching to driver login
+              try {
+                await SecureStore.deleteItemAsync('authToken');
+                await SecureStore.deleteItemAsync('userData');
+                console.log('✅ Cleared owner data before switching to driver login');
+              } catch (error) {
+                console.log('ℹ️ No owner data to clear');
+              }
+              router.push('/quick-login');
+            }} style={styles.quickDriverButton}>
               <Text style={styles.quickDriverText}>Quick Driver Login</Text>
             </TouchableOpacity>
           </View>

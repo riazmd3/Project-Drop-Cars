@@ -132,7 +132,17 @@ export default function QuickLoginScreen() {
         style={styles.keyboardView}
       >
         <View style={styles.content}>
-          <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+          <TouchableOpacity onPress={async () => {
+            // Clear any existing driver data before going back to owner login
+            try {
+              await SecureStore.deleteItemAsync('driverAuthToken');
+              await SecureStore.deleteItemAsync('driverAuthInfo');
+              console.log('✅ Cleared driver data before switching to owner login');
+            } catch (error) {
+              console.log('ℹ️ No driver data to clear');
+            }
+            router.back();
+          }} style={styles.backButton}>
             <ArrowLeft color="#FFFFFF" size={24} />
           </TouchableOpacity>
 

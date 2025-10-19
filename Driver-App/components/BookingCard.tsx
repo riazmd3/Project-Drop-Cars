@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -7,7 +7,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
-import { MapPin, Clock, IndianRupee, User, Phone, Car } from 'lucide-react-native';
+import { MapPin, Clock, IndianRupee, User, Phone, Car, AlertCircle } from 'lucide-react-native';
 
 interface Booking {
   order_id: number;
@@ -34,6 +34,7 @@ interface BookingCardProps {
 
 export default function BookingCard({ booking, onAccept, disabled, loading }: BookingCardProps) {
   const { colors } = useTheme();
+  const [timeRemaining, setTimeRemaining] = useState<string>('');
   console.log('booking data', booking);
 
   const toNumber = (v: any): number => {
@@ -52,9 +53,10 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
 
   // Derive fields robustly in case parent passes raw VO pending order
   const loc = safePickLoc((booking as any).pickup_drop_location);
-  const cities = Object.values(loc || {});
-  const pickup = booking.pickup || String(cities[0] ?? '');
-  const drop = booking.drop || String(cities[1] ?? '');
+  const pickupFromLoc = (loc && (loc['0'] || (loc as any).pickup)) || '';
+  const dropFromLoc = (loc && (loc['1'] || (loc as any).drop)) || '';
+  const pickup = booking.pickup || String(pickupFromLoc);
+  const drop = booking.drop || String(dropFromLoc);
 
   const displayPrice = toNumber((booking as any).estimated_price ?? (booking as any).vendor_price ?? (booking as any).total_fare);
   const customerNumber = (booking as any).customer_number || (booking as any).customer_mobile || '';
@@ -63,6 +65,8 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
   const nearCity = (booking as any).pick_near_city || (booking as any).near_city || '';
   const startDateTime = (booking as any).start_date_time || '';
   const estimatedTime = (booking as any).trip_time || booking.trip_time || '';
+  const chargesToDeduct = Number((booking as any).charges_to_deduct || 0);
+  const isHourlyRental = String(tripType || '').toLowerCase().includes('hour');
   const createdAt = (booking as any).created_at || '';
   const maxAssignMs = Number((booking as any).max_time_to_assign_order || 0);
   const expiresAt = (booking as any).expires_at || '';
@@ -80,6 +84,55 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
     return '';
   };
   const deadlineTime = computeDeadline();
+
+  // Calculate time remaining for assignment
+  useEffect(() => {
+    const calculateTimeRemaining = () => {
+      try {
+        const createdAt = (booking as any).created_at;
+        const maxTimeToAssign = (booking as any).max_time_to_assign_order;
+        
+        if (!createdAt || !maxTimeToAssign) {
+          setTimeRemaining('');
+          return;
+        }
+
+        const createdDate = new Date(createdAt);
+        const maxAssignDate = new Date(maxTimeToAssign);
+        const now = new Date();
+        
+        const timeDiff = maxAssignDate.getTime() - now.getTime();
+        
+        if (timeDiff <= 0) {
+          setTimeRemaining('EXPIRED');
+          return;
+        }
+        
+        const hours = Math.floor(timeDiff / (1000 * 60 * 60));
+        const minutes = Math.floor((timeDiff % (1000 * 60 * 60)) / (1000 * 60));
+        const seconds = Math.floor((timeDiff % (1000 * 60)) / 1000);
+        
+        if (hours > 0) {
+          setTimeRemaining(`${hours}h ${minutes}m`);
+        } else if (minutes > 0) {
+          setTimeRemaining(`${minutes}m ${seconds}s`);
+        } else {
+          setTimeRemaining(`${seconds}s`);
+        }
+      } catch (error) {
+        console.error('Error calculating time remaining:', error);
+        setTimeRemaining('');
+      }
+    };
+
+    calculateTimeRemaining();
+    
+    // Update every second
+    const interval = setInterval(calculateTimeRemaining, 1000);
+    
+    return () => clearInterval(interval);
+  }, [booking]);
+
   const dynamicStyles = StyleSheet.create({
     card: {
       backgroundColor: colors.surface,
@@ -202,38 +255,93 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
       backgroundColor: colors.primary,
       opacity: 0.8,
     },
+    assignmentTimer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      backgroundColor: '#FEF2F2',
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      marginBottom: 12,
+      borderWidth: 1,
+      borderColor: '#FECACA',
+    },
+    timerText: {
+      fontSize: 14,
+      fontFamily: 'Inter-Bold',
+      color: '#DC2626',
+      marginLeft: 6,
+    },
+    expiredTimer: {
+      backgroundColor: '#FEE2E2',
+      borderColor: '#FCA5A5',
+    },
+    expiredText: {
+      color: '#B91C1C',
+    },
   });
   return (
     <View style={[dynamicStyles.card, disabled && dynamicStyles.disabledCard]}>
       <View style={dynamicStyles.header}>
         <Text style={dynamicStyles.bookingId}>#{booking.order_id}</Text>
         <View style={dynamicStyles.fareContainer}>
+          {/* Avoid double currency symbol; just show the number, UI adds symbol elsewhere if needed */}
           <IndianRupee color={colors.success} size={16} />
-          <Text style={dynamicStyles.totalFare}>₹{displayPrice}</Text>
+          <Text style={dynamicStyles.totalFare}>{displayPrice}</Text>
         </View>
       </View>
+
+      {/* Assignment Timer */}
+      {timeRemaining && (
+        <View style={[
+          dynamicStyles.assignmentTimer,
+          timeRemaining === 'EXPIRED' && dynamicStyles.expiredTimer
+        ]}>
+          <AlertCircle 
+            color={timeRemaining === 'EXPIRED' ? '#B91C1C' : '#DC2626'} 
+            size={16} 
+          />
+          <Text style={[
+            dynamicStyles.timerText,
+            timeRemaining === 'EXPIRED' && dynamicStyles.expiredText
+          ]}>
+            {timeRemaining === 'EXPIRED' 
+              ? 'Assignment time expired!' 
+              : `Assign car & driver in ${timeRemaining}`
+            }
+          </Text>
+        </View>
+      )}
 
       <View style={dynamicStyles.routeContainer}>
         <View style={dynamicStyles.routeRow}>
           <MapPin color={colors.success} size={16} />
           <Text style={dynamicStyles.routeText}>{pickup}</Text>
         </View>
-        <View style={dynamicStyles.routeLine} />
-        <View style={dynamicStyles.routeRow}>
-          <MapPin color={colors.error} size={16} />
-          <Text style={dynamicStyles.routeText}>{drop}</Text>
-        </View>
+        {!isHourlyRental && (
+          <>
+            <View style={dynamicStyles.routeLine} />
+            <View style={dynamicStyles.routeRow}>
+              <MapPin color={colors.error} size={16} />
+              <Text style={dynamicStyles.routeText}>{drop}</Text>
+            </View>
+          </>
+        )}
       </View>
 
       <View style={dynamicStyles.detailsContainer}>
-        <View style={dynamicStyles.detailRow}>
-          <User color={colors.textSecondary} size={14} />
-          <Text style={dynamicStyles.detailText}>{booking.customer_name}</Text>
-        </View>
-        <View style={dynamicStyles.detailRow}>
-          <Phone color={colors.textSecondary} size={14} />
-          <Text style={dynamicStyles.detailText}>{customerNumber}</Text>
-        </View>
+        {!!booking.customer_name && (
+          <View style={dynamicStyles.detailRow}>
+            <User color={colors.textSecondary} size={14} />
+            <Text style={dynamicStyles.detailText}>{booking.customer_name}</Text>
+          </View>
+        )}
+        {!!customerNumber && (
+          <View style={dynamicStyles.detailRow}>
+            <Phone color={colors.textSecondary} size={14} />
+            <Text style={dynamicStyles.detailText}>{customerNumber}</Text>
+          </View>
+        )}
         {(carType || tripType) && (
           <View style={dynamicStyles.detailRowMatrix}>
             <View style={dynamicStyles.detailCol}>
@@ -283,6 +391,12 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
           <Text style={dynamicStyles.tripInfoText}>
             {(booking as any).trip_distance ?? 0} km {booking.fare_per_km ? `• ₹${booking.fare_per_km}/km` : ''}
           </Text>
+        </View>
+      )}
+
+      {chargesToDeduct > 0 && (
+        <View style={dynamicStyles.tripInfo}>
+          <Text style={dynamicStyles.tripInfoText}>Charges to deduct on accept: ₹{chargesToDeduct}</Text>
         </View>
       )}
 
