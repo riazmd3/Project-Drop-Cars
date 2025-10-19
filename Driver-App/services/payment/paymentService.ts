@@ -88,14 +88,14 @@ export const createRazorpayOrder = async (amount: number, currency: string = 'IN
     
     const authHeaders = await getAuthHeaders();
     const orderPayload = {
-      amount: amount, 
+      amount: amount * 100, // Convert rupees to paisa for Razorpay
       currency: currency,
       receipt: `receipt_${Date.now()}`,
       payment_capture: 1,
       notes: notes
     };
     
-    console.log('💰 Creating Razorpay order with payload (rupees):', orderPayload);
+    console.log('💰 Creating Razorpay order with payload (paisa):', orderPayload);
     
     const response = await axiosInstance.post('/api/wallet/razorpay/order', orderPayload, {
       headers: authHeaders
@@ -420,7 +420,7 @@ export const getRazorpayOptions = (
     image: RAZORPAY_CONFIG.company_logo,
     currency: RAZORPAY_CONFIG.currency,
     key: RAZORPAY_CONFIG.key_id,
-    amount: amount,
+    amount: amount * 100, // Convert rupees to paisa for Razorpay
     name: RAZORPAY_CONFIG.company_name,
     order_id: orderId,
     prefill: {
@@ -442,7 +442,7 @@ export const getRazorpayOptions = (
       }
     }
   };
-  // Backend expects rupees; passing amount as entered
+  // Razorpay expects amount in paisa (multiply by 100)
   return options;
 };
 

@@ -25,16 +25,29 @@ export default function IndexScreen() {
 
   const checkAuthStatus = async () => {
     try {
-      const token = await SecureStore.getItemAsync('authToken');
-      const userData = await SecureStore.getItemAsync('userData');
+      // Check for Vehicle Owner authentication first
+      const voToken = await SecureStore.getItemAsync('authToken');
+      const voUserData = await SecureStore.getItemAsync('userData');
       
-      if (token && userData) {
-        setUser(JSON.parse(userData));
+      // Check for Quick Driver authentication
+      const driverToken = await SecureStore.getItemAsync('driverAuthToken');
+      const driverUserData = await SecureStore.getItemAsync('driverAuthInfo');
+      
+      if (voToken && voUserData) {
+        // Vehicle Owner logged in
+        setUser(JSON.parse(voUserData));
         router.replace('/(tabs)');
+      } else if (driverToken && driverUserData) {
+        // Quick Driver logged in
+        const driverInfo = JSON.parse(driverUserData);
+        setUser(driverInfo);
+        router.replace('/quick-dashboard');
       } else {
+        // No authentication found
         router.replace('/login');
       }
     } catch (error) {
+      console.error('❌ Auth check failed:', error);
       router.replace('/login');
     }
   };

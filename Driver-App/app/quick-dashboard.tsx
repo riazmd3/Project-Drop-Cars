@@ -28,7 +28,8 @@ import {
   DollarSign,
   Navigation,
   CheckCircle,
-  AlertCircle
+  AlertCircle,
+  Bell
 } from 'lucide-react-native';
 import { startTrip, endTrip } from '@/services/driver/carDriverService';
 import axiosDriver from '@/app/api/axiosDriver';
@@ -71,6 +72,10 @@ export default function QuickDashboardScreen() {
   const [activeTrip, setActiveTrip] = useState<DriverOrder | null>(null);
   const [tripActionLoading, setTripActionLoading] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Notification state
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [notificationLoading, setNotificationLoading] = useState(false);
   
   // Animation values
   const statusAnimation = useState(new Animated.Value(0))[0];
@@ -115,6 +120,26 @@ export default function QuickDashboardScreen() {
       return false;
     }
   }, []);
+
+  // Notification functions
+  const toggleNotifications = async () => {
+    try {
+      setNotificationLoading(true);
+      const { updateDriverNotificationPermissions } = await import('@/services/notifications/driverNotificationApi');
+      const newStatus = !notificationsEnabled;
+      const res = await updateDriverNotificationPermissions({ 
+        permission1: newStatus, 
+        permission2: newStatus 
+      });
+      setNotificationsEnabled(!!(res.permission1 || res.permission2));
+      console.log('✅ Driver notifications toggled:', newStatus);
+    } catch (error: any) {
+      console.error('❌ Failed to toggle notifications:', error);
+      Alert.alert('Error', `Failed to toggle notifications: ${error.message}`);
+    } finally {
+      setNotificationLoading(false);
+    }
+  };
 
   // Optimized data fetching with proper authentication
   const loadDriverData = useCallback(async () => {
@@ -579,9 +604,26 @@ export default function QuickDashboardScreen() {
             </View>
           </View>
           
-          <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
-            <LogOut size={20} color={colors.error} />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity 
+              onPress={toggleNotifications} 
+              style={styles.notificationToggle}
+              disabled={notificationLoading}
+            >
+              <Bell size={18} color={colors.primary} />
+              <Switch
+                value={notificationsEnabled}
+                onValueChange={toggleNotifications}
+                trackColor={{ false: colors.border, true: colors.primary }}
+                thumbColor={notificationsEnabled ? '#FFFFFF' : '#F3F4F6'}
+                disabled={notificationLoading}
+                style={styles.switch}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
+              <LogOut size={20} color={colors.error} />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
 
@@ -915,6 +957,20 @@ const styles = StyleSheet.create({
       alignItems: 'center',
     justifyContent: 'space-between',
     },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  notificationToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    padding: 4,
+  },
+  switch: {
+    transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }],
+  },
   driverInfo: {
     flexDirection: 'row',
     alignItems: 'center',
