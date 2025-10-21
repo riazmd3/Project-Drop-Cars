@@ -20,6 +20,7 @@ axiosDriver.interceptors.request.use(
     const isAuthEndpoint = config.url?.includes('/login') || 
                           config.url?.includes('/register') || 
                           config.url?.includes('/signup') ||
+                          config.url?.includes('/signin') ||
                           config.url?.includes('/auth/') ||
                           config.url?.includes('/driver/login');
     

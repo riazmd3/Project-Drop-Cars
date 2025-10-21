@@ -49,6 +49,7 @@ interface FutureRide {
   assignment_status: string;
   assigned_at: string | null;
   expires_at: string;
+  max_time_to_assign_order?: string;
   cancelled_at: string | null;
   completed_at: string | null;
   assignment_created_at: string;
@@ -68,6 +69,8 @@ export default function FutureRidesScreen() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // global tick to refresh countdowns
+  const [tick, setTick] = useState(0);
 
   // Assignment modal states
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -138,6 +141,12 @@ export default function FutureRidesScreen() {
       fetchFutureRides();
     }
   }, [user?.id]);
+
+  // Ticker for countdowns
+  useEffect(() => {
+    const interval = setInterval(() => setTick((t) => t + 1), 1000);
+    return () => clearInterval(interval);
+  }, []);
 
   // Fetch available drivers and cars for assignment
   const fetchAvailableAssignments = async () => {
@@ -295,10 +304,52 @@ export default function FutureRidesScreen() {
     }
   };
 
+  // Compute assignment time remaining for a ride
+  const getAssignmentRemaining = (ride: FutureRide): string => {
+    if (!ride.created_at || !ride.max_time_to_assign_order || !ride.assignment_created_at) {
+      return "Assignment window expired";
+    }
+  
+    const createdAt = new Date(ride.created_at);
+    const maxAssignTime = new Date(ride.max_time_to_assign_order);
+    
+    // Fix timezone issue - ensure assignment_created_at is treated as UTC
+    const assignmentCreatedAtString = ride.assignment_created_at.endsWith('Z') 
+      ? ride.assignment_created_at 
+      : ride.assignment_created_at + 'Z';
+    const assignmentCreatedAt = new Date(assignmentCreatedAtString);
+    
+    // Step 1: Calculate total difference between created_at and max_time_to_assign_order
+    const diffMs = maxAssignTime.getTime() - createdAt.getTime();
+    
+    // Step 2: Calculate assignment end time
+    const assignmentEndTime = new Date(assignmentCreatedAt.getTime() + diffMs);
+    
+    // Step 3: Calculate remaining time from now
+    const now = new Date();
+    const remainingMs = assignmentEndTime.getTime() - now.getTime();
+  
+    // Use a smaller buffer (10 seconds instead of 60 seconds)
+    if (remainingMs < -10000) {
+      return "Assignment window expired";
+    }
+    
+    // Handle negative time (past deadline but within 10-second buffer)
+    if (remainingMs < 0) {
+      const overdueSeconds = Math.abs(Math.floor(remainingMs / 1000));
+      return `Overdue: ${overdueSeconds}s`;
+    }
+    
+    const remainingMinutes = Math.floor(remainingMs / 60000);
+    const remainingSeconds = Math.floor((remainingMs % 60000) / 1000);
+    return `${remainingMinutes}m ${remainingSeconds}s`;
+  };
   // Render ride card
   const renderRideCard = (ride: FutureRide) => {
     const { pickup, drop } = getPickupDrop(ride.pickup_drop_location);
     const isHourly = String(ride.trip_type || '').toLowerCase().includes('hour');
+    
+    const remaining = getAssignmentRemaining(ride);
     
     return (
       <View key={ride.id} style={[styles.rideCard, { backgroundColor: colors.surface }]}>
@@ -313,6 +364,21 @@ export default function FutureRidesScreen() {
             Order #{ride.source_order_id}
           </Text>
         </View>
+
+        {/* Assignment countdown (only for accepted orders without driver/car assigned) */}
+        {remaining !== '' && (
+  <View style={styles.assignmentTimer}>
+    <Text style={styles.timerText}>
+      {remaining === 'Assignment window expired'
+        ? 'Assignment window expired'
+        : remaining.startsWith('Overdue:')
+          ? `Assignment overdue: ${remaining.replace('Overdue: ', '')}`
+          : remaining
+            ? `Assign driver & car in ${remaining}`
+            : ''}
+    </Text>
+  </View>
+)}
 
         {/* Route */}
         <View style={styles.routeContainer}>
@@ -397,6 +463,10 @@ export default function FutureRidesScreen() {
                 {ride.assigned_car_name} • {ride.assigned_car_number}
               </Text>
             )}
+            {/* Vendor info only after driver & car are assigned */}
+            {!!(ride.vendor_name && ride.vendor_phone) && (
+              <Text style={[styles.assignmentText, { color: colors.textSecondary }]}>Vendor: {ride.vendor_name} • {ride.vendor_phone}</Text>
+            )}
           </View>
         ) : (
           <TouchableOpacity 
@@ -450,6 +520,7 @@ export default function FutureRidesScreen() {
       </TouchableOpacity>
     </View>
   );
+
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -840,6 +911,29 @@ const styles = StyleSheet.create({
       color: '#FFFFFF',
       fontSize: 14,
       fontFamily: 'Inter-SemiBold',
+    },
+    assignmentTimer: {
+      marginTop: 8,
+      marginBottom: 8,
+      paddingVertical: 8,
+      paddingHorizontal: 12,
+      borderRadius: 8,
+      backgroundColor: '#FEE2E2',
+      borderWidth: 1,
+      borderColor: '#FCA5A5',
+    },
+    timerText: {
+      fontSize: 13,
+      fontFamily: 'Inter-SemiBold',
+      color: '#B91C1C',
+      textAlign: 'center',
+    },
+    expiredTimer: {
+      backgroundColor: '#FEE2E2',
+      borderColor: '#FCA5A5',
+    },
+    expiredText: {
+      color: '#B91C1C',
     },
     modalOverlay: {
       flex: 1,

@@ -1,4 +1,5 @@
 import axiosInstance from '@/app/api/axiosInstance';
+import axiosDriver from '@/app/api/axiosDriver';
 import authService, { getAuthHeaders } from '../auth/authService';
 import * as SecureStore from 'expo-secure-store';
 
@@ -119,7 +120,7 @@ export const loginDriver = async (mobileNumber: string, password: string): Promi
 
     console.log('🔐 Attempting driver login with payload:', { ...payload, password: '***' });
 
-    const response = await axiosInstance.post('/api/users/cardriver/signin', payload);
+    const response = await axiosDriver.post('/api/users/cardriver/signin', payload);
 
     console.log('✅ Driver login successful:', response.data);
     // Persist driver token for axiosDriver interceptor

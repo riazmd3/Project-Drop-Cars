@@ -107,6 +107,36 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
   };
   const deadlineTime = computeDeadline();
 
+  // Calculate maximum assignment window duration
+  const getAssignmentWindowDuration = (): string => {
+    try {
+      if (!createdAt || !maxTimeToAssign) {
+        return '';
+      }
+
+      const createdDate = new Date(createdAt);
+      const maxAssignDate = new Date(maxTimeToAssign);
+      const diffMs = maxAssignDate.getTime() - createdDate.getTime();
+      
+      if (diffMs <= 0) return '';
+      
+      const minutes = Math.floor(diffMs / (1000 * 60));
+      const hours = Math.floor(minutes / 60);
+      const remainingMinutes = minutes % 60;
+      
+      if (hours > 0) {
+        return `${hours}h ${remainingMinutes}m`;
+      } else {
+        return `${minutes}m`;
+      }
+    } catch (error) {
+      console.error('Error calculating assignment window:', error);
+      return '';
+    }
+  };
+
+  const assignmentWindowDuration = getAssignmentWindowDuration();
+
   // Calculate time remaining for assignment
   useEffect(() => {
     const calculateTimeRemaining = () => {
@@ -274,6 +304,19 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
       color: colors.text,
       textAlign: 'center',
     },
+    assignmentWindowLabel: {
+      backgroundColor: '#3B82F6', // Blue color
+      paddingHorizontal: 12,
+      paddingVertical: 6,
+      borderRadius: 12,
+      alignSelf: 'flex-start',
+      marginBottom: 12,
+    },
+    assignmentWindowText: {
+      fontSize: 12,
+      fontFamily: 'Inter-SemiBold',
+      color: '#FFFFFF',
+    },
     acceptButton: {
       backgroundColor: colors.primary,
       borderRadius: 12,
@@ -297,30 +340,7 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
       backgroundColor: colors.primary,
       opacity: 0.8,
     },
-    assignmentTimer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: '#FEF2F2',
-      borderRadius: 8,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      marginBottom: 12,
-      borderWidth: 1,
-      borderColor: '#FECACA',
-    },
-    timerText: {
-      fontSize: 14,
-      fontFamily: 'Inter-Bold',
-      color: '#DC2626',
-      marginLeft: 6,
-    },
-    expiredTimer: {
-      backgroundColor: '#FEE2E2',
-      borderColor: '#FCA5A5',
-    },
-    expiredText: {
-      color: '#B91C1C',
-    },
+    // Timer styles removed for home card
   });
   return (
     <View style={[dynamicStyles.card, disabled && dynamicStyles.disabledCard]}>
@@ -333,24 +353,11 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
         </View>
       </View>
 
-      {/* Assignment Timer */}
-      {timeRemaining && (
-        <View style={[
-          dynamicStyles.assignmentTimer,
-          timeRemaining === 'EXPIRED' && dynamicStyles.expiredTimer
-        ]}>
-          <AlertCircle 
-            color={timeRemaining === 'EXPIRED' ? '#B91C1C' : '#DC2626'} 
-            size={16} 
-          />
-          <Text style={[
-            dynamicStyles.timerText,
-            timeRemaining === 'EXPIRED' && dynamicStyles.expiredText
-          ]}>
-            {timeRemaining === 'EXPIRED' 
-              ? 'Assignment time expired!' 
-              : `Assign car & driver in ${timeRemaining}`
-            }
+      {/* Assignment Window Duration Label */}
+      {assignmentWindowDuration && (
+        <View style={dynamicStyles.assignmentWindowLabel}>
+          <Text style={dynamicStyles.assignmentWindowText}>
+            Assignment Time: {assignmentWindowDuration}
           </Text>
         </View>
       )}
@@ -438,7 +445,7 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
 
       {chargesToDeduct > 0 && (
         <View style={dynamicStyles.tripInfo}>
-          <Text style={dynamicStyles.tripInfoText}>Charges to deduct on accept: ₹{chargesToDeduct}</Text>
+          <Text style={dynamicStyles.tripInfoText}>Charges to deduct: ₹{chargesToDeduct}</Text>
         </View>
       )}
 
