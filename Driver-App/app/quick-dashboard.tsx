@@ -25,7 +25,6 @@ import {
   LogOut, 
   RefreshCw,
   Clock,
-  DollarSign,
   Navigation,
   CheckCircle,
   AlertCircle,
@@ -883,8 +882,6 @@ export default function QuickDashboardScreen() {
 
                 <View style={styles.orderFooter}>
                   <View style={styles.fareContainer}>
-                    <DollarSign size={20} color="#10B981" />
-                    //fare 
                     <Text style={styles.fareAmount}>₹{(order as any).customer_price ?? order.total_fare ?? order.estimated_price}</Text>
                   </View>
                   

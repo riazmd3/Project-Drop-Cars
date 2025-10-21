@@ -366,19 +366,19 @@ export default function FutureRidesScreen() {
         </View>
 
         {/* Assignment countdown (only for accepted orders without driver/car assigned) */}
-        {remaining !== '' && (
-  <View style={styles.assignmentTimer}>
-    <Text style={styles.timerText}>
-      {remaining === 'Assignment window expired'
-        ? 'Assignment window expired'
-        : remaining.startsWith('Overdue:')
-          ? `Assignment overdue: ${remaining.replace('Overdue: ', '')}`
-          : remaining
-            ? `Assign driver & car in ${remaining}`
-            : ''}
-    </Text>
-  </View>
-)}
+        {remaining !== '' && !ride.assigned_driver_name && !ride.assigned_car_name && (
+          <View style={styles.assignmentTimer}>
+            <Text style={styles.timerText}>
+              {remaining === 'Assignment window expired'
+                ? 'Assignment window expired'
+                : remaining.startsWith('Overdue:')
+                  ? `Assignment overdue: ${remaining.replace('Overdue: ', '')}`
+                  : remaining
+                    ? `Assign driver & car in ${remaining}`
+                    : ''}
+            </Text>
+          </View>
+        )}
 
         {/* Route */}
         <View style={styles.routeContainer}>
