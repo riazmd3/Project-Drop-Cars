@@ -125,7 +125,62 @@ export default function EndTripScreen() {
         params: { order_id: String(params.order_id || '0') }
       });
     } catch (error: any) {
-      Alert.alert('Error', error.message || 'Failed to end trip');
+      console.error('❌ Error details:', error);
+      
+      // Handle specific error cases with user-friendly messages
+      if (error.response?.status === 400) {
+        const errorDetail = error.response?.data?.detail || '';
+        
+        if (errorDetail.includes('End KM cannot be less than start KM')) {
+          Alert.alert(
+            'Invalid KM Reading',
+            'The end kilometer reading cannot be less than the start kilometer reading. Please check your odometer reading and try again.',
+            [{ text: 'OK' }]
+          );
+        } else if (errorDetail.includes('End KM')) {
+          Alert.alert(
+            'Invalid KM Reading',
+            'Please enter a valid end kilometer reading that is greater than the start reading.',
+            [{ text: 'OK' }]
+          );
+        } else if (errorDetail.includes('toll')) {
+          Alert.alert(
+            'Invalid Toll Charge',
+            'Please enter a valid toll charge amount.',
+            [{ text: 'OK' }]
+          );
+        } else {
+          Alert.alert(
+            'Validation Error',
+            errorDetail || 'Please check your input and try again.',
+            [{ text: 'OK' }]
+          );
+        }
+      } else if (error.response?.status === 401) {
+        Alert.alert(
+          'Authentication Error',
+          'Your session has expired. Please login again.',
+          [{ text: 'OK' }]
+        );
+      } else if (error.response?.status === 404) {
+        Alert.alert(
+          'Trip Not Found',
+          'This trip could not be found. Please try again or contact support.',
+          [{ text: 'OK' }]
+        );
+      } else if (error.response?.status >= 500) {
+        Alert.alert(
+          'Server Error',
+          'There was a problem with our servers. Please try again later.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert(
+          'Error',
+          error.message || 'Failed to end trip. Please try again.',
+          [{ text: 'OK' }]
+        );
+      }
     } finally {
       setSubmitting(false);
     }
