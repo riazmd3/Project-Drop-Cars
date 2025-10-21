@@ -27,6 +27,7 @@ interface Booking {
   max_time_to_assign_order?: string;
   expires_at?: string;
   charges_to_deduct?: number;
+  pickup_notes?: string;
 }
 
 interface BookingCardProps {
@@ -417,6 +418,12 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
                 <Text style={dynamicStyles.detailText}><Text style={dynamicStyles.detailColLabel}>Start:</Text> {new Date(startDateTime).toLocaleString()}</Text>
               )}
             </View>
+          </View>
+        )}
+        {/* Pickup Notes */}
+        {booking.pickup_notes && (
+          <View style={dynamicStyles.detailRow}>
+            <Text style={dynamicStyles.detailText}><Text style={dynamicStyles.detailColLabel}>Notes:</Text> {booking.pickup_notes}</Text>
           </View>
         )}
         {(estimatedTime || deadlineTime) && (

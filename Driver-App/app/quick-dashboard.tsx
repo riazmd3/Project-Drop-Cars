@@ -28,7 +28,8 @@ import {
   Navigation,
   CheckCircle,
   AlertCircle,
-  Bell
+  Bell,
+  FileText
 } from 'lucide-react-native';
 import { startTrip, endTrip } from '@/services/driver/carDriverService';
 import axiosDriver from '@/app/api/axiosDriver';
@@ -55,6 +56,7 @@ interface DriverOrder {
   assignment_id?: number;
   scheduled_at?: string;
   toll_charge_update?: boolean; // Add toll charge update flag
+  pickup_notes?: string;
 }
 
 export default function QuickDashboardScreen() {
@@ -896,6 +898,18 @@ export default function QuickDashboardScreen() {
                           💰 Toll charges can be updated
                         </Text>
                       </View>
+                    </View>
+                  )}
+                  {/* Pickup Notes */}
+                  {order.pickup_notes && (
+                    <View style={styles.detailRow}>
+                      <FileText size={16} color={isDisabled && !isActiveTrip ? colors.textSecondary : colors.textSecondary} />
+                      <Text style={[
+                        styles.detailText, 
+                        { color: isDisabled && !isActiveTrip ? colors.textSecondary : colors.text }
+                      ]}>
+                        Notes: {order.pickup_notes}
+                      </Text>
                     </View>
                   )}
                 </View>

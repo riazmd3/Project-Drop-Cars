@@ -14,7 +14,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext'; 
 import { useNotifications } from '@/contexts/NotificationContext';
-import { MapPin, Clock, IndianRupee, User, Phone, Car, RefreshCw, UserPlus, X, CheckCircle } from 'lucide-react-native';
+import { MapPin, Clock, IndianRupee, User, Phone, Car, RefreshCw, UserPlus, X, CheckCircle, FileText, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { RefreshControl } from 'react-native';
 import axiosInstance from '@/app/api/axiosInstance';
 import { fetchAvailableDrivers, fetchAvailableCars, assignCarDriverToOrder, AvailableDriver, AvailableCar } from '@/services/orders/assignmentService';
@@ -59,6 +59,7 @@ interface FutureRide {
   assigned_driver_phone: string | null;
   assigned_car_name: string | null;
   assigned_car_number: string | null;
+  pickup_notes?: string;
 }
 
 export default function FutureRidesScreen() {
@@ -71,6 +72,7 @@ export default function FutureRidesScreen() {
   const [error, setError] = useState<string | null>(null);
   // global tick to refresh countdowns
   const [tick, setTick] = useState(0);
+  const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
 
   // Assignment modal states
   const [showAssignModal, setShowAssignModal] = useState(false);
@@ -431,6 +433,15 @@ export default function FutureRidesScreen() {
               {ride.trip_distance} km • {ride.trip_time}
             </Text>
           </View>
+          {/* Pickup Notes */}
+          {ride.pickup_notes && (
+            <View style={styles.detailRow}>
+              <FileText size={16} color={colors.textSecondary} />
+              <Text style={[styles.detailText, { color: colors.textSecondary }]}>
+                Notes: {ride.pickup_notes}
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Footer */}
@@ -448,6 +459,130 @@ export default function FutureRidesScreen() {
             </Text>
           </View>
         </View>
+
+        {/* See More Button */}
+        <TouchableOpacity 
+          style={[styles.seeMoreButton, { backgroundColor: colors.background }]}
+          onPress={() => setExpandedOrderId(expandedOrderId === ride.id ? null : ride.id)}
+        >
+          <Text style={[styles.seeMoreText, { color: colors.primary }]}>
+            {expandedOrderId === ride.id ? 'See Less' : 'See More'}
+          </Text>
+          {expandedOrderId === ride.id ? (
+            <ChevronUp size={16} color={colors.primary} />
+          ) : (
+            <ChevronDown size={16} color={colors.primary} />
+          )}
+        </TouchableOpacity>
+
+        {/* Expanded Details Drawer */}
+        {expandedOrderId === ride.id && (
+          <View style={[styles.expandedDetails, { backgroundColor: colors.background }]}>
+            <Text style={[styles.expandedTitle, { color: colors.text }]}>Order Details</Text>
+            
+            {/* Order Information */}
+            <View style={styles.expandedSection}>
+              <Text style={[styles.expandedSectionTitle, { color: colors.text }]}>Order Information</Text>
+              <View style={styles.expandedRow}>
+                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Order ID:</Text>
+                <Text style={[styles.expandedValue, { color: colors.text }]}>{ride.source_order_id}</Text>
+              </View>
+              <View style={styles.expandedRow}>
+                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Source:</Text>
+                <Text style={[styles.expandedValue, { color: colors.text }]}>{ride.source}</Text>
+              </View>
+              <View style={styles.expandedRow}>
+                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Trip Status:</Text>
+                <Text style={[styles.expandedValue, { color: colors.text }]}>{ride.trip_status}</Text>
+              </View>
+              <View style={styles.expandedRow}>
+                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Pick Near City:</Text>
+                <Text style={[styles.expandedValue, { color: colors.text }]}>{ride.pick_near_city}</Text>
+              </View>
+            </View>
+
+            {/* Pricing Information */}
+            <View style={styles.expandedSection}>
+              <Text style={[styles.expandedSectionTitle, { color: colors.text }]}>Pricing</Text>
+              <View style={styles.expandedRow}>
+                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Estimated Price:</Text>
+                <Text style={[styles.expandedValue, { color: colors.text }]}>₹{ride.estimated_price}</Text>
+              </View>
+              <View style={styles.expandedRow}>
+                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Vendor Price:</Text>
+                <Text style={[styles.expandedValue, { color: colors.text }]}>₹{ride.vendor_price}</Text>
+              </View>
+              <View style={styles.expandedRow}>
+                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Platform Fees:</Text>
+                <Text style={[styles.expandedValue, { color: colors.text }]}>{ride.platform_fees_percent}%</Text>
+              </View>
+              {ride.closed_vendor_price && (
+                <View style={styles.expandedRow}>
+                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Closed Vendor Price:</Text>
+                  <Text style={[styles.expandedValue, { color: colors.text }]}>₹{ride.closed_vendor_price}</Text>
+                </View>
+              )}
+              {ride.closed_driver_price && (
+                <View style={styles.expandedRow}>
+                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Closed Driver Price:</Text>
+                  <Text style={[styles.expandedValue, { color: colors.text }]}>₹{ride.closed_driver_price}</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Assignment Information */}
+            <View style={styles.expandedSection}>
+              <Text style={[styles.expandedSectionTitle, { color: colors.text }]}>Assignment</Text>
+              <View style={styles.expandedRow}>
+                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Assignment ID:</Text>
+                <Text style={[styles.expandedValue, { color: colors.text }]}>{ride.assignment_id}</Text>
+              </View>
+              <View style={styles.expandedRow}>
+                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Status:</Text>
+                <Text style={[styles.expandedValue, { color: colors.text }]}>{ride.assignment_status}</Text>
+              </View>
+              {ride.assigned_at && (
+                <View style={styles.expandedRow}>
+                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Assigned At:</Text>
+                  <Text style={[styles.expandedValue, { color: colors.text }]}>{formatDate(ride.assigned_at)}</Text>
+                </View>
+              )}
+              {ride.expires_at && (
+                <View style={styles.expandedRow}>
+                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Expires At:</Text>
+                  <Text style={[styles.expandedValue, { color: colors.text }]}>{formatDate(ride.expires_at)}</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Timestamps */}
+            <View style={styles.expandedSection}>
+              <Text style={[styles.expandedSectionTitle, { color: colors.text }]}>Timestamps</Text>
+              <View style={styles.expandedRow}>
+                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Created:</Text>
+                <Text style={[styles.expandedValue, { color: colors.text }]}>{formatDate(ride.created_at)}</Text>
+              </View>
+              {ride.assignment_created_at && (
+                <View style={styles.expandedRow}>
+                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Assignment Created:</Text>
+                  <Text style={[styles.expandedValue, { color: colors.text }]}>{formatDate(ride.assignment_created_at)}</Text>
+                </View>
+              )}
+              {ride.cancelled_at && (
+                <View style={styles.expandedRow}>
+                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Cancelled:</Text>
+                  <Text style={[styles.expandedValue, { color: colors.text }]}>{formatDate(ride.cancelled_at)}</Text>
+                </View>
+              )}
+              {ride.completed_at && (
+                <View style={styles.expandedRow}>
+                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Completed:</Text>
+                  <Text style={[styles.expandedValue, { color: colors.text }]}>{formatDate(ride.completed_at)}</Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
 
         {/* Assignment Info or Assign Button */}
         {ride.assigned_driver_name ? (
@@ -1045,4 +1180,55 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Inter-Regular',
     },
+  seeMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 8,
+    marginTop: 8,
+    gap: 8,
+  },
+  seeMoreText: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+  },
+  expandedDetails: {
+    marginTop: 8,
+    padding: 16,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  expandedTitle: {
+    fontSize: 18,
+    fontFamily: 'Inter-Bold',
+    marginBottom: 16,
+  },
+  expandedSection: {
+    marginBottom: 16,
+  },
+  expandedSectionTitle: {
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    marginBottom: 8,
+  },
+  expandedRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: 4,
+  },
+  expandedLabel: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    flex: 1,
+  },
+  expandedValue: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+    flex: 1,
+    textAlign: 'right',
+  },
   });
