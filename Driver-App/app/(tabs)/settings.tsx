@@ -24,7 +24,7 @@ const { height: screenHeight } = Dimensions.get('window');
 export default function SettingsScreen() {
   const { user, logout } = useAuth();
   const { isDarkMode, toggleTheme, colors } = useTheme();
-  const { notificationsEnabled, toggleNotifications, permission1, permission2, setPermission1, setPermission2 } = useNotifications();
+  const { notificationsEnabled, toggleNotifications } = useNotifications();
   const { dashboardData, loading } = useDashboard();
   const router = useRouter();
   const [showTermsModal, setShowTermsModal] = useState(false);
@@ -402,33 +402,6 @@ For any queries or support, contact us at:
             }
           />
 
-          {/* Priority permissions */}
-          <SettingItem
-            icon={<Bell color={colors.textSecondary} size={20} />}
-            title="Priority Alerts"
-            subtitle="High-importance notifications"
-            rightComponent={
-              <Switch
-                value={permission1}
-                onValueChange={(v) => setPermission1(v)}
-                trackColor={{ false: colors.border, true: colors.primary }}
-                thumbColor={permission1 ? '#FFFFFF' : '#F3F4F6'}
-              />
-            }
-          />
-          <SettingItem
-            icon={<Bell color={colors.textSecondary} size={20} />}
-            title="General Alerts"
-            subtitle="Regular updates and offers"
-            rightComponent={
-              <Switch
-                value={permission2}
-                onValueChange={(v) => setPermission2(v)}
-                trackColor={{ false: colors.border, true: colors.primary }}
-                thumbColor={permission2 ? '#FFFFFF' : '#F3F4F6'}
-              />
-            }
-          />
         </View>
 
         <View style={dynamicStyles.section}>

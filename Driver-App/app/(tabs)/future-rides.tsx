@@ -65,7 +65,7 @@ interface FutureRide {
 export default function FutureRidesScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
-  const { sendOrderAssignedNotification } = useNotifications();
+  const { } = useNotifications();
   const [futureRides, setFutureRides] = useState<FutureRide[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -222,17 +222,7 @@ export default function FutureRidesScreen() {
           : ride
       ));
 
-      // Send notification
-      sendOrderAssignedNotification({
-        orderId: selectedRide.source_order_id.toString(),
-        pickup: getPickupDrop(selectedRide.pickup_drop_location).pickup,
-        drop: getPickupDrop(selectedRide.pickup_drop_location).drop,
-        customerName: selectedRide.customer_name,
-        customerMobile: selectedRide.customer_number,
-        distance: selectedRide.trip_distance,
-        fare: selectedRide.vendor_price,
-        orderType: 'assigned'
-      });
+      // Notification removed
 
       Alert.alert('Success', 'Driver and car assigned successfully!');
       setShowVehicleModal(false);

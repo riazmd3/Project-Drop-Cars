@@ -43,7 +43,7 @@ export default function DashboardScreen() {
   const { balance } = useWallet();
   const { colors } = useTheme();
   const { dashboardData, loading, error, fetchData, refreshData, futureRides } = useDashboard();
-  const { sendNewOrderNotification, sendOrderAssignedNotification } = useNotifications();
+  const { } = useNotifications();
   const router = useRouter();
   const [showDrawer, setShowDrawer] = useState(false);
   const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([]);
@@ -148,26 +148,13 @@ export default function DashboardScreen() {
       setPreviousOrderCount(pendingOrders.length);
     } else if (pendingOrders.length > previousOrderCount && previousOrderCount > 0) {
       // New orders received
-          const newOrders = pendingOrders.slice(previousOrderCount);
-          newOrders.forEach(order => {
-            const locations = getPickupDropLocations(order.pickup_drop_location);
-            sendNewOrderNotification({
-              orderId: order.order_id.toString(),
-              pickup: locations.pickup,
-              drop: locations.drop,
-              customerName: 'Hidden',
-              customerMobile: 'Hidden',
-              distance: order.trip_distance,
-              fare: (order.cost_per_km * order.trip_distance) + order.driver_allowance + order.permit_charges + order.hill_charges + order.toll_charges,
-              orderType: 'new'
-            });
-          });
+          // New orders detected - notifications removed
       setPreviousOrderCount(pendingOrders.length);
     } else if (pendingOrders.length !== previousOrderCount) {
       // Update count if it changed
       setPreviousOrderCount(pendingOrders.length);
     }
-  }, [pendingOrders, previousOrderCount, sendNewOrderNotification]);
+  }, [pendingOrders, previousOrderCount]);
 
   const fetchPendingOrdersData = async () => {
     try {
@@ -649,17 +636,7 @@ export default function DashboardScreen() {
 
         addFutureRide(ride);
 
-        // Send notification for accepted order
-        sendOrderAssignedNotification({
-          orderId: order.order_id.toString(),
-          pickup: locations.pickup,
-          drop: locations.drop,
-          customerName: order.customer_name,
-          customerMobile: order.customer_number,
-          distance: order.trip_distance,
-          fare: (order.cost_per_km * order.trip_distance) + order.driver_allowance + order.permit_charges + order.hill_charges + order.toll_charges,
-          orderType: 'assigned'
-        });
+        // Notification removed
 
         Alert.alert(
           'Booking Accepted',

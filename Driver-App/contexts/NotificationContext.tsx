@@ -6,15 +6,8 @@ import * as SecureStore from 'expo-secure-store';
 interface NotificationContextType {
   notificationsEnabled: boolean;
   toggleNotifications: () => Promise<void>;
-  sendNewOrderNotification: (orderData: OrderNotificationData) => Promise<void>;
-  sendOrderAssignedNotification: (orderData: OrderNotificationData) => Promise<void>;
-  sendOrderCompletedNotification: (orderData: OrderNotificationData) => Promise<void>;
   clearAllNotifications: () => Promise<void>;
   getNotificationStatus: () => Promise<boolean>;
-  permission1: boolean;
-  permission2: boolean;
-  setPermission1: (v: boolean) => Promise<void>;
-  setPermission2: (v: boolean) => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -100,47 +93,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  const onSetPermission1 = async (v: boolean) => setPermission('permission1', v);
-  const onSetPermission2 = async (v: boolean) => setPermission('permission2', v);
 
-  const sendNewOrderNotification = async (orderData: OrderNotificationData) => {
-    if (!notificationsEnabled) {
-      console.log('🔕 Notifications disabled, skipping new order notification');
-      return;
-    }
-    
-    try {
-      await notificationService.sendNewOrderNotification(orderData);
-    } catch (error) {
-      console.error('❌ Failed to send new order notification:', error);
-    }
-  };
-
-  const sendOrderAssignedNotification = async (orderData: OrderNotificationData) => {
-    if (!notificationsEnabled) {
-      console.log('🔕 Notifications disabled, skipping order assigned notification');
-      return;
-    }
-    
-    try {
-      await notificationService.sendOrderAssignedNotification(orderData);
-    } catch (error) {
-      console.error('❌ Failed to send order assigned notification:', error);
-    }
-  };
-
-  const sendOrderCompletedNotification = async (orderData: OrderNotificationData) => {
-    if (!notificationsEnabled) {
-      console.log('🔕 Notifications disabled, skipping order completed notification');
-      return;
-    }
-    
-    try {
-      await notificationService.sendOrderCompletedNotification(orderData);
-    } catch (error) {
-      console.error('❌ Failed to send order completed notification:', error);
-    }
-  };
 
   const clearAllNotifications = async () => {
     try {
@@ -165,15 +118,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     <NotificationContext.Provider value={{
       notificationsEnabled,
       toggleNotifications,
-      sendNewOrderNotification,
-      sendOrderAssignedNotification,
-      sendOrderCompletedNotification,
       clearAllNotifications,
       getNotificationStatus,
-      permission1,
-      permission2,
-      setPermission1: onSetPermission1,
-      setPermission2: onSetPermission2,
     }}>
       {children}
     </NotificationContext.Provider>
