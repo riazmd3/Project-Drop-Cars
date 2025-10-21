@@ -5,6 +5,7 @@ import { useFrameworkReady } from '@/hooks/useFrameworkReady';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { BookingProvider } from '@/contexts/BookingContext';
 import { WalletProvider } from '@/contexts/WalletContext';
+import { NotificationProvider } from '@/contexts/NotificationContext';
 import * as Notifications from 'expo-notifications';
 
 // Configure notifications
@@ -42,14 +43,16 @@ export default function RootLayout() {
     <AuthProvider>
       <BookingProvider>
         <WalletProvider>
-          <Stack screenOptions={{ headerShown: false }}>
-            <Stack.Screen name="index" />
-            <Stack.Screen name="auth" />
-            <Stack.Screen name="(vendor)" />
-            <Stack.Screen name="(driver)" />
-            <Stack.Screen name="+not-found" />
-          </Stack>
-          <StatusBar style="auto" />
+          <NotificationProvider>
+            <Stack screenOptions={{ headerShown: false }}>
+              <Stack.Screen name="index" />
+              <Stack.Screen name="auth" />
+              <Stack.Screen name="(vendor)" />
+              <Stack.Screen name="(driver)" />
+              <Stack.Screen name="+not-found" />
+            </Stack>
+            <StatusBar style="auto" />
+          </NotificationProvider>
         </WalletProvider>
       </BookingProvider>
     </AuthProvider>

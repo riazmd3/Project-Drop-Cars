@@ -9,13 +9,15 @@ import {
   Alert,
   Modal,
   TextInput,
+  Switch,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBooking } from '@/contexts/BookingContext';
 import { useWallet } from '@/contexts/WalletContext';
-import { Menu, Wallet, TrendingUp, Clock, CircleCheck as CheckCircle, MapPin, Navigation, Car, Phone, User, CircleAlert as AlertCircle } from 'lucide-react-native';
+import { useNotifications } from '@/contexts/NotificationContext';
+import { Menu, Wallet, TrendingUp, Clock, CircleCheck as CheckCircle, MapPin, Navigation, Car, Phone, User, CircleAlert as AlertCircle, Bell } from 'lucide-react-native';
 import { DrawerActions } from '@react-navigation/native';
 import { useNavigation } from 'expo-router';
 import { SafeArea } from '@/components/SafeArea';
@@ -24,6 +26,7 @@ export default function DriverDashboard() {
   const { user } = useAuth();
   const { availableBookings, acceptBooking, bookings } = useBooking();
   const { wallet, canAcceptBooking, deductFunds } = useWallet();
+  const { notificationsEnabled, toggleNotifications, loading: notificationLoading } = useNotifications();
   const router = useRouter();
   const navigation = useNavigation();
 
@@ -106,9 +109,26 @@ export default function DriverDashboard() {
             <Menu color="#FFFFFF" size={24} strokeWidth={2} />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Driver Dashboard</Text>
-          <TouchableOpacity onPress={() => router.push('/(driver)/(tabs)/wallet')}>
-            <Wallet color="#FFFFFF" size={24} strokeWidth={2} />
-          </TouchableOpacity>
+          <View style={styles.headerActions}>
+            <TouchableOpacity 
+              onPress={toggleNotifications} 
+              style={styles.notificationToggle}
+              disabled={notificationLoading}
+            >
+              <Bell color="#FFFFFF" size={20} strokeWidth={2} />
+              <Switch
+                value={notificationsEnabled}
+                onValueChange={toggleNotifications}
+                trackColor={{ false: '#FFFFFF40', true: '#FFFFFF80' }}
+                thumbColor={notificationsEnabled ? '#FFFFFF' : '#F3F4F6'}
+                disabled={notificationLoading}
+                style={styles.switch}
+              />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => router.push('/(driver)/(tabs)/wallet')}>
+              <Wallet color="#FFFFFF" size={24} strokeWidth={2} />
+            </TouchableOpacity>
+          </View>
         </View>
         
         <View style={styles.welcomeSection}>
@@ -173,7 +193,9 @@ export default function DriverDashboard() {
               <Text style={styles.emptySubtext}>New bookings will appear here</Text>
             </View>
           ) : (
-            availableBookings.map((booking) => (
+            availableBookings.map((booking) => {
+              const isHourly = String((booking as any).tripType || '').toLowerCase().includes('hour');
+              return (
               <View key={booking.id} style={styles.bookingCard}>
                 <View style={styles.bookingHeader}>
                   <View style={styles.customerInfo}>
@@ -188,16 +210,23 @@ export default function DriverDashboard() {
                     <MapPin color="#10B981" size={16} />
                     <Text style={styles.routeText}>{booking.pickupLocation}</Text>
                   </View>
-                  <View style={styles.routeLine} />
-                  <View style={styles.routeItem}>
-                    <Navigation color="#EF4444" size={16} />
-                    <Text style={styles.routeText}>{booking.dropLocation}</Text>
-                  </View>
+                  {!isHourly && !!booking.dropLocation && (
+                    <>
+                      <View style={styles.routeLine} />
+                      <View style={styles.routeItem}>
+                        <Navigation color="#EF4444" size={16} />
+                        <Text style={styles.routeText}>{booking.dropLocation}</Text>
+                      </View>
+                    </>
+                  )}
                 </View>
 
                 <View style={styles.tripDetails}>
                   <Text style={styles.tripDetail}>Distance: {booking.driverPricing.distance} km</Text>
                   <Text style={styles.tripDetail}>Time: {booking.driverPricing.estimatedTime}</Text>
+                  {!!(booking as any).tripType && (
+                    <Text style={styles.tripDetail}>Type: {(booking as any).tripType}</Text>
+                  )}
                 </View>
 
                 <TouchableOpacity
@@ -219,7 +248,8 @@ export default function DriverDashboard() {
                   </LinearGradient>
                 </TouchableOpacity>
               </View>
-            ))
+              );
+            })
           )}
         </View>
 
@@ -353,6 +383,20 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+  headerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  notificationToggle: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    padding: 4,
+  },
+  switch: {
+    transform: [{ scaleX: 0.8 }, { scaleY: 0.8 }],
   },
   welcomeSection: {
     marginTop: 24,

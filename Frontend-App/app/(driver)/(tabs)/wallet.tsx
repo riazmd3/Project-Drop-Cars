@@ -31,7 +31,7 @@ export default function WalletScreen() {
   };
 
   const handleAddFunds = async () => {
-    if (!amount || parseFloat(amount) <= 0) {
+    if (!amount || parseInt(amount) <= 0) {
       Alert.alert('Error', 'Please enter a valid amount');
       return;
     }
@@ -45,7 +45,7 @@ export default function WalletScreen() {
         image: 'https://your-logo-url',
         currency: 'INR',
         key: 'rzp_test_1DP5mmOlF5G5ag', // Replace with your Razorpay key
-        amount: (parseFloat(amount) * 100).toString(), // Amount in paise
+        amount: parseInt(amount).toString(), // Amount in rupees
         name: 'Drop Cars',
         order_id: '', // Replace with actual order ID from backend
         prefill: {
@@ -58,7 +58,7 @@ export default function WalletScreen() {
 
       // Simulate Razorpay success for demo
       setTimeout(async () => {
-        const success = await addFunds(parseFloat(amount));
+        const success = await addFunds(parseInt(amount));
         if (success) {
           Alert.alert('Success', 'Funds added successfully!');
           setAmount('');
@@ -236,8 +236,12 @@ export default function WalletScreen() {
                 style={styles.amountField}
                 placeholder="Enter amount"
                 value={amount}
-                onChangeText={setAmount}
-                keyboardType="numeric"
+                onChangeText={(text) => {
+                  // Allow only numbers (integers only)
+                  const cleanText = text.replace(/[^0-9]/g, '');
+                  setAmount(cleanText);
+                }}
+                keyboardType="number-pad"
                 placeholderTextColor="#9CA3AF"
               />
             </View>
@@ -253,6 +257,15 @@ export default function WalletScreen() {
                   <Text style={styles.quickAmountText}>₹{quickAmount}</Text>
                 </TouchableOpacity>
               ))}
+            </View>
+
+            {/* Network Issue Fallback Info */}
+            <View style={styles.networkInfoBanner}>
+              <AlertCircle color="#FFFFFF" size={18} />
+              <Text style={styles.networkInfoText}>
+                If any network issue occurs in Razorpay payment, kindly use this number to GPay and call to verify the payment ID with our team: 
+                <Text style={styles.contactNumber}> 7092959900</Text>
+              </Text>
             </View>
 
             <View style={styles.paymentInfo}>
@@ -578,6 +591,32 @@ const styles = StyleSheet.create({
   paymentText: {
     fontSize: 14,
     color: '#6B7280',
+  },
+  networkInfoBanner: {
+    backgroundColor: '#3B82F6',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    shadowColor: '#3B82F6',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.3,
+    shadowRadius: 4,
+    elevation: 4,
+  },
+  networkInfoText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+    flex: 1,
+    marginLeft: 12,
+    lineHeight: 20,
+  },
+  contactNumber: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#FEF3C7',
   },
   modalButtons: {
     flexDirection: 'row',

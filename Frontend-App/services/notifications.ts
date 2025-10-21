@@ -1,54 +1,79 @@
-import * as Notifications from 'expo-notifications';
+import axios from 'axios';
 
-export interface NotificationData {
-  title: string;
-  body: string;
-  data?: any;
+const API_BASE_URL = 'https://drop-cars-api-1049299844333.asia-south2.run.app';
+
+const axiosInstance = axios.create({
+  baseURL: API_BASE_URL,
+  timeout: 30000,
+  headers: {
+    'Accept': 'application/json',
+  },
+});
+
+// Add auth interceptor
+axiosInstance.interceptors.request.use(
+  async (config: any) => {
+    // Get token from AsyncStorage (you'll need to import AsyncStorage)
+    const token = await import('@react-native-async-storage/async-storage').then(
+      (AsyncStorage) => AsyncStorage.default.getItem('driverAuthToken')
+    );
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  },
+  (error) => Promise.reject(error)
+);
+
+export interface NotificationSettings {
+  sub: string;
+  permission1: boolean;
+  permission2: boolean;
+  token: string;
 }
 
-export const sendLocalNotification = async (notification: NotificationData) => {
+export async function getNotificationSettings(): Promise<NotificationSettings | null> {
   try {
-    await Notifications.scheduleNotificationAsync({
-      content: {
-        title: notification.title,
-        body: notification.body,
-        data: notification.data || {},
-      },
-      trigger: null,
-    });
-  } catch (error) {
-    console.error('Error sending notification:', error);
+    const response = await axiosInstance.get('/api/notifications/');
+    return response.data as NotificationSettings;
+  } catch (error: any) {
+    if (error?.response?.status === 404) return null;
+    throw error;
   }
-};
+}
 
-export const sendBookingAcceptedNotification = async (driverName: string, customerName: string) => {
-  await sendLocalNotification({
-    title: 'Booking Accepted!',
-    body: `Driver ${driverName} accepted the booking for ${customerName}`,
-    data: { type: 'booking_accepted' }
-  });
-};
+export async function upsertNotificationSettings(payload: { 
+  permission1: boolean; 
+  permission2: boolean; 
+  token: string 
+}): Promise<NotificationSettings> {
+  const response = await axiosInstance.post('/api/notifications/', payload);
+  return response.data as NotificationSettings;
+}
 
-export const sendBookingCompletedNotification = async (customerName: string, amount: number) => {
-  await sendLocalNotification({
-    title: 'Trip Completed!',
-    body: `Trip for ${customerName} completed. ₹${amount} earned.`,
-    data: { type: 'trip_completed' }
-  });
-};
-
-export const sendWalletLowBalanceNotification = async (currentBalance: number, minBalance: number) => {
-  await sendLocalNotification({
-    title: 'Low Wallet Balance',
-    body: `Your balance is ₹${currentBalance}. Add funds to continue accepting bookings (Min: ₹${minBalance})`,
-    data: { type: 'wallet_low' }
-  });
-};
-
-export const sendNewBookingNotification = async (fare: number, distance: number) => {
-  await sendLocalNotification({
-    title: 'New Booking Available!',
-    body: `₹${fare} for ${distance}km trip. Accept now!`,
-    data: { type: 'new_booking' }
-  });
-};
+export async function updateNotificationPermissions(payload: { 
+  permission1?: boolean; 
+  permission2?: boolean 
+}): Promise<NotificationSettings> {
+  // For drivers, use POST to the main endpoint since PATCH might not be supported
+  // We need to get the current token first, then update with new permissions
+  try {
+    // First, get current settings to preserve the token
+    const currentSettings = await getNotificationSettings();
+    const token = currentSettings?.token || '';
+    
+    // Update with new permissions and existing token
+    const updatePayload = {
+      permission1: payload.permission1 ?? currentSettings?.permission1 ?? true,
+      permission2: payload.permission2 ?? currentSettings?.permission2 ?? true,
+      token: token
+    };
+    
+    console.log('🔄 Updating notification permissions:', updatePayload);
+    const response = await axiosInstance.post('/api/notifications/', updatePayload);
+    return response.data as NotificationSettings;
+  } catch (error: any) {
+    console.error('❌ Failed to update notification permissions:', error);
+    throw error;
+  }
+}
