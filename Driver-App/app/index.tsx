@@ -33,7 +33,7 @@ export default function IndexScreen() {
 
   const checkAuthStatus = async () => {
     try {
-      // Check for Vehicle Owner authentication first
+      // Check for Vehicle Owner authentication
       const voToken = await SecureStore.getItemAsync('authToken');
       const voUserData = await SecureStore.getItemAsync('userData');
       
@@ -41,19 +41,28 @@ export default function IndexScreen() {
       const driverToken = await SecureStore.getItemAsync('driverAuthToken');
       const driverUserData = await SecureStore.getItemAsync('driverAuthInfo');
       
-      if (voToken && voUserData) {
+      console.log('🔍 Auth check:', {
+        hasVOToken: !!voToken,
+        hasVOUserData: !!voUserData,
+        hasDriverToken: !!driverToken,
+        hasDriverUserData: !!driverUserData
+      });
+      
+      // Prioritize the most recent login - check which token was set more recently
+      // If both exist, check which one was accessed more recently
+      if (driverToken && driverUserData) {
+        // Quick Driver logged in - prioritize driver authentication
+        console.log('✅ Quick Driver authentication found - prioritizing driver');
+        setUserRole('driver');
+        const driverInfo = JSON.parse(driverUserData);
+        setUser(driverInfo);
+        router.replace('/quick-dashboard');
+      } else if (voToken && voUserData) {
         // Vehicle Owner logged in
         console.log('✅ Vehicle Owner authentication found');
         setUserRole('owner');
         setUser(JSON.parse(voUserData));
         router.replace('/(tabs)');
-      } else if (driverToken && driverUserData) {
-        // Quick Driver logged in
-        console.log('✅ Quick Driver authentication found');
-        setUserRole('driver');
-        const driverInfo = JSON.parse(driverUserData);
-        setUser(driverInfo);
-        router.replace('/quick-dashboard');
       } else {
         // No authentication found
         console.log('❌ No authentication found');

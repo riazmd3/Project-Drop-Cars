@@ -54,7 +54,7 @@ axiosDriver.interceptors.request.use(
 
 axiosDriver.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     console.error('❌ Driver API Error:', {
       message: error.message,
       status: error.response?.status,
@@ -63,25 +63,36 @@ axiosDriver.interceptors.response.use(
       data: error.response?.data,
     });
     
-    // Handle all axios errors as potential session expiration
-    console.log('❌ Driver axios error detected, treating as potential session expiration');
+    // Only clear tokens for authentication-related errors
+    const isAuthError = error.response?.status === 401 || 
+                       error.response?.status === 403 ||
+                       (error.response?.data?.detail && 
+                        (error.response.data.detail.includes('token') || 
+                         error.response.data.detail.includes('authentication') ||
+                         error.response.data.detail.includes('expired')));
     
-    // Clear tokens and emit session expired for ANY axios error
-    try { 
-      SecureStore.deleteItemAsync('driverAuthToken'); 
-      console.log('🗑️ Cleared driverAuthToken');
-    } catch (e) { 
-      console.error('Error clearing driverAuthToken:', e); 
+    if (isAuthError) {
+      console.log('❌ Driver authentication error detected, clearing tokens');
+      
+      // Clear tokens and emit session expired for authentication errors only
+      try { 
+        await SecureStore.deleteItemAsync('driverAuthToken'); 
+        console.log('🗑️ Cleared driverAuthToken');
+      } catch (e) { 
+        console.error('Error clearing driverAuthToken:', e); 
+      }
+      try { 
+        await SecureStore.deleteItemAsync('driverAuthInfo'); 
+        console.log('🗑️ Cleared driverAuthInfo');
+      } catch (e) { 
+        console.error('Error clearing driverAuthInfo:', e); 
+      }
+      
+      // Emit session expired event
+      emitSessionExpired('Driver session expired - Authentication error');
+    } else {
+      console.log('❌ Driver API error (non-auth), keeping tokens');
     }
-    try { 
-      SecureStore.deleteItemAsync('driverAuthInfo'); 
-      console.log('🗑️ Cleared driverAuthInfo');
-    } catch (e) { 
-      console.error('Error clearing driverAuthInfo:', e); 
-    }
-    
-    // Emit session expired event
-    emitSessionExpired('Driver session expired - Network or authentication error');
     
     return Promise.reject(error);
   }

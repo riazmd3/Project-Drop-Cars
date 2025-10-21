@@ -142,17 +142,21 @@ export default function QuickDashboardScreen() {
 
   // Optimized data fetching with proper authentication
   const loadDriverData = useCallback(async () => {
-    if (!user?.id) {
-      console.log('⚠️ No user ID available');
-      return;
-    }
-    
     try {
       setLoading(true);
       console.log('🔄 Loading driver data...');
       
       // Check if driver token exists
       const driverToken = await SecureStore.getItemAsync('driverAuthToken');
+      const driverUserData = await SecureStore.getItemAsync('driverAuthInfo');
+      
+      console.log('🔍 Driver auth check:', {
+        hasToken: !!driverToken,
+        hasUserData: !!driverUserData,
+        hasUserContext: !!user?.id,
+        tokenPreview: driverToken ? `${driverToken.substring(0, 20)}...` : 'None'
+      });
+      
       if (!driverToken) {
         console.error('❌ No driver token found');
         Alert.alert(
@@ -163,7 +167,19 @@ export default function QuickDashboardScreen() {
         return;
       }
       
-      console.log('🔑 Driver token found, making API call...');
+      // Validate token expiration
+      const { isJWTExpired } = await import('@/utils/jwtDecoder');
+      if (isJWTExpired(driverToken)) {
+        console.error('❌ Driver token expired');
+        Alert.alert(
+          'Session Expired',
+          'Your session has expired. Please login again.',
+          [{ text: 'OK', onPress: () => router.replace('/login') }]
+        );
+        return;
+      }
+      
+      console.log('🔑 Driver token valid, making API call...');
       
       const response = await axiosDriver.get('/api/assignments/driver/assigned-orders');
       const orders = Array.isArray(response.data) ? response.data : [];
@@ -228,7 +244,7 @@ export default function QuickDashboardScreen() {
     } finally {
       setLoading(false);
     }
-  }, [user?.id, router]);
+  }, [router]);
 
   // Refresh when screen gains focus
   useFocusEffect(

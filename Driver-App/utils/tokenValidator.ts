@@ -81,6 +81,18 @@ export async function validateDriverToken(): Promise<TokenValidationResult> {
       };
     }
     
+    // Check JWT expiration
+    const { isJWTExpired } = await import('./jwtDecoder');
+    if (isJWTExpired(token)) {
+      console.log('❌ Driver token validation failed: Token expired');
+      await clearDriverData();
+      return {
+        isValid: false,
+        token: null,
+        error: 'Driver token has expired. Please login again.'
+      };
+    }
+    
     console.log('✅ Driver token validation passed');
     return {
       isValid: true,
