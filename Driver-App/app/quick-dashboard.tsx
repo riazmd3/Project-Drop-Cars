@@ -686,7 +686,8 @@ export default function QuickDashboardScreen() {
         {activeTrip && (
           <View style={[styles.activeTripIndicator, { backgroundColor: '#FEF3C7', borderColor: '#F59E0B' }]}>
             <Text style={[styles.activeTripText, { color: '#92400E' }]}>
-              🚗 Trip in progress - {activeTrip.pickup} to {activeTrip.drop}
+              🚗 Trip in progress - {activeTrip.pickup}
+              {!String(activeTrip.trip_type || '').toLowerCase().includes('hour') && ` to ${activeTrip.drop}`}
             </Text>
           </View>
         )}
@@ -808,18 +809,21 @@ export default function QuickDashboardScreen() {
                       {order.pickup}
                     </Text>
                   </View>
-                  <View style={styles.locationRow}>
-                    <View style={[
-                      styles.locationDot, 
-                      { backgroundColor: isDisabled && !isActiveTrip ? colors.textSecondary : '#EF4444' }
-                    ]} />
-                    <Text style={[
-                      styles.locationText, 
-                      { color: isDisabled && !isActiveTrip ? colors.textSecondary : colors.text }
-                    ]} numberOfLines={1}>
-                      {order.drop}
-                    </Text>
-                  </View>
+                  {/* Only show "To" destination for non-hourly rentals */}
+                  {!String(order.trip_type || '').toLowerCase().includes('hour') && (
+                    <View style={styles.locationRow}>
+                      <View style={[
+                        styles.locationDot, 
+                        { backgroundColor: isDisabled && !isActiveTrip ? colors.textSecondary : '#EF4444' }
+                      ]} />
+                      <Text style={[
+                        styles.locationText, 
+                        { color: isDisabled && !isActiveTrip ? colors.textSecondary : colors.text }
+                      ]} numberOfLines={1}>
+                        {order.drop}
+                      </Text>
+                    </View>
+                  )}
                 </View>
 
                 <View style={styles.orderDetails}>
