@@ -966,6 +966,7 @@ export default function DashboardScreen() {
                           max_time_to_assign_order: String((order as any).max_time_to_assign_order || ''),
                           expires_at: String((order as any).expires_at || ''),
                           charges_to_deduct: Number((order as any).charges_to_deduct || 0),
+                          pickup_notes: String((order as any).pickup_notes || ''),
                         }}
                         onAccept={() => handleAcceptBooking(order)}
                         disabled={!canAcceptOrder(order) || processingOrderId === order.order_id.toString()}
