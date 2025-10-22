@@ -357,91 +357,86 @@ export default function MyCarsScreen() {
               </View>
 
               <View style={dynamicStyles.carImages}>
-                <View style={dynamicStyles.imageItem}>
+                <TouchableOpacity 
+                  style={dynamicStyles.imageItem}
+                  onPress={() => {
+                    const status = getDocumentStatus(car.id, 'rc_front');
+                    if (status === 'INVALID') {
+                      handleDocumentUpdate(car.id, 'rc_front', 'RC Front');
+                    }
+                  }}
+                >
                   <ImageIcon color={colors.textSecondary} size={20} />
                   <Text style={dynamicStyles.imageText}>RC Front</Text>
-                  <TouchableOpacity 
-                    onPress={() => {
-                      const status = getDocumentStatus(car.id, 'rc_front');
-                      if (status === 'INVALID') {
-                        handleDocumentUpdate(car.id, 'rc_front', 'RC Front');
-                      }
-                    }}
-                  >
-                    <DocumentStatusIcon 
-                      status={getDocumentStatus(car.id, 'rc_front')} 
-                      size={16}
-                    />
-                  </TouchableOpacity>
-                </View>
-                <View style={dynamicStyles.imageItem}>
+                  <DocumentStatusIcon 
+                    status={getDocumentStatus(car.id, 'rc_front')} 
+                    size={16}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={dynamicStyles.imageItem}
+                  onPress={() => {
+                    const status = getDocumentStatus(car.id, 'rc_back');
+                    if (status === 'INVALID') {
+                      handleDocumentUpdate(car.id, 'rc_back', 'RC Back');
+                    }
+                  }}
+                >
                   <ImageIcon color={colors.textSecondary} size={20} />
                   <Text style={dynamicStyles.imageText}>RC Back</Text>
-                  <TouchableOpacity 
-                    onPress={() => {
-                      const status = getDocumentStatus(car.id, 'rc_back');
-                      if (status === 'INVALID') {
-                        handleDocumentUpdate(car.id, 'rc_back', 'RC Back');
-                      }
-                    }}
-                  >
-                    <DocumentStatusIcon 
-                      status={getDocumentStatus(car.id, 'rc_back')} 
-                      size={16}
-                    />
-                  </TouchableOpacity>
-                </View>
-                <View style={dynamicStyles.imageItem}>
+                  <DocumentStatusIcon 
+                    status={getDocumentStatus(car.id, 'rc_back')} 
+                    size={16}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={dynamicStyles.imageItem}
+                  onPress={() => {
+                    const status = getDocumentStatus(car.id, 'insurance');
+                    if (status === 'INVALID') {
+                      handleDocumentUpdate(car.id, 'insurance', 'Insurance');
+                    }
+                  }}
+                >
                   <ImageIcon color={colors.textSecondary} size={20} />
                   <Text style={dynamicStyles.imageText}>Insurance</Text>
-                  <TouchableOpacity 
-                    onPress={() => {
-                      const status = getDocumentStatus(car.id, 'insurance');
-                      if (status === 'INVALID') {
-                        handleDocumentUpdate(car.id, 'insurance', 'Insurance');
-                      }
-                    }}
-                  >
-                    <DocumentStatusIcon 
-                      status={getDocumentStatus(car.id, 'insurance')} 
-                      size={16}
-                    />
-                  </TouchableOpacity>
-                </View>
-                <View style={dynamicStyles.imageItem}>
+                  <DocumentStatusIcon 
+                    status={getDocumentStatus(car.id, 'insurance')} 
+                    size={16}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={dynamicStyles.imageItem}
+                  onPress={() => {
+                    const status = getDocumentStatus(car.id, 'fc');
+                    if (status === 'INVALID') {
+                      handleDocumentUpdate(car.id, 'fc', 'FC');
+                    }
+                  }}
+                >
                   <ImageIcon color={colors.textSecondary} size={20} />
                   <Text style={dynamicStyles.imageText}>FC</Text>
-                  <TouchableOpacity 
-                    onPress={() => {
-                      const status = getDocumentStatus(car.id, 'fc');
-                      if (status === 'INVALID') {
-                        handleDocumentUpdate(car.id, 'fc', 'FC');
-                      }
-                    }}
-                  >
-                    <DocumentStatusIcon 
-                      status={getDocumentStatus(car.id, 'fc')} 
-                      size={16}
-                    />
-                  </TouchableOpacity>
-                </View>
-                <View style={dynamicStyles.imageItem}>
+                  <DocumentStatusIcon 
+                    status={getDocumentStatus(car.id, 'fc')} 
+                    size={16}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={dynamicStyles.imageItem}
+                  onPress={() => {
+                    const status = getDocumentStatus(car.id, 'car_img');
+                    if (status === 'INVALID') {
+                      handleDocumentUpdate(car.id, 'car_img', 'Car Image');
+                    }
+                  }}
+                >
                   <ImageIcon color={colors.textSecondary} size={20} />
                   <Text style={dynamicStyles.imageText}>Car Image</Text>
-                  <TouchableOpacity 
-                    onPress={() => {
-                      const status = getDocumentStatus(car.id, 'car_img');
-                      if (status === 'INVALID') {
-                        handleDocumentUpdate(car.id, 'car_img', 'Car Image');
-                      }
-                    }}
-                  >
-                    <DocumentStatusIcon 
-                      status={getDocumentStatus(car.id, 'car_img')} 
-                      size={16}
-                    />
-                  </TouchableOpacity>
-                </View>
+                  <DocumentStatusIcon 
+                    status={getDocumentStatus(car.id, 'car_img')} 
+                    size={16}
+                  />
+                </TouchableOpacity>
               </View>
             </View>
           ))

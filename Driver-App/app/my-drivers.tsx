@@ -760,23 +760,22 @@ export default function MyDriversScreen() {
                   </View>
 
                   <View style={dynamicStyles.driverImages}>
-                    <View style={dynamicStyles.imageItem}>
+                    <TouchableOpacity 
+                      style={dynamicStyles.imageItem}
+                      onPress={() => {
+                        const status = getDocumentStatus(driver.id, 'licence');
+                        if (status === 'INVALID') {
+                          handleDocumentUpdate(driver.id, 'licence', 'Licence');
+                        }
+                      }}
+                    >
                       <CreditCard color={colors.textSecondary} size={20} />
                       <Text style={dynamicStyles.imageText}>Licence</Text>
-                      <TouchableOpacity 
-                        onPress={() => {
-                          const status = getDocumentStatus(driver.id, 'licence');
-                          if (status === 'INVALID') {
-                            handleDocumentUpdate(driver.id, 'licence', 'Licence');
-                          }
-                        }}
-                      >
-                        <DocumentStatusIcon 
-                          status={getDocumentStatus(driver.id, 'licence')} 
-                          size={16}
-                        />
-                      </TouchableOpacity>
-                    </View>
+                      <DocumentStatusIcon 
+                        status={getDocumentStatus(driver.id, 'licence')} 
+                        size={16}
+                      />
+                    </TouchableOpacity>
                   </View>
                 </View>
               ))
