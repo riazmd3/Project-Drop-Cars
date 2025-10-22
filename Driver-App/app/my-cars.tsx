@@ -15,6 +15,9 @@ import { useDashboard } from '@/contexts/DashboardContext';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Car, Plus, Image as ImageIcon } from 'lucide-react-native';
 import { fetchDashboardData } from '@/services/orders/dashboardService';
+import { fetchDocumentStatuses, DocumentStatusResponse } from '@/services/documents/documentStatusService';
+import DocumentStatusIcon from '@/components/DocumentStatusIcon';
+import DocumentUpdateModal from '@/components/DocumentUpdateModal';
 
 export default function MyCarsScreen() {
   const { user } = useAuth();
@@ -22,16 +25,66 @@ export default function MyCarsScreen() {
   const { dashboardData, loading, error, fetchData } = useDashboard();
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
+  const [documentStatuses, setDocumentStatuses] = useState<DocumentStatusResponse[]>([]);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState<{
+    entityId: string;
+    documentType: string;
+    documentName: string;
+  } | null>(null);
 
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
       await fetchData();
+      await fetchDocumentStatuses().then(setDocumentStatuses);
     } catch (error) {
       console.error('Error refreshing cars:', error);
     } finally {
       setRefreshing(false);
     }
+  };
+
+  // Fetch document statuses on component mount
+  useEffect(() => {
+    fetchDocumentStatuses()
+      .then(setDocumentStatuses)
+      .catch(error => {
+        console.error('Failed to fetch document statuses:', error);
+      });
+  }, []);
+
+  // Get document status for a specific car and document type
+  const getDocumentStatus = (carId: string, documentType: string): 'PENDING' | 'INVALID' | 'VERIFIED' => {
+    const carStatus = documentStatuses.find(status => 
+      status.entity_type === 'car' && status.entity_id === carId
+    );
+    
+    if (!carStatus || !carStatus.documents[documentType]) {
+      return 'PENDING';
+    }
+    
+    return carStatus.documents[documentType].status;
+  };
+
+  // Handle document update
+  const handleDocumentUpdate = (carId: string, documentType: string, documentName: string) => {
+    setSelectedDocument({
+      entityId: carId,
+      documentType,
+      documentName,
+    });
+    setShowUpdateModal(true);
+  };
+
+  // Handle successful document update
+  const handleDocumentUpdateSuccess = () => {
+    // Refresh document statuses
+    fetchDocumentStatuses()
+      .then(setDocumentStatuses)
+      .catch(error => {
+        console.error('Failed to refresh document statuses:', error);
+      });
   };
 
   const handleAddCar = () => {
@@ -307,28 +360,109 @@ export default function MyCarsScreen() {
                 <View style={dynamicStyles.imageItem}>
                   <ImageIcon color={colors.textSecondary} size={20} />
                   <Text style={dynamicStyles.imageText}>RC Front</Text>
+                  <TouchableOpacity 
+                    onPress={() => {
+                      const status = getDocumentStatus(car.id, 'rc_front');
+                      if (status === 'INVALID') {
+                        handleDocumentUpdate(car.id, 'rc_front', 'RC Front');
+                      }
+                    }}
+                  >
+                    <DocumentStatusIcon 
+                      status={getDocumentStatus(car.id, 'rc_front')} 
+                      size={16}
+                    />
+                  </TouchableOpacity>
                 </View>
                 <View style={dynamicStyles.imageItem}>
                   <ImageIcon color={colors.textSecondary} size={20} />
                   <Text style={dynamicStyles.imageText}>RC Back</Text>
+                  <TouchableOpacity 
+                    onPress={() => {
+                      const status = getDocumentStatus(car.id, 'rc_back');
+                      if (status === 'INVALID') {
+                        handleDocumentUpdate(car.id, 'rc_back', 'RC Back');
+                      }
+                    }}
+                  >
+                    <DocumentStatusIcon 
+                      status={getDocumentStatus(car.id, 'rc_back')} 
+                      size={16}
+                    />
+                  </TouchableOpacity>
                 </View>
                 <View style={dynamicStyles.imageItem}>
                   <ImageIcon color={colors.textSecondary} size={20} />
                   <Text style={dynamicStyles.imageText}>Insurance</Text>
+                  <TouchableOpacity 
+                    onPress={() => {
+                      const status = getDocumentStatus(car.id, 'insurance');
+                      if (status === 'INVALID') {
+                        handleDocumentUpdate(car.id, 'insurance', 'Insurance');
+                      }
+                    }}
+                  >
+                    <DocumentStatusIcon 
+                      status={getDocumentStatus(car.id, 'insurance')} 
+                      size={16}
+                    />
+                  </TouchableOpacity>
                 </View>
                 <View style={dynamicStyles.imageItem}>
                   <ImageIcon color={colors.textSecondary} size={20} />
                   <Text style={dynamicStyles.imageText}>FC</Text>
+                  <TouchableOpacity 
+                    onPress={() => {
+                      const status = getDocumentStatus(car.id, 'fc');
+                      if (status === 'INVALID') {
+                        handleDocumentUpdate(car.id, 'fc', 'FC');
+                      }
+                    }}
+                  >
+                    <DocumentStatusIcon 
+                      status={getDocumentStatus(car.id, 'fc')} 
+                      size={16}
+                    />
+                  </TouchableOpacity>
                 </View>
                 <View style={dynamicStyles.imageItem}>
                   <ImageIcon color={colors.textSecondary} size={20} />
                   <Text style={dynamicStyles.imageText}>Car Image</Text>
+                  <TouchableOpacity 
+                    onPress={() => {
+                      const status = getDocumentStatus(car.id, 'car_img');
+                      if (status === 'INVALID') {
+                        handleDocumentUpdate(car.id, 'car_img', 'Car Image');
+                      }
+                    }}
+                  >
+                    <DocumentStatusIcon 
+                      status={getDocumentStatus(car.id, 'car_img')} 
+                      size={16}
+                    />
+                  </TouchableOpacity>
                 </View>
               </View>
             </View>
           ))
         )}
       </ScrollView>
+
+      {/* Document Update Modal */}
+      {selectedDocument && (
+        <DocumentUpdateModal
+          visible={showUpdateModal}
+          onClose={() => {
+            setShowUpdateModal(false);
+            setSelectedDocument(null);
+          }}
+          entityId={selectedDocument.entityId}
+          entityType="car"
+          documentType={selectedDocument.documentType}
+          documentName={selectedDocument.documentName}
+          onSuccess={handleDocumentUpdateSuccess}
+        />
+      )}
     </SafeAreaView>
   );
 }

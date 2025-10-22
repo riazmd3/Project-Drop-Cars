@@ -15,6 +15,9 @@ import { useDashboard } from '@/contexts/DashboardContext';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Users, Plus, Phone, MapPin, CreditCard, RefreshCw } from 'lucide-react-native';
 import { fetchDashboardData } from '@/services/orders/dashboardService';
+import { fetchDocumentStatuses, DocumentStatusResponse } from '@/services/documents/documentStatusService';
+import DocumentStatusIcon from '@/components/DocumentStatusIcon';
+import DocumentUpdateModal from '@/components/DocumentUpdateModal';
 
 export default function MyDriversScreen() {
   const { user } = useAuth();
@@ -33,11 +36,23 @@ export default function MyDriversScreen() {
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
   const [selectedStatusFilter, setSelectedStatusFilter] = useState('ALL'); // Default to show all
+  const [documentStatuses, setDocumentStatuses] = useState<DocumentStatusResponse[]>([]);
+  const [showUpdateModal, setShowUpdateModal] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState<{
+    entityId: string;
+    documentType: string;
+    documentName: string;
+  } | null>(null);
 
   // Auto-fetch available drivers when component mounts
   useEffect(() => {
     console.log('🚀 MyDriversScreen mounted, auto-fetching available drivers...');
     fetchAvailableDriversData();
+    fetchDocumentStatuses()
+      .then(setDocumentStatuses)
+      .catch(error => {
+        console.error('Failed to fetch document statuses:', error);
+      });
   }, []);
 
   const handleRefresh = async () => {
@@ -45,11 +60,45 @@ export default function MyDriversScreen() {
     try {
       await fetchData();
       await refreshAvailableDrivers();
+      await fetchDocumentStatuses().then(setDocumentStatuses);
     } catch (error) {
       console.error('Error refreshing drivers:', error);
     } finally {
       setRefreshing(false);
     }
+  };
+
+  // Get document status for a specific driver and document type
+  const getDocumentStatus = (driverId: string, documentType: string): 'PENDING' | 'INVALID' | 'VERIFIED' => {
+    const driverStatus = documentStatuses.find(status => 
+      status.entity_type === 'driver' && status.entity_id === driverId
+    );
+    
+    if (!driverStatus || !driverStatus.documents[documentType]) {
+      return 'PENDING';
+    }
+    
+    return driverStatus.documents[documentType].status;
+  };
+
+  // Handle document update
+  const handleDocumentUpdate = (driverId: string, documentType: string, documentName: string) => {
+    setSelectedDocument({
+      entityId: driverId,
+      documentType,
+      documentName,
+    });
+    setShowUpdateModal(true);
+  };
+
+  // Handle successful document update
+  const handleDocumentUpdateSuccess = () => {
+    // Refresh document statuses
+    fetchDocumentStatuses()
+      .then(setDocumentStatuses)
+      .catch(error => {
+        console.error('Failed to refresh document statuses:', error);
+      });
   };
 
 
@@ -714,6 +763,19 @@ export default function MyDriversScreen() {
                     <View style={dynamicStyles.imageItem}>
                       <CreditCard color={colors.textSecondary} size={20} />
                       <Text style={dynamicStyles.imageText}>Licence</Text>
+                      <TouchableOpacity 
+                        onPress={() => {
+                          const status = getDocumentStatus(driver.id, 'licence');
+                          if (status === 'INVALID') {
+                            handleDocumentUpdate(driver.id, 'licence', 'Licence');
+                          }
+                        }}
+                      >
+                        <DocumentStatusIcon 
+                          status={getDocumentStatus(driver.id, 'licence')} 
+                          size={16}
+                        />
+                      </TouchableOpacity>
                     </View>
                   </View>
                 </View>
@@ -721,6 +783,22 @@ export default function MyDriversScreen() {
             )}
         </View>
       </ScrollView>
+
+      {/* Document Update Modal */}
+      {selectedDocument && (
+        <DocumentUpdateModal
+          visible={showUpdateModal}
+          onClose={() => {
+            setShowUpdateModal(false);
+            setSelectedDocument(null);
+          }}
+          entityId={selectedDocument.entityId}
+          entityType="driver"
+          documentType={selectedDocument.documentType}
+          documentName={selectedDocument.documentName}
+          onSuccess={handleDocumentUpdateSuccess}
+        />
+      )}
     </SafeAreaView>
   );
 }

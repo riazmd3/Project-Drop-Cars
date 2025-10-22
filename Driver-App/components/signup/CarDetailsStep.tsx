@@ -156,7 +156,7 @@ export default function CarDetailsStep({ data, onUpdate, onNext, onBack, vehicle
     );
   };
 
-  const CarTypeSelector = ({ selectedType, onSelect }) => (
+  const CarTypeSelector = ({ selectedType, onSelect }: { selectedType: string; onSelect: (type: string) => void }) => (
     <View style={styles.typeSelector}>
       {carTypes.map((type) => (
         <TouchableOpacity
@@ -292,6 +292,7 @@ export default function CarDetailsStep({ data, onUpdate, onNext, onBack, vehicle
           <ArrowRight color="#FFFFFF" size={20} />
         </TouchableOpacity>
       </View>
+
     </View>
   );
 }

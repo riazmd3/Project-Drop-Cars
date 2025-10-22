@@ -146,6 +146,7 @@ export default function AddDriverScreen() {
     }
   };
 
+
   const ImageUploadField = ({ 
     title, 
     description, 
@@ -437,6 +438,7 @@ export default function AddDriverScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
+
     </SafeAreaView>
   );
 }
