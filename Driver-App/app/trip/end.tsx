@@ -149,6 +149,12 @@ export default function EndTripScreen() {
             'Please enter a valid toll charge amount.',
             [{ text: 'OK' }]
           );
+        } else if (errorDetail.includes('Insufficient balance') || errorDetail.includes('Wallet debit failed')) {
+          Alert.alert(
+            'Insufficient Balance',
+            'Contact your Vehicle owner to Top up the account',
+            [{ text: 'OK' }]
+          );
         } else {
           Alert.alert(
             'Validation Error',
