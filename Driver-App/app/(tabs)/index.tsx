@@ -69,7 +69,13 @@ export default function DashboardScreen() {
   const reservedForFuture = (futureRides || []).reduce((sum, r) => sum + Number((r as any).total_fare ?? 0), 0);
   const currentWallet = Number(dashboardData?.user_info?.wallet_balance ?? balance ?? 0);
   const availableBalance = Math.max(0, currentWallet - reservedForFuture);
-  const canAcceptOrder = (order: PendingOrder) => availableBalance >= Number(order.estimated_price ?? 0);
+  const canAcceptOrder = (order: PendingOrder) => {
+    const chargesToDeduct = Number((order as any).charges_to_deduct ?? 0);
+    const totalFare = Number(order.estimated_price ?? 0);
+    // Use charges_to_deduct if available, otherwise fall back to total fare
+    const amountToCheck = chargesToDeduct > 0 ? chargesToDeduct : totalFare;
+    return availableBalance >= amountToCheck;
+  };
 
   // Helper function to extract pickup and drop locations from the API response
   const getPickupDropLocations = (pickupDropLocation: any) => {

@@ -4,13 +4,16 @@ import * as SecureStore from 'expo-secure-store';
 
 // Configure notification behavior
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
+  handleNotification: async (notification) => {
+    console.log('🔔 Notification handler triggered:', notification);
+    return {
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    };
+  },
 });
 
 export interface NotificationData {
@@ -180,6 +183,23 @@ class NotificationService {
     }
   }
 
+  // Test notification function for debugging
+  async sendTestNotification(): Promise<void> {
+    try {
+      console.log('🧪 Sending test notification...');
+      await this.sendLocalNotification({
+        title: 'Test Notification',
+        body: 'This is a test notification to verify foreground notifications are working.',
+        data: { test: true },
+        sound: true,
+        priority: 'high'
+      });
+      console.log('✅ Test notification sent');
+    } catch (error) {
+      console.error('❌ Failed to send test notification:', error);
+    }
+  }
+
   // Send new order notification
   async sendNewOrderNotification(orderData: OrderNotificationData): Promise<void> {
     try {
@@ -332,3 +352,8 @@ class NotificationService {
 
 // Export singleton instance
 export const notificationService = NotificationService.getInstance();
+
+// Export test notification function for debugging
+export const sendTestNotification = async (): Promise<void> => {
+  await notificationService.sendTestNotification();
+};

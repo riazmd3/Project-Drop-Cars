@@ -235,11 +235,16 @@ export default function TripReportScreen() {
             <Text style={[styles.financialAmount, { color: colors.success }]}>₹{report.customer_price}</Text>
           </View>
           
-          {report.updated_toll_charge && report.updated_toll_charge > 0 && (
+          {/* Show toll charges - use updated_toll_charge if available, otherwise fall back to toll_charges */}
+          {((report.updated_toll_charge && report.updated_toll_charge > 0) || (report.toll_charges && report.toll_charges > 0)) && (
             <View style={styles.financialRow}>
               <IndianRupee size={20} color={colors.primary} />
-              <Text style={[styles.financialLabel, { color: colors.text }]}>Updated Toll:</Text>
-              <Text style={[styles.financialAmount, { color: colors.primary }]}>₹{report.updated_toll_charge}</Text>
+              <Text style={[styles.financialLabel, { color: colors.text }]}>
+                {report.updated_toll_charge ? 'Updated Toll:' : 'Toll Charges:'}
+              </Text>
+              <Text style={[styles.financialAmount, { color: colors.primary }]}>
+                ₹{report.updated_toll_charge || report.toll_charges}
+              </Text>
             </View>
           )}
           

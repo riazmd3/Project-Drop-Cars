@@ -133,6 +133,16 @@ export default function QuickDashboardScreen() {
     }
   }, []);
 
+  // Test notification function
+  const testNotification = useCallback(async () => {
+    try {
+      const { sendTestNotification } = await import('@/services/notifications/notificationService');
+      await sendTestNotification();
+    } catch (error) {
+      console.error('❌ Test notification failed:', error);
+    }
+  }, []);
+
   // Notification functions
   const toggleNotifications = async () => {
     try {
@@ -733,6 +743,7 @@ export default function QuickDashboardScreen() {
               onPress={async () => {
                 await debugAuthentication();
                 await debugTokenStorage();
+                await testNotification();
               }} 
               style={[styles.debugButton, { backgroundColor: colors.primary }]}
             >
