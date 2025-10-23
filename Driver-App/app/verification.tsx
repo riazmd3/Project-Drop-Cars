@@ -32,6 +32,18 @@ export default function VerificationScreen() {
 
   const accountStatus = user?.account_status || 'pending';
 
+  // Auto-redirect when account becomes ACTIVE
+  useEffect(() => {
+    if (accountStatus?.toLowerCase() === 'active') {
+      console.log('✅ Account is ACTIVE - redirecting to dashboard');
+      router.replace('/(tabs)');
+    }
+  }, [accountStatus, router]);
+  
+  // Debug logging
+  console.log('🔍 Verification page - Account status:', accountStatus);
+  console.log('🔍 Verification page - User data:', user);
+
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
@@ -63,12 +75,12 @@ export default function VerificationScreen() {
           icon: <Clock color="#F59E0B" size={64} />,
           title: 'Under Review',
           subtitle: 'Your documents are being verified',
-          message: 'We are currently reviewing your submitted documents. This process usually takes 24-48 hours. You will be notified once the verification is complete.',
+          message: 'We are currently reviewing your submitted documents. This process usually takes 24-48 hours. You will be notified once the verification is complete. Pull down to refresh status.',
           buttonText: 'Refresh Status',
           buttonAction: handleRefresh,
           backgroundColor: '#FFFBEB',
           borderColor: '#F59E0B',
-          showRefresh: true
+          showRefresh: false
         };
       case 'rejected':
         return {
@@ -87,12 +99,12 @@ export default function VerificationScreen() {
           icon: <FileText color="#6B7280" size={64} />,
           title: 'Verification Required',
           subtitle: 'Your account is being processed',
-          message: 'Your account is currently being processed. Please wait while we verify your information.',
+          message: 'Your account is currently being processed. Please wait while we verify your information. Pull down to refresh status.',
           buttonText: 'Refresh Status',
           buttonAction: handleRefresh,
           backgroundColor: '#F9FAFB',
           borderColor: '#6B7280',
-          showRefresh: true
+          showRefresh: false
         };
     }
   };
@@ -171,24 +183,6 @@ export default function VerificationScreen() {
       fontWeight: '600',
       marginRight: 8,
     },
-    refreshButton: {
-      backgroundColor: colors.background,
-      borderWidth: 1,
-      borderColor: colors.border,
-      paddingHorizontal: 24,
-      paddingVertical: 12,
-      borderRadius: 8,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginTop: 12,
-    },
-    refreshButtonText: {
-      color: colors.text,
-      fontSize: 16,
-      fontWeight: '600',
-      marginRight: 8,
-    },
     infoSection: {
       backgroundColor: colors.cardBackground,
       borderRadius: 12,
@@ -253,17 +247,6 @@ export default function VerificationScreen() {
             <Text style={dynamicStyles.actionButtonText}>{statusInfo.buttonText}</Text>
             <ArrowRight color="#FFFFFF" size={20} />
           </TouchableOpacity>
-          
-          {statusInfo.showRefresh && (
-            <TouchableOpacity 
-              style={dynamicStyles.refreshButton}
-              onPress={handleRefresh}
-              disabled={isLoading}
-            >
-              <RefreshCw color={colors.text} size={20} />
-              <Text style={dynamicStyles.refreshButtonText}>Refresh Status</Text>
-            </TouchableOpacity>
-          )}
         </View>
 
         <View style={dynamicStyles.infoSection}>

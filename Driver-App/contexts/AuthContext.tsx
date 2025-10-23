@@ -15,6 +15,7 @@ interface User {
   languages: string[];
   documents: any;
   driver_status?: string; // Add driver status for drivers
+  account_status?: string; // Add account status for vehicle owners
 }
 
 interface AuthContextType {
@@ -89,6 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const secureStoreKeys = [
         'userData',
         'authToken',
+        'loginResponse',
         'notificationsEnabled',
         'expoPushToken',
         'driverAuthToken',
@@ -146,7 +148,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           aadharNumber: userData.aadharNumber,
           organizationId: userData.organizationId,
           languages: userData.languages,
-          documents: {}
+          documents: {},
+          account_status: userData.account_status
         };
         setUser(contextUser);
         

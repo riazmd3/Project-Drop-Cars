@@ -55,7 +55,7 @@ export default function AccountVerificationScreen({
           icon: <Clock color="#F59E0B" size={64} />,
           title: 'Account Under Verification',
           subtitle: 'Our team is reviewing your documents',
-          message: 'Thank you for submitting your documents. Our verification team is currently reviewing your information. This process usually takes 24-48 hours. You will be notified once verification is complete.',
+          message: 'Thank you for submitting your documents. Our verification team is currently reviewing your information. This process usually takes 8-48 hours. You will be notified once verification is complete.',
           buttonText: 'Refresh Status',
           buttonAction: onRefresh,
           backgroundColor: '#FFFBEB',

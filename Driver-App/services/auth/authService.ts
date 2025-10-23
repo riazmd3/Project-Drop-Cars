@@ -86,6 +86,14 @@ class AuthService {
         await this.setToken(response.data.access_token);
         console.log('🔒 Access token stored securely');
         
+        // Store the complete login response for checking car/driver counts and account status
+        await SecureStore.setItemAsync('loginResponse', JSON.stringify(response.data));
+        console.log('📊 Login response stored:', {
+          carCount: response.data.car_details_count,
+          driverCount: response.data.car_driver_count,
+          accountStatus: response.data.account_status
+        });
+        
         // Extract basic user data from token
         const basicUserInfo = await this.extractUserDataFromToken(response.data.access_token);
         

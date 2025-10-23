@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
+import { useCarDriver } from '@/contexts/CarDriverContext';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { 
@@ -119,6 +120,16 @@ export default function QuickDashboardScreen() {
         data: error.response?.data
       });
       return false;
+    }
+  }, []);
+
+  // Debug token storage
+  const debugTokenStorage = useCallback(async () => {
+    try {
+      const { debugTokenStorage } = useCarDriver();
+      await debugTokenStorage();
+    } catch (error) {
+      console.error('❌ Debug token storage failed:', error);
     }
   }, []);
 
@@ -719,7 +730,10 @@ export default function QuickDashboardScreen() {
           </Text>
           <View style={styles.headerButtons}>
             <TouchableOpacity 
-              onPress={debugAuthentication} 
+              onPress={async () => {
+                await debugAuthentication();
+                await debugTokenStorage();
+              }} 
               style={[styles.debugButton, { backgroundColor: colors.primary }]}
             >
               <Text style={styles.debugButtonText}>Debug</Text>

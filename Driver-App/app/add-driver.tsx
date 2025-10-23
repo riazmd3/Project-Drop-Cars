@@ -16,6 +16,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { addDriverDetails, DriverDetails } from '@/services/driver/driverService';
 import * as ImagePicker from 'expo-image-picker';
+import * as SecureStore from 'expo-secure-store';
 import axiosInstance from '@/app/api/axiosInstance';
 // Local MIME type resolver to avoid extra dependency
 const guessMimeTypeFromUri = (uri: string): string => {
@@ -69,6 +70,10 @@ export default function AddDriverScreen() {
       console.log('🔍 After driver addition - Car count:', carCount);
       console.log('🔍 After driver addition - Driver count:', driverCount);
 
+      // Update the stored login response with new counts
+      await SecureStore.setItemAsync('loginResponse', JSON.stringify(response.data));
+      console.log('📊 Login response updated after driver addition');
+
       // Check if user needs to add more documents
       if (carCount === 0) {
         // No cars - redirect to add car
@@ -87,7 +92,7 @@ export default function AddDriverScreen() {
       if (accountStatus?.toLowerCase() !== 'active') {
         // Documents uploaded but account is not active - show verification page
         console.log('⏳ Documents uploaded but account not active, redirecting to verification');
-        router.replace('/login');
+        router.replace('/verification');
         return;
       }
 

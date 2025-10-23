@@ -27,6 +27,13 @@ axiosDriver.interceptors.request.use(
     if (!isAuthEndpoint) {
       // Check for valid token before making request (only for non-auth endpoints)
       const token = await SecureStore.getItemAsync('driverAuthToken');
+      console.log('🔍 Driver token check:', {
+        hasToken: !!token,
+        tokenLength: token?.length || 0,
+        tokenPreview: token ? `${token.substring(0, 20)}...` : 'None',
+        endpoint: config.url
+      });
+      
       if (!token) {
         console.log('❌ No driver auth token found, emitting session expired');
         emitSessionExpired('No driver authentication token found');
@@ -36,6 +43,11 @@ axiosDriver.interceptors.request.use(
     } else {
       // For auth endpoints, try to attach token if available (for refresh scenarios)
       const token = await SecureStore.getItemAsync('driverAuthToken');
+      console.log('🔍 Driver auth endpoint token check:', {
+        hasToken: !!token,
+        tokenLength: token?.length || 0,
+        endpoint: config.url
+      });
       if (token) {
         config.headers.Authorization = `Bearer ${token}`;
       }

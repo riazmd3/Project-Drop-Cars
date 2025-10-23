@@ -11,14 +11,42 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { MapPin, Clock, IndianRupee, Car, User, Phone, RefreshCw, Navigation } from 'lucide-react-native';
+import { MapPin, Clock, IndianRupee, Car, User, Phone, RefreshCw, Navigation, ChevronDown, ChevronUp, FileText } from 'lucide-react-native';
 import { getFutureRidesForVehicleOwner, getCompletedOrdersForVehicleOwner, FutureRideView } from '@/services/vehicle/vehicleOwnerService';
 
-interface RideData extends FutureRideView {
+interface RideData {
+  id: string;
+  order_id: number;
   status: string;
   assignment_status: string;
   trip_status: string;
   assignment_id?: string;
+  pickup_notes?: string | null;
+  vendor_name?: string;
+  vendor_phone?: string;
+  assigned_driver_name?: string;
+  assigned_driver_phone?: string;
+  assigned_car_name?: string;
+  assigned_car_number?: string;
+  vendor_price?: number | null;
+  closed_vendor_price?: number | null;
+  closed_driver_price?: number | null;
+  commision_amount?: number | null;
+  pickup_city?: string;
+  drop_city?: string;
+  customer_name?: string;
+  customer_number?: string;
+  car_type?: string;
+  trip_distance?: number;
+  trip_time?: string;
+  trip_type?: string;
+  estimated_price?: number;
+  total_amount?: number | null;
+  start_date_time?: string;
+  created_at?: string;
+  assigned_at?: string | null;
+  completed_at?: string | null;
+  cancelled_at?: string | null;
 }
 
 export default function RidesScreen() {
@@ -28,6 +56,7 @@ export default function RidesScreen() {
   const [cancelledRides, setCancelledRides] = useState<RideData[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const { colors } = useTheme();
   const { user } = useAuth();
 
@@ -202,6 +231,9 @@ export default function RidesScreen() {
       allFields: Object.keys(ride)
     });
     
+    const isExpanded = expandedOrderId === ride.id.toString();
+    const hasPickupNotes = ride.pickup_notes && ride.pickup_notes !== 'NILL' && ride.pickup_notes !== 'null';
+    
     return (
       <View key={`${ride.id}-${ride.order_id}-${ride.assignment_id || ride.id}`} style={[styles.rideCard, { backgroundColor: colors.surface }]}>
         <View style={styles.rideHeader}>
@@ -216,63 +248,221 @@ export default function RidesScreen() {
           </Text>
         </View>
 
-      <View style={styles.routeInfo}>
-        <View style={styles.locationRow}>
-          <View style={[styles.locationDot, { backgroundColor: '#10B981' }]} />
-          <Text style={[styles.locationText, { color: colors.text }]} numberOfLines={1}>
-            {ride.pickup_city || 'Pickup Location'}
-          </Text>
+        <View style={styles.routeInfo}>
+          <View style={styles.locationRow}>
+            <View style={[styles.locationDot, { backgroundColor: '#10B981' }]} />
+            <Text style={[styles.locationText, { color: colors.text }]} numberOfLines={1}>
+              {ride.pickup_city || 'Pickup Location'}
+            </Text>
+          </View>
+          <View style={styles.locationRow}>
+            <View style={[styles.locationDot, { backgroundColor: '#EF4444' }]} />
+            <Text style={[styles.locationText, { color: colors.text }]} numberOfLines={1}>
+              {ride.drop_city || 'Drop Location'}
+            </Text>
+          </View>
         </View>
-        <View style={styles.locationRow}>
-          <View style={[styles.locationDot, { backgroundColor: '#EF4444' }]} />
-          <Text style={[styles.locationText, { color: colors.text }]} numberOfLines={1}>
-            {ride.drop_city || 'Drop Location'}
-          </Text>
-        </View>
-      </View>
 
-      <View style={styles.rideDetails}>
-        <View style={styles.detailRow}>
-          <User size={16} color={colors.textSecondary} />
-          <Text style={[styles.detailText, { color: colors.textSecondary }]}>
-            {ride.customer_name || 'Customer'}
-          </Text>
+        <View style={styles.rideDetails}>
+          <View style={styles.detailRow}>
+            <User size={16} color={colors.textSecondary} />
+            <Text style={[styles.detailText, { color: colors.textSecondary }]}>
+              {ride.customer_name || 'Customer'}
+            </Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Phone size={16} color={colors.textSecondary} />
+            <Text style={[styles.detailText, { color: colors.textSecondary }]}>
+              {ride.customer_number || 'N/A'}
+            </Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Car size={16} color={colors.textSecondary} />
+            <Text style={[styles.detailText, { color: colors.textSecondary }]}>
+              {ride.car_type || 'Car Type'}
+            </Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Navigation size={16} color={colors.textSecondary} />
+            <Text style={[styles.detailText, { color: colors.textSecondary }]}>
+              {ride.trip_distance || 0} km
+            </Text>
+          </View>
         </View>
-        <View style={styles.detailRow}>
-          <Phone size={16} color={colors.textSecondary} />
-          <Text style={[styles.detailText, { color: colors.textSecondary }]}>
-            {ride.customer_number || 'N/A'}
-          </Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Car size={16} color={colors.textSecondary} />
-          <Text style={[styles.detailText, { color: colors.textSecondary }]}>
-            {ride.car_type || 'Car Type'}
-          </Text>
-        </View>
-        <View style={styles.detailRow}>
-          <Navigation size={16} color={colors.textSecondary} />
-          <Text style={[styles.detailText, { color: colors.textSecondary }]}>
-            {ride.trip_distance || 0} km
-          </Text>
-        </View>
-      </View>
 
-      <View style={styles.rideFooter}>
-        <View style={styles.timeInfo}>
-          <Clock size={16} color={colors.textSecondary} />
-          <Text style={[styles.timeText, { color: colors.textSecondary }]}>
-            {ride.start_date_time ? new Date(ride.start_date_time).toLocaleDateString() : 'N/A'}
-          </Text>
+        {/* Pickup Notes */}
+        {hasPickupNotes && (
+          <View style={styles.pickupNotesContainer}>
+            <View style={styles.pickupNotesHeader}>
+              <FileText size={16} color={colors.primary} />
+              <Text style={[styles.pickupNotesLabel, { color: colors.primary }]}>Pickup Notes:</Text>
+            </View>
+            <Text style={[styles.pickupNotesText, { color: colors.text }]}>
+              {ride.pickup_notes}
+            </Text>
+          </View>
+        )}
+
+        <View style={styles.rideFooter}>
+          <View style={styles.timeInfo}>
+            <Clock size={16} color={colors.textSecondary} />
+            <Text style={[styles.timeText, { color: colors.textSecondary }]}>
+              {ride.start_date_time ? new Date(ride.start_date_time).toLocaleDateString() : 'N/A'}
+            </Text>
+          </View>
+          <View style={styles.priceInfo}>
+            <IndianRupee size={16} color="#10B981" />
+            <Text style={styles.priceText}>
+              {ride.total_amount || ride.estimated_price || 0}
+            </Text>
+          </View>
         </View>
-        <View style={styles.priceInfo}>
-          <IndianRupee size={16} color="#10B981" />
-          <Text style={styles.priceText}>
-            {ride.total_amount || ride.estimated_price || 0}
+
+        {/* See More/Less Button */}
+        <TouchableOpacity
+          style={styles.seeMoreButton}
+          onPress={() => setExpandedOrderId(isExpanded ? null : ride.id.toString())}
+        >
+          <Text style={[styles.seeMoreText, { color: colors.primary }]}>
+            {isExpanded ? 'See Less' : 'See More'}
           </Text>
-        </View>
+          {isExpanded ? (
+            <ChevronUp size={16} color={colors.primary} />
+          ) : (
+            <ChevronDown size={16} color={colors.primary} />
+          )}
+        </TouchableOpacity>
+
+        {/* Expanded Details */}
+        {isExpanded && (
+          <View style={styles.expandedDetails}>
+            <View style={styles.expandedSection}>
+              <Text style={[styles.expandedTitle, { color: colors.text }]}>Order Details</Text>
+              <View style={styles.expandedRow}>
+                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Order ID:</Text>
+                <Text style={[styles.expandedValue, { color: colors.text }]}>{ride.order_id || 'N/A'}</Text>
+              </View>
+              <View style={styles.expandedRow}>
+                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Trip Type:</Text>
+                <Text style={[styles.expandedValue, { color: colors.text }]}>{ride.trip_type || 'N/A'}</Text>
+              </View>
+              <View style={styles.expandedRow}>
+                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Car Type:</Text>
+                <Text style={[styles.expandedValue, { color: colors.text }]}>{ride.car_type || 'N/A'}</Text>
+              </View>
+              <View style={styles.expandedRow}>
+                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Distance:</Text>
+                <Text style={[styles.expandedValue, { color: colors.text }]}>{ride.trip_distance || 0} km</Text>
+              </View>
+              <View style={styles.expandedRow}>
+                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Trip Time:</Text>
+                <Text style={[styles.expandedValue, { color: colors.text }]}>{ride.trip_time || 'N/A'}</Text>
+              </View>
+              <View style={styles.expandedRow}>
+                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Estimated Price:</Text>
+                <Text style={[styles.expandedValue, { color: colors.text }]}>₹{ride.estimated_price || 0}</Text>
+              </View>
+              {ride.vendor_price && (
+                <View style={styles.expandedRow}>
+                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Vendor Price:</Text>
+                  <Text style={[styles.expandedValue, { color: colors.text }]}>₹{ride.vendor_price}</Text>
+                </View>
+              )}
+              {ride.closed_vendor_price && (
+                <View style={styles.expandedRow}>
+                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Final Vendor Price:</Text>
+                  <Text style={[styles.expandedValue, { color: colors.text }]}>₹{ride.closed_vendor_price}</Text>
+                </View>
+              )}
+              {ride.closed_driver_price && (
+                <View style={styles.expandedRow}>
+                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Driver Price:</Text>
+                  <Text style={[styles.expandedValue, { color: colors.text }]}>₹{ride.closed_driver_price}</Text>
+                </View>
+              )}
+              {ride.commision_amount && (
+                <View style={styles.expandedRow}>
+                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Commission:</Text>
+                  <Text style={[styles.expandedValue, { color: colors.text }]}>₹{ride.commision_amount}</Text>
+                </View>
+              )}
+            </View>
+
+            {/* Assignment Details */}
+            {ride.assigned_driver_name && (
+              <View style={styles.expandedSection}>
+                <Text style={[styles.expandedTitle, { color: colors.text }]}>Assignment Details</Text>
+                <View style={styles.expandedRow}>
+                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Driver:</Text>
+                  <Text style={[styles.expandedValue, { color: colors.text }]}>{ride.assigned_driver_name}</Text>
+                </View>
+                <View style={styles.expandedRow}>
+                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Driver Phone:</Text>
+                  <Text style={[styles.expandedValue, { color: colors.text }]}>{ride.assigned_driver_phone || 'N/A'}</Text>
+                </View>
+                <View style={styles.expandedRow}>
+                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Car:</Text>
+                  <Text style={[styles.expandedValue, { color: colors.text }]}>{ride.assigned_car_name}</Text>
+                </View>
+                <View style={styles.expandedRow}>
+                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Car Number:</Text>
+                  <Text style={[styles.expandedValue, { color: colors.text }]}>{ride.assigned_car_number}</Text>
+                </View>
+                {ride.assigned_at && (
+                  <View style={styles.expandedRow}>
+                    <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Assigned At:</Text>
+                    <Text style={[styles.expandedValue, { color: colors.text }]}>
+                      {new Date(ride.assigned_at).toLocaleString()}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            )}
+
+            {/* Vendor Details */}
+            {ride.vendor_name && (
+              <View style={styles.expandedSection}>
+                <Text style={[styles.expandedTitle, { color: colors.text }]}>Vendor Details</Text>
+                <View style={styles.expandedRow}>
+                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Vendor Name:</Text>
+                  <Text style={[styles.expandedValue, { color: colors.text }]}>{ride.vendor_name}</Text>
+                </View>
+                <View style={styles.expandedRow}>
+                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Vendor Phone:</Text>
+                  <Text style={[styles.expandedValue, { color: colors.text }]}>{ride.vendor_phone}</Text>
+                </View>
+              </View>
+            )}
+
+            {/* Timestamps */}
+            <View style={styles.expandedSection}>
+              <Text style={[styles.expandedTitle, { color: colors.text }]}>Timestamps</Text>
+              <View style={styles.expandedRow}>
+                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Created:</Text>
+                <Text style={[styles.expandedValue, { color: colors.text }]}>
+                  {ride.created_at ? new Date(ride.created_at).toLocaleString() : 'N/A'}
+                </Text>
+              </View>
+              {ride.completed_at && (
+                <View style={styles.expandedRow}>
+                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Completed:</Text>
+                  <Text style={[styles.expandedValue, { color: colors.text }]}>
+                    {new Date(ride.completed_at).toLocaleString()}
+                  </Text>
+                </View>
+              )}
+              {ride.cancelled_at && (
+                <View style={styles.expandedRow}>
+                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Cancelled:</Text>
+                  <Text style={[styles.expandedValue, { color: colors.text }]}>
+                    {new Date(ride.cancelled_at).toLocaleString()}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+        )}
       </View>
-    </View>
     );
   };
 
@@ -505,4 +695,79 @@ const styles = StyleSheet.create({
       textAlign: 'center',
     lineHeight: 20,
     },
+  // Pickup Notes Styles
+  pickupNotesContainer: {
+    backgroundColor: '#F0F9FF',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 12,
+    borderLeftWidth: 3,
+    borderLeftColor: '#3B82F6',
+  },
+  pickupNotesHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  pickupNotesLabel: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginLeft: 6,
+  },
+  pickupNotesText: {
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  // See More/Less Button
+  seeMoreButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 8,
+    backgroundColor: '#F8FAFC',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+  },
+  seeMoreText: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginRight: 6,
+  },
+  // Expanded Details
+  expandedDetails: {
+    marginTop: 16,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+  },
+  expandedSection: {
+    marginBottom: 20,
+  },
+  expandedTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 12,
+    color: '#374151',
+  },
+  expandedRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 8,
+    paddingVertical: 4,
+  },
+  expandedLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    flex: 1,
+    marginRight: 12,
+  },
+  expandedValue: {
+    fontSize: 14,
+    flex: 1,
+    textAlign: 'right',
+  },
   });

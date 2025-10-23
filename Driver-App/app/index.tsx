@@ -62,7 +62,45 @@ export default function IndexScreen() {
         console.log('✅ Vehicle Owner authentication found');
         setUserRole('owner');
         setUser(JSON.parse(voUserData));
-        router.replace('/(tabs)');
+        
+        // Fetch login response to get car/driver counts and account status
+        try {
+          const loginDataStr = await SecureStore.getItemAsync('loginResponse');
+          if (loginDataStr) {
+            const loginData = JSON.parse(loginDataStr);
+            const carCount = loginData.car_details_count ?? 0;
+            const driverCount = loginData.car_driver_count ?? 0;
+            const accountStatus = loginData.account_status || 'INACTIVE';
+            
+            console.log('📊 Account status:', {
+              carCount,
+              driverCount,
+              accountStatus
+            });
+            
+            // Determine where to redirect based on counts and status
+            if (accountStatus !== 'ACTIVE') {
+              console.log('⏳ Account not active → redirect to verification');
+              router.replace('/verification');
+            } else if (carCount === 0) {
+              console.log('🚗 No cars → redirect to add-car');
+              router.replace('/add-car');
+            } else if (driverCount === 0) {
+              console.log('👤 No drivers → redirect to add-driver');
+              router.replace('/add-driver');
+            } else {
+              console.log('✅ All good → redirect to dashboard');
+              router.replace('/(tabs)');
+            }
+          } else {
+            // No login response data, default to dashboard
+            console.log('ℹ️ No login response data, defaulting to dashboard');
+            router.replace('/(tabs)');
+          }
+        } catch (error) {
+          console.error('❌ Error checking login data:', error);
+          router.replace('/(tabs)');
+        }
       } else {
         // No authentication found
         console.log('❌ No authentication found');

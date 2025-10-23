@@ -53,13 +53,72 @@ export default function AddCarScreen() {
   const redirectAfterCarAddition = async () => {
     try {
       console.log('🚗 Car added successfully, determining next step...');
-      const driverCount = Number(dashboardData?.drivers?.length || 0);
-      if (driverCount === 0) {
-        console.log('👤 No drivers yet → go to Add Driver');
-        router.replace('/add-driver');
+      
+      // Re-fetch login data to get updated car/driver counts
+      const loginDataStr = await SecureStore.getItemAsync('loginResponse');
+      if (loginDataStr) {
+        // Re-login to get fresh counts
+        const userData = await SecureStore.getItemAsync('userData');
+        if (userData) {
+          const user = JSON.parse(userData);
+          const authToken = await SecureStore.getItemAsync('authToken');
+          
+          // Fetch updated login response by calling the API
+          try {
+            const response = await axiosInstance.get('/api/users/vehicle-owner/me', {
+              headers: { 'Authorization': `Bearer ${authToken}` }
+            });
+            
+            // Get counts from dashboard data or use fallback
+            const carCount = Number(dashboardData?.cars?.length || 1); // At least 1 since we just added
+            const driverCount = Number(dashboardData?.drivers?.length || 0);
+            const accountStatus = response.data?.account_status || 'INACTIVE';
+            
+            console.log('📊 Updated counts after car addition:', {
+              carCount,
+              driverCount,
+              accountStatus
+            });
+            
+            // Update the stored login response with new counts
+            const loginData = JSON.parse(loginDataStr);
+            loginData.car_details_count = carCount;
+            loginData.car_driver_count = driverCount;
+            loginData.account_status = accountStatus;
+            await SecureStore.setItemAsync('loginResponse', JSON.stringify(loginData));
+            
+            // Redirect based on counts and status
+            if (driverCount === 0) {
+              console.log('👤 No drivers yet → go to Add Driver');
+              router.replace('/add-driver');
+            } else if (accountStatus !== 'ACTIVE') {
+              console.log('⏳ Account not active → go to Verification');
+              router.replace('/verification');
+            } else {
+              console.log('✅ All good → return to dashboard');
+              router.replace('/(tabs)');
+            }
+          } catch (error) {
+            console.error('❌ Error fetching updated data:', error);
+            // Fallback to checking dashboard data
+            const driverCount = Number(dashboardData?.drivers?.length || 0);
+            if (driverCount === 0) {
+              router.replace('/add-driver');
+            } else {
+              router.replace('/(tabs)');
+            }
+          }
+        }
       } else {
-        console.log('🏠 Drivers already present → return to dashboard');
-        router.replace('/(tabs)');
+        // No login data, fallback to old logic
+        const driverCount = Number(dashboardData?.drivers?.length || 0);
+        if (driverCount === 0) {
+          console.log('👤 No drivers yet → go to Add Driver');
+          router.replace('/add-driver');
+        } else {
+          console.log('🏠 Drivers already present → return to dashboard');
+          router.replace('/(tabs)');
+        }
       }
     } catch (error) {
       console.error('❌ Error during redirect:', error);

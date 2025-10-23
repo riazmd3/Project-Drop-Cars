@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import * as SecureStore from 'expo-secure-store';
 import {
   CarDriverResponse,
   CarDriverSignupRequest,
@@ -46,6 +47,7 @@ interface CarDriverContextType {
   // Utility methods
   clearError: () => void;
   clearAllData: () => void;
+  debugTokenStorage: () => Promise<{ asyncToken: string | null; secureToken: string | null }>;
 }
 
 const CarDriverContext = createContext<CarDriverContextType | undefined>(undefined);
@@ -90,9 +92,25 @@ export const CarDriverProvider: React.FC<CarDriverProviderProps> = ({ children }
 
   const storeDriverData = async (driverData: CarDriverResponse, token: string) => {
     try {
+      // Store in AsyncStorage for CarDriverContext
       await AsyncStorage.setItem('carDriver', JSON.stringify(driverData));
       await AsyncStorage.setItem('carDriverToken', token);
-      console.log('✅ Driver data stored successfully');
+      
+      // Also store in SecureStore for axiosDriver interceptor
+      await SecureStore.setItemAsync('driverAuthToken', token);
+      await SecureStore.setItemAsync('driverAuthInfo', JSON.stringify({
+        driverId: driverData.id,
+        fullName: driverData.full_name,
+        primaryNumber: driverData.primary_number,
+        driver_status: driverData.status
+      }));
+      
+      console.log('✅ Driver data stored successfully in both AsyncStorage and SecureStore');
+      console.log('🔍 Token storage verification:', {
+        tokenLength: token.length,
+        tokenPreview: `${token.substring(0, 20)}...`,
+        driverId: driverData.id
+      });
     } catch (error) {
       console.error('❌ Failed to store driver data:', error);
     }
@@ -100,9 +118,15 @@ export const CarDriverProvider: React.FC<CarDriverProviderProps> = ({ children }
 
   const clearStoredData = async () => {
     try {
+      // Clear AsyncStorage
       await AsyncStorage.removeItem('carDriver');
       await AsyncStorage.removeItem('carDriverToken');
-      console.log('✅ Stored driver data cleared');
+      
+      // Clear SecureStore
+      await SecureStore.deleteItemAsync('driverAuthToken');
+      await SecureStore.deleteItemAsync('driverAuthInfo');
+      
+      console.log('✅ Stored driver data cleared from both AsyncStorage and SecureStore');
     } catch (error) {
       console.error('❌ Failed to clear stored driver data:', error);
     }
@@ -165,7 +189,7 @@ export const CarDriverProvider: React.FC<CarDriverProviderProps> = ({ children }
       // Set driver offline before signing out
       if (driver) {
         try {
-          await setDriverOffline(driver.id);
+          await setDriverOffline();
           console.log('✅ Driver set offline before signout');
         } catch (error) {
           console.warn('⚠️ Failed to set driver offline:', error);
@@ -193,11 +217,11 @@ export const CarDriverProvider: React.FC<CarDriverProviderProps> = ({ children }
       setError(null);
       
       console.log('🟢 Setting driver online...');
-      const response: CarDriverStatusResponse = await setDriverOnline(driver.id);
+      const response: CarDriverStatusResponse = await setDriverOnline();
       
       if (response.success) {
         // Update local driver status
-        setDriver(prev => prev ? { ...prev, status: 'online' } : null);
+        setDriver(prev => prev ? { ...prev, status: 'ONLINE' } : null);
         console.log('✅ Driver set online successfully');
       } else {
         throw new Error(response.message || 'Failed to set driver online');
@@ -221,7 +245,7 @@ export const CarDriverProvider: React.FC<CarDriverProviderProps> = ({ children }
       setError(null);
       
       console.log('🔴 Setting driver offline...');
-      const response: CarDriverStatusResponse = await setDriverOffline(driver.id);
+      const response: CarDriverStatusResponse = await setDriverOffline();
       
       if (response.success) {
         // Update local driver status
@@ -252,7 +276,8 @@ export const CarDriverProvider: React.FC<CarDriverProviderProps> = ({ children }
       const updatedDriver = await updateCarDriverProfile(driver.id, updates);
       
       setDriver(updatedDriver);
-      await storeDriverData(updatedDriver, await AsyncStorage.getItem('carDriverToken') || '');
+      const token = await AsyncStorage.getItem('carDriverToken') || '';
+      await storeDriverData(updatedDriver, token);
       console.log('✅ Driver profile updated successfully');
     } catch (error: any) {
       console.error('❌ Failed to update driver profile:', error);
@@ -301,7 +326,8 @@ export const CarDriverProvider: React.FC<CarDriverProviderProps> = ({ children }
       const freshDriver = await getCarDriver(driver.id);
       
       setDriver(freshDriver);
-      await storeDriverData(freshDriver, await AsyncStorage.getItem('carDriverToken') || '');
+      const token = await AsyncStorage.getItem('carDriverToken') || '';
+      await storeDriverData(freshDriver, token);
       console.log('✅ Driver data refreshed successfully');
     } catch (error: any) {
       console.error('❌ Failed to refresh driver data:', error);
@@ -341,6 +367,32 @@ export const CarDriverProvider: React.FC<CarDriverProviderProps> = ({ children }
     console.log('✅ All car driver data cleared');
   };
 
+  // Debug function to check token storage
+  const debugTokenStorage = async () => {
+    try {
+      const asyncToken = await AsyncStorage.getItem('carDriverToken');
+      const secureToken = await SecureStore.getItemAsync('driverAuthToken');
+      
+      console.log('🔍 Token storage debug:', {
+        asyncStorageToken: {
+          exists: !!asyncToken,
+          length: asyncToken?.length || 0,
+          preview: asyncToken ? `${asyncToken.substring(0, 20)}...` : 'None'
+        },
+        secureStoreToken: {
+          exists: !!secureToken,
+          length: secureToken?.length || 0,
+          preview: secureToken ? `${secureToken.substring(0, 20)}...` : 'None'
+        }
+      });
+      
+      return { asyncToken, secureToken };
+    } catch (error) {
+      console.error('❌ Error debugging token storage:', error);
+      return { asyncToken: null, secureToken: null };
+    }
+  };
+
   const value: CarDriverContextType = {
     driver,
     isAuthenticated,
@@ -357,7 +409,8 @@ export const CarDriverProvider: React.FC<CarDriverProviderProps> = ({ children }
     getDriversForOrganization,
     searchDriversByFilters,
     clearError,
-    clearAllData
+    clearAllData,
+    debugTokenStorage
   };
 
   return (
