@@ -58,6 +58,7 @@ interface DriverOrder {
   scheduled_at?: string;
   toll_charge_update?: boolean; // Add toll charge update flag
   pickup_notes?: string;
+  // Vendor information
   vendor_name?: string;
   vendor_primary_number?: string;
   vendor_secondary_number?: string;
@@ -165,107 +166,57 @@ export default function QuickDashboardScreen() {
     }
   }, []);
 
-  // Backend notification functions
-  const debugNotificationSetup = useCallback(async () => {
+  // SIMPLIFIED: Debug functions using the new simple API
+
+  // Load notification state from backend
+  const loadNotificationState = useCallback(async () => {
     try {
-      const { debugNotificationSetup } = await import('@/services/notifications/notificationService');
-      await debugNotificationSetup();
+      const { getDriverNotificationSettings } = await import('@/services/notifications/driverNotificationApi');
+      const settings = await getDriverNotificationSettings();
+      if (settings) {
+        // Toggle state is determined by whether token exists (not empty)
+        const hasToken = !!(settings.token && settings.token.trim() !== '');
+        setNotificationsEnabled(hasToken);
+        console.log('📱 Loaded driver notification state from backend:', {
+          permission1: settings.permission1,
+          permission2: settings.permission2,
+          hasToken: hasToken,
+          tokenPreview: settings.token ? `${settings.token.substring(0, 20)}...` : 'EMPTY'
+        });
+      } else {
+        // No settings found, check if we have a local token
+        const token = await SecureStore.getItemAsync('expoPushToken');
+        setNotificationsEnabled(!!token);
+        console.log('📱 No backend settings, using local token state:', !!token);
+      }
     } catch (error) {
-      console.error('❌ Debug notification setup failed:', error);
+      console.error('❌ Failed to load notification state:', error);
     }
   }, []);
 
-  const getCurrentPushToken = useCallback(async () => {
-    try {
-      const { getCurrentPushToken } = await import('@/services/notifications/notificationService');
-      const token = await getCurrentPushToken();
-      console.log('📱 Current push token:', token ? `${token.substring(0, 20)}...` : 'NOT FOUND');
-      return token;
-    } catch (error) {
-      console.error('❌ Get push token failed:', error);
-      return null;
-    }
-  }, []);
-
-  const updateNotificationSettings = useCallback(async (permission1: boolean, permission2: boolean) => {
-    try {
-      const { updateNotificationSettings } = await import('@/services/notifications/notificationService');
-      await updateNotificationSettings(permission1, permission2);
-    } catch (error) {
-      console.error('❌ Update notification settings failed:', error);
-    }
-  }, []);
-
-  // Handle incoming backend notifications
-  const handleBackendNotification = useCallback(async (notificationData: any) => {
-    try {
-      console.log('📱 Received backend notification:', notificationData);
-      
-      const { handleBackendNotification } = await import('@/services/notifications/notificationService');
-      await handleBackendNotification(notificationData);
-      
-      console.log('✅ Backend notification processed');
-    } catch (error) {
-      console.error('❌ Failed to handle backend notification:', error);
-    }
-  }, []);
-
-  // Test backend notification (for debugging)
-  const testBackendNotification = useCallback(async () => {
-    try {
-      const testNotification = {
-        title: 'Test Backend Notification',
-        body: 'This is a test notification from backend',
-        data: { 
-          type: 'test',
-          timestamp: Date.now(),
-          orderId: 'test-123'
-        },
-        sound: true,
-        priority: 'high'
-      };
-      
-      await handleBackendNotification(testNotification);
-    } catch (error) {
-      console.error('❌ Test backend notification failed:', error);
-    }
-  }, [handleBackendNotification]);
-
-  // Test handler status
-  const testHandlerStatus = useCallback(async () => {
-    try {
-      const { testHandlerStatus } = await import('@/services/notifications/notificationService');
-      await testHandlerStatus();
-    } catch (error) {
-      console.error('❌ Test handler status failed:', error);
-    }
-  }, []);
-
-  // Force test notification (bypasses all toggles)
-  const forceTestNotification = useCallback(async () => {
-    try {
-      const { forceTestNotification } = await import('@/services/notifications/notificationService');
-      await forceTestNotification();
-    } catch (error) {
-      console.error('❌ Force test notification failed:', error);
-    }
-  }, []);
-
+  // Notification functions
   const toggleNotifications = async () => {
     try {
       setNotificationLoading(true);
       
+      // Ensure notification service is initialized first
+      const { initializeNotifications } = await import('@/services/notifications/notificationService');
+      await initializeNotifications();
+      
+      const { updateDriverNotificationPermissions } = await import('@/services/notifications/driverNotificationApi');
       const newStatus = !notificationsEnabled;
-      console.log('🔔 Updating notification permissions:', { 
+      const res = await updateDriverNotificationPermissions({ 
         permission1: newStatus, 
         permission2: newStatus 
       });
-
-      // Use the new backend notification settings function
-      await updateNotificationSettings(newStatus, newStatus);
-
-      setNotificationsEnabled(newStatus);
-      console.log('✅ Driver notifications toggled:', newStatus);
+      // Update state based on whether token was sent (not permissions)
+      const hasToken = !!(res.token && res.token.trim() !== '');
+      setNotificationsEnabled(hasToken);
+      console.log('✅ Driver notifications toggled:', {
+        newStatus,
+        hasToken,
+        tokenPreview: res.token ? `${res.token.substring(0, 20)}...` : 'EMPTY'
+      });
     } catch (error: any) {
       console.error('❌ Failed to toggle notifications:', error);
       Alert.alert('Error', `Failed to toggle notifications: ${error.message}`);
@@ -331,9 +282,10 @@ export default function QuickDashboardScreen() {
         assignment_id: order.id,
         scheduled_at: order.start_date_time,
         toll_charge_update: order.toll_charge_update || false, // Map toll charge update flag
-        vendor_name: order.vendor_name, // Map vendor name
-        vendor_primary_number: order.vendor_primary_number, // Map vendor primary number
-        vendor_secondary_number: order.vendor_secondary_number, // Map vendor secondary number
+        // Map vendor information
+        vendor_name: order.vendor_name,
+        vendor_primary_number: order.vendor_primary_number,
+        vendor_secondary_number: order.vendor_secondary_number,
       }));
       
       setDriverOrders(mappedOrders);
@@ -511,6 +463,9 @@ export default function QuickDashboardScreen() {
       }
     }
     
+    // Load notification state from backend
+    loadNotificationState();
+    
     // Debug authentication first
     debugAuthentication().then((success) => {
       if (success) {
@@ -520,7 +475,7 @@ export default function QuickDashboardScreen() {
         loadDriverData();
       }
     });
-  }, [user?.driver_status, loadDriverData, debugAuthentication]);
+  }, [user?.driver_status, loadDriverData, debugAuthentication, loadNotificationState]);
 
   // Pulse animation for online status
   useEffect(() => {
@@ -858,36 +813,10 @@ export default function QuickDashboardScreen() {
                 await debugAuthentication();
                 await debugTokenStorage();
                 await debugNotificationToken();
-                await debugNotificationSetup();
-                await getCurrentPushToken();
               }} 
               style={[styles.debugButton, { backgroundColor: colors.primary }]}
             >
               <Text style={styles.debugButtonText}>Debug</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              onPress={getCurrentPushToken}
-              style={[styles.debugButton, { backgroundColor: '#4CAF50', marginLeft: 8 }]}
-            >
-              <Text style={styles.debugButtonText}>📱 Get Token</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              onPress={testBackendNotification}
-              style={[styles.debugButton, { backgroundColor: '#FF9800', marginLeft: 8 }]}
-            >
-              <Text style={styles.debugButtonText}>🧪 Test Backend</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              onPress={forceTestNotification}
-              style={[styles.debugButton, { backgroundColor: '#E91E63', marginLeft: 8 }]}
-            >
-              <Text style={styles.debugButtonText}>🚨 Force Test</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              onPress={testHandlerStatus}
-              style={[styles.debugButton, { backgroundColor: '#9C27B0', marginLeft: 8 }]}
-            >
-              <Text style={styles.debugButtonText}>🔍 Test Handler</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={handleRefresh} disabled={refreshing}>
               <RefreshCw 
@@ -1065,7 +994,6 @@ export default function QuickDashboardScreen() {
                       </Text>
                     </View>
                   )}
-                  
                   <View style={styles.detailRow}>
                     <Car size={16} color={isDisabled && !isActiveTrip ? colors.textSecondary : colors.textSecondary} />
                     <Text style={[

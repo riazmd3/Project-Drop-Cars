@@ -40,6 +40,7 @@ interface TripReport {
   completed_at: string;
   total_km: number;
   updated_toll_charge?: number;
+  // Vendor information
   vendor_name?: string;
   vendor_primary_number?: string;
   vendor_secondary_number?: string;

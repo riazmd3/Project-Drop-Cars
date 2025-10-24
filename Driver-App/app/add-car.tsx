@@ -89,8 +89,8 @@ export default function AddCarScreen() {
             
             // Redirect based on counts and status
             if (driverCount === 0) {
-              console.log('👤 No drivers yet → go to Driver Registration');
-              router.replace('/car-driver/signup');
+              console.log('👤 No drivers yet → go to Add Driver');
+              router.replace('/add-driver');
             } else if (accountStatus !== 'ACTIVE') {
               console.log('⏳ Account not active → go to Verification');
               router.replace('/verification');
@@ -103,10 +103,8 @@ export default function AddCarScreen() {
             // Fallback to checking dashboard data
             const driverCount = Number(dashboardData?.drivers?.length || 0);
             if (driverCount === 0) {
-              console.log('👤 No drivers yet → go to Driver Registration (fallback)');
-              router.replace('/car-driver/signup');
+              router.replace('/add-driver');
             } else {
-              console.log('🏠 Drivers already present → return to dashboard (fallback)');
               router.replace('/(tabs)');
             }
           }
@@ -115,10 +113,10 @@ export default function AddCarScreen() {
         // No login data, fallback to old logic
         const driverCount = Number(dashboardData?.drivers?.length || 0);
         if (driverCount === 0) {
-          console.log('👤 No drivers yet → go to Driver Registration (no login data)');
-          router.replace('/car-driver/signup');
+          console.log('👤 No drivers yet → go to Add Driver');
+          router.replace('/add-driver');
         } else {
-          console.log('🏠 Drivers already present → return to dashboard (no login data)');
+          console.log('🏠 Drivers already present → return to dashboard');
           router.replace('/(tabs)');
         }
       }

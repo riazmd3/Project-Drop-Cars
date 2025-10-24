@@ -31,33 +31,29 @@ export async function updateDriverNotificationPermissions(payload: {
   permission1?: boolean; 
   permission2?: boolean 
 }): Promise<NotificationResponse> {
-  // For drivers, use POST to the main endpoint since PATCH might not be supported
-  // We need to get the current token first, then update with new permissions
+  // For drivers, use POST to the main endpoint
+  // Send token only when toggling ON, send empty string when toggling OFF
   try {
-    // First, get current settings to preserve the token
-    const currentSettings = await getDriverNotificationSettings();
+    const notificationsEnabled = (payload.permission1 ?? true) && (payload.permission2 ?? true);
+    let token = '';
     
-    // Get token from current settings, or fall back to stored Expo push token
-    let token = currentSettings?.token || '';
-    
-    // If no token from current settings, try to get it from SecureStore
-    if (!token) {
+    // Only get token if notifications are being enabled
+    if (notificationsEnabled) {
       try {
         const storedToken = await SecureStore.getItemAsync('expoPushToken');
         if (storedToken) {
           token = storedToken;
-          console.log('📱 Using stored Expo push token for notification update');
+          console.log('📱 Notifications ON - using stored Expo push token');
         } else {
-          console.warn('⚠️ No Expo push token found in SecureStore, trying to get fresh token...');
+          console.warn('⚠️ Notifications ON but no token found, trying to get fresh token...');
           
           // Try to get a fresh token from notification service
           try {
-            const { notificationService } = await import('./notificationService');
-            await notificationService.initialize(); // This will generate a new token if needed
-            const freshToken = await SecureStore.getItemAsync('expoPushToken');
+            const { forceGenerateToken } = await import('./notificationService');
+            const freshToken = await forceGenerateToken();
             if (freshToken) {
               token = freshToken;
-              console.log('📱 Generated fresh Expo push token for notification update');
+              console.log('📱 Notifications ON - generated fresh Expo push token');
             }
           } catch (freshTokenError) {
             console.error('❌ Failed to generate fresh Expo push token:', freshTokenError);
@@ -66,18 +62,21 @@ export async function updateDriverNotificationPermissions(payload: {
       } catch (error) {
         console.error('❌ Error retrieving Expo push token from SecureStore:', error);
       }
+    } else {
+      console.log('📱 Notifications OFF - sending empty token');
     }
     
-    // Update with new permissions and token
+    // Update with new permissions and token (empty if notifications disabled)
     const updatePayload = {
-      permission1: payload.permission1 ?? currentSettings?.permission1 ?? true,
-      permission2: payload.permission2 ?? currentSettings?.permission2 ?? true,
-      token: token
+      permission1: payload.permission1 ?? true,
+      permission2: payload.permission2 ?? true,
+      token: token // Empty string if notifications disabled, token if enabled
     };
     
     console.log('🔄 Updating driver notification permissions:', {
       ...updatePayload,
-      token: token ? `${token.substring(0, 20)}...` : 'EMPTY'
+      token: token ? `${token.substring(0, 20)}...` : 'EMPTY (notifications disabled)',
+      notificationsEnabled
     });
     
     const response = await axiosDriver.post('/api/notifications/', updatePayload);

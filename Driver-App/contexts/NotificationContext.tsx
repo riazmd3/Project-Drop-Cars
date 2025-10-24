@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
 import { notificationService, OrderNotificationData } from '@/services/notifications/notificationService';
-import { getNotificationSettings, updateNotificationPermissions } from '@/services/notifications/notificationApi';
+import { getNotificationSettings, updateNotificationPermissions, upsertNotificationSettings, updateNotificationSettings } from '@/services/notifications/notificationApi';
 import * as SecureStore from 'expo-secure-store';
 
 interface NotificationContextType {
@@ -47,14 +47,25 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       if (remote) {
         setPermission1(!!remote.permission1);
         setPermission2(!!remote.permission2);
-        setNotificationsEnabled(!!(remote.permission1 || remote.permission2));
+        // Toggle state is determined by whether token exists (not empty)
+        const hasToken = !!(remote.token && remote.token.trim() !== '');
+        setNotificationsEnabled(hasToken);
+        console.log('📱 Loaded notification settings from backend:', {
+          permission1: remote.permission1,
+          permission2: remote.permission2,
+          hasToken: hasToken,
+          tokenPreview: remote.token ? `${remote.token.substring(0, 20)}...` : 'EMPTY'
+        });
       } else {
+        // No remote settings, check local storage
         const stored = await SecureStore.getItemAsync('notificationsEnabled');
         if (stored !== null) {
           setNotificationsEnabled(JSON.parse(stored));
+        } else {
+          // Default to checking if we have a token
+          const token = await SecureStore.getItemAsync('expoPushToken');
+          setNotificationsEnabled(!!token);
         }
-        const hasPermission = await notificationService.areNotificationsEnabled();
-        setNotificationsEnabled(hasPermission);
       }
     } catch (error) {
       console.error('❌ Failed to load notification settings:', error);
@@ -69,9 +80,24 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       // Save to storage
       await SecureStore.setItemAsync('notificationsEnabled', JSON.stringify(newStatus));
       
-      if (newStatus) {
-        // Re-request permissions if enabling
-        await notificationService.initialize();
+      // Always ensure notification service is initialized
+      await notificationService.initialize();
+      
+      // Update backend with new permissions and token
+      try {
+        const res = await updateNotificationSettings({ 
+          permission1: newStatus, 
+          permission2: newStatus
+        });
+        setPermission1(!!res.permission1);
+        setPermission2(!!res.permission2);
+        console.log('✅ Backend notification settings updated:', { 
+          permission1: res.permission1, 
+          permission2: res.permission2,
+          token: res.token ? `${res.token.substring(0, 20)}...` : 'EMPTY'
+        });
+      } catch (backendError) {
+        console.warn('⚠️ Failed to update backend notification settings:', backendError);
       }
       
       console.log('✅ Notifications toggled:', newStatus);

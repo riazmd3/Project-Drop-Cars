@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,6 @@ import {
   TouchableOpacity,
   SafeAreaView,
   ScrollView,
-  RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { 
@@ -16,64 +15,24 @@ import {
   FileText, 
   Shield,
   ArrowRight,
-  RefreshCw,
-  ArrowLeft
+  RefreshCw
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useAuth } from '@/contexts/AuthContext';
-import { useTheme } from '@/contexts/ThemeContext';
 
-export default function VerificationScreen() {
+interface AccountVerificationScreenProps {
+  accountStatus: string;
+  onRefresh?: () => void;
+  onLogout?: () => void;
+  isLoading?: boolean;
+}
+
+export default function AccountVerificationScreen({ 
+  accountStatus, 
+  onRefresh,
+  onLogout,
+  isLoading = false
+}: AccountVerificationScreenProps) {
   const router = useRouter();
-  const { user, refreshUserData } = useAuth();
-  const { colors } = useTheme();
-  const [isLoading, setIsLoading] = useState(false);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const accountStatus = user?.account_status || 'pending';
-
-  // Auto-redirect when account becomes ACTIVE
-  useEffect(() => {
-    if (accountStatus?.toLowerCase() === 'active') {
-      console.log('✅ Account is ACTIVE - redirecting to dashboard');
-      router.replace('/(tabs)');
-    }
-  }, [accountStatus, router]);
-  
-  // Debug logging
-  console.log('🔍 Verification page - Account status:', accountStatus);
-  console.log('🔍 Verification page - User data:', user);
-
-  const handleRefresh = async () => {
-    if (refreshing) return; // Prevent multiple simultaneous refreshes
-    
-    setRefreshing(true);
-    try {
-      console.log('🔄 Refreshing user data...');
-      await refreshUserData();
-      console.log('✅ User data refreshed successfully');
-      
-      // Check if status changed after refresh
-      const updatedStatus = user?.account_status;
-      console.log('📊 Updated account status:', updatedStatus);
-      
-    } catch (error) {
-      console.error('❌ Failed to refresh user data:', error);
-      // You could add a toast notification here if needed
-    } finally {
-      setRefreshing(false);
-    }
-  };
-
-  const handleBack = () => {
-    try {
-      console.log('🔙 Going back...');
-      router.back();
-    } catch (error) {
-      console.log('⚠️ Back navigation failed, redirecting to login');
-      router.replace('/login');
-    }
-  };
 
   const getStatusInfo = () => {
     switch (accountStatus?.toLowerCase()) {
@@ -89,39 +48,55 @@ export default function VerificationScreen() {
           borderColor: '#10B981',
           showRefresh: false
         };
-      case 'pending':
-      case 'under_review':
+      
+      case 'inactive':
+      case 'processing': // Handle driver PROCESSING status
         return {
           icon: <Clock color="#F59E0B" size={64} />,
-          title: 'Under Review',
-          subtitle: 'Your documents are being verified',
-          message: 'We are currently reviewing your submitted documents. This process usually takes 24-48 hours. You will be notified once the verification is complete. Pull down to refresh status.',
+          title: 'Account Under Verification',
+          subtitle: 'Our team is reviewing your documents',
+          message: 'Thank you for submitting your documents. Our verification team is currently reviewing your information. This process usually takes 8-48 hours. You will be notified once verification is complete.',
           buttonText: 'Refresh Status',
-          buttonAction: handleRefresh,
+          buttonAction: onRefresh,
           backgroundColor: '#FFFBEB',
           borderColor: '#F59E0B',
+          showRefresh: true
+        };
+      
+      case 'pending':
+        return {
+          icon: <FileText color="#3B82F6" size={64} />,
+          title: 'Documents Pending',
+          subtitle: 'Please complete your profile setup',
+          message: 'Your account is pending document verification. Please ensure all required documents are uploaded and your profile is complete.',
+          buttonText: 'Complete Profile',
+          buttonAction: () => router.push('/add-car'),
+          backgroundColor: '#EFF6FF',
+          borderColor: '#3B82F6',
           showRefresh: false
         };
+      
       case 'rejected':
         return {
           icon: <AlertCircle color="#EF4444" size={64} />,
           title: 'Verification Failed',
-          subtitle: 'Your documents need to be resubmitted',
-          message: 'Unfortunately, your documents could not be verified. Please check the requirements and resubmit your documents.',
+          subtitle: 'Please review and resubmit your documents',
+          message: 'Your account verification was unsuccessful. Please review the feedback provided and resubmit your documents. Contact support if you need assistance.',
           buttonText: 'Resubmit Documents',
-          buttonAction: () => router.replace('/signup'),
+          buttonAction: () => router.push('/add-car'),
           backgroundColor: '#FEF2F2',
           borderColor: '#EF4444',
           showRefresh: false
         };
+      
       default:
         return {
-          icon: <FileText color="#6B7280" size={64} />,
-          title: 'Verification Required',
-          subtitle: 'Your account is being processed',
-          message: 'Your account is currently being processed. Please wait while we verify your information. Pull down to refresh status.',
-          buttonText: 'Refresh Status',
-          buttonAction: handleRefresh,
+          icon: <Shield color="#6B7280" size={64} />,
+          title: 'Account Status Unknown',
+          subtitle: 'Please contact support',
+          message: 'We couldn\'t determine your account status. Please contact our support team for assistance.',
+          buttonText: 'Contact Support',
+          buttonAction: () => router.push('/support'),
           backgroundColor: '#F9FAFB',
           borderColor: '#6B7280',
           showRefresh: false
@@ -131,191 +106,257 @@ export default function VerificationScreen() {
 
   const statusInfo = getStatusInfo();
 
-  const dynamicStyles = StyleSheet.create({
-    container: {
-      flex: 1,
-      backgroundColor: colors.background,
-    },
-    header: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: 20,
-      paddingTop: 20,
-      paddingBottom: 10,
-    },
-    backButton: {
-      padding: 8,
-      marginRight: 12,
-    },
-    headerTitle: {
-      fontSize: 20,
-      fontWeight: '600',
-      color: colors.text,
-      flex: 1,
-      textAlign: 'center',
-    },
-    refreshButton: {
-      padding: 8,
-      marginLeft: 12,
-    },
-    content: {
-      flex: 1,
-      paddingHorizontal: 20,
-    },
-    statusCard: {
-      backgroundColor: statusInfo.backgroundColor,
-      borderRadius: 16,
-      padding: 24,
-      marginVertical: 20,
-      borderWidth: 2,
-      borderColor: statusInfo.borderColor,
-      alignItems: 'center',
-    },
-    iconContainer: {
-      marginBottom: 16,
-    },
-    title: {
-      fontSize: 24,
-      fontWeight: '700',
-      color: colors.text,
-      textAlign: 'center',
-      marginBottom: 8,
-    },
-    subtitle: {
-      fontSize: 16,
-      color: colors.textSecondary,
-      textAlign: 'center',
-      marginBottom: 16,
-    },
-    message: {
-      fontSize: 14,
-      color: colors.textSecondary,
-      textAlign: 'center',
-      lineHeight: 20,
-      marginBottom: 24,
-    },
-    actionButton: {
-      backgroundColor: colors.primary,
-      paddingHorizontal: 24,
-      paddingVertical: 12,
-      borderRadius: 8,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    actionButtonText: {
-      color: '#FFFFFF',
-      fontSize: 16,
-      fontWeight: '600',
-      marginRight: 8,
-    },
-    infoSection: {
-      backgroundColor: colors.surface,
-      borderRadius: 12,
-      padding: 20,
-      marginTop: 20,
-    },
-    infoTitle: {
-      fontSize: 18,
-      fontWeight: '600',
-      color: colors.text,
-      marginBottom: 12,
-    },
-    infoItem: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      marginBottom: 12,
-    },
-    infoIcon: {
-      marginRight: 12,
-    },
-    infoText: {
-      fontSize: 14,
-      color: colors.textSecondary,
-      flex: 1,
-    },
-  });
-
   return (
-    <SafeAreaView style={dynamicStyles.container}>
-      <View style={dynamicStyles.header}>
-        <TouchableOpacity onPress={handleBack} style={dynamicStyles.backButton}>
-          <ArrowLeft color={colors.text} size={24} />
-        </TouchableOpacity>
-        <Text style={dynamicStyles.headerTitle}>Account Verification</Text>
-        <TouchableOpacity 
-          onPress={handleRefresh} 
-          style={dynamicStyles.refreshButton}
-          disabled={refreshing}
-        >
-          <RefreshCw 
-            color={colors.text} 
-            size={24} 
-            style={refreshing ? { transform: [{ rotate: '180deg' }] } : {}}
-          />
-        </TouchableOpacity>
-      </View>
-
-      <ScrollView 
-        style={dynamicStyles.content}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={handleRefresh}
-            colors={[colors.primary]}
-            tintColor={colors.primary}
-          />
-        }
+    <SafeAreaView style={styles.container}>
+      <LinearGradient 
+        colors={['#3B82F6', '#1E40AF']} 
+        style={styles.header}
       >
-        <View style={dynamicStyles.statusCard}>
-          <View style={dynamicStyles.iconContainer}>
+        <View style={styles.headerContent}>
+          <Text style={styles.headerTitle}>Drop Cars</Text>
+          <Text style={styles.headerSubtitle}>Account Verification</Text>
+        </View>
+      </LinearGradient>
+
+      <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
+        <View style={[styles.statusCard, { backgroundColor: statusInfo.backgroundColor, borderColor: statusInfo.borderColor }]}>
+          <View style={styles.iconContainer}>
             {statusInfo.icon}
           </View>
           
-          <Text style={dynamicStyles.title}>{statusInfo.title}</Text>
-          <Text style={dynamicStyles.subtitle}>{statusInfo.subtitle}</Text>
-          <Text style={dynamicStyles.message}>{statusInfo.message}</Text>
+          <Text style={styles.statusTitle}>{statusInfo.title}</Text>
+          <Text style={styles.statusSubtitle}>{statusInfo.subtitle}</Text>
           
-          <TouchableOpacity 
-            style={[dynamicStyles.actionButton, (isLoading || refreshing) && { opacity: 0.6 }]}
-            onPress={statusInfo.buttonAction}
-            disabled={isLoading || refreshing}
-          >
-            <Text style={dynamicStyles.actionButtonText}>{statusInfo.buttonText}</Text>
-            {isLoading || refreshing ? (
-              <RefreshCw color="#FFFFFF" size={20} style={{ transform: [{ rotate: '180deg' }] }} />
-            ) : (
-              <ArrowRight color="#FFFFFF" size={20} />
-            )}
-          </TouchableOpacity>
+          <View style={styles.messageContainer}>
+            <Text style={styles.messageText}>{statusInfo.message}</Text>
+          </View>
+
+          {statusInfo.showRefresh && (
+            <View style={styles.refreshInfo}>
+              <RefreshCw color="#F59E0B" size={16} />
+              <Text style={styles.refreshText}>
+                You can refresh to check if your status has been updated
+              </Text>
+            </View>
+          )}
         </View>
 
-        <View style={dynamicStyles.infoSection}>
-          <Text style={dynamicStyles.infoTitle}>What happens next?</Text>
-          
-          <View style={dynamicStyles.infoItem}>
-            <FileText color={colors.textSecondary} size={20} style={dynamicStyles.infoIcon} />
-            <Text style={dynamicStyles.infoText}>
-              We review your submitted documents and information
-            </Text>
-          </View>
-          
-          <View style={dynamicStyles.infoItem}>
-            <Shield color={colors.textSecondary} size={20} style={dynamicStyles.infoIcon} />
-            <Text style={dynamicStyles.infoText}>
-              Our team verifies your identity and credentials
-            </Text>
-          </View>
-          
-          <View style={dynamicStyles.infoItem}>
-            <CheckCircle color={colors.textSecondary} size={20} style={dynamicStyles.infoIcon} />
-            <Text style={dynamicStyles.infoText}>
-              You'll receive a notification once verification is complete
-            </Text>
-          </View>
+        <View style={styles.actionContainer}>
+          <TouchableOpacity 
+            style={[styles.primaryButton, { backgroundColor: statusInfo.borderColor }]}
+            onPress={statusInfo.buttonAction}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <RefreshCw color="#FFFFFF" size={20} style={styles.spinningIcon} />
+                <Text style={styles.primaryButtonText}>Checking Status...</Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.primaryButtonText}>{statusInfo.buttonText}</Text>
+                <ArrowRight color="#FFFFFF" size={20} />
+              </>
+            )}
+          </TouchableOpacity>
+
+          {onLogout && (
+            <TouchableOpacity 
+              style={styles.secondaryButton}
+              onPress={onLogout}
+            >
+              <Text style={styles.secondaryButtonText}>Logout</Text>
+            </TouchableOpacity>
+          )}
         </View>
+
+        {accountStatus?.toLowerCase() === 'inactive' && (
+          <View style={styles.infoCard}>
+            <Text style={styles.infoTitle}>What happens next?</Text>
+            <View style={styles.infoList}>
+              <View style={styles.infoItem}>
+                <View style={styles.infoBullet} />
+                <Text style={styles.infoText}>Our team reviews your submitted documents</Text>
+              </View>
+              <View style={styles.infoItem}>
+                <View style={styles.infoBullet} />
+                <Text style={styles.infoText}>Verification typically takes 24-48 hours</Text>
+              </View>
+              <View style={styles.infoItem}>
+                <View style={styles.infoBullet} />
+                <Text style={styles.infoText}>You'll receive a notification once approved</Text>
+              </View>
+              <View style={styles.infoItem}>
+                <View style={styles.infoBullet} />
+                <Text style={styles.infoText}>After approval, you can access all features</Text>
+              </View>
+            </View>
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#FFFFFF',
+  },
+  header: {
+    paddingTop: 20,
+    paddingBottom: 30,
+    paddingHorizontal: 24,
+  },
+  headerContent: {
+    alignItems: 'center',
+  },
+  headerTitle: {
+    fontSize: 28,
+    fontFamily: 'Inter-Bold',
+    color: '#FFFFFF',
+    marginBottom: 4,
+  },
+  headerSubtitle: {
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    color: '#E5E7EB',
+  },
+  content: {
+    flex: 1,
+    paddingHorizontal: 24,
+    paddingTop: 24,
+  },
+  statusCard: {
+    borderRadius: 20,
+    padding: 24,
+    marginBottom: 24,
+    borderWidth: 2,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
+  },
+  iconContainer: {
+    marginBottom: 20,
+  },
+  statusTitle: {
+    fontSize: 24,
+    fontFamily: 'Inter-Bold',
+    color: '#1F2937',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  statusSubtitle: {
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+    color: '#6B7280',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  messageContainer: {
+    marginBottom: 20,
+  },
+  messageText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: '#374151',
+    lineHeight: 22,
+    textAlign: 'center',
+  },
+  refreshInfo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(245, 158, 11, 0.1)',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: 'rgba(245, 158, 11, 0.2)',
+  },
+  refreshText: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: '#92400E',
+    marginLeft: 8,
+    flex: 1,
+  },
+  actionContainer: {
+    marginBottom: 24,
+  },
+  primaryButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  primaryButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    marginRight: 8,
+  },
+  secondaryButton: {
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+  },
+  secondaryButtonText: {
+    color: '#6B7280',
+    fontSize: 16,
+    fontFamily: 'Inter-Medium',
+  },
+  infoCard: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 24,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  infoTitle: {
+    fontSize: 18,
+    fontFamily: 'Inter-SemiBold',
+    color: '#1F2937',
+    marginBottom: 16,
+    textAlign: 'center',
+  },
+  infoList: {
+    gap: 12,
+  },
+  infoItem: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  infoBullet: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#3B82F6',
+    marginTop: 8,
+    marginRight: 12,
+  },
+  infoText: {
+    fontSize: 14,
+    fontFamily: 'Inter-Regular',
+    color: '#4B5563',
+    lineHeight: 20,
+    flex: 1,
+  },
+  spinningIcon: {
+    marginRight: 8,
+  },
+}); 

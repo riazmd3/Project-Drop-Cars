@@ -12,12 +12,8 @@ Notifications.setNotificationHandler({
       title: notification.request.content.title,
       body: notification.request.content.body,
       state: 'FOREGROUND',
-      timestamp: new Date().toISOString(),
-      data: notification.request.content.data
+      timestamp: new Date().toISOString()
     });
-    
-    // ALWAYS SHOW NOTIFICATIONS - Don't let toggles interfere
-    console.log('🔔 FORCING NOTIFICATION TO SHOW (bypassing all toggles)');
     
     // THIS IS WHAT MAKES NOTIFICATIONS SHOW IN FOREGROUND
     return {
@@ -101,8 +97,6 @@ class NotificationService {
     }
   }
 
-  // REMOVED: setupNotificationHandler() - Handler is already set at module level
-
   private async requestPermissions(): Promise<void> {
     try {
       if (!Device.isDevice) {
@@ -144,19 +138,7 @@ class NotificationService {
       
       console.log('📱 Expo Push Token:', this.expoPushToken);
       await SecureStore.setItemAsync('expoPushToken', this.expoPushToken);
-
-      // Try to save to backend
-      try {
-        const { upsertNotificationSettings } = await import('./notificationApi');
-        await upsertNotificationSettings({ 
-          permission1: true, 
-          permission2: true, 
-          token: this.expoPushToken 
-        });
-        console.log('✅ Token saved to backend');
-      } catch (e) {
-        console.warn('⚠️ Could not save token to backend:', e);
-      }
+      console.log('✅ Token stored locally (will be sent via toggle button)');
 
     } catch (error) {
       console.error('❌ Error getting push token:', error);
@@ -186,151 +168,25 @@ class NotificationService {
     console.log('✅ Notification listeners set up');
   }
 
-  // Handle backend notifications
-  async handleBackendNotification(notificationData: any): Promise<void> {
+  // SIMPLIFIED: Send notification
+  async sendLocalNotification(notification: NotificationData): Promise<void> {
     try {
-      console.log('📱 Processing backend notification:', notificationData);
+      console.log('📱 Sending local notification:', notification.title);
       
-      // Extract notification content
-      const { title, body, data, sound = true, priority = 'high' } = notificationData;
-      
-      // Schedule the notification
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: title || 'New Notification',
-          body: body || 'You have a new notification',
-          data: data || {},
-          sound: sound,
-          priority: priority,
+          title: notification.title,
+          body: notification.body,
+          data: notification.data || {},
+          sound: notification.sound !== false,
+          priority: notification.priority || 'high',
         },
-        trigger: null, // Send immediately
+        trigger: null,
       });
       
-      console.log('✅ Backend notification processed successfully');
+      console.log('✅ Local notification sent successfully');
     } catch (error) {
-      console.error('❌ Failed to process backend notification:', error);
-    }
-  }
-
-  // Get current push token for backend
-  async getCurrentPushToken(): Promise<string | null> {
-    try {
-      if (!Device.isDevice) {
-        console.log('📱 Simulator - no push token available');
-        return null;
-      }
-
-      // Try to get from storage first
-      let token = await SecureStore.getItemAsync('expoPushToken');
-      
-      if (!token) {
-        // Generate new token if not found
-        const newToken = await Notifications.getExpoPushTokenAsync();
-        token = newToken.data;
-        await SecureStore.setItemAsync('expoPushToken', token);
-        console.log('📱 Generated new push token');
-      }
-      
-      return token;
-    } catch (error) {
-      console.error('❌ Error getting push token:', error);
-      return null;
-    }
-  }
-
-  // Update notification settings on backend
-  async updateNotificationSettings(permission1: boolean, permission2: boolean): Promise<void> {
-    try {
-      const token = await this.getCurrentPushToken();
-      
-      if (!token) {
-        console.error('❌ No push token available for backend update');
-        return;
-      }
-
-      const { upsertNotificationSettings } = await import('./notificationApi');
-      await upsertNotificationSettings({ 
-        permission1, 
-        permission2, 
-        token 
-      });
-      
-      console.log('✅ Notification settings updated on backend');
-    } catch (error) {
-      console.error('❌ Failed to update notification settings:', error);
-    }
-  }
-
-  // Debug notification setup
-  async debugNotificationSetup(): Promise<void> {
-    console.log('🔍 DEBUGGING NOTIFICATION SETUP...');
-    
-    // Check permissions
-    const permissions = await Notifications.getPermissionsAsync();
-    console.log('📱 Permissions:', permissions);
-    
-    // Check if device
-    console.log('📱 Is real device:', Device.isDevice);
-    
-    // Check token
-    const token = await this.getCurrentPushToken();
-    console.log('📱 Push token:', token ? `${token.substring(0, 20)}...` : 'NOT FOUND');
-    
-    // Check backend settings
-    try {
-      const { getNotificationSettings } = await import('./notificationApi');
-      const settings = await getNotificationSettings();
-      console.log('📱 Backend settings:', settings);
-    } catch (error) {
-      console.log('📱 Backend settings error:', error);
-    }
-  }
-
-  // FORCE TEST NOTIFICATION - This should definitely work
-  async forceTestNotification(): Promise<void> {
-    try {
-      console.log('🚨 FORCING TEST NOTIFICATION (bypassing all toggles)...');
-      
-      // Send notification directly using Expo API
-      await Notifications.scheduleNotificationAsync({
-        content: {
-          title: '🚨 FORCE TEST',
-          body: 'This notification MUST appear when app is open!',
-          data: { forceTest: true, timestamp: Date.now() },
-          sound: true,
-          priority: 'max',
-          badge: 1,
-        },
-        trigger: null, // Send immediately
-      });
-      
-      console.log('✅ Force test notification sent');
-    } catch (error) {
-      console.error('❌ Force test notification failed:', error);
-    }
-  }
-
-  // Test if handler is working
-  async testHandlerStatus(): Promise<void> {
-    try {
-      console.log('🔍 TESTING NOTIFICATION HANDLER STATUS...');
-      
-      // Check if handler is set
-      console.log('📱 Handler should be set at module level');
-      
-      // Send test notification
-      console.log('🧪 Sending test notification to check handler...');
-      await this.forceTestNotification();
-      
-      // Check permissions
-      const permissions = await Notifications.getPermissionsAsync();
-      console.log('📱 Current permissions:', permissions);
-      
-      // Check if device
-      console.log('📱 Is real device:', Device.isDevice);
-      
-    } catch (error) {
-      console.error('❌ Handler status test failed:', error);
+      console.error('❌ Failed to send local notification:', error);
     }
   }
 
@@ -338,19 +194,12 @@ class NotificationService {
   async printAllTokens(): Promise<void> {
     try {
       console.log('🔍 PRINTING ALL NOTIFICATION TOKENS...');
-      
-      // Check SecureStore token
       const storedToken = await SecureStore.getItemAsync('expoPushToken');
       console.log('📱 Stored token:', storedToken ? `${storedToken.substring(0, 20)}...` : 'NOT FOUND');
-      
-      // Check current token
       const currentToken = await this.getCurrentPushToken();
       console.log('📱 Current token:', currentToken ? `${currentToken.substring(0, 20)}...` : 'NOT FOUND');
-      
-      // Check permissions
       const permissions = await Notifications.getPermissionsAsync();
       console.log('📱 Permissions:', permissions);
-      
     } catch (error) {
       console.error('❌ Failed to print tokens:', error);
     }
@@ -366,46 +215,64 @@ class NotificationService {
       return false;
     }
   }
+
+  // Get current push token
+  async getCurrentPushToken(): Promise<string | null> {
+    try {
+      if (!Device.isDevice) {
+        console.log('📱 Simulator - cannot get push token');
+        return null;
+      }
+      const token = await Notifications.getExpoPushTokenAsync();
+      this.expoPushToken = token.data;
+      await SecureStore.setItemAsync('expoPushToken', this.expoPushToken);
+      console.log('📱 Generated and stored new push token:', this.expoPushToken);
+      return this.expoPushToken;
+    } catch (error) {
+      console.error('❌ Failed to get current push token:', error);
+      return null;
+    }
+  }
+
+  // Force generate and store token
+  async forceGenerateToken(): Promise<string | null> {
+    try {
+      console.log('🔄 Force generating new push token...');
+      await this.requestPermissions();
+      const token = await this.getCurrentPushToken();
+      if (token) {
+        console.log('✅ Force generated token successfully:', token);
+      } else {
+        console.error('❌ Failed to force generate token');
+      }
+      return token;
+    } catch (error) {
+      console.error('❌ Error force generating token:', error);
+      return null;
+    }
+  }
+
+  // Clear all notifications
+  async clearAllNotifications(): Promise<void> {
+    try {
+      await Notifications.dismissAllNotificationsAsync();
+      console.log('✅ All notifications cleared');
+    } catch (error) {
+      console.error('❌ Failed to clear notifications:', error);
+    }
+  }
 }
 
 // Export singleton
 export const notificationService = NotificationService.getInstance();
 
-// Backend notification functions
-export const handleBackendNotification = async (notificationData: any): Promise<void> => {
-  await notificationService.handleBackendNotification(notificationData);
-};
-
-export const getCurrentPushToken = async (): Promise<string | null> => {
-  return await notificationService.getCurrentPushToken();
-};
-
-export const updateNotificationSettings = async (permission1: boolean, permission2: boolean): Promise<void> => {
-  await notificationService.updateNotificationSettings(permission1, permission2);
-};
-
-export const debugNotificationSetup = async (): Promise<void> => {
-  await notificationService.debugNotificationSetup();
-};
-
-export const testHandlerStatus = async (): Promise<void> => {
-  await notificationService.testHandlerStatus();
-};
-
-export const forceTestNotification = async (): Promise<void> => {
-  await notificationService.forceTestNotification();
-};
-
-export const printAllTokens = async (): Promise<void> => {
-  await notificationService.printAllTokens();
-};
-
-export const areNotificationsEnabled = async (): Promise<boolean> => {
-  return await notificationService.areNotificationsEnabled();
-};
-
 // CRITICAL: Call this immediately when your app starts
 export const initializeNotifications = async (): Promise<void> => {
   console.log('🚀 INITIALIZING NOTIFICATIONS ON APP START...');
   await notificationService.initialize();
+};
+
+// Force generate token
+export const forceGenerateToken = async (): Promise<string | null> => {
+  return await notificationService.forceGenerateToken();
 };
