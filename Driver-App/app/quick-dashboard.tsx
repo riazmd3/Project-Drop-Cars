@@ -818,6 +818,21 @@ export default function QuickDashboardScreen() {
             >
               <Text style={styles.debugButtonText}>Debug</Text>
             </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={async () => {
+                try {
+                  const { testForegroundNotification } = await import('@/services/notifications/notificationService');
+                  await testForegroundNotification();
+                  Alert.alert('Test Sent', 'Foreground notification test sent! Check if it appears.');
+                } catch (error) {
+                  console.error('❌ Test notification failed:', error);
+                  Alert.alert('Error', 'Failed to send test notification');
+                }
+              }} 
+              style={[styles.debugButton, { backgroundColor: '#10B981' }]}
+            >
+              <Text style={styles.debugButtonText}>Test</Text>
+            </TouchableOpacity>
             <TouchableOpacity onPress={handleRefresh} disabled={refreshing}>
               <RefreshCw 
                 size={20} 

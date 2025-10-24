@@ -111,7 +111,7 @@ export const signupAccount = async (personalData: any, documents: any): Promise<
        formData.append('password', password);
        formData.append('address', address);
        formData.append('aadhar_number', aadharNumber);
-       formData.append('organization_id', personalData.organizationId || 'org_001');
+       formData.append('organization_id', personalData.organizationId || '');
       
       console.log('📤 FormData created with fields:', {
         full_name: fullName,
@@ -120,7 +120,7 @@ export const signupAccount = async (personalData: any, documents: any): Promise<
         password: password,
         address: address,
         aadhar_number: aadharNumber,
-        organization_id: personalData.organizationId || 'org_001',
+        organization_id: personalData.organizationId || 'Empty',
         aadhar_front_img: documents.aadharFront ? 'File attached' : 'No file'
       });
       

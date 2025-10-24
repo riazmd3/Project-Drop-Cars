@@ -8,20 +8,21 @@ console.log('🔔 Setting up SINGLE notification handler...');
 
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
-    console.log('🔔 DRIVER APP: Foreground notification handler CALLED', {
+    console.log('🔔 NOTIFICATION HANDLER CALLED:', {
       title: notification.request.content.title,
       body: notification.request.content.body,
+      data: notification.request.content.data,
       state: 'FOREGROUND',
       timestamp: new Date().toISOString()
     });
     
-    // THIS IS WHAT MAKES NOTIFICATIONS SHOW IN FOREGROUND
+    // CRITICAL: This is what makes notifications show when app is open
     return {
-      shouldShowAlert: true,    // THIS SHOWS THE BANNER
-      shouldPlaySound: true,    // THIS PLAYS SOUND
-      shouldSetBadge: true,     // THIS SETS BADGE
-      shouldShowBanner: true,   // THIS SHOWS BANNER
-      shouldShowList: true,     // THIS SHOWS IN LIST
+      shouldShowAlert: true,    // Shows the notification banner
+      shouldPlaySound: true,    // Plays notification sound
+      shouldSetBadge: true,     // Updates app badge
+      shouldShowBanner: true,   // Shows banner
+      shouldShowList: true,     // Shows in notification list
     };
   },
 });
@@ -29,12 +30,15 @@ Notifications.setNotificationHandler({
 // Android channel setup
 if (Platform.OS === 'android') {
   Notifications.setNotificationChannelAsync('default', {
-    name: 'default',
+    name: 'Default Notifications',
     importance: Notifications.AndroidImportance.MAX,
     vibrationPattern: [0, 250, 250, 250],
     lightColor: '#FF231F7C',
     sound: 'default',
     showBadge: true,
+    enableLights: true,
+    enableVibrate: true,
+    bypassDnd: true,
   });
 }
 
@@ -261,6 +265,28 @@ class NotificationService {
       console.error('❌ Failed to clear notifications:', error);
     }
   }
+
+  // Test foreground notification
+  async testForegroundNotification(): Promise<void> {
+    try {
+      console.log('🧪 Testing foreground notification...');
+      
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '🔔 FOREGROUND TEST',
+          body: 'This notification should appear when app is open!',
+          data: { test: true, timestamp: Date.now() },
+          sound: true,
+          priority: 'high',
+        },
+        trigger: null, // Send immediately
+      });
+      
+      console.log('✅ Foreground test notification sent');
+    } catch (error) {
+      console.error('❌ Failed to send foreground test notification:', error);
+    }
+  }
 }
 
 // Export singleton
@@ -275,4 +301,9 @@ export const initializeNotifications = async (): Promise<void> => {
 // Force generate token
 export const forceGenerateToken = async (): Promise<string | null> => {
   return await notificationService.forceGenerateToken();
+};
+
+// Test foreground notification
+export const testForegroundNotification = async (): Promise<void> => {
+  return await notificationService.testForegroundNotification();
 };

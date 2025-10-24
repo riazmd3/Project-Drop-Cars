@@ -54,7 +54,7 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
   const [password, setPassword] = useState(data.password || '');
   const [address, setAddress] = useState(data.address || '');
   const [aadharNumber, setAadharNumber] = useState(data.aadharNumber || '');
-  const [organizationId, setOrganizationId] = useState(data.organizationId || 'org_001');
+  const [organizationId, setOrganizationId] = useState(data.organizationId || '');
 
 
 
