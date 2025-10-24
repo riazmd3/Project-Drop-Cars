@@ -230,6 +230,27 @@ export default function QuickDashboardScreen() {
       console.error('❌ Test backend notification failed:', error);
     }
   }, [handleBackendNotification]);
+
+  // Test handler status
+  const testHandlerStatus = useCallback(async () => {
+    try {
+      const { testHandlerStatus } = await import('@/services/notifications/notificationService');
+      await testHandlerStatus();
+    } catch (error) {
+      console.error('❌ Test handler status failed:', error);
+    }
+  }, []);
+
+  // Force test notification (bypasses all toggles)
+  const forceTestNotification = useCallback(async () => {
+    try {
+      const { forceTestNotification } = await import('@/services/notifications/notificationService');
+      await forceTestNotification();
+    } catch (error) {
+      console.error('❌ Force test notification failed:', error);
+    }
+  }, []);
+
   const toggleNotifications = async () => {
     try {
       setNotificationLoading(true);
@@ -855,6 +876,18 @@ export default function QuickDashboardScreen() {
               style={[styles.debugButton, { backgroundColor: '#FF9800', marginLeft: 8 }]}
             >
               <Text style={styles.debugButtonText}>🧪 Test Backend</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={forceTestNotification}
+              style={[styles.debugButton, { backgroundColor: '#E91E63', marginLeft: 8 }]}
+            >
+              <Text style={styles.debugButtonText}>🚨 Force Test</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={testHandlerStatus}
+              style={[styles.debugButton, { backgroundColor: '#9C27B0', marginLeft: 8 }]}
+            >
+              <Text style={styles.debugButtonText}>🔍 Test Handler</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={handleRefresh} disabled={refreshing}>
               <RefreshCw 

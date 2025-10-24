@@ -45,13 +45,33 @@ export default function VerificationScreen() {
   console.log('🔍 Verification page - User data:', user);
 
   const handleRefresh = async () => {
+    if (refreshing) return; // Prevent multiple simultaneous refreshes
+    
     setRefreshing(true);
     try {
+      console.log('🔄 Refreshing user data...');
       await refreshUserData();
+      console.log('✅ User data refreshed successfully');
+      
+      // Check if status changed after refresh
+      const updatedStatus = user?.account_status;
+      console.log('📊 Updated account status:', updatedStatus);
+      
     } catch (error) {
       console.error('❌ Failed to refresh user data:', error);
+      // You could add a toast notification here if needed
     } finally {
       setRefreshing(false);
+    }
+  };
+
+  const handleBack = () => {
+    try {
+      console.log('🔙 Going back...');
+      router.back();
+    } catch (error) {
+      console.log('⚠️ Back navigation failed, redirecting to login');
+      router.replace('/login');
     }
   };
 
@@ -119,6 +139,7 @@ export default function VerificationScreen() {
     header: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'space-between',
       paddingHorizontal: 20,
       paddingTop: 20,
       paddingBottom: 10,
@@ -131,6 +152,12 @@ export default function VerificationScreen() {
       fontSize: 20,
       fontWeight: '600',
       color: colors.text,
+      flex: 1,
+      textAlign: 'center',
+    },
+    refreshButton: {
+      padding: 8,
+      marginLeft: 12,
     },
     content: {
       flex: 1,
@@ -184,7 +211,7 @@ export default function VerificationScreen() {
       marginRight: 8,
     },
     infoSection: {
-      backgroundColor: colors.cardBackground,
+      backgroundColor: colors.surface,
       borderRadius: 12,
       padding: 20,
       marginTop: 20,
@@ -213,10 +240,21 @@ export default function VerificationScreen() {
   return (
     <SafeAreaView style={dynamicStyles.container}>
       <View style={dynamicStyles.header}>
-        <TouchableOpacity onPress={() => router.back()} style={dynamicStyles.backButton}>
+        <TouchableOpacity onPress={handleBack} style={dynamicStyles.backButton}>
           <ArrowLeft color={colors.text} size={24} />
         </TouchableOpacity>
         <Text style={dynamicStyles.headerTitle}>Account Verification</Text>
+        <TouchableOpacity 
+          onPress={handleRefresh} 
+          style={dynamicStyles.refreshButton}
+          disabled={refreshing}
+        >
+          <RefreshCw 
+            color={colors.text} 
+            size={24} 
+            style={refreshing ? { transform: [{ rotate: '180deg' }] } : {}}
+          />
+        </TouchableOpacity>
       </View>
 
       <ScrollView 
@@ -240,12 +278,16 @@ export default function VerificationScreen() {
           <Text style={dynamicStyles.message}>{statusInfo.message}</Text>
           
           <TouchableOpacity 
-            style={dynamicStyles.actionButton}
+            style={[dynamicStyles.actionButton, (isLoading || refreshing) && { opacity: 0.6 }]}
             onPress={statusInfo.buttonAction}
-            disabled={isLoading}
+            disabled={isLoading || refreshing}
           >
             <Text style={dynamicStyles.actionButtonText}>{statusInfo.buttonText}</Text>
-            <ArrowRight color="#FFFFFF" size={20} />
+            {isLoading || refreshing ? (
+              <RefreshCw color="#FFFFFF" size={20} style={{ transform: [{ rotate: '180deg' }] }} />
+            ) : (
+              <ArrowRight color="#FFFFFF" size={20} />
+            )}
           </TouchableOpacity>
         </View>
 

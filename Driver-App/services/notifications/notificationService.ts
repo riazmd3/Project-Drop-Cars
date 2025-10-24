@@ -12,8 +12,12 @@ Notifications.setNotificationHandler({
       title: notification.request.content.title,
       body: notification.request.content.body,
       state: 'FOREGROUND',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      data: notification.request.content.data
     });
+    
+    // ALWAYS SHOW NOTIFICATIONS - Don't let toggles interfere
+    console.log('🔔 FORCING NOTIFICATION TO SHOW (bypassing all toggles)');
     
     // THIS IS WHAT MAKES NOTIFICATIONS SHOW IN FOREGROUND
     return {
@@ -281,6 +285,87 @@ class NotificationService {
       console.log('📱 Backend settings error:', error);
     }
   }
+
+  // FORCE TEST NOTIFICATION - This should definitely work
+  async forceTestNotification(): Promise<void> {
+    try {
+      console.log('🚨 FORCING TEST NOTIFICATION (bypassing all toggles)...');
+      
+      // Send notification directly using Expo API
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '🚨 FORCE TEST',
+          body: 'This notification MUST appear when app is open!',
+          data: { forceTest: true, timestamp: Date.now() },
+          sound: true,
+          priority: 'max',
+          badge: 1,
+        },
+        trigger: null, // Send immediately
+      });
+      
+      console.log('✅ Force test notification sent');
+    } catch (error) {
+      console.error('❌ Force test notification failed:', error);
+    }
+  }
+
+  // Test if handler is working
+  async testHandlerStatus(): Promise<void> {
+    try {
+      console.log('🔍 TESTING NOTIFICATION HANDLER STATUS...');
+      
+      // Check if handler is set
+      console.log('📱 Handler should be set at module level');
+      
+      // Send test notification
+      console.log('🧪 Sending test notification to check handler...');
+      await this.forceTestNotification();
+      
+      // Check permissions
+      const permissions = await Notifications.getPermissionsAsync();
+      console.log('📱 Current permissions:', permissions);
+      
+      // Check if device
+      console.log('📱 Is real device:', Device.isDevice);
+      
+    } catch (error) {
+      console.error('❌ Handler status test failed:', error);
+    }
+  }
+
+  // Print all tokens for debugging
+  async printAllTokens(): Promise<void> {
+    try {
+      console.log('🔍 PRINTING ALL NOTIFICATION TOKENS...');
+      
+      // Check SecureStore token
+      const storedToken = await SecureStore.getItemAsync('expoPushToken');
+      console.log('📱 Stored token:', storedToken ? `${storedToken.substring(0, 20)}...` : 'NOT FOUND');
+      
+      // Check current token
+      const currentToken = await this.getCurrentPushToken();
+      console.log('📱 Current token:', currentToken ? `${currentToken.substring(0, 20)}...` : 'NOT FOUND');
+      
+      // Check permissions
+      const permissions = await Notifications.getPermissionsAsync();
+      console.log('📱 Permissions:', permissions);
+      
+    } catch (error) {
+      console.error('❌ Failed to print tokens:', error);
+    }
+  }
+
+  // Check if notifications are enabled
+  async areNotificationsEnabled(): Promise<boolean> {
+    try {
+      const permissions = await Notifications.getPermissionsAsync();
+      return permissions.granted;
+    } catch (error) {
+      console.error('❌ Failed to check notification status:', error);
+      return false;
+    }
+  }
 }
 
 // Export singleton
@@ -301,6 +386,22 @@ export const updateNotificationSettings = async (permission1: boolean, permissio
 
 export const debugNotificationSetup = async (): Promise<void> => {
   await notificationService.debugNotificationSetup();
+};
+
+export const testHandlerStatus = async (): Promise<void> => {
+  await notificationService.testHandlerStatus();
+};
+
+export const forceTestNotification = async (): Promise<void> => {
+  await notificationService.forceTestNotification();
+};
+
+export const printAllTokens = async (): Promise<void> => {
+  await notificationService.printAllTokens();
+};
+
+export const areNotificationsEnabled = async (): Promise<boolean> => {
+  return await notificationService.areNotificationsEnabled();
 };
 
 // CRITICAL: Call this immediately when your app starts
