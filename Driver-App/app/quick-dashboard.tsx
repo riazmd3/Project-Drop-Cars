@@ -58,6 +58,9 @@ interface DriverOrder {
   scheduled_at?: string;
   toll_charge_update?: boolean; // Add toll charge update flag
   pickup_notes?: string;
+  vendor_name?: string;
+  vendor_primary_number?: string;
+  vendor_secondary_number?: string;
 }
 
 export default function QuickDashboardScreen() {
@@ -307,6 +310,9 @@ export default function QuickDashboardScreen() {
         assignment_id: order.id,
         scheduled_at: order.start_date_time,
         toll_charge_update: order.toll_charge_update || false, // Map toll charge update flag
+        vendor_name: order.vendor_name, // Map vendor name
+        vendor_primary_number: order.vendor_primary_number, // Map vendor primary number
+        vendor_secondary_number: order.vendor_secondary_number, // Map vendor secondary number
       }));
       
       setDriverOrders(mappedOrders);
@@ -989,6 +995,44 @@ export default function QuickDashboardScreen() {
                       {order.customer_mobile}
                     </Text>
                   </View>
+                  
+                  {/* Vendor Information */}
+                  {order.vendor_name && (
+                    <View style={styles.detailRow}>
+                      <User size={16} color={isDisabled && !isActiveTrip ? colors.textSecondary : colors.primary} />
+                      <Text style={[
+                        styles.detailText, 
+                        { color: isDisabled && !isActiveTrip ? colors.textSecondary : colors.primary }
+                      ]}>
+                        Vendor: {order.vendor_name}
+                      </Text>
+                    </View>
+                  )}
+                  
+                  {order.vendor_primary_number && (
+                    <View style={styles.detailRow}>
+                      <Phone size={16} color={isDisabled && !isActiveTrip ? colors.textSecondary : colors.primary} />
+                      <Text style={[
+                        styles.detailText, 
+                        { color: isDisabled && !isActiveTrip ? colors.textSecondary : colors.primary }
+                      ]}>
+                        Vendor: {order.vendor_primary_number}
+                      </Text>
+                    </View>
+                  )}
+                  
+                  {order.vendor_secondary_number && order.vendor_secondary_number !== order.vendor_primary_number && (
+                    <View style={styles.detailRow}>
+                      <Phone size={16} color={isDisabled && !isActiveTrip ? colors.textSecondary : colors.primary} />
+                      <Text style={[
+                        styles.detailText, 
+                        { color: isDisabled && !isActiveTrip ? colors.textSecondary : colors.primary }
+                      ]}>
+                        Vendor Alt: {order.vendor_secondary_number}
+                      </Text>
+                    </View>
+                  )}
+                  
                   <View style={styles.detailRow}>
                     <Car size={16} color={isDisabled && !isActiveTrip ? colors.textSecondary : colors.textSecondary} />
                     <Text style={[

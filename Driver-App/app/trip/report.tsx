@@ -40,6 +40,9 @@ interface TripReport {
   completed_at: string;
   total_km: number;
   updated_toll_charge?: number;
+  vendor_name?: string;
+  vendor_primary_number?: string;
+  vendor_secondary_number?: string;
 }
 
 export default function TripReportScreen() {
@@ -181,6 +184,34 @@ export default function TripReportScreen() {
             <Text style={[styles.detailText, { color: colors.text }]}>{report.customer_number}</Text>
           </View>
         </View>
+
+        {/* Vendor Information */}
+        {(report.vendor_name || report.vendor_primary_number || report.vendor_secondary_number) && (
+          <View style={[styles.section, { backgroundColor: colors.surface }]}>
+            <Text style={[styles.sectionTitle, { color: colors.text }]}>Vendor Details</Text>
+            
+            {report.vendor_name && (
+              <View style={styles.detailRow}>
+                <User size={20} color={colors.success} />
+                <Text style={[styles.detailText, { color: colors.text }]}>{report.vendor_name}</Text>
+              </View>
+            )}
+            
+            {report.vendor_primary_number && (
+              <View style={styles.detailRow}>
+                <Phone size={20} color={colors.success} />
+                <Text style={[styles.detailText, { color: colors.text }]}>Primary: {report.vendor_primary_number}</Text>
+              </View>
+            )}
+            
+            {report.vendor_secondary_number && report.vendor_secondary_number !== report.vendor_primary_number && (
+              <View style={styles.detailRow}>
+                <Phone size={20} color={colors.success} />
+                <Text style={[styles.detailText, { color: colors.text }]}>Secondary: {report.vendor_secondary_number}</Text>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Trip Route */}
         <View style={[styles.section, { backgroundColor: colors.surface }]}>
