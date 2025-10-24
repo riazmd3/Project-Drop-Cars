@@ -131,21 +131,6 @@ export default function DashboardScreen() {
     }
   }, [user?.id]); // Only trigger when user ID changes (login/logout)
 
-  // Set up periodic refresh for new bookings
-  useEffect(() => {
-    if (!user) return;
-
-    console.log('⏰ Setting up periodic refresh for new bookings...');
-    const interval = setInterval(() => {
-      console.log('🔄 Periodic refresh: checking for new bookings...');
-      fetchPendingOrdersData();
-    }, 30000); // Check every 30 seconds for new bookings
-
-    return () => {
-      console.log('⏰ Clearing periodic refresh interval');
-      clearInterval(interval);
-    };
-  }, [user]);
 
   // Check for new orders and send notifications
   useEffect(() => {

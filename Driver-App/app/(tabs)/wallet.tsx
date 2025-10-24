@@ -506,43 +506,46 @@ export default function WalletScreen() {
     },
   });
 
-  const TransactionCard = ({ transaction }: { transaction: any }) => (
-    <View style={dynamicStyles.transactionCard}>
-      <View style={dynamicStyles.transactionLeft}>
-        <View style={[
-          dynamicStyles.transactionIcon,
-          { backgroundColor: transaction.type === 'credit' ? '#D1FAE5' : '#FEE2E2' }
-        ]}>
-          {transaction.type === 'credit' ? (
-            <ArrowUpRight color={colors.success} size={16} />
-          ) : (
-            <ArrowDownLeft color={colors.error} size={16} />
-          )}
-        </View>
-        <View style={dynamicStyles.transactionInfo}>
-          <Text style={dynamicStyles.transactionTitle}>{transaction.description}</Text>
-          <Text style={dynamicStyles.transactionDate}>{transaction.date}</Text>
-          {transaction.status && (
+  const TransactionCard = ({ transaction }: { transaction: any }) => {
+    const isCredit = transaction.entry_type === 'CREDIT';
+    const isDebit = transaction.entry_type === 'DEBIT';
+    
+    return (
+      <View style={dynamicStyles.transactionCard}>
+        <View style={dynamicStyles.transactionLeft}>
+          <View style={[
+            dynamicStyles.transactionIcon,
+            { backgroundColor: isCredit ? '#D1FAE5' : '#FEE2E2' }
+          ]}>
+            {isCredit ? (
+              <ArrowUpRight color={colors.success} size={16} />
+            ) : (
+              <ArrowDownLeft color={colors.error} size={16} />
+            )}
+          </View>
+          <View style={dynamicStyles.transactionInfo}>
+            <Text style={dynamicStyles.transactionTitle}>{transaction.notes || transaction.description}</Text>
+            <Text style={dynamicStyles.transactionDate}>{transaction.created_at || transaction.date}</Text>
             <Text style={[
               dynamicStyles.transactionStatus,
               { 
-                color: transaction.status === 'completed' ? colors.success : 
-                       transaction.status === 'pending' ? colors.warning : colors.error 
+                color: isCredit ? colors.success : colors.error,
+                backgroundColor: isCredit ? '#D1FAE5' : '#FEE2E2'
               }
             ]}>
-              {transaction.status.toUpperCase()}
+              {transaction.entry_type}
             </Text>
-          )}
+          </View>
         </View>
+        <Text style={[
+          dynamicStyles.transactionAmount,
+          { color: isCredit ? colors.success : colors.error }
+        ]}>
+          {isCredit ? '+' : '-'}₹{transaction.amount}
+        </Text>
       </View>
-      <Text style={[
-        dynamicStyles.transactionAmount,
-        { color: transaction.type === 'credit' ? colors.success : colors.error }
-      ]}>
-        {transaction.type === 'credit' ? '+' : '-'}₹{transaction.amount}
-      </Text>
-    </View>
-  );
+    );
+  };
 
   return (
     <SafeAreaView style={dynamicStyles.container}>
