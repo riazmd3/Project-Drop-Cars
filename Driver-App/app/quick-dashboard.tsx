@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useCarDriver } from '@/contexts/CarDriverContext';
+import * as SecureStore from 'expo-secure-store';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import { 
@@ -35,7 +36,6 @@ import {
 import { startTrip, endTrip } from '@/services/driver/carDriverService';
 import axiosDriver from '@/app/api/axiosDriver';
 import LoadingOverlay from '@/components/LoadingOverlay';
-import * as SecureStore from 'expo-secure-store';
 
 interface DriverOrder {
   id: number;
@@ -140,6 +140,33 @@ export default function QuickDashboardScreen() {
       await sendTestNotification();
     } catch (error) {
       console.error('❌ Test notification failed:', error);
+    }
+  }, []);
+
+  // Debug notification token function
+  const debugNotificationToken = useCallback(async () => {
+    try {
+      console.log('🔍 Debugging notification token...');
+      
+      // Check SecureStore
+      const storedToken = await SecureStore.getItemAsync('expoPushToken');
+      console.log('📱 Stored Expo token:', storedToken ? `${storedToken.substring(0, 20)}...` : 'NOT FOUND');
+      
+      // Check current notification settings
+      const { getDriverNotificationSettings } = await import('@/services/notifications/driverNotificationApi');
+      try {
+        const currentSettings = await getDriverNotificationSettings();
+        console.log('📱 Current settings token:', currentSettings?.token ? `${currentSettings.token.substring(0, 20)}...` : 'NOT FOUND');
+      } catch (error: any) {
+        console.log('📱 Current settings error:', error.message);
+      }
+      
+      // Check notification service
+      const { notificationService } = await import('@/services/notifications/notificationService');
+      await notificationService.printAllTokens();
+      
+    } catch (error) {
+      console.error('❌ Debug notification token failed:', error);
     }
   }, []);
 
@@ -743,6 +770,7 @@ export default function QuickDashboardScreen() {
               onPress={async () => {
                 await debugAuthentication();
                 await debugTokenStorage();
+                await debugNotificationToken();
                 await testNotification();
               }} 
               style={[styles.debugButton, { backgroundColor: colors.primary }]}
