@@ -348,9 +348,11 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
       <View style={dynamicStyles.header}>
         <Text style={dynamicStyles.bookingId}>#{booking.order_id}</Text>
         <View style={dynamicStyles.fareContainer}>
-          {/* Avoid double currency symbol; just show the number, UI adds symbol elsewhere if needed */}
+          {/* Show estimated price as main fare */}
           <IndianRupee color={colors.success} size={16} />
-          <Text style={dynamicStyles.totalFare}>{displayPrice}</Text>
+          <Text style={dynamicStyles.totalFare}>
+            {displayPrice}
+          </Text>
         </View>
       </View>
 
@@ -452,7 +454,9 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
 
       {chargesToDeduct > 0 && (
         <View style={dynamicStyles.tripInfo}>
-          <Text style={dynamicStyles.tripInfoText}>Charges to deduct: ₹{chargesToDeduct}</Text>
+          <Text style={dynamicStyles.tripInfoText}>
+            Deductible amount: ₹{chargesToDeduct} (from total fare: ₹{displayPrice})
+          </Text>
         </View>
       )}
 

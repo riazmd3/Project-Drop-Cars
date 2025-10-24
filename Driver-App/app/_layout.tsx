@@ -16,6 +16,9 @@ import * as SplashScreen from 'expo-splash-screen';
 // Initialize Firebase early
 import '@/services/firebase/firebaseConfig';
 
+// REMOVED: Conflicting notification handler - let NotificationService handle it
+// The notification handler will be set up by the NotificationService to avoid conflicts
+
 SplashScreen.preventAutoHideAsync();
 
 export default function RootLayout() {

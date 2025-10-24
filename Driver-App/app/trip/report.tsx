@@ -273,7 +273,7 @@ export default function TripReportScreen() {
           )}
         </View>
 
-        {/* Trip Timeline */}
+        {/* Trip Timeline
         <View style={[styles.section, { backgroundColor: colors.surface }]}>
           <Text style={[styles.sectionTitle, { color: colors.text }]}>Trip Timeline</Text>
           
@@ -292,7 +292,7 @@ export default function TripReportScreen() {
               {completedDateTime.date} at {completedDateTime.time}
             </Text>
           </View>
-        </View>
+        </View> */}
 
         {/* Notes */}
         {report.pickup_notes && (

@@ -133,15 +133,7 @@ export default function QuickDashboardScreen() {
     }
   }, []);
 
-  // Test notification function
-  const testNotification = useCallback(async () => {
-    try {
-      const { sendTestNotification } = await import('@/services/notifications/notificationService');
-      await sendTestNotification();
-    } catch (error) {
-      console.error('❌ Test notification failed:', error);
-    }
-  }, []);
+  // REMOVED: Old test functions - using simplified API now
 
   // Debug notification token function
   const debugNotificationToken = useCallback(async () => {
@@ -163,24 +155,92 @@ export default function QuickDashboardScreen() {
       
       // Check notification service
       const { notificationService } = await import('@/services/notifications/notificationService');
-      await notificationService.printAllTokens();
+      console.log('📱 Notification service available:', !!notificationService);
       
     } catch (error) {
       console.error('❌ Debug notification token failed:', error);
     }
   }, []);
 
-  // Notification functions
+  // Backend notification functions
+  const debugNotificationSetup = useCallback(async () => {
+    try {
+      const { debugNotificationSetup } = await import('@/services/notifications/notificationService');
+      await debugNotificationSetup();
+    } catch (error) {
+      console.error('❌ Debug notification setup failed:', error);
+    }
+  }, []);
+
+  const getCurrentPushToken = useCallback(async () => {
+    try {
+      const { getCurrentPushToken } = await import('@/services/notifications/notificationService');
+      const token = await getCurrentPushToken();
+      console.log('📱 Current push token:', token ? `${token.substring(0, 20)}...` : 'NOT FOUND');
+      return token;
+    } catch (error) {
+      console.error('❌ Get push token failed:', error);
+      return null;
+    }
+  }, []);
+
+  const updateNotificationSettings = useCallback(async (permission1: boolean, permission2: boolean) => {
+    try {
+      const { updateNotificationSettings } = await import('@/services/notifications/notificationService');
+      await updateNotificationSettings(permission1, permission2);
+    } catch (error) {
+      console.error('❌ Update notification settings failed:', error);
+    }
+  }, []);
+
+  // Handle incoming backend notifications
+  const handleBackendNotification = useCallback(async (notificationData: any) => {
+    try {
+      console.log('📱 Received backend notification:', notificationData);
+      
+      const { handleBackendNotification } = await import('@/services/notifications/notificationService');
+      await handleBackendNotification(notificationData);
+      
+      console.log('✅ Backend notification processed');
+    } catch (error) {
+      console.error('❌ Failed to handle backend notification:', error);
+    }
+  }, []);
+
+  // Test backend notification (for debugging)
+  const testBackendNotification = useCallback(async () => {
+    try {
+      const testNotification = {
+        title: 'Test Backend Notification',
+        body: 'This is a test notification from backend',
+        data: { 
+          type: 'test',
+          timestamp: Date.now(),
+          orderId: 'test-123'
+        },
+        sound: true,
+        priority: 'high'
+      };
+      
+      await handleBackendNotification(testNotification);
+    } catch (error) {
+      console.error('❌ Test backend notification failed:', error);
+    }
+  }, [handleBackendNotification]);
   const toggleNotifications = async () => {
     try {
       setNotificationLoading(true);
-      const { updateDriverNotificationPermissions } = await import('@/services/notifications/driverNotificationApi');
+      
       const newStatus = !notificationsEnabled;
-      const res = await updateDriverNotificationPermissions({ 
+      console.log('🔔 Updating notification permissions:', { 
         permission1: newStatus, 
         permission2: newStatus 
       });
-      setNotificationsEnabled(!!(res.permission1 || res.permission2));
+
+      // Use the new backend notification settings function
+      await updateNotificationSettings(newStatus, newStatus);
+
+      setNotificationsEnabled(newStatus);
       console.log('✅ Driver notifications toggled:', newStatus);
     } catch (error: any) {
       console.error('❌ Failed to toggle notifications:', error);
@@ -771,11 +831,24 @@ export default function QuickDashboardScreen() {
                 await debugAuthentication();
                 await debugTokenStorage();
                 await debugNotificationToken();
-                await testNotification();
+                await debugNotificationSetup();
+                await getCurrentPushToken();
               }} 
               style={[styles.debugButton, { backgroundColor: colors.primary }]}
             >
               <Text style={styles.debugButtonText}>Debug</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={getCurrentPushToken}
+              style={[styles.debugButton, { backgroundColor: '#4CAF50', marginLeft: 8 }]}
+            >
+              <Text style={styles.debugButtonText}>📱 Get Token</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={testBackendNotification}
+              style={[styles.debugButton, { backgroundColor: '#FF9800', marginLeft: 8 }]}
+            >
+              <Text style={styles.debugButtonText}>🧪 Test Backend</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={handleRefresh} disabled={refreshing}>
               <RefreshCw 
