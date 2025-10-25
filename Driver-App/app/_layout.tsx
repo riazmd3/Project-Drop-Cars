@@ -52,7 +52,7 @@ export default function RootLayout() {
   if (!fontsLoaded && !fontError) {
     return null;
   }
-
+//Successfull Preview Build without nativ directory(done in cloud expo)
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
