@@ -12,9 +12,10 @@ import { NotificationProvider } from '@/contexts/NotificationContext';
 import { CarDriverProvider } from '@/contexts/CarDriverContext';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 import * as SplashScreen from 'expo-splash-screen';
+import { initializeNotifications } from '@/services/notifications/notificationService';
 
-// Initialize Firebase early
-import '@/services/firebase/firebaseConfig';
+// REMOVED: Firebase initialization - using Expo notifications only
+// import '@/services/firebase/firebaseConfig';
 
 // REMOVED: Conflicting notification handler - let NotificationService handle it
 // The notification handler will be set up by the NotificationService to avoid conflicts
@@ -36,6 +37,20 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded, fontError]);
+
+  // Initialize notifications on app start
+  useEffect(() => {
+    console.log('🚀 APP START: Initializing notifications...');
+    initializeNotifications().then(() => {
+      // Test foreground notifications immediately after initialization
+      setTimeout(() => {
+        console.log('🧪 Testing foreground notifications...');
+        import('@/services/notifications/notificationService').then(({ testForegroundNotificationImmediately }) => {
+          testForegroundNotificationImmediately();
+        });
+      }, 3000); // Wait 3 seconds for initialization to complete
+    });
+  }, []);
 
   if (!fontsLoaded && !fontError) {
     return null;

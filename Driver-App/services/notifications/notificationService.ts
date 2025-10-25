@@ -1,26 +1,28 @@
 import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import * as SecureStore from 'expo-secure-store';
-import { Platform } from 'react-native';
+import { Platform, Alert } from 'react-native';
 
-// CRITICAL: Set notification handler ONLY ONCE at module level
-console.log('🔔 Setting up SINGLE notification handler...');
+// 🔔 CRITICAL FIX: Updated notification handler with proper properties
+console.log('🔔 Setting up FIXED notification handler...');
 
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
-    console.log('🔔🔔🔔 NOTIFICATION HANDLER CALLED 🔔🔔🔔');
+    console.log('🎯🎯🎯 HANDLER DEFINITELY CALLED 🎯🎯🎯');
     console.log('📱 Notification details:', {
       title: notification.request.content.title,
       body: notification.request.content.body,
       data: notification.request.content.data,
       identifier: notification.request.identifier,
       state: 'FOREGROUND',
-      timestamp: new Date().toISOString()
+      timestamp: new Date().toISOString(),
+      trigger: notification.request.trigger
     });
     
-    // CRITICAL: This is what makes notifications show when app is open
+    // 🎯 SIMPLIFIED: Always show notifications when app is open
+    // This works for both FCM and local notifications
     const result = {
-      shouldShowAlert: true,    // Shows the notification banner
+      shouldShowAlert: true,    // CRITICAL: Shows the notification banner
       shouldPlaySound: true,    // Plays notification sound
       shouldSetBadge: true,     // Updates app badge
       shouldShowBanner: true,   // Shows banner
@@ -32,19 +34,36 @@ Notifications.setNotificationHandler({
   },
 });
 
-// Android channel setup
+// Android channel setup - CRITICAL: MAX importance for foreground display
 if (Platform.OS === 'android') {
   Notifications.setNotificationChannelAsync('default', {
     name: 'Default Notifications',
-    importance: Notifications.AndroidImportance.MAX,
+    importance: Notifications.AndroidImportance.MAX, // CRITICAL: MAX importance
     vibrationPattern: [0, 250, 250, 250],
     lightColor: '#FF231F7C',
     sound: 'default',
     showBadge: true,
     enableLights: true,
     enableVibrate: true,
-    bypassDnd: true,
+    bypassDnd: true, // Bypass Do Not Disturb
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
   });
+  
+  // Additional FCM-specific channel with MAX importance
+  Notifications.setNotificationChannelAsync('fcm_default_channel', {
+    name: 'FCM Notifications',
+    importance: Notifications.AndroidImportance.MAX, // CRITICAL: MAX importance
+    vibrationPattern: [0, 250, 250, 250],
+    lightColor: '#FF231F7C',
+    sound: 'default',
+    showBadge: true,
+    enableLights: true,
+    enableVibrate: true,
+    bypassDnd: true, // Bypass Do Not Disturb
+    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
+  });
+  
+  console.log('✅ Android channels configured with MAX importance');
 }
 
 console.log('✅ SINGLE notification handler configured');
@@ -226,9 +245,9 @@ class NotificationService {
     // Remove any existing listeners first
     this.removeNotificationListeners();
     
-    // SINGLE listener for when notification is received in foreground
+    // Listener for when notification is received in foreground
     const receivedListener = Notifications.addNotificationReceivedListener((notification) => {
-      console.log('📱 NOTIFICATION RECEIVED IN FOREGROUND:', {
+      console.log('📱 NOTIFICATION RECEIVED IN FOREGROUND - WILL DISPLAY:', {
         title: notification.request.content.title,
         body: notification.request.content.body,
         data: notification.request.content.data,
@@ -236,7 +255,7 @@ class NotificationService {
         timestamp: new Date().toISOString()
       });
       
-      // You can add custom handling here for foreground notifications
+      // You can add custom handling here
       this.handleForegroundNotification(notification);
     });
 
@@ -256,7 +275,8 @@ class NotificationService {
     this.notificationListeners.push(receivedListener);
     this.notificationListeners.push(responseListener);
 
-    console.log('✅ Notification listeners set up');
+    console.log('✅ Notification listeners set up successfully');
+    console.log('🔔 Total listeners:', this.notificationListeners.length);
   }
 
   private handleForegroundNotification(notification: Notifications.Notification): void {
@@ -449,10 +469,24 @@ class NotificationService {
     }
   }
 
+  // REMOVED: Duplicate methods - keeping only the ones at the end
+
+  // Clean up listeners
+  removeNotificationListeners(): void {
+    console.log('🧹 Removing notification listeners...');
+    this.notificationListeners.forEach(listener => {
+      listener.remove();
+    });
+    this.notificationListeners = [];
+    console.log('✅ Notification listeners removed');
+  }
+
   // Test foreground notification
   async testForegroundNotification(): Promise<void> {
     try {
       console.log('🧪 Testing foreground notification...');
+      console.log('🧪 Current listeners count:', this.notificationListeners.length);
+      console.log('🧪 Is initialized:', this.isInitialized);
       
       const notificationId = await Notifications.scheduleNotificationAsync({
         content: {
@@ -479,12 +513,19 @@ class NotificationService {
       });
       
       console.log('✅ Foreground test notification sent with ID:', notificationId);
+      console.log('🧪 Waiting for notification to be received...');
+      
+      // Wait a bit to see if the notification is received
+      setTimeout(() => {
+        console.log('🧪 2 seconds passed - checking if notification was received');
+      }, 2000);
+      
     } catch (error) {
       console.error('❌ Failed to send foreground test notification:', error);
     }
   }
 
-  // Check if notification handler is properly set up
+  // Check notification setup
   async checkNotificationSetup(): Promise<void> {
     try {
       console.log('🔍 Checking notification setup...');
@@ -501,6 +542,13 @@ class NotificationService {
       if (Platform.OS === 'android') {
         const channels = await Notifications.getNotificationChannelsAsync();
         console.log('📱 Android channels:', channels);
+        
+        // Check if FCM channel exists
+        const fcmChannel = channels.find(ch => ch.id === 'fcm_default_channel');
+        console.log('📱 FCM channel exists:', !!fcmChannel);
+        if (fcmChannel) {
+          console.log('📱 FCM channel importance:', fcmChannel.importance);
+        }
       }
       
       // Test if handler is working
@@ -512,14 +560,89 @@ class NotificationService {
     }
   }
 
-  // Clean up listeners
-  removeNotificationListeners(): void {
-    console.log('🧹 Removing notification listeners...');
-    this.notificationListeners.forEach(listener => {
-      listener.remove();
-    });
-    this.notificationListeners = [];
-    console.log('✅ Notification listeners removed');
+  // Test foreground notification immediately
+  async testForegroundNotificationImmediately(): Promise<void> {
+    try {
+      console.log('🧪 IMMEDIATE FOREGROUND NOTIFICATION TEST...');
+      
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '🔔 FOREGROUND TEST',
+          body: 'If you see this, foreground notifications are working!',
+          data: { 
+            test: true, 
+            timestamp: Date.now(),
+            origin: 'local_test'
+          },
+          sound: true,
+          priority: 'high',
+        },
+        trigger: null, // Send immediately
+      });
+      
+      console.log('✅ Test notification sent - check if it appears!');
+    } catch (error) {
+      console.error('❌ Failed to send test notification:', error);
+    }
+  }
+
+  // Test FCM notification simulation
+  async testFCMNotification(): Promise<void> {
+    try {
+      console.log('🧪 Testing FCM notification simulation...');
+      
+      const notificationId = await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '🔔 FCM SIMULATION TEST',
+          body: 'This simulates an FCM notification in foreground!',
+          data: { 
+            origin: 'backend',
+            test: true, 
+            timestamp: Date.now(),
+            fcm_simulation: true
+          },
+          sound: true,
+          priority: 'high',
+          // Use FCM channel for Android
+          ...(Platform.OS === 'android' && {
+            channelId: 'fcm_default_channel',
+          }),
+        },
+        trigger: null, // Send immediately
+      });
+      
+      console.log('✅ FCM simulation notification sent with ID:', notificationId);
+      
+    } catch (error) {
+      console.error('❌ Failed to send FCM simulation notification:', error);
+    }
+  }
+
+  // Debug FCM notification reception
+  async debugFCMReception(): Promise<void> {
+    try {
+      console.log('🔍 DEBUGGING FCM NOTIFICATION RECEPTION...');
+      
+      // Check current notification settings
+      const settings = await Notifications.getPermissionsAsync();
+      console.log('📱 Current permissions:', settings);
+      
+      // Check if we have listeners
+      console.log('📱 Current listeners count:', this.notificationListeners.length);
+      
+      // Check Android channels
+      if (Platform.OS === 'android') {
+        const channels = await Notifications.getNotificationChannelsAsync();
+        console.log('📱 Available channels:', channels.map(ch => ({ id: ch.id, importance: ch.importance })));
+      }
+      
+      // Test if handler is being called
+      console.log('🧪 Testing handler with FCM-like notification...');
+      await this.testFCMNotification();
+      
+    } catch (error) {
+      console.error('❌ Failed to debug FCM reception:', error);
+    }
   }
 
   // Get notification settings
@@ -558,6 +681,21 @@ export const forceGenerateToken = async (): Promise<string | null> => {
 // Test foreground notification
 export const testForegroundNotification = async (): Promise<void> => {
   return await notificationService.testForegroundNotification();
+};
+
+// Test foreground notification immediately
+export const testForegroundNotificationImmediately = async (): Promise<void> => {
+  return await notificationService.testForegroundNotificationImmediately();
+};
+
+// Test FCM notification simulation
+export const testFCMNotification = async (): Promise<void> => {
+  return await notificationService.testFCMNotification();
+};
+
+// Debug FCM notification reception
+export const debugFCMReception = async (): Promise<void> => {
+  return await notificationService.debugFCMReception();
 };
 
 // Check notification setup

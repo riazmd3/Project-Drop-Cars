@@ -315,6 +315,17 @@ export default function DashboardScreen() {
     headerRight: {
       flexDirection: 'row',
       alignItems: 'center',
+      gap: 8,
+    },
+    testButton: {
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      borderRadius: 6,
+    },
+    testButtonText: {
+      color: 'white',
+      fontSize: 10,
+      fontWeight: '600',
     },
     refreshButton: {
       padding: 8,
@@ -699,6 +710,52 @@ export default function DashboardScreen() {
         </TouchableOpacity>
 
         <View style={dynamicStyles.headerRight}>
+          {/* Notification Test Buttons */}
+          <TouchableOpacity 
+            onPress={async () => {
+              try {
+                console.log('🧪 VEHICLE OWNER TEST: Calling testForegroundNotification...');
+                const { testForegroundNotification } = await import('@/services/notifications/notificationService');
+                await testForegroundNotification();
+                console.log('✅ VEHICLE OWNER TEST: testForegroundNotification completed');
+                Alert.alert('Test Sent', 'Foreground notification test sent! Check console for logs.');
+              } catch (error) {
+                console.error('❌ VEHICLE OWNER TEST FAILED:', error);
+                Alert.alert('Error', 'Failed to send test notification');
+              }
+            }} 
+            style={[dynamicStyles.testButton, { backgroundColor: '#10B981' }]}
+          >
+            <Text style={dynamicStyles.testButtonText}>Test</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            onPress={() => {
+              console.log('🧪 VEHICLE OWNER ALERT TEST: Showing direct alert...');
+              Alert.alert('🔔 SIMPLE TEST', 'This is a direct alert test - if you see this, alerts work!');
+              console.log('✅ VEHICLE OWNER ALERT TEST: Alert shown');
+            }} 
+            style={[dynamicStyles.testButton, { backgroundColor: '#8B5CF6' }]}
+          >
+            <Text style={dynamicStyles.testButtonText}>Alert</Text>
+          </TouchableOpacity>
+          <TouchableOpacity 
+            onPress={async () => {
+              try {
+                console.log('🧪 VEHICLE OWNER FCM TEST: Calling testFCMNotification...');
+                const { testFCMNotification } = await import('@/services/notifications/notificationService');
+                await testFCMNotification();
+                console.log('✅ VEHICLE OWNER FCM TEST: testFCMNotification completed');
+                Alert.alert('FCM Test Sent', 'FCM simulation notification sent! Check if it appears in foreground.');
+              } catch (error) {
+                console.error('❌ VEHICLE OWNER FCM TEST FAILED:', error);
+                Alert.alert('Error', 'Failed to send FCM simulation notification');
+              }
+            }} 
+            style={[dynamicStyles.testButton, { backgroundColor: '#F59E0B' }]}
+          >
+            <Text style={dynamicStyles.testButtonText}>FCM</Text>
+          </TouchableOpacity>
+          
           <TouchableOpacity onPress={handleRefresh} style={dynamicStyles.refreshButton} disabled={refreshing}>
             <RefreshCw color={colors.primary} size={20} style={refreshing ? { transform: [{ rotate: '180deg' }] } : {}} />
           </TouchableOpacity>

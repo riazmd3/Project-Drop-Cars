@@ -36,7 +36,7 @@ import {
 import { startTrip, endTrip } from '@/services/driver/carDriverService';
 import axiosDriver from '@/app/api/axiosDriver';
 import LoadingOverlay from '@/components/LoadingOverlay';
-
+import { testForegroundNotification } from '@/services/notifications/notificationService';
 interface DriverOrder {
   id: number;
   order_id: number;
@@ -194,6 +194,18 @@ export default function QuickDashboardScreen() {
     }
   }, []);
 
+  // Test foreground notification function
+  const testForegroundNotification = async () => {
+    try {
+      const { testForegroundNotificationImmediately } = await import('@/services/notifications/notificationService');
+      await testForegroundNotificationImmediately();
+      Alert.alert('Test Sent', 'Foreground notification test sent! Check if it appears.');
+    } catch (error) {
+      console.error('❌ Test notification failed:', error);
+      Alert.alert('Error', 'Failed to send test notification');
+    }
+  };
+
   // Notification functions
   const toggleNotifications = async () => {
     try {
@@ -202,7 +214,7 @@ export default function QuickDashboardScreen() {
       // Ensure notification service is initialized first
       const { initializeNotifications } = await import('@/services/notifications/notificationService');
       await initializeNotifications();
-      
+      testForegroundNotification();
       const { updateDriverNotificationPermissions } = await import('@/services/notifications/driverNotificationApi');
       const newStatus = !notificationsEnabled;
       const res = await updateDriverNotificationPermissions({ 
@@ -819,19 +831,37 @@ export default function QuickDashboardScreen() {
               <Text style={styles.debugButtonText}>Debug</Text>
             </TouchableOpacity>
             <TouchableOpacity 
-              onPress={async () => {
-                try {
-                  const { testForegroundNotification } = await import('@/services/notifications/notificationService');
-                  await testForegroundNotification();
-                  Alert.alert('Test Sent', 'Foreground notification test sent! Check if it appears.');
-                } catch (error) {
-                  console.error('❌ Test notification failed:', error);
-                  Alert.alert('Error', 'Failed to send test notification');
-                }
-              }} 
+              onPress={testForegroundNotification}
               style={[styles.debugButton, { backgroundColor: '#10B981' }]}
             >
-              <Text style={styles.debugButtonText}>Test</Text>
+              <Text style={styles.debugButtonText}>Test Foreground</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={() => {
+                console.log('🧪 SIMPLE ALERT TEST: Showing direct alert...');
+                Alert.alert('🔔 SIMPLE TEST', 'This is a direct alert test - if you see this, alerts work!');
+                console.log('✅ SIMPLE ALERT TEST: Alert shown');
+              }} 
+              style={[styles.debugButton, { backgroundColor: '#8B5CF6' }]}
+            >
+              <Text style={styles.debugButtonText}>Alert</Text>
+            </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={async () => {
+                try {
+                  console.log('🧪 FCM SIMULATION TEST: Calling testFCMNotification...');
+                  const { testFCMNotification } = await import('@/services/notifications/notificationService');
+                  await testFCMNotification();
+                  console.log('✅ FCM SIMULATION TEST: testFCMNotification completed');
+                  Alert.alert('FCM Test Sent', 'FCM simulation notification sent! Check if it appears in foreground.');
+                } catch (error) {
+                  console.error('❌ FCM SIMULATION TEST FAILED:', error);
+                  Alert.alert('Error', 'Failed to send FCM simulation notification');
+                }
+              }} 
+              style={[styles.debugButton, { backgroundColor: '#F59E0B' }]}
+            >
+              <Text style={styles.debugButtonText}>FCM</Text>
             </TouchableOpacity>
             <TouchableOpacity 
               onPress={async () => {
