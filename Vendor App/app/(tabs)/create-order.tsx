@@ -11,8 +11,10 @@ import {
   Animated,
   Dimensions,
   Platform,
+  Switch,
 } from 'react-native';
 import publicApi from '../api/api';
+import DateTimePicker from '@react-native-community/datetimepicker';
 
 import { LinearGradient } from 'expo-linear-gradient';
 import type { ColorValue } from 'react-native';
@@ -35,7 +37,9 @@ import {
   GripVertical,
   ChevronUp,
   ChevronDown as ChevronDownIcon,
-  Timer
+  Timer,
+  ToggleLeft,
+  ToggleRight
 } from 'lucide-react-native';
 import LocationPicker from '../../components/LocationPicker';
 import QuoteReview from '../../components/QuoteReview';
@@ -52,6 +56,9 @@ interface FormData {
   start_date_time: Date;
   customer_name: string;
   customer_number: string;
+  max_time_hours: string;
+  max_time_minutes: string;
+  toll_charge_update: boolean;
   // Regular trip fields
   cost_per_km: string;
   extra_cost_per_km: string;
@@ -62,11 +69,11 @@ interface FormData {
   hill_charges: string;
   toll_charges: string;
   // Hourly rental fields
-  package_hours: string;
-  cost_per_pack: string;
-  extra_cost_per_pack: string;
-  additional_cost_per_hour: string;
-  extra_additional_cost_per_hour: string;
+  package_hours: { hours: number; km_range: number } | null;
+  cost_per_hour: string;
+  extra_cost_per_hour: string;
+  cost_for_addon_km: string;
+  extra_cost_for_addon_km: string;
   pickup_notes: string;
   send_to: string;
   near_city: string;
@@ -93,10 +100,13 @@ export default function CreateOrderScreen() {
     vendor_id: '83a93a3f-2f6e-4bf6-9f78-1c3f9f42b7b1',
     trip_type: 'Oneway',
     car_type: 'Sedan',
-    pickup_drop_location: { '0': '' },
+    pickup_drop_location: { '0': '', '1': '' },
     start_date_time: new Date(),
     customer_name: '',
     customer_number: '',
+    max_time_hours: '0',
+    max_time_minutes: '10',
+    toll_charge_update: true,
     // Regular trip fields
     cost_per_km: '',
     extra_cost_per_km: '',
@@ -107,11 +117,11 @@ export default function CreateOrderScreen() {
     hill_charges: '',
     toll_charges: '',
     // Hourly rental fields
-    package_hours: '',
-    cost_per_pack: '',
-    extra_cost_per_pack: '',
-    additional_cost_per_hour: '',
-    extra_additional_cost_per_hour: '',
+    package_hours: null,
+    cost_per_hour: '',
+    extra_cost_per_hour: '',
+    cost_for_addon_km: '',
+    extra_cost_for_addon_km: '',
     pickup_notes: '',
     send_to: 'ALL',
     near_city: ''
@@ -127,13 +137,17 @@ export default function CreateOrderScreen() {
   const [showQuoteReview, setShowQuoteReview] = useState(false);
   const [showOrderSuccess, setShowOrderSuccess] = useState(false);
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [options, setOptions] = useState({});
+  const [packageHoursOptions, setPackageHoursOptions] = useState<Array<{hours: number, km_range: number}>>([]);
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [showTimePicker, setShowTimePicker] = useState(false);
+  const [dateMode, setDateMode] = useState<'date' | 'time'>('date');
+  const [showPackageHoursPicker, setShowPackageHoursPicker] = useState(false);
   
 
-    const fetchPackageHours = async () => {
+  const fetchPackageHours = async () => {
     try {
-      const response = await publicApi.get('/orders/rental_hrs_data');; // replace with actual IP if using on device
-      setOptions(response.data);
+      const response = await publicApi.get('/orders/rental_hrs_data');
+      setPackageHoursOptions(response.data);
       console.log('Fetched package hours:', response.data);
     } catch (error) {
       console.error('Failed to fetch package hours:', error);
@@ -143,6 +157,25 @@ export default function CreateOrderScreen() {
   useEffect(() => {
     fetchPackageHours();
   }, []);
+
+  // Auto-populate return location for round trip
+  useEffect(() => {
+    if (formData.trip_type === 'Round Trip') {
+      const locations = getLocationKeys();
+      const lastLocationIndex = (locations.length - 1).toString();
+      const firstLocation = formData.pickup_drop_location['0'];
+      
+      if (firstLocation && locations.length > 1) {
+        setFormData(prev => ({
+          ...prev,
+          pickup_drop_location: {
+            ...prev.pickup_drop_location,
+            [lastLocationIndex]: firstLocation
+          }
+        }));
+      }
+    }
+  }, [formData.trip_type, formData.pickup_drop_location['0']]);
 
   const getCurrentTripType = () => {
     return tripTypes.find(type => type.value === formData.trip_type) || tripTypes[0];
@@ -170,12 +203,20 @@ export default function CreateOrderScreen() {
     const maxLocations = getCurrentTripType().maxLocations;
     
     if (keys.length < maxLocations) {
+      const newLocations = {
+        ...formData.pickup_drop_location,
+        [nextIndex]: ''
+      };
+      
+      // For round trip, auto-populate the last location with pickup location
+      if (formData.trip_type === 'Round Trip' && formData.pickup_drop_location['0']) {
+        const lastIndex = (keys.length).toString();
+        newLocations[lastIndex] = formData.pickup_drop_location['0'];
+      }
+      
       setFormData(prev => ({
         ...prev,
-        pickup_drop_location: {
-          ...prev.pickup_drop_location,
-          [nextIndex]: ''
-        }
+        pickup_drop_location: newLocations
       }));
     }
   };
@@ -194,6 +235,12 @@ export default function CreateOrderScreen() {
       remaining.forEach(([, value], i) => {
         reindexed[i.toString()] = value;
       });
+
+      // For round trip, auto-populate the last location with pickup location
+      if (formData.trip_type === 'Round Trip' && reindexed['0'] && Object.keys(reindexed).length > 1) {
+        const lastIndex = (Object.keys(reindexed).length - 1).toString();
+        reindexed[lastIndex] = reindexed['0'];
+      }
 
       setFormData(prev => ({
         ...prev,
@@ -217,6 +264,12 @@ export default function CreateOrderScreen() {
       reindexed[i.toString()] = formData.pickup_drop_location[key];
     });
 
+    // For round trip, auto-populate the last location with pickup location
+    if (formData.trip_type === 'Round Trip' && reindexed['0']) {
+      const lastIndex = (Object.keys(reindexed).length - 1).toString();
+      reindexed[lastIndex] = reindexed['0'];
+    }
+
     setFormData(prev => ({
       ...prev,
       pickup_drop_location: reindexed
@@ -230,15 +283,14 @@ export default function CreateOrderScreen() {
 
   const handleTripTypeChange = (tripType: string) => {
     const newTripType = tripTypes.find(type => type.value === tripType)!;
-    // let newLocations = { '0': '', '1': '' };
     let newLocations: { [key: string]: string } = {};
     if (newTripType.value === 'Hourly Rental') {
       newLocations = { '0': ''};
-    }else if (newTripType.value === 'Round Trip') {
+    } else if (newTripType.value === 'Round Trip') {
       newLocations = { '0': '', '1': ''};
     } else if (newTripType.value === 'Multicity') {
       newLocations = { '0': '', '1': ''};
-    }else{
+    } else {
       newLocations = { '0': '', '1': ''};
     }
     
@@ -249,7 +301,7 @@ export default function CreateOrderScreen() {
     }));
   };
 
-  const handleInputChange = (field: keyof FormData, value: string | Date) => {
+  const handleInputChange = (field: keyof FormData, value: string | Date | boolean | { hours: number; km_range: number } | null) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -257,18 +309,57 @@ export default function CreateOrderScreen() {
   };
 
   const handleLocationChange = (index: string, value: string) => {
+    const newLocations = {
+      ...formData.pickup_drop_location,
+      [index]: value
+    };
+    
+    // For round trip, auto-populate the last location with pickup location
+    if (formData.trip_type === 'Round Trip' && index === '0') {
+      const keys = getLocationKeys();
+      const lastIndex = (keys.length - 1).toString();
+      if (keys.length > 1) {
+        newLocations[lastIndex] = value;
+      }
+    }
+    
     setFormData(prev => ({
       ...prev,
-      pickup_drop_location: {
-        ...prev.pickup_drop_location,
-        [index]: value
-      }
+      pickup_drop_location: newLocations
     }));
   };
 
   const openLocationPicker = (index: string) => {
+    // For round trip return location, don't allow editing
+    const keys = getLocationKeys();
+    const position = keys.indexOf(index);
+    if (formData.trip_type === 'Round Trip' && position === keys.length - 1) {
+      Alert.alert('Info', 'Return location is automatically set to pickup location for round trip');
+      return;
+    }
+    
     setActiveLocationField(index);
     setShowLocationPicker(true);
+  };
+
+  const handleDateTimeChange = (event: any, selectedDate?: Date) => {
+    if (Platform.OS === 'android') {
+      setShowDatePicker(false);
+      setShowTimePicker(false);
+    }
+    
+    if (selectedDate) {
+      handleInputChange('start_date_time', selectedDate);
+    }
+  };
+
+  const showDateTimePicker = (mode: 'date' | 'time') => {
+    setDateMode(mode);
+    if (mode === 'date') {
+      setShowDatePicker(true);
+    } else {
+      setShowTimePicker(true);
+    }
   };
 
   const getQuote = async () => {
@@ -293,11 +384,11 @@ export default function CreateOrderScreen() {
     // Different validation for hourly rental vs regular trips
     if (formData.trip_type === 'Hourly Rental') {
       if (!formData.package_hours) {
-        Alert.alert('Error', 'Please enter package hours');
+        Alert.alert('Error', 'Please select package hours');
         return;
       }
-      if (!formData.cost_per_pack) {
-        Alert.alert('Error', 'Please enter cost per package');
+      if (!formData.cost_per_hour) {
+        Alert.alert('Error', 'Please enter cost per hour');
         return;
       }
     } else {
@@ -454,6 +545,60 @@ export default function CreateOrderScreen() {
           </View>
         </View>
 
+        {/* Order Configuration */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Clock size={24} color="#1E40AF" />
+            <Text style={styles.sectionTitle}>Order Configuration</Text>
+          </View>
+          
+          {/* Max Time to Assign Order */}
+          <View style={styles.timeInputSection}>
+            <Text style={styles.fieldLabel}>Max Time to Assign Order</Text>
+            <View style={styles.timeInputRow}>
+              <View style={[styles.inputContainer, styles.timeInput]}>
+                <Clock size={20} color="#6B7280" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Hours"
+                  value={formData.max_time_hours}
+                  onChangeText={(value) => handleInputChange('max_time_hours', value)}
+                  keyboardType="numeric"
+                  placeholderTextColor="#9CA3AF"
+                />
+                <Text style={styles.timeUnit}>hrs</Text>
+              </View>
+              
+              <View style={[styles.inputContainer, styles.timeInput]}>
+                <Clock size={20} color="#6B7280" style={styles.inputIcon} />
+                <TextInput
+                  style={styles.input}
+                  placeholder="Minutes"
+                  value={formData.max_time_minutes}
+                  onChangeText={(value) => handleInputChange('max_time_minutes', value)}
+                  keyboardType="numeric"
+                  placeholderTextColor="#9CA3AF"
+                />
+                <Text style={styles.timeUnit}>min</Text>
+              </View>
+            </View>
+          </View>
+
+          {/* Toll Charge Update */}
+          <View style={styles.switchContainer}>
+            <View style={styles.switchLabel}>
+              <IndianRupee size={20} color="#6B7280" />
+              <Text style={styles.switchText}>Toll Charge Update</Text>
+            </View>
+            <Switch
+              value={formData.toll_charge_update}
+              onValueChange={(value) => handleInputChange('toll_charge_update', value)}
+              trackColor={{ false: '#E5E7EB', true: '#3B82F6' }}
+              thumbColor={formData.toll_charge_update ? '#FFFFFF' : '#9CA3AF'}
+            />
+          </View>
+        </View>
+
         {/* Trip Details Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -479,7 +624,7 @@ export default function CreateOrderScreen() {
               <Calendar size={20} color="#6B7280" style={styles.inputIcon} />
               <TouchableOpacity
                 style={styles.pickerButton}
-                onPress={() => {}}
+                onPress={() => showDateTimePicker('date')}
               >
                 <Text style={styles.pickerButtonText}>
                   {formatDateTime(formData.start_date_time).date}
@@ -491,7 +636,7 @@ export default function CreateOrderScreen() {
               <Clock size={20} color="#6B7280" style={styles.inputIcon} />
               <TouchableOpacity
                 style={styles.pickerButton}
-                onPress={() => {}}
+                onPress={() => showDateTimePicker('time')}
               >
                 <Text style={styles.pickerButtonText}>
                   {formatDateTime(formData.start_date_time).time}
@@ -586,14 +731,15 @@ export default function CreateOrderScreen() {
             
             <View style={styles.inputContainer}>
               <Timer size={20} color="#6B7280" style={styles.inputIcon} />
-              <TextInput
-                style={styles.input}
-                placeholder="Package Hours"
-                value={formData.package_hours}
-                onChangeText={(value) => handleInputChange('package_hours', value)}
-                keyboardType="numeric"
-                placeholderTextColor="#9CA3AF"
-              />
+              <TouchableOpacity
+                style={styles.pickerButton}
+                onPress={() => setShowPackageHoursPicker(true)}
+              >
+                <Text style={[styles.pickerButtonText, formData.package_hours ? styles.pickerButtonTextActive : styles.pickerButtonTextPlaceholder]}>
+                  {formData.package_hours ? `${formData.package_hours.hours} hrs (${formData.package_hours.km_range} km)` : 'Select Package Hours'}
+                </Text>
+                <ChevronDown size={20} color="#6B7280" />
+              </TouchableOpacity>
             </View>
 
             <View style={styles.row}>
@@ -601,9 +747,9 @@ export default function CreateOrderScreen() {
                 <IndianRupee size={20} color="#6B7280" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Cost per Package"
-                  value={formData.cost_per_pack}
-                  onChangeText={(value) => handleInputChange('cost_per_pack', value)}
+                  placeholder="Cost per Hour"
+                  value={formData.cost_per_hour}
+                  onChangeText={(value) => handleInputChange('cost_per_hour', value)}
                   keyboardType="numeric"
                   placeholderTextColor="#9CA3AF"
                 />
@@ -613,9 +759,9 @@ export default function CreateOrderScreen() {
                 <IndianRupee size={20} color="#6B7280" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Extra Cost per Package"
-                  value={formData.extra_cost_per_pack}
-                  onChangeText={(value) => handleInputChange('extra_cost_per_pack', value)}
+                  placeholder="Extra Cost per Hour"
+                  value={formData.extra_cost_per_hour}
+                  onChangeText={(value) => handleInputChange('extra_cost_per_hour', value)}
                   keyboardType="numeric"
                   placeholderTextColor="#9CA3AF"
                 />
@@ -627,9 +773,9 @@ export default function CreateOrderScreen() {
                 <IndianRupee size={20} color="#6B7280" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Additional Cost per Hour"
-                  value={formData.additional_cost_per_hour}
-                  onChangeText={(value) => handleInputChange('additional_cost_per_hour', value)}
+                  placeholder="Cost for Addon KM"
+                  value={formData.cost_for_addon_km}
+                  onChangeText={(value) => handleInputChange('cost_for_addon_km', value)}
                   keyboardType="numeric"
                   placeholderTextColor="#9CA3AF"
                 />
@@ -639,9 +785,9 @@ export default function CreateOrderScreen() {
                 <IndianRupee size={20} color="#6B7280" style={styles.inputIcon} />
                 <TextInput
                   style={styles.input}
-                  placeholder="Extra Additional Cost per Hour"
-                  value={formData.extra_additional_cost_per_hour}
-                  onChangeText={(value) => handleInputChange('extra_additional_cost_per_hour', value)}
+                  placeholder="Extra Cost for Addon KM"
+                  value={formData.extra_cost_for_addon_km}
+                  onChangeText={(value) => handleInputChange('extra_cost_for_addon_km', value)}
                   keyboardType="numeric"
                   placeholderTextColor="#9CA3AF"
                 />
@@ -801,6 +947,26 @@ export default function CreateOrderScreen() {
         </TouchableOpacity>
       </ScrollView>
 
+      {/* Date Time Pickers */}
+      {showDatePicker && (
+        <DateTimePicker
+          value={formData.start_date_time}
+          mode="date"
+          display="default"
+          onChange={handleDateTimeChange}
+          minimumDate={new Date()}
+        />
+      )}
+
+      {showTimePicker && (
+        <DateTimePicker
+          value={formData.start_date_time}
+          mode="time"
+          display="default"
+          onChange={handleDateTimeChange}
+        />
+      )}
+
       {/* Car Type Picker Modal */}
       <Modal
         visible={showCarTypePicker}
@@ -888,6 +1054,48 @@ export default function CreateOrderScreen() {
         </View>
       </Modal>
 
+      {/* Package Hours Picker Modal */}
+      <Modal
+        visible={showPackageHoursPicker}
+        animationType="slide"
+        presentationStyle="pageSheet"
+      >
+        <View style={styles.modalContainer}>
+          <View style={styles.modalHeader}>
+            <Text style={styles.modalTitle}>Select Package Hours</Text>
+            <TouchableOpacity
+              onPress={() => setShowPackageHoursPicker(false)}
+              style={styles.closeButton}
+            >
+              <X size={24} color="#5F6368" />
+            </TouchableOpacity>
+          </View>
+          <View style={styles.modalContent}>
+            {packageHoursOptions.map((option, index) => (
+              <TouchableOpacity
+                key={index}
+                style={[
+                  styles.modalOption,
+                  formData.package_hours?.hours === option.hours && formData.package_hours?.km_range === option.km_range && styles.modalOptionActive
+                ]}
+                onPress={() => {
+                  handleInputChange('package_hours', option);
+                  setShowPackageHoursPicker(false);
+                }}
+              >
+                <Timer size={20} color={formData.package_hours?.hours === option.hours && formData.package_hours?.km_range === option.km_range ? "#8B5A3C" : "#6B7280"} />
+                <Text style={[
+                  styles.modalOptionText,
+                  formData.package_hours?.hours === option.hours && formData.package_hours?.km_range === option.km_range && styles.modalOptionTextActive
+                ]}>
+                  {option.hours} hours ({option.km_range} km range)
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      </Modal>
+
       {/* Location Picker */}
       <LocationPicker
         visible={showLocationPicker}
@@ -922,10 +1130,13 @@ export default function CreateOrderScreen() {
             vendor_id: '83a93a3f-2f6e-4bf6-9f78-1c3f9f42b7b1',
             trip_type: 'Oneway',
             car_type: 'Sedan',
-            pickup_drop_location: { '0': '' },
+            pickup_drop_location: { '0': '', '1': '' },
             start_date_time: new Date(),
             customer_name: '',
             customer_number: '',
+            max_time_hours: '0',
+            max_time_minutes: '10',
+            toll_charge_update: true,
             cost_per_km: '',
             extra_cost_per_km: '',
             driver_allowance: '',
@@ -934,11 +1145,11 @@ export default function CreateOrderScreen() {
             extra_permit_charges: '',
             hill_charges: '',
             toll_charges: '',
-            package_hours: '',
-            cost_per_pack: '',
-            extra_cost_per_pack: '',
-            additional_cost_per_hour: '',
-            extra_additional_cost_per_hour: '',
+            package_hours: null,
+            cost_per_hour: '',
+            extra_cost_per_hour: '',
+            cost_for_addon_km: '',
+            extra_cost_for_addon_km: '',
             pickup_notes: '',
             send_to: 'ALL',
             near_city: ''
@@ -1095,6 +1306,54 @@ const styles = StyleSheet.create({
   },
   halfWidth: {
     width: '48%',
+  },
+  timeInputSection: {
+    marginBottom: 16,
+  },
+  fieldLabel: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+    marginBottom: 8,
+  },
+  timeInputRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  timeInput: {
+    width: '48%',
+  },
+  timeUnit: {
+    fontSize: 14,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  switchContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 4,
+    borderWidth: 1,
+    borderColor: '#E8EAED',
+  },
+  switchLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 1,
+  },
+  switchText: {
+    fontSize: 16,
+    color: '#374151',
+    marginLeft: 16,
+    fontWeight: '500',
   },
   pickerButton: {
     flex: 1,

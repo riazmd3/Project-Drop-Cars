@@ -59,6 +59,11 @@ export default function AuthLayout() {
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="profile" />
       <Stack.Screen name="orders" />
+      <Stack.Screen name="order-details" />
+      <Stack.Screen name="wallet" />
+      <Stack.Screen name="notify" />
+      <Stack.Screen name="notification" />
+
     </Stack>
   );
 }
