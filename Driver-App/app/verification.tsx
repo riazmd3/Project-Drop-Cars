@@ -199,19 +199,19 @@ export default function AccountVerificationScreen({
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
+    container: {
+      flex: 1,
     backgroundColor: '#FFFFFF',
-  },
-  header: {
-    paddingTop: 20,
+    },
+    header: {
+      paddingTop: 20,
     paddingBottom: 30,
     paddingHorizontal: 24,
-  },
+    },
   headerContent: {
     alignItems: 'center',
-  },
-  headerTitle: {
+    },
+    headerTitle: {
     fontSize: 28,
     fontFamily: 'Inter-Bold',
     color: '#FFFFFF',
@@ -221,50 +221,50 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-Medium',
     color: '#E5E7EB',
-  },
-  content: {
-    flex: 1,
+    },
+    content: {
+      flex: 1,
     paddingHorizontal: 24,
     paddingTop: 24,
-  },
-  statusCard: {
+    },
+    statusCard: {
     borderRadius: 20,
-    padding: 24,
+      padding: 24,
     marginBottom: 24,
-    borderWidth: 2,
-    alignItems: 'center',
+      borderWidth: 2,
+      alignItems: 'center',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 4,
-  },
-  iconContainer: {
+    },
+    iconContainer: {
     marginBottom: 20,
-  },
+    },
   statusTitle: {
-    fontSize: 24,
+      fontSize: 24,
     fontFamily: 'Inter-Bold',
     color: '#1F2937',
     marginBottom: 8,
-    textAlign: 'center',
-  },
+      textAlign: 'center',
+    },
   statusSubtitle: {
-    fontSize: 16,
+      fontSize: 16,
     fontFamily: 'Inter-Medium',
     color: '#6B7280',
     marginBottom: 20,
-    textAlign: 'center',
+      textAlign: 'center',
   },
   messageContainer: {
     marginBottom: 20,
-  },
+    },
   messageText: {
-    fontSize: 14,
+      fontSize: 14,
     fontFamily: 'Inter-Regular',
     color: '#374151',
     lineHeight: 22,
-    textAlign: 'center',
+      textAlign: 'center',
   },
   refreshInfo: {
     flexDirection: 'row',
@@ -284,12 +284,12 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   actionContainer: {
-    marginBottom: 24,
-  },
+      marginBottom: 24,
+    },
   primaryButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,
@@ -301,34 +301,34 @@ const styles = StyleSheet.create({
     elevation: 2,
   },
   primaryButtonText: {
-    color: '#FFFFFF',
-    fontSize: 16,
+      color: '#FFFFFF',
+      fontSize: 16,
     fontFamily: 'Inter-SemiBold',
-    marginRight: 8,
-  },
+      marginRight: 8,
+    },
   secondaryButton: {
     paddingVertical: 16,
     paddingHorizontal: 24,
     borderRadius: 12,
-    borderWidth: 1,
+      borderWidth: 1,
     borderColor: '#E5E7EB',
-    alignItems: 'center',
-  },
+      alignItems: 'center',
+    },
   secondaryButtonText: {
     color: '#6B7280',
-    fontSize: 16,
+      fontSize: 16,
     fontFamily: 'Inter-Medium',
   },
   infoCard: {
     backgroundColor: '#F9FAFB',
     borderRadius: 16,
-    padding: 20,
+      padding: 20,
     marginBottom: 24,
     borderWidth: 1,
     borderColor: '#E5E7EB',
-  },
-  infoTitle: {
-    fontSize: 18,
+    },
+    infoTitle: {
+      fontSize: 18,
     fontFamily: 'Inter-SemiBold',
     color: '#1F2937',
     marginBottom: 16,
@@ -336,9 +336,9 @@ const styles = StyleSheet.create({
   },
   infoList: {
     gap: 12,
-  },
-  infoItem: {
-    flexDirection: 'row',
+    },
+    infoItem: {
+      flexDirection: 'row',
     alignItems: 'flex-start',
   },
   infoBullet: {
@@ -347,15 +347,15 @@ const styles = StyleSheet.create({
     borderRadius: 3,
     backgroundColor: '#3B82F6',
     marginTop: 8,
-    marginRight: 12,
-  },
-  infoText: {
-    fontSize: 14,
+      marginRight: 12,
+    },
+    infoText: {
+      fontSize: 14,
     fontFamily: 'Inter-Regular',
     color: '#4B5563',
     lineHeight: 20,
-    flex: 1,
-  },
+      flex: 1,
+    },
   spinningIcon: {
     marginRight: 8,
   },

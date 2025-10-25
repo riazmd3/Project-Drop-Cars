@@ -3,6 +3,7 @@
     "name": "Drop cars2",
     "slug": "dropcars3",
     "version": "1.0.0",
+    "icon": "./assets/logo_icon.png",
     "newArchEnabled": true,
     "web": {
       "bundler": "metro",

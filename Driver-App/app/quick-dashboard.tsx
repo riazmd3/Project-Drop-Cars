@@ -157,9 +157,8 @@ export default function QuickDashboardScreen() {
         console.log('📱 Current settings error:', error.message);
       }
       
-      // Check notification service
-      const { notificationService } = await import('@/services/notifications/notificationService');
-      console.log('📱 Notification service available:', !!notificationService);
+      // Check notification service (SIMPLIFIED)
+      console.log('📱 Notification service: Using simple vendor app approach');
       
     } catch (error) {
       console.error('❌ Debug notification token failed:', error);
@@ -197,8 +196,8 @@ export default function QuickDashboardScreen() {
   // SIMPLE TEST FUNCTION (FROM VENDOR APP)
   const testForegroundNotification = async () => {
     try {
-      const { testForegroundNotificationImmediately } = await import('@/services/notifications/notificationService');
-      await testForegroundNotificationImmediately();
+      const { testForegroundNotification } = await import('@/services/notifications/notificationService');
+      await testForegroundNotification();
       Alert.alert('Test Sent', 'Test notification sent!');
     } catch (error) {
       console.error('❌ Test notification failed:', error);
@@ -206,21 +205,18 @@ export default function QuickDashboardScreen() {
     }
   };
 
-  // Notification functions
+  // SIMPLE NOTIFICATION TOGGLE (VENDOR APP APPROACH)
   const toggleNotifications = async () => {
     try {
       setNotificationLoading(true);
       
-      // Ensure notification service is initialized first
-      const { initializeNotifications } = await import('@/services/notifications/notificationService');
-      await initializeNotifications();
-      testForegroundNotification();
       const { updateDriverNotificationPermissions } = await import('@/services/notifications/driverNotificationApi');
       const newStatus = !notificationsEnabled;
       const res = await updateDriverNotificationPermissions({ 
         permission1: newStatus, 
         permission2: newStatus 
       });
+      
       // Update state based on whether token was sent (not permissions)
       const hasToken = !!(res.token && res.token.trim() !== '');
       setNotificationsEnabled(hasToken);

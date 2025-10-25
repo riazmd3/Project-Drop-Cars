@@ -12,13 +12,8 @@ import { NotificationProvider } from '@/contexts/NotificationContext';
 import { CarDriverProvider } from '@/contexts/CarDriverContext';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 import * as SplashScreen from 'expo-splash-screen';
-import { initializeNotifications } from '@/services/notifications/notificationService';
-
-// REMOVED: Firebase initialization - using Expo notifications only
-// import '@/services/firebase/firebaseConfig';
-
-// REMOVED: Conflicting notification handler - let NotificationService handle it
-// The notification handler will be set up by the NotificationService to avoid conflicts
+// Initialize notifications on app startup (CRITICAL FIX)
+import { setupNotificationListeners } from '@/services/notifications/notificationService';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -38,10 +33,20 @@ export default function RootLayout() {
     }
   }, [fontsLoaded, fontError]);
 
-  // Initialize notifications on app start (SIMPLE APPROACH)
+  // Initialize notification listeners on app startup (CRITICAL FIX)
   useEffect(() => {
-    console.log('🚀 APP START: Initializing notifications...');
-    initializeNotifications();
+    console.log('🚀 APP START: Setting up notification listeners...');
+    const listeners = setupNotificationListeners();
+    
+    // Cleanup listeners on unmount
+    return () => {
+      if (listeners.receivedListener) {
+        listeners.receivedListener.remove();
+      }
+      if (listeners.responseListener) {
+        listeners.responseListener.remove();
+      }
+    };
   }, []);
 
   if (!fontsLoaded && !fontError) {

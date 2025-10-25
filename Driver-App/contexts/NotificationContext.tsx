@@ -1,7 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
-import { notificationService, OrderNotificationData } from '@/services/notifications/notificationService';
-import { getNotificationSettings, updateNotificationPermissions, upsertNotificationSettings, updateNotificationSettings } from '@/services/notifications/notificationApi';
-import * as SecureStore from 'expo-secure-store';
+import { getNotificationSettings, updateNotificationSettings } from '@/services/notifications/notificationApi';
 
 interface NotificationContextType {
   notificationsEnabled: boolean;
@@ -13,17 +11,14 @@ interface NotificationContextType {
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export function NotificationProvider({ children }: { children: ReactNode }) {
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [permission1, setPermission1] = useState<boolean>(true);
-  const [permission2, setPermission2] = useState<boolean>(true);
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [permission1, setPermission1] = useState<boolean>(false);
+  const [permission2, setPermission2] = useState<boolean>(false);
 
-  // Load notification settings only (NO automatic token generation)
+  // Load notification settings (VENDOR APP APPROACH)
   useEffect(() => {
     loadNotificationSettings();
   }, []);
-
-  // REMOVED: Automatic notification service initialization
-  // Tokens will only be generated when user explicitly toggles notifications
 
   const loadNotificationSettings = async () => {
     try {
@@ -31,28 +26,24 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       if (remote) {
         setPermission1(!!remote.permission1);
         setPermission2(!!remote.permission2);
-        // Toggle state is determined by whether token exists (not empty)
+        // Master is enabled if token exists
         const hasToken = !!(remote.token && remote.token.trim() !== '');
         setNotificationsEnabled(hasToken);
-        console.log('📱 Loaded notification settings from backend:', {
+        console.log('📱 Loaded notification settings:', {
           permission1: remote.permission1,
           permission2: remote.permission2,
           hasToken: hasToken,
           tokenPreview: remote.token ? `${remote.token.substring(0, 20)}...` : 'EMPTY'
         });
       } else {
-        // No remote settings, check local storage
-        const stored = await SecureStore.getItemAsync('notificationsEnabled');
-        if (stored !== null) {
-          setNotificationsEnabled(JSON.parse(stored));
-        } else {
-          // Default to checking if we have a token
-          const token = await SecureStore.getItemAsync('expoPushToken');
-          setNotificationsEnabled(!!token);
-        }
+        // No settings exist yet
+        setNotificationsEnabled(false);
+        setPermission1(false);
+        setPermission2(false);
       }
     } catch (error) {
       console.error('❌ Failed to load notification settings:', error);
+      setNotificationsEnabled(false);
     }
   };
 
@@ -61,13 +52,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       const newStatus = !notificationsEnabled;
       setNotificationsEnabled(newStatus);
       
-      // Save to storage
-      await SecureStore.setItemAsync('notificationsEnabled', JSON.stringify(newStatus));
-      
-      // Initialize notification service ONLY when toggling (not on app startup)
-      await notificationService.initialize();
-      
-      // Update backend with new permissions and token
+      // Update backend with new permissions and token (VENDOR APP APPROACH)
       try {
         const res = await updateNotificationSettings({ 
           permission1: newStatus, 
@@ -82,6 +67,8 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
         });
       } catch (backendError) {
         console.warn('⚠️ Failed to update backend notification settings:', backendError);
+        // Revert on error
+        setNotificationsEnabled(!newStatus);
       }
       
       console.log('✅ Notifications toggled:', newStatus);
@@ -90,38 +77,17 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  // Dedicated setters for permission1 and permission2
-  const setPermission = async (key: 'permission1' | 'permission2', value: boolean) => {
-    try {
-      const payload = key === 'permission1' ? { permission1: value } : { permission2: value };
-      const res = await updateNotificationPermissions(payload);
-      setPermission1(!!res.permission1);
-      setPermission2(!!res.permission2);
-      setNotificationsEnabled(!!(res.permission1 || res.permission2));
-    } catch (error) {
-      console.error('❌ Failed to update notification permission:', error);
-    }
-  };
-
-
-
   const clearAllNotifications = async () => {
     try {
-      await notificationService.clearAllNotifications();
+      // Simple approach - no complex clearing needed
+      console.log('📱 Notification clearing not implemented (vendor app approach)');
     } catch (error) {
       console.error('❌ Failed to clear notifications:', error);
     }
   };
 
   const getNotificationStatus = async (): Promise<boolean> => {
-    try {
-      const status = await notificationService.areNotificationsEnabled();
-      setNotificationsEnabled(status);
-      return status;
-    } catch (error) {
-      console.error('❌ Failed to get notification status:', error);
-      return false;
-    }
+    return notificationsEnabled;
   };
 
   return (

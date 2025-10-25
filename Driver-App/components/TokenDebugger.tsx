@@ -1,33 +1,37 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, Alert } from 'react-native';
-import { notificationService } from '@/services/notifications/notificationService';
+import { registerForPushNotificationsAsync, testForegroundNotification } from '@/services/notifications/notificationService';
 
 export default function TokenDebugger() {
   const handleGetTokens = async () => {
     try {
       console.log('🔍 Manual token retrieval triggered...');
-      await notificationService.forceTokenRetrieval();
-      Alert.alert('Success', 'Check console for tokens');
+      const token = await registerForPushNotificationsAsync();
+      if (token) {
+        Alert.alert('Success', `Token: ${token.substring(0, 20)}...`);
+      } else {
+        Alert.alert('Error', 'Failed to get token');
+      }
     } catch (error) {
       console.error('❌ Error getting tokens:', error);
       Alert.alert('Error', 'Failed to get tokens');
     }
   };
 
-  const handlePrintStoredTokens = async () => {
+  const handleTestNotification = async () => {
     try {
-      await notificationService.printAllTokens();
-      Alert.alert('Success', 'Check console for stored tokens');
+      await testForegroundNotification();
+      Alert.alert('Success', 'Test notification sent!');
     } catch (error) {
-      console.error('❌ Error printing tokens:', error);
-      Alert.alert('Error', 'Failed to print tokens');
+      console.error('❌ Error sending test notification:', error);
+      Alert.alert('Error', 'Failed to send test notification');
     }
   };
 
   const handleGetExpoTokenOnly = async () => {
     try {
       console.log('🔍 Getting Expo token only...');
-      const token = await notificationService.getExpoTokenOnly();
+      const token = await registerForPushNotificationsAsync();
       if (token) {
         Alert.alert('Success', `Expo Token: ${token.substring(0, 20)}...`);
       } else {
@@ -41,15 +45,15 @@ export default function TokenDebugger() {
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Token Debugger</Text>
+      <Text style={styles.title}>Token Debugger (Vendor App Style)</Text>
       <TouchableOpacity style={styles.button} onPress={handleGetTokens}>
-        <Text style={styles.buttonText}>Get Tokens</Text>
+        <Text style={styles.buttonText}>Get Token</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.button} onPress={handlePrintStoredTokens}>
-        <Text style={styles.buttonText}>Print Stored Tokens</Text>
+      <TouchableOpacity style={styles.button} onPress={handleTestNotification}>
+        <Text style={styles.buttonText}>Test Notification</Text>
       </TouchableOpacity>
       <TouchableOpacity style={styles.button} onPress={handleGetExpoTokenOnly}>
-        <Text style={styles.buttonText}>Get Expo Token Only</Text>
+        <Text style={styles.buttonText}>Get Expo Token</Text>
       </TouchableOpacity>
     </View>
   );
