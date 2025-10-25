@@ -15,7 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Smartphone, Lock, ArrowRight } from 'lucide-react-native';
 import WelcomeScreen from '@/components/WelcomeScreen';
-import AccountVerificationScreen from '@/components/AccountVerificationScreen';
+// REMOVED: AccountVerificationScreen - using verification.tsx page instead
 import axiosInstance from '@/app/api/axiosInstance';
 import { extractUserIdFromJWT } from '@/utils/jwtDecoder';
 import * as SecureStore from 'expo-secure-store'; 
@@ -244,14 +244,9 @@ export default function LoginScreen() {
   };
 
   if (showAccountVerification) {
-    return (
-      <AccountVerificationScreen
-        accountStatus={accountStatus}
-        onRefresh={handleRefreshStatus}
-        onLogout={handleLogout}
-        isLoading={loading}
-      />
-    );
+    // Redirect to verification page instead of showing inline component
+    router.replace('/verification');
+    return null;
   }
 
   if (showWelcome) {
