@@ -4,10 +4,22 @@
 // Preserve original warn/error just in case
 const originalWarn = console.warn.bind(console);
 const originalError = console.error.bind(console);
+const originalLog = console.log.bind(console);
 
-// Silence verbose logs
+// Silence verbose logs BUT keep notification logs
 // eslint-disable-next-line @typescript-eslint/no-empty-function
-console.log = () => {};
+console.log = (message: any, ...args: any[]) => {
+  // Allow notification-related logs to pass through
+  if (typeof message === 'string' && (
+    message.includes('🔔') || 
+    message.includes('📱') || 
+    message.includes('NOTIFICATION') ||
+    message.includes('notification')
+  )) {
+    originalLog(message, ...args);
+  }
+  // Block all other logs
+};
 // eslint-disable-next-line @typescript-eslint/no-empty-function
 console.info = () => {};
 // eslint-disable-next-line @typescript-eslint/no-empty-function

@@ -17,29 +17,13 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [permission1, setPermission1] = useState<boolean>(true);
   const [permission2, setPermission2] = useState<boolean>(true);
 
-  // Initialize notification service and load settings
+  // Load notification settings only (NO automatic token generation)
   useEffect(() => {
-    initializeNotifications();
+    loadNotificationSettings();
   }, []);
 
-  const initializeNotifications = async () => {
-    try {
-      console.log('🔔 Starting notification initialization...');
-      
-      // Initialize notification service
-      await notificationService.initialize();
-      
-      // Load notification settings from backend (fallback to local storage)
-      await loadNotificationSettings();
-      
-      // Print all tokens for debugging
-      await notificationService.printAllTokens();
-      
-      console.log('✅ Notification context initialized');
-    } catch (error) {
-      console.error('❌ Failed to initialize notification context:', error);
-    }
-  };
+  // REMOVED: Automatic notification service initialization
+  // Tokens will only be generated when user explicitly toggles notifications
 
   const loadNotificationSettings = async () => {
     try {
@@ -80,7 +64,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
       // Save to storage
       await SecureStore.setItemAsync('notificationsEnabled', JSON.stringify(newStatus));
       
-      // Always ensure notification service is initialized
+      // Initialize notification service ONLY when toggling (not on app startup)
       await notificationService.initialize();
       
       // Update backend with new permissions and token

@@ -833,6 +833,21 @@ export default function QuickDashboardScreen() {
             >
               <Text style={styles.debugButtonText}>Test</Text>
             </TouchableOpacity>
+            <TouchableOpacity 
+              onPress={async () => {
+                try {
+                  const { checkNotificationSetup } = await import('@/services/notifications/notificationService');
+                  await checkNotificationSetup();
+                  Alert.alert('Setup Check', 'Check console logs for notification setup details.');
+                } catch (error) {
+                  console.error('❌ Setup check failed:', error);
+                  Alert.alert('Error', 'Failed to check notification setup');
+                }
+              }} 
+              style={[styles.debugButton, { backgroundColor: '#3B82F6' }]}
+            >
+              <Text style={styles.debugButtonText}>Check</Text>
+            </TouchableOpacity>
             <TouchableOpacity onPress={handleRefresh} disabled={refreshing}>
               <RefreshCw 
                 size={20} 
