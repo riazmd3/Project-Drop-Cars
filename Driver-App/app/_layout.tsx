@@ -38,18 +38,10 @@ export default function RootLayout() {
     }
   }, [fontsLoaded, fontError]);
 
-  // Initialize notifications on app start
+  // Initialize notifications on app start (SIMPLE APPROACH)
   useEffect(() => {
     console.log('🚀 APP START: Initializing notifications...');
-    initializeNotifications().then(() => {
-      // Test foreground notifications immediately after initialization
-      setTimeout(() => {
-        console.log('🧪 Testing foreground notifications...');
-        import('@/services/notifications/notificationService').then(({ testForegroundNotificationImmediately }) => {
-          testForegroundNotificationImmediately();
-        });
-      }, 3000); // Wait 3 seconds for initialization to complete
-    });
+    initializeNotifications();
   }, []);
 
   if (!fontsLoaded && !fontError) {

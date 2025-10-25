@@ -194,12 +194,12 @@ export default function QuickDashboardScreen() {
     }
   }, []);
 
-  // Test foreground notification function
+  // SIMPLE TEST FUNCTION (FROM VENDOR APP)
   const testForegroundNotification = async () => {
     try {
       const { testForegroundNotificationImmediately } = await import('@/services/notifications/notificationService');
       await testForegroundNotificationImmediately();
-      Alert.alert('Test Sent', 'Foreground notification test sent! Check if it appears.');
+      Alert.alert('Test Sent', 'Test notification sent!');
     } catch (error) {
       console.error('❌ Test notification failed:', error);
       Alert.alert('Error', 'Failed to send test notification');
@@ -821,62 +821,10 @@ export default function QuickDashboardScreen() {
           </Text>
           <View style={styles.headerButtons}>
             <TouchableOpacity 
-              onPress={async () => {
-                await debugAuthentication();
-                await debugTokenStorage();
-                await debugNotificationToken();
-              }} 
-              style={[styles.debugButton, { backgroundColor: colors.primary }]}
-            >
-              <Text style={styles.debugButtonText}>Debug</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
               onPress={testForegroundNotification}
               style={[styles.debugButton, { backgroundColor: '#10B981' }]}
             >
-              <Text style={styles.debugButtonText}>Test Foreground</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              onPress={() => {
-                console.log('🧪 SIMPLE ALERT TEST: Showing direct alert...');
-                Alert.alert('🔔 SIMPLE TEST', 'This is a direct alert test - if you see this, alerts work!');
-                console.log('✅ SIMPLE ALERT TEST: Alert shown');
-              }} 
-              style={[styles.debugButton, { backgroundColor: '#8B5CF6' }]}
-            >
-              <Text style={styles.debugButtonText}>Alert</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              onPress={async () => {
-                try {
-                  console.log('🧪 FCM SIMULATION TEST: Calling testFCMNotification...');
-                  const { testFCMNotification } = await import('@/services/notifications/notificationService');
-                  await testFCMNotification();
-                  console.log('✅ FCM SIMULATION TEST: testFCMNotification completed');
-                  Alert.alert('FCM Test Sent', 'FCM simulation notification sent! Check if it appears in foreground.');
-                } catch (error) {
-                  console.error('❌ FCM SIMULATION TEST FAILED:', error);
-                  Alert.alert('Error', 'Failed to send FCM simulation notification');
-                }
-              }} 
-              style={[styles.debugButton, { backgroundColor: '#F59E0B' }]}
-            >
-              <Text style={styles.debugButtonText}>FCM</Text>
-            </TouchableOpacity>
-            <TouchableOpacity 
-              onPress={async () => {
-                try {
-                  const { checkNotificationSetup } = await import('@/services/notifications/notificationService');
-                  await checkNotificationSetup();
-                  Alert.alert('Setup Check', 'Check console logs for notification setup details.');
-                } catch (error) {
-                  console.error('❌ Setup check failed:', error);
-                  Alert.alert('Error', 'Failed to check notification setup');
-                }
-              }} 
-              style={[styles.debugButton, { backgroundColor: '#3B82F6' }]}
-            >
-              <Text style={styles.debugButtonText}>Check</Text>
+              <Text style={styles.debugButtonText}>Test Notification</Text>
             </TouchableOpacity>
             <TouchableOpacity onPress={handleRefresh} disabled={refreshing}>
               <RefreshCw 

@@ -3,67 +3,27 @@ import * as Device from 'expo-device';
 import * as SecureStore from 'expo-secure-store';
 import { Platform, Alert } from 'react-native';
 
-// 🔔 CRITICAL FIX: Updated notification handler with proper properties
-console.log('🔔 Setting up FIXED notification handler...');
+// 🔔 SIMPLE NOTIFICATION HANDLER (FROM WORKING VENDOR APP)
+console.log('🔔 Setting up SIMPLE notification handler...');
 
 Notifications.setNotificationHandler({
-  handleNotification: async (notification) => {
-    console.log('🎯🎯🎯 HANDLER DEFINITELY CALLED 🎯🎯🎯');
-    console.log('📱 Notification details:', {
-      title: notification.request.content.title,
-      body: notification.request.content.body,
-      data: notification.request.content.data,
-      identifier: notification.request.identifier,
-      state: 'FOREGROUND',
-      timestamp: new Date().toISOString(),
-      trigger: notification.request.trigger
-    });
-    
-    // 🎯 SIMPLIFIED: Always show notifications when app is open
-    // This works for both FCM and local notifications
-    const result = {
-      shouldShowAlert: true,    // CRITICAL: Shows the notification banner
-      shouldPlaySound: true,    // Plays notification sound
-      shouldSetBadge: true,     // Updates app badge
-      shouldShowBanner: true,   // Shows banner
-      shouldShowList: true,     // Shows in notification list
-    };
-    
-    console.log('🔔 Handler returning:', result);
-    return result;
-  },
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
 });
 
-// Android channel setup - CRITICAL: MAX importance for foreground display
+// Android channel setup - SIMPLE (FROM WORKING VENDOR APP)
 if (Platform.OS === 'android') {
   Notifications.setNotificationChannelAsync('default', {
-    name: 'Default Notifications',
-    importance: Notifications.AndroidImportance.MAX, // CRITICAL: MAX importance
+    name: 'default',
+    importance: Notifications.AndroidImportance.MAX,
     vibrationPattern: [0, 250, 250, 250],
     lightColor: '#FF231F7C',
-    sound: 'default',
-    showBadge: true,
-    enableLights: true,
-    enableVibrate: true,
-    bypassDnd: true, // Bypass Do Not Disturb
-    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
   });
-  
-  // Additional FCM-specific channel with MAX importance
-  Notifications.setNotificationChannelAsync('fcm_default_channel', {
-    name: 'FCM Notifications',
-    importance: Notifications.AndroidImportance.MAX, // CRITICAL: MAX importance
-    vibrationPattern: [0, 250, 250, 250],
-    lightColor: '#FF231F7C',
-    sound: 'default',
-    showBadge: true,
-    enableLights: true,
-    enableVibrate: true,
-    bypassDnd: true, // Bypass Do Not Disturb
-    lockscreenVisibility: Notifications.AndroidNotificationVisibility.PUBLIC,
-  });
-  
-  console.log('✅ Android channels configured with MAX importance');
 }
 
 console.log('✅ SINGLE notification handler configured');
@@ -100,6 +60,7 @@ class NotificationService {
     return NotificationService.instance;
   }
 
+  // SIMPLE INITIALIZATION (FROM WORKING VENDOR APP)
   async initialize(): Promise<void> {
     if (this.isInitialized) {
       console.log('🔔 Notification service already initialized');
@@ -107,22 +68,23 @@ class NotificationService {
     }
 
     try {
-      console.log('🔔 Initializing notification service (NO AUTO TOKEN)...');
+      console.log('🔔 Initializing notification service (SIMPLE APPROACH)...');
 
-      // 1. Configure notifications first
-      await this.configureNotifications();
-
-      // 2. Request permissions
+      // 1. Request permissions
       await this.requestPermissions();
       
-      // 3. REMOVED: Automatic token generation - only generate when user toggles
-      // await this.getPushToken();
-
-      // 4. Set up listeners
-      this.setupNotificationListeners();
-
+      // 2. Set up Android channel (if needed)
+      if (Platform.OS === 'android') {
+        await Notifications.setNotificationChannelAsync('default', {
+          name: 'default',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#FF231F7C',
+        });
+      }
+      
       this.isInitialized = true;
-      console.log('✅ Notification service initialized (no auto token)');
+      console.log('✅ Notification service initialized (simple approach)');
 
     } catch (error) {
       console.error('❌ Failed to initialize notification service:', error);
@@ -239,44 +201,11 @@ class NotificationService {
     }
   }
 
+  // REMOVED: All notification listeners (they interfere with simple handler)
+  // The vendor app works without any listeners - just the simple handler
   private setupNotificationListeners(): void {
-    console.log('🔔 Setting up notification listeners...');
-    
-    // Remove any existing listeners first
-    this.removeNotificationListeners();
-    
-    // Listener for when notification is received in foreground
-    const receivedListener = Notifications.addNotificationReceivedListener((notification) => {
-      console.log('📱 NOTIFICATION RECEIVED IN FOREGROUND - WILL DISPLAY:', {
-        title: notification.request.content.title,
-        body: notification.request.content.body,
-        data: notification.request.content.data,
-        identifier: notification.request.identifier,
-        timestamp: new Date().toISOString()
-      });
-      
-      // You can add custom handling here
-      this.handleForegroundNotification(notification);
-    });
-
-    // Listener for when user taps notification
-    const responseListener = Notifications.addNotificationResponseReceivedListener((response) => {
-      console.log('👆 NOTIFICATION TAPPED:', {
-        title: response.notification.request.content.title,
-        data: response.notification.request.content.data,
-        actionIdentifier: response.actionIdentifier,
-        timestamp: new Date().toISOString()
-      });
-      
-      this.handleNotificationResponse(response);
-    });
-
-    // Store listeners for cleanup
-    this.notificationListeners.push(receivedListener);
-    this.notificationListeners.push(responseListener);
-
-    console.log('✅ Notification listeners set up successfully');
-    console.log('🔔 Total listeners:', this.notificationListeners.length);
+    console.log('🔔 SKIPPING notification listeners (vendor app approach)');
+    // No listeners needed - simple handler is sufficient
   }
 
   private handleForegroundNotification(notification: Notifications.Notification): void {
@@ -440,20 +369,45 @@ class NotificationService {
     }
   }
 
-  // Force generate and store token
+  // SIMPLE TOKEN GENERATION (FROM WORKING VENDOR APP)
   async forceGenerateToken(): Promise<string | null> {
     try {
-      console.log('🔄 Force generating new push token...');
-      await this.requestPermissions();
-      const token = await this.getCurrentPushToken();
-      if (token) {
-        console.log('✅ Force generated token successfully:', token);
-      } else {
-        console.error('❌ Failed to force generate token');
+      if (Platform.OS === 'android') {
+        await Notifications.setNotificationChannelAsync('default', {
+          name: 'default',
+          importance: Notifications.AndroidImportance.MAX,
+          vibrationPattern: [0, 250, 250, 250],
+          lightColor: '#FF231F7C',
+        });
       }
-      return token;
+
+      if (!Device.isDevice) {
+        Alert.alert('Error', 'Push notifications only work on physical devices');
+        return null;
+      }
+
+      const { status: existingStatus } = await Notifications.getPermissionsAsync();
+      let finalStatus = existingStatus;
+
+      if (existingStatus !== 'granted') {
+        const { status } = await Notifications.requestPermissionsAsync();
+        finalStatus = status;
+      }
+
+      if (finalStatus !== 'granted') {
+        Alert.alert('Permission Denied', 'Push notification permission is required for this feature.');
+        return null;
+      }
+
+      const token = await Notifications.getExpoPushTokenAsync();
+      this.expoPushToken = token.data;
+      await SecureStore.setItemAsync('expoPushToken', this.expoPushToken);
+      console.log('✅ Token generated and stored:', this.expoPushToken);
+      return this.expoPushToken;
+
     } catch (error) {
-      console.error('❌ Error force generating token:', error);
+      console.error('Error getting push token:', error);
+      Alert.alert('Error', 'Failed to get push notification token');
       return null;
     }
   }
@@ -560,27 +514,21 @@ class NotificationService {
     }
   }
 
-  // Test foreground notification immediately
+  // SIMPLE TEST NOTIFICATION (FROM VENDOR APP)
   async testForegroundNotificationImmediately(): Promise<void> {
     try {
-      console.log('🧪 IMMEDIATE FOREGROUND NOTIFICATION TEST...');
+      console.log('🧪 Testing notification...');
       
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: '🔔 FOREGROUND TEST',
-          body: 'If you see this, foreground notifications are working!',
-          data: { 
-            test: true, 
-            timestamp: Date.now(),
-            origin: 'local_test'
-          },
-          sound: true,
-          priority: 'high',
+          title: 'Test Notification',
+          body: 'This is a test notification',
+          data: { test: true },
         },
         trigger: null, // Send immediately
       });
       
-      console.log('✅ Test notification sent - check if it appears!');
+      console.log('✅ Test notification sent');
     } catch (error) {
       console.error('❌ Failed to send test notification:', error);
     }
@@ -688,20 +636,7 @@ export const testForegroundNotificationImmediately = async (): Promise<void> => 
   return await notificationService.testForegroundNotificationImmediately();
 };
 
-// Test FCM notification simulation
-export const testFCMNotification = async (): Promise<void> => {
-  return await notificationService.testFCMNotification();
-};
-
-// Debug FCM notification reception
-export const debugFCMReception = async (): Promise<void> => {
-  return await notificationService.debugFCMReception();
-};
-
-// Check notification setup
-export const checkNotificationSetup = async (): Promise<void> => {
-  return await notificationService.checkNotificationSetup();
-};
+// REMOVED: Complex test functions (vendor app approach is simpler)
 
 // Clean up notifications
 export const cleanupNotifications = async (): Promise<void> => {

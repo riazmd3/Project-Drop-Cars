@@ -738,23 +738,7 @@ export default function DashboardScreen() {
           >
             <Text style={dynamicStyles.testButtonText}>Alert</Text>
           </TouchableOpacity>
-          <TouchableOpacity 
-            onPress={async () => {
-              try {
-                console.log('🧪 VEHICLE OWNER FCM TEST: Calling testFCMNotification...');
-                const { testFCMNotification } = await import('@/services/notifications/notificationService');
-                await testFCMNotification();
-                console.log('✅ VEHICLE OWNER FCM TEST: testFCMNotification completed');
-                Alert.alert('FCM Test Sent', 'FCM simulation notification sent! Check if it appears in foreground.');
-              } catch (error) {
-                console.error('❌ VEHICLE OWNER FCM TEST FAILED:', error);
-                Alert.alert('Error', 'Failed to send FCM simulation notification');
-              }
-            }} 
-            style={[dynamicStyles.testButton, { backgroundColor: '#F59E0B' }]}
-          >
-            <Text style={dynamicStyles.testButtonText}>FCM</Text>
-          </TouchableOpacity>
+        
           
           <TouchableOpacity onPress={handleRefresh} style={dynamicStyles.refreshButton} disabled={refreshing}>
             <RefreshCw color={colors.primary} size={20} style={refreshing ? { transform: [{ rotate: '180deg' }] } : {}} />

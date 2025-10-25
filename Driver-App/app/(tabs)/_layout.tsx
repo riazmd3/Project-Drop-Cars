@@ -4,11 +4,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 
 export default function TabLayout() {
   const { colors } = useTheme();
-    // 🚀 SIMPLIFIED NOTIFICATION INITIALIZATION (Based on vendor app)
-    useEffect(() => {
-      console.log('🚀 APP START: Initializing notifications...');
-      initializeNotifications();
-    }, []);
+
   return (
     <Tabs
       screenOptions={{
