@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   Alert,
+  TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -57,6 +58,7 @@ export default function RidesScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
+  const [search, setSearch] = useState('');
   const { colors } = useTheme();
   const { user } = useAuth();
 
@@ -170,13 +172,38 @@ export default function RidesScreen() {
     }
   }, [user?.id]); // Only trigger when user ID changes (login/logout)
 
-  const getCurrentRides = () => {
+  const getCurrentRides = (): RideData[] => {
+    let rides: RideData[] = [];
     switch (activeTab) {
-      case 'driving': return drivingRides;
-      case 'completed': return completedRides;
-      case 'cancelled': return cancelledRides;
-      default: return [];
+      case 'driving': rides = drivingRides; break;
+      case 'completed': rides = completedRides; break;
+      case 'cancelled': rides = cancelledRides; break;
+      default: rides = [];
     }
+    
+    // Apply search filter
+    if (search.trim()) {
+      const searchTerm = search.toLowerCase().trim();
+      rides = rides.filter(ride => {
+        return [
+          ride.order_id,
+          ride.id,
+          ride.customer_name,
+          ride.customer_number,
+          ride.pickup_city,
+          ride.drop_city,
+          ride.car_type,
+          ride.trip_type,
+          ride.assigned_driver_name,
+          ride.assigned_car_name,
+          ride.assigned_car_number,
+        ].some(field => 
+          field && String(field).toLowerCase().includes(searchTerm)
+        );
+      });
+    }
+    
+    return rides;
   };
 
   const getTabTitle = () => {
@@ -512,6 +539,21 @@ export default function RidesScreen() {
         {renderTabButton('cancelled', 'Cancelled', cancelledRides.length)}
       </View>
 
+      {/* Search Input */}
+      <View style={styles.searchContainer}>
+        <TextInput
+          style={[styles.searchInput, { 
+            backgroundColor: colors.surface, 
+            color: colors.text,
+            borderColor: colors.border 
+          }]}
+          placeholder="Search by ID, customer, city, or driver..."
+          placeholderTextColor={colors.textSecondary}
+          value={search}
+          onChangeText={setSearch}
+        />
+      </View>
+
       <ScrollView
         style={styles.scrollView}
         refreshControl={
@@ -570,6 +612,17 @@ const styles = StyleSheet.create({
       fontSize: 14,
     fontWeight: '600',
     },
+  searchContainer: {
+    paddingHorizontal: 20,
+    marginBottom: 16,
+  },
+  searchInput: {
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    fontSize: 14,
+    borderWidth: 1,
+  },
   scrollView: {
       flex: 1,
       paddingHorizontal: 20,

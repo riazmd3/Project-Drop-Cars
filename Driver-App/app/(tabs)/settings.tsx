@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Modal,
   Dimensions,
+  Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -17,7 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { useDashboard } from '@/contexts/DashboardContext';
-import { Moon, Sun, LogOut, ChevronRight, User, Bell, Shield, Car, Users, X } from 'lucide-react-native';
+import { Moon, Sun, LogOut, ChevronRight, User, Bell, Shield, Car, Users, X, Phone, Mail, Globe } from 'lucide-react-native';
 
 const { height: screenHeight } = Dimensions.get('window');
 
@@ -28,6 +29,23 @@ export default function SettingsScreen() {
   const { dashboardData, loading } = useDashboard();
   const router = useRouter();
   const [showTermsModal, setShowTermsModal] = useState(false);
+
+  // Support contact functions
+  const handleCallSupport = () => {
+    const phoneNumber = '+919876543210';
+    Linking.openURL(`tel:${phoneNumber}`);
+  };
+
+  const handleEmailSupport = () => {
+    const email = 'dropcars.in@gmail.com';
+    const subject = 'Support Request - Drop Cars Driver App';
+    Linking.openURL(`mailto:${email}?subject=${encodeURIComponent(subject)}`);
+  };
+
+  const handleOpenWebsite = () => {
+    const website = 'https://www.arunachalatravels.com';
+    Linking.openURL(website);
+  };
 
   const termsAndConditions = `
 Terms and Conditions – Drop Cars

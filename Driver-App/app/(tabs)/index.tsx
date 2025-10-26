@@ -57,6 +57,7 @@ export default function DashboardScreen() {
   const [availableTab, setAvailableTab] = useState<'all' | 'nearcity'>('all');
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [citySearch, setCitySearch] = useState('');
+  const [bookingSearch, setBookingSearch] = useState('');
 
   const CITY_STORAGE_KEY = 'vo_nearcity_selected_cities';
 
@@ -221,20 +222,40 @@ export default function DashboardScreen() {
   };
 
   const filteredOrders: PendingOrder[] = (() => {
+    let filtered = [];
+    
     if (availableTab === 'all') {
-      return pendingOrders.filter(o => {
+      filtered = pendingOrders.filter(o => {
         const isMulti = isTripTypenearcity(o.trip_type) || isNearCityMode(o) || hasCityTarget(o);
         const pickCity = getNearCity(o);
         // Hide nearcity orders unless pick_near_city is 'ALL'
         if (isMulti && pickCity !== 'ALL') return false;
         return true;
       });
+    } else {
+      // nearcity tab
+      const onlynearcity = pendingOrders.filter(o => isTripTypenearcity(o.trip_type) || isNearCityMode(o) || hasCityTarget(o));
+      if (selectedCities.length === 0) return [];
+      const setSel = new Set(selectedCities.map(c => c.toUpperCase()));
+      filtered = onlynearcity.filter(o => setSel.has(getNearCity(o)));
     }
-    // nearcity tab
-    const onlynearcity = pendingOrders.filter(o => isTripTypenearcity(o.trip_type) || isNearCityMode(o) || hasCityTarget(o));
-    if (selectedCities.length === 0) return [];
-    const setSel = new Set(selectedCities.map(c => c.toUpperCase()));
-    return onlynearcity.filter(o => setSel.has(getNearCity(o)));
+    
+    // Apply search filter
+    if (bookingSearch.trim()) {
+      const searchTerm = bookingSearch.toLowerCase().trim();
+      filtered = filtered.filter(o => {
+        const locations = getPickupDropLocations(o.pickup_drop_location);
+        const orderId = String(o.order_id || '');
+        
+        return (
+          orderId.includes(searchTerm) ||
+          locations.pickup.toLowerCase().includes(searchTerm) ||
+          locations.drop.toLowerCase().includes(searchTerm)
+        );
+      });
+    }
+    
+    return filtered;
   })();
 
   // Tab counts
@@ -480,6 +501,20 @@ export default function DashboardScreen() {
     },
     bookingsSection: {
       marginTop: 20,
+    },
+    searchContainer: {
+      marginBottom: 12,
+    },
+    searchInput: {
+      backgroundColor: colors.surface,
+      borderRadius: 8,
+      paddingHorizontal: 12,
+      paddingVertical: 10,
+      fontSize: 14,
+      fontFamily: 'Inter-Medium',
+      color: colors.text,
+      borderWidth: 1,
+      borderColor: colors.border,
     },
     noBookings: {
       backgroundColor: colors.surface,
@@ -763,7 +798,7 @@ export default function DashboardScreen() {
         </View>
       </View>
 
-      {availableBalance < 1000 && (
+      {currentWallet < 1000 && (
         <View style={dynamicStyles.warningBanner}>
           <Text style={dynamicStyles.warningText}>
             Wallet balance below ₹1000. Add money to receive bookings.
@@ -839,6 +874,17 @@ export default function DashboardScreen() {
             {
               <View style={dynamicStyles.bookingsSection}>
                 <Text style={dynamicStyles.sectionTitle}>Available Bookings</Text>
+
+                {/* Search Input */}
+                <View style={dynamicStyles.searchContainer}>
+                  <TextInput
+                    style={dynamicStyles.searchInput}
+                    placeholder="Search by ID, from city, or to city..."
+                    placeholderTextColor={colors.textSecondary}
+                    value={bookingSearch}
+                    onChangeText={setBookingSearch}
+                  />
+                </View>
 
                 {/* Tabs: All | nearcity */}
                 <View style={{ flexDirection: 'row', marginBottom: 12 }}>

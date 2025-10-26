@@ -109,7 +109,14 @@ export default function FutureRidesScreen() {
   const filteredFutureRides = futureRides.filter((r) => {
     const q = normalized(search);
     if (!q) return true;
+    
+    // Get pickup and drop locations
+    const pickupLocation = r.pickup_drop_location?.["0"] || '';
+    const dropLocation = r.pickup_drop_location?.["1"] || '';
+    
     return [
+      r.id,
+      r.source_order_id,
       r.customer_name,
       r.customer_number,
       r.trip_type,
@@ -118,6 +125,8 @@ export default function FutureRidesScreen() {
       r.start_date_time,
       r.trip_time,
       r.source,
+      pickupLocation,
+      dropLocation,
     ].some((v: any) => normalized(v).includes(q));
   });
 
@@ -687,7 +696,7 @@ export default function FutureRidesScreen() {
               backgroundColor: colors.surface,
             }}>
               <TextInput
-                placeholder="Search rides..."
+                placeholder="Search by ID, customer, city, or location..."
                 placeholderTextColor={colors.textSecondary}
                 value={search}
                 onChangeText={setSearch}
