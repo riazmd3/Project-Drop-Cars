@@ -264,8 +264,25 @@ export default function DashboardScreen() {
       await fetchPendingOrdersData(); // Also refresh orders
       
       console.log('✅ Manual refresh completed successfully');
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Refresh failed:', error);
+      
+      // Handle authentication errors
+      if (error.message?.includes('No authentication token found') || 
+          error.message?.includes('Authentication failed') || 
+          error.message?.includes('401')) {
+        console.log('🔐 Authentication error detected, redirecting to login');
+        Alert.alert(
+          'Session Expired',
+          'Your session has expired. Please login again.',
+          [
+            {
+              text: 'OK',
+              onPress: () => router.replace('/login')
+            }
+          ]
+        );
+      }
     } finally {
       setRefreshing(false);
     }

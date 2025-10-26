@@ -266,7 +266,7 @@ export default function QuickDashboardScreen() {
         Alert.alert(
           'Authentication Error',
           'Driver token not found. Please login again.',
-          [{ text: 'OK', onPress: () => router.replace('/login') }]
+          [{ text: 'OK', onPress: () => router.replace('/quick-login') }]
         );
         return;
       }
@@ -278,7 +278,7 @@ export default function QuickDashboardScreen() {
         Alert.alert(
           'Session Expired',
           'Your session has expired. Please login again.',
-          [{ text: 'OK', onPress: () => router.replace('/login') }]
+          [{ text: 'OK', onPress: () => router.replace('/quick-login') }]
         );
         return;
       }
@@ -334,7 +334,7 @@ export default function QuickDashboardScreen() {
         Alert.alert(
           'Authentication Error',
           'Driver token is invalid or expired. Please login again.',
-          [{ text: 'OK', onPress: () => router.replace('/login') }]
+          [{ text: 'OK', onPress: () => router.replace('/quick-login') }]
         );
       } else if (error.message.includes('Network Error')) {
         Alert.alert(
@@ -559,7 +559,7 @@ export default function QuickDashboardScreen() {
             await SecureStore.deleteItemAsync('driverAuthToken');
             await SecureStore.deleteItemAsync('driverAuthInfo');
             logout();
-            router.replace('/login');
+            router.replace('/quick-login');
             }
           }
         ]

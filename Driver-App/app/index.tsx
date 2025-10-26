@@ -48,17 +48,10 @@ export default function IndexScreen() {
         hasDriverUserData: !!driverUserData
       });
       
-      // Prioritize the most recent login - check which token was set more recently
-      // If both exist, check which one was accessed more recently
-      if (driverToken && driverUserData) {
-        // Quick Driver logged in - prioritize driver authentication
-        console.log('✅ Quick Driver authentication found - prioritizing driver');
-        setUserRole('driver');
-        const driverInfo = JSON.parse(driverUserData);
-        setUser(driverInfo);
-        router.replace('/quick-dashboard');
-      } else if (voToken && voUserData) {
-        // Vehicle Owner logged in
+      // Check authentication based on current context
+      // Prioritize vehicle owner authentication first
+      if (voToken && voUserData) {
+        // Vehicle Owner logged in - prioritize vehicle owner authentication
         console.log('✅ Vehicle Owner authentication found');
         setUserRole('owner');
         setUser(JSON.parse(voUserData));
@@ -101,6 +94,13 @@ export default function IndexScreen() {
           console.error('❌ Error checking login data:', error);
           router.replace('/(tabs)');
         }
+      } else if (driverToken && driverUserData) {
+        // Driver logged in - only if no vehicle owner auth
+        console.log('✅ Driver authentication found');
+        setUserRole('driver');
+        const driverInfo = JSON.parse(driverUserData);
+        setUser(driverInfo);
+        router.replace('/quick-dashboard');
       } else {
         // No authentication found
         console.log('❌ No authentication found');

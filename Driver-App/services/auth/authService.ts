@@ -218,13 +218,18 @@ class AuthService {
 
   // Get authenticated headers for API requests
   async getAuthHeaders(): Promise<{ Authorization: string }> {
+    console.log('🔍 Getting auth token...');
     const token = await this.getToken();
+    console.log('🔍 Token retrieved:', token ? `${token.substring(0, 20)}...` : 'None');
     if (!token) {
+      console.error('❌ No authentication token found');
       throw new Error('No authentication token found. Please login first.');
     }
-    return {
+    const headers = {
       'Authorization': `Bearer ${token}`
     };
+    console.log('🔍 Auth headers created:', headers);
+    return headers;
   }
 
   // Logout user

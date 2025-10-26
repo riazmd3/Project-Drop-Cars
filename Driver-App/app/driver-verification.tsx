@@ -146,7 +146,7 @@ export default function DriverVerificationPage({
             // If status is now ONLINE, redirect to dashboard
             if (newStatus === 'ONLINE') {
               setTimeout(() => {
-                router.replace('/(tabs)');
+                router.replace('/quick-dashboard');
               }, 2000);
             }
           }
@@ -174,7 +174,7 @@ export default function DriverVerificationPage({
     if (propOnLogout) {
       propOnLogout();
     } else {
-      router.replace('/car-driver/signin');
+      router.replace('/quick-login');
     }
   };
 
@@ -187,7 +187,7 @@ export default function DriverVerificationPage({
           subtitle: 'Your driver account has been successfully verified',
           message: 'Welcome to Drop Cars Driver App! Your documents have been approved and you can now access all features.',
           buttonText: 'Go to Dashboard',
-          buttonAction: () => router.replace('/(tabs)'),
+          buttonAction: () => router.replace('/quick-dashboard'),
           backgroundColor: '#F0FDF4',
           borderColor: '#10B981',
           showRefresh: false
@@ -240,7 +240,7 @@ export default function DriverVerificationPage({
           subtitle: 'Please contact support',
           message: 'We couldn\'t determine your account status. Please contact our support team for assistance.',
           buttonText: 'Contact Support',
-          buttonAction: () => router.push('/car-driver/signin'),
+          buttonAction: () => router.push('/quick-login'),
           backgroundColor: '#F9FAFB',
           borderColor: '#6B7280',
           showRefresh: false

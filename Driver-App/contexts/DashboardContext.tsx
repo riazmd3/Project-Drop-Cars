@@ -100,8 +100,13 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
       setError(errorMessage);
       
       // If it's an authentication error, we might want to redirect to login
-      if (error.message?.includes('Authentication failed') || error.message?.includes('401')) {
+      if (error.message?.includes('No authentication token found') || 
+          error.message?.includes('Authentication failed') || 
+          error.message?.includes('401')) {
         console.log('🔐 Authentication error detected, user may need to login again');
+        // Clear all data on authentication error
+        setDashboardData(null);
+        setError('Authentication failed. Please login again.');
       }
     } finally {
       setLoading(false);

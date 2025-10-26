@@ -761,12 +761,7 @@ export default function MyDriversScreen() {
                         {driver.pincode && ` - ${driver.pincode}`}
                       </Text>
                     </View>
-                    <View style={dynamicStyles.driverRow}>
-                      <Text style={dynamicStyles.driverLabel}>Organization:</Text>
-                      <Text style={dynamicStyles.driverValue}>{driver.organization_id}</Text>
                     </View>
-                  </View>
-
                   <View style={dynamicStyles.driverImages}>
                     <TouchableOpacity 
                       style={dynamicStyles.imageItem}

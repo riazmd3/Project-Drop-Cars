@@ -55,6 +55,14 @@ export default function AddDriverScreen() {
   
   const router = useRouter();
   const { user } = useAuth();
+  
+  // Debug user data
+  console.log('🔍 User data in add-driver:', {
+    hasUser: !!user,
+    userId: user?.id,
+    userName: user?.fullName,
+    userMobile: user?.primaryMobile
+  });
   const { colors } = useTheme();
 
   // Function to check account status and redirect accordingly
@@ -289,11 +297,27 @@ export default function AddDriverScreen() {
       form.append('pincode', driverData.pincode.trim());
       if (user?.id) form.append('vehicle_owner_id', user.id);
       form.append('licence_front_img', { uri, name, type } as any);
+      
+      // Debug form data
+      console.log('🔍 Form data being sent:', {
+        full_name: driverData.full_name.trim(),
+        primary_number: primary,
+        secondary_number: secondary,
+        password: '***', // Don't log password
+        licence_number: driverData.licence_number.trim().toUpperCase(),
+        address: driverData.adress.trim(),
+        city: driverData.city.trim(),
+        pincode: driverData.pincode.trim(),
+        vehicle_owner_id: user?.id,
+        hasImage: !!driverImages.licence_front_img
+      });
 
       console.log('🚀 Submitting driver signup (multipart)...');
       
       // Get authentication headers
+      console.log('🔍 Getting auth headers...');
       const authHeaders = await getAuthHeaders();
+      console.log('🔍 Auth headers obtained:', authHeaders);
       
       const res = await axiosInstance.post('/api/users/cardriver/signup', form, {
         headers: {

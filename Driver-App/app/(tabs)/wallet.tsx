@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useWallet } from '@/contexts/WalletContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
+import { useRouter } from 'expo-router';
 import { IndianRupee, Plus, ArrowUpRight, ArrowDownLeft, RefreshCw, AlertCircle } from 'lucide-react-native';
 // Import Razorpay with error handling
 let RazorpayCheckout: any = null;
@@ -37,6 +38,7 @@ import {
 } from '@/services/payment/paymentService';
 
 export default function WalletScreen() {
+  const router = useRouter();
   const { 
     balance, 
     transactions, 
@@ -62,8 +64,25 @@ export default function WalletScreen() {
     setRefreshing(true);
     try {
       await Promise.all([refreshBalance(), refreshTransactions()]);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Refresh failed:', error);
+      
+      // Handle authentication errors
+      if (error.message?.includes('No authentication token found') || 
+          error.message?.includes('Authentication failed') || 
+          error.message?.includes('401')) {
+        console.log('🔐 Authentication error detected, redirecting to login');
+        Alert.alert(
+          'Session Expired',
+          'Your session has expired. Please login again.',
+          [
+            {
+              text: 'OK',
+              onPress: () => router.replace('/login')
+            }
+          ]
+        );
+      }
     } finally {
       setRefreshing(false);
     }

@@ -95,8 +95,9 @@ export default function AddCarScreen() {
               console.log('⏳ Account not active → go to Verification');
               router.replace('/verification');
             } else {
-              console.log('✅ All good → return to dashboard');
-              router.replace('/(tabs)');
+              console.log('✅ All good → go back to previous page');
+              // Use router.back() to go back to the previous page (likely my-cars)
+              router.back();
             }
           } catch (error) {
             console.error('❌ Error fetching updated data:', error);
@@ -105,7 +106,8 @@ export default function AddCarScreen() {
             if (driverCount === 0) {
               router.replace('/add-driver');
             } else {
-              router.replace('/(tabs)');
+              console.log('✅ Fallback → go back to previous page');
+              router.back();
             }
           }
         }
@@ -116,8 +118,8 @@ export default function AddCarScreen() {
           console.log('👤 No drivers yet → go to Add Driver');
           router.replace('/add-driver');
         } else {
-          console.log('🏠 Drivers already present → return to dashboard');
-          router.replace('/(tabs)');
+          console.log('🏠 Drivers already present → go back to previous page');
+          router.back();
         }
       }
     } catch (error) {
@@ -204,6 +206,14 @@ export default function AddCarScreen() {
       Alert.alert('Validation Error', 'Please fill all required fields');
       return;
     }
+
+    // Validate year field
+    const year = parseInt(carData.year);
+    const currentYear = new Date().getFullYear();
+    if (isNaN(year) || year < 1900 || year > currentYear + 1) {
+      Alert.alert('Validation Error', 'Please enter a valid year (1900 to ' + (currentYear + 1) + ')');
+      return;
+    }
   
     // Check required images
     if (!carImages.rcFront || !carImages.rcBack || !carImages.insurance || !carImages.fc || !carImages.carImage) {
@@ -225,7 +235,7 @@ export default function AddCarScreen() {
         fc_img: carImages.fc,
         car_img: carImages.carImage,
         model: carData.model || carData.name, // Add model field
-        year: parseInt(carData.year), // Convert to number
+        year_of_the_car: parseInt(carData.year), // Convert to number - backend expects this field name
         color: carData.color || 'Unknown' // Default color
       };
   
