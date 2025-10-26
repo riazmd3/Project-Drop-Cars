@@ -356,6 +356,62 @@ For any queries or support, contact us at:
       fontFamily: 'Inter-Regular',
       lineHeight: 22,
     },
+    supportCard: {
+      borderRadius: 12,
+      padding: 16,
+      marginBottom: 8,
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    supportItem: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 12,
+      borderBottomWidth: 1,
+      borderBottomColor: '#F3F4F6',
+    },
+    supportIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: 12,
+    },
+    supportContent: {
+      flex: 1,
+    },
+    supportTitle: {
+      fontSize: 16,
+      fontFamily: 'Inter-SemiBold',
+      marginBottom: 2,
+    },
+    supportValue: {
+      fontSize: 14,
+      fontFamily: 'Inter-Medium',
+    },
+    appInfoCard: {
+      borderRadius: 12,
+      padding: 20,
+      alignItems: 'center',
+      shadowColor: '#000',
+      shadowOffset: { width: 0, height: 1 },
+      shadowOpacity: 0.05,
+      shadowRadius: 4,
+      elevation: 2,
+    },
+    appName: {
+      fontSize: 20,
+      fontFamily: 'Inter-Bold',
+      marginBottom: 4,
+    },
+    appVersion: {
+      fontSize: 14,
+      fontFamily: 'Inter-Medium',
+    },
   });
 
   type SettingItemProps = {
@@ -480,6 +536,55 @@ For any queries or support, contact us at:
           />
         </View>
 
+        {/* Support & Help Section */}
+        <View style={dynamicStyles.section}>
+          <Text style={dynamicStyles.sectionTitle}>Support & Help</Text>
+          
+          <View style={[dynamicStyles.supportCard, { backgroundColor: colors.surface }]}>
+            <TouchableOpacity style={dynamicStyles.supportItem} onPress={handleCallSupport}>
+              <View style={[dynamicStyles.supportIcon, { backgroundColor: '#3B82F6' }]}>
+                <Phone color="#FFFFFF" size={20} />
+              </View>
+              <View style={dynamicStyles.supportContent}>
+                <Text style={[dynamicStyles.supportTitle, { color: colors.text }]}>Call Support</Text>
+                <Text style={[dynamicStyles.supportValue, { color: colors.text }]}>+91 98765 43210</Text>
+              </View>
+              <ChevronRight color={colors.textSecondary} size={20} />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={dynamicStyles.supportItem} onPress={handleEmailSupport}>
+              <View style={[dynamicStyles.supportIcon, { backgroundColor: '#3B82F6' }]}>
+                <Mail color="#FFFFFF" size={20} />
+              </View>
+              <View style={dynamicStyles.supportContent}>
+                <Text style={[dynamicStyles.supportTitle, { color: colors.text }]}>Email Support</Text>
+                <Text style={[dynamicStyles.supportValue, { color: colors.text }]}>dropcars.in@gmail.com</Text>
+              </View>
+              <ChevronRight color={colors.textSecondary} size={20} />
+            </TouchableOpacity>
+
+            <TouchableOpacity style={dynamicStyles.supportItem} onPress={handleOpenWebsite}>
+              <View style={[dynamicStyles.supportIcon, { backgroundColor: '#3B82F6' }]}>
+                <Globe color="#FFFFFF" size={20} />
+              </View>
+              <View style={dynamicStyles.supportContent}>
+                <Text style={[dynamicStyles.supportTitle, { color: colors.text }]}>Website</Text>
+                <Text style={[dynamicStyles.supportValue, { color: colors.text }]}>www.arunachalatravels.com</Text>
+              </View>
+              <ChevronRight color={colors.textSecondary} size={20} />
+            </TouchableOpacity>
+          </View>
+        </View>
+
+        {/* App Information Section */}
+        <View style={dynamicStyles.section}>
+          <Text style={dynamicStyles.sectionTitle}>App Information</Text>
+          
+          <View style={[dynamicStyles.appInfoCard, { backgroundColor: colors.surface }]}>
+            <Text style={[dynamicStyles.appName, { color: colors.text }]}>Drop Cars Driver App</Text>
+            <Text style={[dynamicStyles.appVersion, { color: colors.textSecondary }]}>Version 0.1</Text>
+          </View>
+        </View>
 
         <View style={dynamicStyles.section}>
           <TouchableOpacity style={dynamicStyles.logoutButton} onPress={handleLogout}>

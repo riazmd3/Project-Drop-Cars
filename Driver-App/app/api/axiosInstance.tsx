@@ -134,25 +134,36 @@ axiosInstance.interceptors.response.use(
       return Promise.resolve(error.response);
     }
     
-    // Handle all axios errors as potential session expiration
-    console.log('❌ Axios error detected, treating as potential session expiration');
+    // Only clear tokens and emit session expired for AUTHENTICATION errors (401, 403)
+    // NOT for client errors (400, 404, etc.) or other errors (500, network issues)
+    const isAuthError = error.response?.status === 401 || error.response?.status === 403;
     
-    // Clear tokens and emit session expired for ANY axios error
-    try { 
-      SecureStore.deleteItemAsync('authToken'); 
-      console.log('🗑️ Cleared authToken');
-    } catch (e) { 
-      console.error('Error clearing authToken:', e); 
+    if (isAuthError) {
+      console.log('🔐 Authentication error detected (401/403), clearing tokens...');
+      
+      // Clear tokens and emit session expired ONLY for auth errors
+      try { 
+        SecureStore.deleteItemAsync('authToken'); 
+        console.log('🗑️ Cleared authToken');
+      } catch (e) { 
+        console.error('Error clearing authToken:', e); 
+      }
+      try { 
+        SecureStore.deleteItemAsync('userData'); 
+        console.log('🗑️ Cleared userData');
+      } catch (e) { 
+        console.error('Error clearing userData:', e); 
+      }
+      
+      // Emit session expired event
+      emitSessionExpired('Session expired - Please login again');
+    } else {
+      // For non-auth errors (400, 404, 500, etc.), just log them without clearing tokens
+      console.log('⚠️ Non-authentication error, keeping tokens intact:', {
+        status: error.response?.status,
+        message: error.response?.data?.detail || error.message
+      });
     }
-    try { 
-      SecureStore.deleteItemAsync('userData'); 
-      console.log('🗑️ Cleared userData');
-    } catch (e) { 
-      console.error('Error clearing userData:', e); 
-    }
-    
-    // Emit session expired event
-    emitSessionExpired('Session expired - Network or authentication error');
     
     return Promise.reject(error);
   }
