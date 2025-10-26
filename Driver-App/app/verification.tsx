@@ -6,6 +6,8 @@ import {
   TouchableOpacity,
   SafeAreaView,
   ScrollView,
+  Alert,
+  Animated,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -21,6 +23,8 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/contexts/AuthContext';
 import * as SecureStore from 'expo-secure-store';
+import axiosDriver from '@/app/api/axiosDriver';
+import axiosInstance from '@/app/api/axiosInstance';
 
 interface VerificationPageProps {
   accountStatus?: string;
@@ -39,6 +43,7 @@ export default function VerificationPage({
   const { user } = useAuth();
   const [accountStatus, setAccountStatus] = useState(propAccountStatus || 'inactive');
   const [isLoading, setIsLoading] = useState(propIsLoading);
+  const [rotateAnim] = useState(new Animated.Value(0));
 
   // Fetch account status if not provided as prop
   useEffect(() => {
@@ -46,6 +51,21 @@ export default function VerificationPage({
       fetchAccountStatus();
     }
   }, []);
+
+  // Spin animation for loading state
+  useEffect(() => {
+    if (isLoading) {
+      const spin = Animated.loop(
+        Animated.timing(rotateAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        })
+      );
+      spin.start();
+      return () => spin.stop();
+    }
+  }, [isLoading]);
 
   const fetchAccountStatus = async () => {
     try {
@@ -64,10 +84,89 @@ export default function VerificationPage({
   };
 
   const handleRefresh = async () => {
-    if (propOnRefresh) {
-      propOnRefresh();
-    } else {
-      await fetchAccountStatus();
+    try {
+      setIsLoading(true);
+      console.log('🔄 Refreshing account status...');
+      
+      if (propOnRefresh) {
+        propOnRefresh();
+      } else {
+        try {
+          // Get user data and stored password to call login API
+          const userDataStr = await SecureStore.getItemAsync('userData');
+          const tempPassword = await SecureStore.getItemAsync('tempPassword');
+          
+          if (!userDataStr) {
+            console.warn('⚠️ No user data found');
+            await fetchAccountStatus();
+            return;
+          }
+          
+          const userData = JSON.parse(userDataStr);
+          
+          // Format mobile number to 10 digits only
+          const formatMobileNumber = (phone: string): string => {
+            if (!phone || !phone.trim()) return '';
+            let cleanPhone = phone.replace(/^\+91/, '').replace(/\D/g, '').trim();
+            if (!cleanPhone) return '';
+            return cleanPhone.slice(-10);
+          };
+          
+          const mobileNumber = formatMobileNumber(userData.primaryMobile || userData.primary_mobile || '');
+          
+          if (!mobileNumber || !tempPassword) {
+            console.warn('⚠️ Missing mobile number or password');
+            Alert.alert('Session Expired', 'Please login again to refresh your account status.');
+            await fetchAccountStatus();
+            return;
+          }
+          
+          console.log('🔄 Calling login API to get fresh account status...');
+          
+          // Call login API to get latest status
+          const response = await axiosInstance.post('/api/users/vehicleowner/login', {
+            mobile_number: mobileNumber,
+            password: tempPassword
+          });
+          
+          if (response.data && response.data.account_status) {
+            const newStatus = response.data.account_status;
+            setAccountStatus(newStatus);
+            
+            // Update stored login response with fresh data
+            await SecureStore.setItemAsync('loginResponse', JSON.stringify(response.data));
+            
+            // Update auth token if provided
+            if (response.data.access_token) {
+              await SecureStore.setItemAsync('authToken', response.data.access_token);
+            }
+            
+            console.log('✅ Account status updated:', newStatus);
+            
+            // If status is now Active, redirect to dashboard
+            if (newStatus === 'Active') {
+              setTimeout(() => {
+                router.replace('/(tabs)');
+              }, 2000);
+            }
+          }
+        } catch (apiError: any) {
+          console.warn('⚠️ Could not refresh from API:', apiError);
+          console.error('API error details:', {
+            message: apiError.message,
+            status: apiError.response?.status,
+            data: apiError.response?.data
+          });
+          Alert.alert('Refresh Failed', 'Could not refresh account status. Please try again.');
+          // Fallback to local data
+          await fetchAccountStatus();
+        }
+      }
+    } catch (error) {
+      console.error('❌ Error refreshing account status:', error);
+      Alert.alert('Error', 'Could not refresh account status. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -194,7 +293,17 @@ export default function VerificationPage({
           >
             {isLoading ? (
               <>
-                <RefreshCw color="#FFFFFF" size={20} style={styles.spinningIcon} />
+                <Animated.View style={{
+                  transform: [{
+                    rotate: rotateAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ['0deg', '360deg']
+                    })
+                  }],
+                  marginRight: 8,
+                }}>
+                  <RefreshCw color="#FFFFFF" size={20} />
+                </Animated.View>
                 <Text style={styles.primaryButtonText}>Checking Status...</Text>
               </>
             ) : (
@@ -399,8 +508,5 @@ const styles = StyleSheet.create({
     color: '#4B5563',
     lineHeight: 20,
     flex: 1,
-  },
-  spinningIcon: {
-    marginRight: 8,
   },
 }); 

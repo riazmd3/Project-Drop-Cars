@@ -23,8 +23,9 @@ export default function SignupScreen() {
       secondaryMobile?: string;
       password?: string;
       address?: string;
+      city?: string;
+      pincode?: string;
       aadharNumber?: string;
-      organizationId?: string;
       languages?: string[];
     };
     documents: any;

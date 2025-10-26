@@ -10,6 +10,7 @@ import { ThemeProvider } from '@/contexts/ThemeContext';
 import { DashboardProvider } from '@/contexts/DashboardContext';
 import { NotificationProvider } from '@/contexts/NotificationContext';
 import { CarDriverProvider } from '@/contexts/CarDriverContext';
+import { DemoProvider } from '@/contexts/DemoContext';
 import { useFonts, Inter_400Regular, Inter_500Medium, Inter_600SemiBold, Inter_700Bold } from '@expo-google-fonts/inter';
 import * as SplashScreen from 'expo-splash-screen';
 // Initialize notifications on app startup (CRITICAL FIX)
@@ -56,11 +57,12 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
-        <AuthProvider>
-          <WalletProvider>
-            <DashboardProvider>
-              <NotificationProvider>
-                <CarDriverProvider>
+        <DemoProvider>
+          <AuthProvider>
+            <WalletProvider>
+              <DashboardProvider>
+                <NotificationProvider>
+                  <CarDriverProvider>
                   <Stack screenOptions={{ headerShown: false }}>
                     <Stack.Screen name="index" />
                     <Stack.Screen name="login" />
@@ -71,11 +73,12 @@ export default function RootLayout() {
                     <Stack.Screen name="+not-found" />
                   </Stack>
                   <StatusBar style="auto" />
-                </CarDriverProvider>
-              </NotificationProvider>
-            </DashboardProvider>
-          </WalletProvider>
-        </AuthProvider>
+                  </CarDriverProvider>
+                </NotificationProvider>
+              </DashboardProvider>
+            </WalletProvider>
+          </AuthProvider>
+        </DemoProvider>
       </ThemeProvider>
     </GestureHandlerRootView>
   );

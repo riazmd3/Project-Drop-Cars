@@ -18,6 +18,8 @@ import { addDriverDetails, DriverDetails } from '@/services/driver/driverService
 import * as ImagePicker from 'expo-image-picker';
 import * as SecureStore from 'expo-secure-store';
 import axiosInstance from '@/app/api/axiosInstance';
+import axiosDriver from '@/app/api/axiosDriver';
+import { getAuthHeaders } from '@/services/auth/authService';
 // Local MIME type resolver to avoid extra dependency
 const guessMimeTypeFromUri = (uri: string): string => {
   try {
@@ -40,6 +42,8 @@ export default function AddDriverScreen() {
     password: '',
     licence_number: '',
     adress: '',
+    city: '',
+    pincode: '',
   });
   
   const [driverImages, setDriverImages] = useState({
@@ -244,9 +248,19 @@ export default function AddDriverScreen() {
         Alert.alert('Validation Error', 'Secondary number invalid');
         return;
       }
-      if (driverData.adress.trim().length < 10) {
-        setErrors(prev => ({ ...prev, adress: 'Address must be at least 10 characters' }));
-        Alert.alert('Validation Error', 'Address must be at least 10 characters');
+      if (driverData.adress.trim().length < 5) {
+        setErrors(prev => ({ ...prev, adress: 'Address must be at least 5 characters' }));
+        Alert.alert('Validation Error', 'Address must be at least 5 characters');
+        return;
+      }
+      if (!driverData.city.trim()) {
+        setErrors(prev => ({ ...prev, city: 'City is required' }));
+        Alert.alert('Validation Error', 'City is required');
+        return;
+      }
+      if (!driverData.pincode.trim() || driverData.pincode.trim().length !== 6) {
+        setErrors(prev => ({ ...prev, pincode: 'Pincode must be 6 digits' }));
+        Alert.alert('Validation Error', 'Pincode must be exactly 6 digits');
         return;
       }
       if (driverData.password.trim().length < 6) {
@@ -270,14 +284,22 @@ export default function AddDriverScreen() {
       if (secondary) form.append('secondary_number', secondary);
       form.append('password', driverData.password.trim());
       form.append('licence_number', driverData.licence_number.trim().toUpperCase());
-      form.append('adress', driverData.adress.trim());
-      if (user?.organizationId) form.append('organization_id', user.organizationId);
+      form.append('address', driverData.adress.trim()); // API expects 'address', not 'adress'
+      form.append('city', driverData.city.trim());
+      form.append('pincode', driverData.pincode.trim());
       if (user?.id) form.append('vehicle_owner_id', user.id);
       form.append('licence_front_img', { uri, name, type } as any);
 
       console.log('🚀 Submitting driver signup (multipart)...');
+      
+      // Get authentication headers
+      const authHeaders = await getAuthHeaders();
+      
       const res = await axiosInstance.post('/api/users/cardriver/signup', form, {
-        headers: { 'Content-Type': 'multipart/form-data' },
+        headers: {
+          ...authHeaders,
+          'Content-Type': 'multipart/form-data',
+        },
         timeout: 120000,
       });
       console.log('✅ Driver registration completed successfully!', res.data);
@@ -403,7 +425,7 @@ export default function AddDriverScreen() {
             <MapPin color="#6B7280" size={20} />
             <TextInput
               style={[styles.input, { color: colors.text }, errors.adress && styles.inputError]}
-              placeholder="Address (e.g., 123 Main Street, Mumbai, Maharashtra)"
+              placeholder="Street Address (e.g., 123 Main Street)"
               value={driverData.adress}
               onChangeText={(text) => handleInputChange('adress', text)}
               multiline
@@ -411,6 +433,35 @@ export default function AddDriverScreen() {
             />
           </View>
           {errors.adress && <Text style={styles.errorText}>{errors.adress}</Text>}
+
+          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }] }>
+            <MapPin color="#6B7280" size={20} />
+            <TextInput
+              style={[styles.input, { color: colors.text }, errors.city && styles.inputError]}
+              placeholder="City"
+              value={driverData.city}
+              onChangeText={(text) => handleInputChange('city', text)}
+            />
+          </View>
+          {errors.city && <Text style={styles.errorText}>{errors.city}</Text>}
+
+          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }] }>
+            <MapPin color="#6B7280" size={20} />
+            <TextInput
+              style={[styles.input, { color: colors.text }, errors.pincode && styles.inputError]}
+              placeholder="Pincode (6 digits)"
+              value={driverData.pincode}
+              onChangeText={(text) => {
+                const cleanText = text.replace(/\D/g, '');
+                if (cleanText.length <= 6) {
+                  handleInputChange('pincode', cleanText);
+                }
+              }}
+              keyboardType="numeric"
+              maxLength={6}
+            />
+          </View>
+          {errors.pincode && <Text style={styles.errorText}>{errors.pincode}</Text>}
 
           <Text style={styles.sectionTitle}>Required Document</Text>
           <Text style={styles.sectionSubtitle}>

@@ -73,7 +73,6 @@ export default function QuickLoginScreen() {
             password: password,
             address: 'Driver Address',
             aadharNumber: '',
-            organizationId: 'driver_org',
             languages: ['English'],
             documents: {},
             driver_status: driverStatus,
@@ -103,7 +102,6 @@ export default function QuickLoginScreen() {
           password: password,
           address: 'Driver Address', // This could be fetched separately if needed
           aadharNumber: '', // Drivers don't have Aadhar in this context
-          organizationId: 'driver_org', // Default organization for drivers
           languages: ['English'], // Default language
           documents: {}, // No documents needed for quick login
           driver_status: driverStatus // Include driver status from login response

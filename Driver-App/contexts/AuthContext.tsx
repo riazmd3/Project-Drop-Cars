@@ -11,7 +11,6 @@ interface User {
   password: string;
   address: string;
   aadharNumber: string;
-  organizationId: string;
   languages: string[];
   documents: any;
   driver_status?: string; // Add driver status for drivers
@@ -146,10 +145,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           password: '',
           address: userData.address,
           aadharNumber: userData.aadharNumber,
-          organizationId: userData.organizationId,
           languages: userData.languages,
           documents: {},
-          account_status: userData.account_status
+          account_status: (userData as any).account_status
         };
         setUser(contextUser);
         

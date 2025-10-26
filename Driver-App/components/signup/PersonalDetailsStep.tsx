@@ -53,8 +53,9 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
   const [secondaryMobile, setSecondaryMobile] = useState(data.secondaryMobile || '');
   const [password, setPassword] = useState(data.password || '');
   const [address, setAddress] = useState(data.address || '');
+  const [city, setCity] = useState(data.city || '');
+  const [pincode, setPincode] = useState(data.pincode || '');
   const [aadharNumber, setAadharNumber] = useState(data.aadharNumber || '');
-  const [organizationId, setOrganizationId] = useState(data.organizationId || '');
 
 
 
@@ -67,9 +68,9 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
       secondaryMobile,
       password,
       address,
+      city,
+      pincode,
       aadharNumber,
-      organizationId,
-
     };
 
     onUpdate(personalData);
@@ -153,12 +154,43 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
           <MapPin color="#6B7280" size={20} />
           <TextInput
             style={styles.input}
-            placeholder="Address"
+            placeholder="Street Address"
             placeholderTextColor="#9CA3AF"
             value={address}
             onChangeText={setAddress}
             multiline
             numberOfLines={3}
+          />
+        </View>
+
+        {/* City */}
+        <View style={styles.inputGroup}>
+          <MapPin color="#6B7280" size={20} />
+          <TextInput
+            style={styles.input}
+            placeholder="City"
+            placeholderTextColor="#9CA3AF"
+            value={city}
+            onChangeText={setCity}
+          />
+        </View>
+
+        {/* Pincode */}
+        <View style={styles.inputGroup}>
+          <MapPin color="#6B7280" size={20} />
+          <TextInput
+            style={styles.input}
+            placeholder="Pincode (6 digits)"
+            placeholderTextColor="#9CA3AF"
+            value={pincode}
+            onChangeText={(text) => {
+              const cleanText = text.replace(/\D/g, '');
+              if (cleanText.length <= 6) {
+                setPincode(cleanText);
+              }
+            }}
+            keyboardType="numeric"
+            maxLength={6}
           />
         </View>
 
@@ -176,17 +208,6 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
           />
         </View>
 
-        {/* Organization ID */}
-        <View style={styles.inputGroup}>
-          <Hash color="#6B7280" size={20} />
-          <TextInput
-            style={styles.input}
-            placeholder="Organization ID"
-            placeholderTextColor="#9CA3AF"
-            value={organizationId}
-            onChangeText={setOrganizationId}
-          />
-        </View>
 
 
 

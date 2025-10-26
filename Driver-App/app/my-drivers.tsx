@@ -618,7 +618,11 @@ export default function MyDriversScreen() {
                 <View style={dynamicStyles.driverRow}>
                   <MapPin color={colors.textSecondary} size={16} />
                   <Text style={dynamicStyles.driverLabel}>Address:</Text>
-                  <Text style={dynamicStyles.driverValue}>{driver.adress}</Text>
+                  <Text style={dynamicStyles.driverValue}>
+                    {driver.address || driver.adress}
+                    {driver.city && `, ${driver.city}`}
+                    {driver.pincode && ` - ${driver.pincode}`}
+                  </Text>
                 </View>
                 <View style={dynamicStyles.driverRow}>
                   <Text style={dynamicStyles.driverLabel}>Organization:</Text>
@@ -751,7 +755,11 @@ export default function MyDriversScreen() {
                     <View style={dynamicStyles.driverRow}>
                       <MapPin color={colors.textSecondary} size={16} />
                       <Text style={dynamicStyles.driverLabel}>Address:</Text>
-                      <Text style={dynamicStyles.driverValue}>{driver.adress}</Text>
+                      <Text style={dynamicStyles.driverValue}>
+                        {driver.address || driver.adress}
+                        {driver.city && `, ${driver.city}`}
+                        {driver.pincode && ` - ${driver.pincode}`}
+                      </Text>
                     </View>
                     <View style={dynamicStyles.driverRow}>
                       <Text style={dynamicStyles.driverLabel}>Organization:</Text>

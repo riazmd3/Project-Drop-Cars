@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -98,11 +98,13 @@ export default function LoginScreen() {
         password: password,
         address: response.data.address || '',
         aadharNumber: response.data.aadhar_number || '',
-        organizationId: response.data.organization_id || 'org_001',
         languages: response.data.languages || ['English'],
         documents: {}
       };
 
+      // Store password temporarily in SecureStore for account refresh
+      await SecureStore.setItemAsync('tempPassword', password);
+      
       // Login with the user data and token
       await login(userData, response.data.access_token);
 
@@ -243,9 +245,16 @@ export default function LoginScreen() {
     }
   };
 
+  // Use useEffect to handle navigation instead of calling it during render
+  useEffect(() => {
+    if (showAccountVerification) {
+      // Redirect to verification page instead of showing inline component
+      router.replace('/verification');
+    }
+  }, [showAccountVerification]);
+
   if (showAccountVerification) {
-    // Redirect to verification page instead of showing inline component
-    router.replace('/verification');
+    // Return null while navigation is happening
     return null;
   }
 

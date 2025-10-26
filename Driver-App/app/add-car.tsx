@@ -91,7 +91,7 @@ export default function AddCarScreen() {
             if (driverCount === 0) {
               console.log('👤 No drivers yet → go to Add Driver');
               router.replace('/add-driver');
-            } else if (accountStatus !== 'ACTIVE') {
+            } else if (accountStatus === 'Inactive' || accountStatus?.toLowerCase() !== 'active') {
               console.log('⏳ Account not active → go to Verification');
               router.replace('/verification');
             } else {
@@ -218,7 +218,6 @@ export default function AddCarScreen() {
         car_name: carData.name.trim(),
         car_type: carData.type,
         car_number: carData.registration.trim().toUpperCase(), // Convert to uppercase
-        organization_id: user?.organizationId || 'org_001',
         vehicle_owner_id: user?.id || 'e5b9edb1-b4bb-48b8-a662-f7fd00abb6eb',
         rc_front_img: carImages.rcFront,
         rc_back_img: carImages.rcBack,
@@ -394,7 +393,7 @@ export default function AddCarScreen() {
           </View>
           {errors.year && <Text style={styles.errorText}>{errors.year}</Text>}
 
-          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          {/* <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Car color="#6B7280" size={20} />
             <TextInput
               style={[styles.input, { color: colors.text }]}
@@ -403,7 +402,7 @@ export default function AddCarScreen() {
               value={carData.color}
               onChangeText={(text) => handleInputChange('color', text)}
             />
-          </View>
+          </View> */}
 
           <Text style={styles.sectionTitle}>Required Documents & Images</Text>
           <Text style={styles.sectionSubtitle}>

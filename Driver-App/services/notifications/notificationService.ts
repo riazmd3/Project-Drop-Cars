@@ -19,15 +19,15 @@ async function setupAndroidChannel() {
 async function setupNotificationHandler() {
   await setupAndroidChannel(); // Channel first!
   
-  Notifications.setNotificationHandler({
+Notifications.setNotificationHandler({
     handleNotification: async (notification) => {
       console.log('🔔 Notification received in handler:', notification);
       return {
-        shouldShowAlert: true,
-        shouldPlaySound: true,
+    shouldShowAlert: true,
+    shouldPlaySound: true,
         shouldSetBadge: false,
-        shouldShowBanner: true,
-        shouldShowList: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
       };
     },
   });
@@ -47,23 +47,23 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
       return null;
     }
 
-    const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    let finalStatus = existingStatus;
-
-    if (existingStatus !== 'granted') {
-      const { status } = await Notifications.requestPermissionsAsync();
-      finalStatus = status;
-    }
-
-    if (finalStatus !== 'granted') {
+        const { status: existingStatus } = await Notifications.getPermissionsAsync();
+        let finalStatus = existingStatus;
+        
+        if (existingStatus !== 'granted') {
+          const { status } = await Notifications.requestPermissionsAsync();
+          finalStatus = status;
+        }
+        
+        if (finalStatus !== 'granted') {
       Alert.alert('Permission Denied', 'Push notification permission is required for this feature.');
       return null;
     }
 
-    const token = await Notifications.getExpoPushTokenAsync();
-
+        const token = await Notifications.getExpoPushTokenAsync();
+        
     return token.data;
-  } catch (error) {
+    } catch (error) {
     console.error('Error getting push token:', error);
     Alert.alert('Error', 'Failed to get push notification token');
     return null;
@@ -102,16 +102,16 @@ export const setupNotificationListeners = () => {
 export async function testForegroundNotification(): Promise<void> {
   try {
     console.log('🧪 Testing notification...');
-    await Notifications.scheduleNotificationAsync({
-      content: {
+      await Notifications.scheduleNotificationAsync({
+        content: {
         title: 'Test Notification',
         body: 'This is a test notification',
         data: { test: true },
-      },
-      trigger: null, // Send immediately
-    });
+        },
+        trigger: null, // Send immediately
+      });
     console.log('✅ Test notification sent');
-  } catch (error) {
+    } catch (error) {
     console.error('❌ Failed to send test notification:', error);
   }
 }

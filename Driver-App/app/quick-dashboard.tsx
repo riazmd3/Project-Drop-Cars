@@ -15,6 +15,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useCarDriver } from '@/contexts/CarDriverContext';
+import { useDemo } from '@/contexts/DemoContext';
 import * as SecureStore from 'expo-secure-store';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
@@ -37,6 +38,11 @@ import { startTrip, endTrip } from '@/services/driver/carDriverService';
 import axiosDriver from '@/app/api/axiosDriver';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import { testForegroundNotification } from '@/services/notifications/notificationService';
+import DemoMenu from '@/components/DemoMenu';
+import DemoSettings from '@/components/DemoSettings';
+import DemoWelcomeScreen from '@/components/DemoWelcomeScreen';
+import DemoModeIndicator from '@/components/DemoModeIndicator';
+import { demoNotificationService } from '@/services/demo/demoNotificationService';
 interface DriverOrder {
   id: number;
   order_id: number;
@@ -68,11 +74,16 @@ export default function QuickDashboardScreen() {
   const { user, logout } = useAuth();
   const { colors } = useTheme();
   const router = useRouter();
+  const { isDemoMode, isNewUser, showWelcomeScreen, startDemo, stopDemo, hideWelcome, simulateNotification, simulateMenuInteraction, simulateSettingsInteraction } = useDemo();
   
   // State management
   const [driverStatus, setDriverStatus] = useState<'ONLINE' | 'OFFLINE' | 'DRIVING'>('OFFLINE');
   const [driverOrders, setDriverOrders] = useState<DriverOrder[]>([]);
   const [loading, setLoading] = useState(false);
+  
+  // Demo state
+  const [showDemoMenu, setShowDemoMenu] = useState(false);
+  const [showDemoSettings, setShowDemoSettings] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [statusChanging, setStatusChanging] = useState(false);
   const [activeTrip, setActiveTrip] = useState<DriverOrder | null>(null);
@@ -506,6 +517,28 @@ export default function QuickDashboardScreen() {
       return () => pulse.stop();
     }
   }, [driverStatus, pulseAnimation]);
+
+  // Demo functionality
+  useEffect(() => {
+    if (isNewUser && isDemoMode) {
+      // Start demo notifications for new users
+      demoNotificationService.startDemoNotifications();
+    }
+  }, [isNewUser, isDemoMode]);
+
+  const handleDemoMenuPress = () => {
+    setShowDemoMenu(true);
+    simulateMenuInteraction();
+  };
+
+  const handleDemoSettingsPress = () => {
+    setShowDemoSettings(true);
+    simulateSettingsInteraction();
+  };
+
+  const handleFeatureHighlight = (feature: string) => {
+    console.log(`🎭 Demo feature highlighted: ${feature}`);
+  };
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
@@ -1104,6 +1137,52 @@ export default function QuickDashboardScreen() {
           </ScrollView>
         )}
       </View>
+
+      {/* Demo Mode Components */}
+      {isDemoMode && (
+        <View style={styles.demoContainer}>
+          <TouchableOpacity 
+            style={styles.demoButton}
+            onPress={handleDemoMenuPress}
+          >
+            <Text style={styles.demoButtonText}>🎭 Demo Menu</Text>
+          </TouchableOpacity>
+          
+          <TouchableOpacity 
+            style={styles.demoButton}
+            onPress={handleDemoSettingsPress}
+          >
+            <Text style={styles.demoButtonText}>⚙️ Demo Settings</Text>
+          </TouchableOpacity>
+        </View>
+      )}
+
+      {/* Demo Modals */}
+      <DemoMenu
+        isVisible={showDemoMenu}
+        onClose={() => setShowDemoMenu(false)}
+        onFeatureHighlight={handleFeatureHighlight}
+      />
+      
+      <DemoSettings
+        isVisible={showDemoSettings}
+        onClose={() => setShowDemoSettings(false)}
+        onFeatureHighlight={handleFeatureHighlight}
+      />
+
+      {/* Demo Welcome Screen */}
+      <DemoWelcomeScreen
+        isVisible={showWelcomeScreen}
+        onStartDemo={startDemo}
+        onSkip={hideWelcome}
+      />
+
+      {/* Demo Mode Indicator */}
+      <DemoModeIndicator
+        isVisible={isDemoMode}
+        onClose={stopDemo}
+        onRestart={startDemo}
+      />
     </SafeAreaView>
   );
 }
@@ -1396,6 +1475,29 @@ const styles = StyleSheet.create({
   tollText: {
     fontSize: 12,
     fontWeight: '500',
+  },
+  demoContainer: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    flexDirection: 'row',
+    gap: 10,
+  },
+  demoButton: {
+    backgroundColor: '#3B82F6',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 25,
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+  },
+  demoButtonText: {
+    color: 'white',
+    fontSize: 14,
+    fontWeight: '600',
   },
   });
 

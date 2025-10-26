@@ -33,7 +33,6 @@ export interface UserData {
   secondaryMobile?: string;
   address: string;
   aadharNumber: string;
-  organizationId: string;
   languages: string[];
 }
 
@@ -194,7 +193,6 @@ class AuthService {
           secondaryMobile: payload.secondary_number || '',
           address: payload.address || '',
           aadharNumber: payload.aadhar_number || '',
-          organizationId: payload.organization_id || payload.org_id || '',
           languages: payload.languages || payload.spoken_languages || []
         };
         
@@ -213,7 +211,6 @@ class AuthService {
         secondaryMobile: '',
         address: '',
         aadharNumber: '',
-        organizationId: '',
         languages: []
       };
     }
@@ -235,11 +232,10 @@ class AuthService {
     try {
       // Send empty notification token to server before clearing local data
       try {
-        const { upsertNotificationSettings } = await import('@/services/notifications/notificationApi');
-        await upsertNotificationSettings({
+        const { updateNotificationSettings } = await import('@/services/notifications/notificationApi');
+        await updateNotificationSettings({
           permission1: false,
-          permission2: false,
-          token: ""
+          permission2: false
         });
         console.log('✅ Notification token cleared on server');
       } catch (notificationError) {

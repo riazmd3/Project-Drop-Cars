@@ -70,7 +70,7 @@ export default function IndexScreen() {
             const loginData = JSON.parse(loginDataStr);
             const carCount = loginData.car_details_count ?? 0;
             const driverCount = loginData.car_driver_count ?? 0;
-            const accountStatus = loginData.account_status || 'INACTIVE';
+            const accountStatus = loginData.account_status || 'Inactive';
             
             console.log('📊 Account status:', {
               carCount,
@@ -79,7 +79,7 @@ export default function IndexScreen() {
             });
             
             // Determine where to redirect based on counts and status
-            if (accountStatus !== 'ACTIVE') {
+            if (accountStatus === 'Inactive' || accountStatus?.toLowerCase() !== 'active') {
               console.log('⏳ Account not active → redirect to verification');
               router.replace('/verification');
             } else if (carCount === 0) {

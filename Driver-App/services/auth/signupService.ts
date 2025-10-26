@@ -108,10 +108,11 @@ export const signupAccount = async (personalData: any, documents: any): Promise<
          formData.append('secondary_number', formattedSecondary);
        }
        // Don't append anything if secondary number is empty - let backend handle it as optional
-       formData.append('password', password);
-       formData.append('address', address);
-       formData.append('aadhar_number', aadharNumber);
-       formData.append('organization_id', personalData.organizationId || '');
+      formData.append('password', password);
+      formData.append('address', address);
+      formData.append('city', personalData.city || '');
+      formData.append('pincode', personalData.pincode || '');
+      formData.append('aadhar_number', aadharNumber);
       
       console.log('📤 FormData created with fields:', {
         full_name: fullName,
@@ -119,8 +120,9 @@ export const signupAccount = async (personalData: any, documents: any): Promise<
         secondary_number: formattedSecondary || 'Not provided (skipped)',
         password: password,
         address: address,
+        city: personalData.city || '',
+        pincode: personalData.pincode || '',
         aadhar_number: aadharNumber,
-        organization_id: personalData.organizationId || 'Empty',
         aadhar_front_img: documents.aadharFront ? 'File attached' : 'No file'
       });
       
@@ -130,12 +132,6 @@ export const signupAccount = async (personalData: any, documents: any): Promise<
         original_secondary: personalData.secondaryMobile,
         formatted_secondary: formattedSecondary || 'Not provided'
       });
-      
-      // Log the actual FormData entries for debugging
-      console.log('🔍 FormData entries:');
-      for (let [key, value] of formData.entries()) {
-        console.log(`  ${key}:`, value);
-      }
       
       // Make the API call with FormData
       const response = await axiosInstance.post('/api/users/vehicleowner/signup', formData, {
@@ -343,7 +339,6 @@ export interface CarDetailsData {
   car_name: string;
   car_type: string;
   car_number: string;
-  organization_id: string;
   vehicle_owner_id: string;
   rc_front_img: any; // File object for FormData
   rc_back_img: any; // File object for FormData
@@ -495,14 +490,12 @@ export const addCarDetails = async (carData: CarDetailsData): Promise<CarDetails
     formData.append('car_name', carData.car_name || '');
     formData.append('car_type', carData.car_type || '');
     formData.append('car_number', carData.car_number || '');
-    formData.append('organization_id', carData.organization_id || '');
     formData.append('vehicle_owner_id', carData.vehicle_owner_id || '');
     
     console.log('📤 FormData created with fields:', {
       car_name: carData.car_name,
       car_type: carData.car_type,
       car_number: carData.car_number,
-      organization_id: carData.organization_id,
       vehicle_owner_id: carData.vehicle_owner_id,
       rc_front_img: carData.rc_front_img ? 'File attached' : 'No file',
       rc_back_img: carData.rc_back_img ? 'File attached' : 'No file',
@@ -725,7 +718,6 @@ export const testCarDetailsDataStructure = (carData: CarDetailsData) => {
     car_name: carData.car_name || '',
     car_type: carData.car_type || '',
     car_number: carData.car_number || '',
-    organization_id: carData.organization_id || '',
     vehicle_owner_id: carData.vehicle_owner_id || '',
     rc_front_img: carData.rc_front_img ? 'File will be attached' : 'No file',
     rc_back_img: carData.rc_back_img ? 'File will be attached' : 'No file',
@@ -739,7 +731,6 @@ export const testCarDetailsDataStructure = (carData: CarDetailsData) => {
     car_name: !!testData.car_name,
     car_type: !!testData.car_type,
     car_number: !!testData.car_number,
-    organization_id: !!testData.organization_id,
     vehicle_owner_id: !!testData.vehicle_owner_id,
     rc_front_img: !!carData.rc_front_img,
     rc_back_img: !!carData.rc_back_img,

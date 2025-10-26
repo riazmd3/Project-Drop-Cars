@@ -348,7 +348,7 @@ export default function MyCarsScreen() {
                 </View>
                 <View style={dynamicStyles.carRow}>
                   <Text style={dynamicStyles.carLabel}>Year:</Text>
-                  <Text style={dynamicStyles.carValue}>{car.car_year}</Text>
+                  <Text style={dynamicStyles.carValue}>{car.year_of_the_car || car.car_year || car.year || 'N/A'}</Text>
                 </View>
                 <View style={dynamicStyles.carRow}>
                   <Text style={dynamicStyles.carLabel}>Organization:</Text>

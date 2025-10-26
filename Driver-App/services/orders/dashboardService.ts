@@ -6,9 +6,11 @@ export interface CarDetail {
   car_name: string;
   car_type: string;
   car_number: string;
-  car_brand: string;
-  car_model: string;
-  car_year: number;
+  car_brand?: string;
+  car_model?: string;
+  car_year?: number;
+  year?: number;
+  year_of_the_car?: number; // API uses 'year_of_the_car'
   organization_id: string;
   vehicle_owner_id: string;
   rc_front_img_url?: string;
@@ -25,7 +27,10 @@ export interface DriverDetail {
   full_name: string;
   primary_number: string;
   secondary_number?: string;
-  adress: string;
+  address?: string; // API uses 'address'
+  adress?: string; // Backward compatibility for typo field name
+  city?: string;
+  pincode?: string;
   licence_number: string;
   organization_id: string;
   driver_status: string;
