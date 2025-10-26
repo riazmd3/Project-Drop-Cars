@@ -13,6 +13,7 @@ import SuccessScreen from '@/components/SuccessScreen';
 import { ArrowLeft } from 'lucide-react-native';
 import { TouchableOpacity } from 'react-native';
 import { loginVehicleOwner } from '@/services/auth/authService';
+import * as SecureStore from 'expo-secure-store';
 
 export default function SignupScreen() {
   const [currentStep, setCurrentStep] = useState(1);
@@ -59,6 +60,9 @@ export default function SignupScreen() {
 
   const handleContinue = async () => {
     try {
+      // Store password for verification page refresh functionality
+      await SecureStore.setItemAsync('tempPassword', formData.personalDetails.password || '');
+      
       // Call login API to get the counts
       const cleanMobile = String(formData.personalDetails.primaryMobile || '').replace(/^\+91/, '');
       const loginResponse = await loginVehicleOwner(cleanMobile, formData.personalDetails.password || '');
@@ -74,18 +78,18 @@ export default function SignupScreen() {
         nextRoute = '/add-driver';
       }
 
-      // Navigate to the appropriate page
+      // Navigate to the appropriate page with signup flow parameter
       if (nextRoute === '/add-car') {
-        router.replace('/add-car');
+        router.replace('/add-car?flow=signup');
       } else if (nextRoute === '/add-driver') {
-        router.replace('/add-driver');
+        router.replace('/add-driver?flow=signup');
       } else {
         router.replace('/(tabs)');
       }
     } catch (error) {
       console.error('❌ Login failed:', error);
-      // If login fails, still navigate to add-car as fallback
-      router.replace('/add-car');
+      // If login fails, still navigate to add-car as fallback with signup flow
+      router.replace('/add-car?flow=signup');
     }
   };
 

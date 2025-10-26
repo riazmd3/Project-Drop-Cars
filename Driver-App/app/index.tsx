@@ -72,15 +72,16 @@ export default function IndexScreen() {
             });
             
             // Determine where to redirect based on counts and status
-            if (accountStatus === 'Inactive' || accountStatus?.toLowerCase() !== 'active') {
-              console.log('⏳ Account not active → redirect to verification');
-              router.replace('/verification');
-            } else if (carCount === 0) {
+            // PRIORITY: Check document completion FIRST, then account status
+            if (carCount === 0) {
               console.log('🚗 No cars → redirect to add-car');
-              router.replace('/add-car');
+              router.replace('/add-car?flow=signup');
             } else if (driverCount === 0) {
               console.log('👤 No drivers → redirect to add-driver');
-              router.replace('/add-driver');
+              router.replace('/add-driver?flow=signup');
+            } else if (accountStatus === 'Inactive' || accountStatus?.toLowerCase() !== 'active') {
+              console.log('⏳ Documents complete but account not active → redirect to verification');
+              router.replace('/verification');
             } else {
               console.log('✅ All good → redirect to dashboard');
               router.replace('/(tabs)');

@@ -123,14 +123,14 @@ export default function LoginScreen() {
       if (carCount === 0) {
         // No cars uploaded - redirect to add car
         console.log('🚗 No cars uploaded, redirecting to add car page');
-        router.replace('/add-car');
+        router.replace('/add-car?flow=signup');
         return;
       }
       
       if (driverCount === 0) {
         // No drivers uploaded - redirect to add driver
         console.log('👤 No drivers uploaded, redirecting to add driver page');
-        router.replace('/add-driver');
+        router.replace('/add-driver?flow=signup');
         return;
       }
       
@@ -202,7 +202,7 @@ export default function LoginScreen() {
         // No cars uploaded - redirect to add car
         console.log('🚗 No cars uploaded, redirecting to add car page');
         setShowAccountVerification(false);
-        router.replace('/add-car');
+        router.replace('/add-car?flow=signup');
         return;
       }
       
@@ -210,7 +210,7 @@ export default function LoginScreen() {
         // No drivers uploaded - redirect to add driver
         console.log('👤 No drivers uploaded, redirecting to add driver page');
         setShowAccountVerification(false);
-        router.replace('/add-driver');
+        router.replace('/add-driver?flow=signup');
         return;
       }
       

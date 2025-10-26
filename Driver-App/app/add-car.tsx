@@ -10,7 +10,7 @@ import {
   SafeAreaView,
   ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Car, Save, Upload, CheckCircle, FileText, Image, ChevronDown } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -46,6 +46,7 @@ export default function AddCarScreen() {
   const { user } = useAuth();
   const { colors } = useTheme();
   const { dashboardData } = useDashboard();
+  const { flow } = useLocalSearchParams<{ flow?: string }>();
 
   const carTypes = ['HATCHBACK', 'SEDAN', 'NEW_SEDAN', 'SUV', 'INNOVA', 'INNOVA_CRYSTA'];
 
@@ -87,39 +88,71 @@ export default function AddCarScreen() {
             loginData.account_status = accountStatus;
             await SecureStore.setItemAsync('loginResponse', JSON.stringify(loginData));
             
-            // Redirect based on counts and status
-            if (driverCount === 0) {
-              console.log('👤 No drivers yet → go to Add Driver');
-              router.replace('/add-driver');
-            } else if (accountStatus === 'Inactive' || accountStatus?.toLowerCase() !== 'active') {
-              console.log('⏳ Account not active → go to Verification');
-              router.replace('/verification');
+            // Redirect based on counts, status, and flow context
+            if (flow === 'signup') {
+              // Signup flow: sequential progression
+              if (driverCount === 0) {
+                console.log('👤 Signup flow: No drivers yet → go to Add Driver');
+                router.replace('/add-driver?flow=signup');
+              } else if (accountStatus === 'Inactive' || accountStatus?.toLowerCase() !== 'active') {
+                console.log('⏳ Signup flow: Account not active → go to Verification');
+                router.replace('/verification');
+              } else {
+                console.log('✅ Signup flow: All good → go to dashboard');
+                router.replace('/(tabs)');
+              }
             } else {
-              console.log('✅ All good → go back to previous page');
-              // Use router.back() to go back to the previous page (likely my-cars)
-              router.back();
+              // Menu flow: independent operation
+              if (driverCount === 0) {
+                console.log('👤 Menu flow: No drivers yet → go to Add Driver');
+                router.replace('/add-driver');
+              } else if (accountStatus === 'Inactive' || accountStatus?.toLowerCase() !== 'active') {
+                console.log('⏳ Menu flow: Account not active → go to Verification');
+                router.replace('/verification');
+              } else {
+                console.log('✅ Menu flow: All good → go back to previous page');
+                router.back();
+              }
             }
           } catch (error) {
             console.error('❌ Error fetching updated data:', error);
             // Fallback to checking dashboard data
             const driverCount = Number(dashboardData?.drivers?.length || 0);
-            if (driverCount === 0) {
-              router.replace('/add-driver');
+            if (flow === 'signup') {
+              if (driverCount === 0) {
+                router.replace('/add-driver?flow=signup');
+              } else {
+                router.replace('/(tabs)');
+              }
             } else {
-              console.log('✅ Fallback → go back to previous page');
-              router.back();
+              if (driverCount === 0) {
+                router.replace('/add-driver');
+              } else {
+                console.log('✅ Fallback → go back to previous page');
+                router.back();
+              }
             }
           }
         }
       } else {
         // No login data, fallback to old logic
         const driverCount = Number(dashboardData?.drivers?.length || 0);
-        if (driverCount === 0) {
-          console.log('👤 No drivers yet → go to Add Driver');
-          router.replace('/add-driver');
+        if (flow === 'signup') {
+          if (driverCount === 0) {
+            console.log('👤 Signup flow: No drivers yet → go to Add Driver');
+            router.replace('/add-driver?flow=signup');
+          } else {
+            console.log('✅ Signup flow: Drivers already present → go to dashboard');
+            router.replace('/(tabs)');
+          }
         } else {
-          console.log('🏠 Drivers already present → go back to previous page');
-          router.back();
+          if (driverCount === 0) {
+            console.log('👤 Menu flow: No drivers yet → go to Add Driver');
+            router.replace('/add-driver');
+          } else {
+            console.log('🏠 Menu flow: Drivers already present → go back to previous page');
+            router.back();
+          }
         }
       }
     } catch (error) {

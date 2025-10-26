@@ -214,7 +214,7 @@ export default function VerificationPage({
           subtitle: 'Please complete your profile setup',
           message: 'Your account is pending document verification. Please ensure all required documents are uploaded and your profile is complete.',
           buttonText: 'Complete Profile',
-          buttonAction: () => router.push('/add-car'),
+          buttonAction: () => router.push('/add-car?flow=signup'),
           backgroundColor: '#EFF6FF',
           borderColor: '#3B82F6',
           showRefresh: false

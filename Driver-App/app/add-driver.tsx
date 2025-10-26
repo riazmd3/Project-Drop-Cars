@@ -10,7 +10,7 @@ import {
   SafeAreaView,
   ActivityIndicator,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, User, Save, Upload, CheckCircle, FileText, Image, Phone, Lock, MapPin, CreditCard } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
@@ -55,6 +55,7 @@ export default function AddDriverScreen() {
   
   const router = useRouter();
   const { user } = useAuth();
+  const { flow } = useLocalSearchParams<{ flow?: string }>();
   
   // Debug user data
   console.log('🔍 User data in add-driver:', {
@@ -108,13 +109,22 @@ export default function AddDriverScreen() {
         return;
       }
 
-      // Everything is ready - go to dashboard
-      console.log('✅ Everything ready, proceeding to dashboard');
-      router.replace('/(tabs)');
+      // Everything is ready - redirect based on flow context
+      if (flow === 'signup') {
+        console.log('✅ Signup flow: Everything ready, proceeding to dashboard');
+        router.replace('/(tabs)');
+      } else {
+        console.log('✅ Menu flow: Everything ready, going back to previous page');
+        router.back();
+      }
     } catch (error) {
       console.error('❌ Error checking account status:', error);
-      // Fallback to dashboard if check fails
-      router.replace('/(tabs)');
+      // Fallback based on flow context
+      if (flow === 'signup') {
+        router.replace('/(tabs)');
+      } else {
+        router.back();
+      }
     }
   };
 

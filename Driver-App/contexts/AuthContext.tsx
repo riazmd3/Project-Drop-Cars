@@ -64,6 +64,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Save to SecureStore
       await SecureStore.setItemAsync('authToken', token);
       
+      // Save password for verification page refresh functionality
+      if (userData.password) {
+        await SecureStore.setItemAsync('tempPassword', userData.password);
+      }
+      
       // Save locally only
       await SecureStore.setItemAsync('userData', JSON.stringify(userData));
       
