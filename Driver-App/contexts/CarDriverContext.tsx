@@ -166,6 +166,18 @@ export const CarDriverProvider: React.FC<CarDriverProviderProps> = ({ children }
       const response: CarDriverAuthResponse = await signinCarDriver(request);
       
       if (response.success && response.driver && response.token) {
+        // Store password temporarily for verification refresh
+        await SecureStore.setItemAsync('driverTempPassword', request.password);
+        
+        // Store driver login response for verification page
+        await SecureStore.setItemAsync('driverLoginResponse', JSON.stringify(response));
+        
+        // Store driver user data
+        await SecureStore.setItemAsync('driverUser', JSON.stringify({
+          primary_number: request.primary_number,
+          full_name: response.driver.full_name
+        }));
+        
         setDriver(response.driver);
         setIsAuthenticated(true);
         await storeDriverData(response.driver, response.token);

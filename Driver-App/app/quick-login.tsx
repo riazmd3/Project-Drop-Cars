@@ -15,6 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { Smartphone, Lock, ArrowRight, ArrowLeft } from 'lucide-react-native';
 import { loginDriver } from '@/services/driver/driverService';
+import * as SecureStore from 'expo-secure-store';
 
 export default function QuickLoginScreen() {
   const [phoneNumber, setPhoneNumber] = useState('');
@@ -64,6 +65,19 @@ export default function QuickLoginScreen() {
         if (driverStatus === 'PROCESSING') {
           console.log('⏳ Driver account is under verification, redirecting to verification screen');
           
+          // Store driver credentials for verification page refresh
+          await SecureStore.setItemAsync('driverTempPassword', password);
+          await SecureStore.setItemAsync('driverLoginResponse', JSON.stringify(loginResponse));
+          await SecureStore.setItemAsync('driverUser', JSON.stringify({
+            primary_number: phoneNumber,
+            full_name: loginResponse.full_name
+          }));
+          
+          // Store driver auth token
+          if (loginResponse.access_token) {
+            await SecureStore.setItemAsync('driverAuthToken', loginResponse.access_token);
+          }
+          
           // Create minimal driver user object for verification screen
           const driverUser = {
             id: loginResponse.driver_id,
@@ -82,8 +96,8 @@ export default function QuickLoginScreen() {
           // Login with the driver user data and token
           await login(driverUser, loginResponse.access_token);
           
-          // Redirect to verification screen instead of dashboard
-          router.replace('/verification');
+          // Redirect to driver verification screen instead of dashboard
+          router.replace('/driver-verification');
           return;
         }
         
