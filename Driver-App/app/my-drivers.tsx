@@ -58,7 +58,7 @@ export default function MyDriversScreen() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
-      await fetchData();
+      // Use the same simple refresh logic as the refresh icon
       await refreshAvailableDrivers();
       await fetchDocumentStatuses().then(setDocumentStatuses);
     } catch (error) {

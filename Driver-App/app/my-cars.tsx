@@ -36,6 +36,7 @@ export default function MyCarsScreen() {
   const handleRefresh = async () => {
     setRefreshing(true);
     try {
+      // Use simple refresh logic - only refresh cars data and document statuses
       await fetchData();
       await fetchDocumentStatuses().then(setDocumentStatuses);
     } catch (error: any) {
@@ -349,7 +350,7 @@ export default function MyCarsScreen() {
             <View key={car.id} style={dynamicStyles.carCard}>
               <View style={dynamicStyles.carHeader}>
                 <Text style={dynamicStyles.carTitle}>
-                  {car.car_brand} {car.car_model}
+                  {car.car_name || `${car.car_brand || ''} ${car.car_model || ''}`.trim() || 'Unnamed Car'}
                 </Text>
                 {/* Edit/Delete actions removed */}
               </View>

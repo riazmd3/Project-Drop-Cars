@@ -102,15 +102,12 @@ export default function AddCarScreen() {
                 router.replace('/(tabs)');
               }
             } else {
-              // Menu flow: independent operation
+              // Menu flow: independent operation - always go back to previous page
               if (driverCount === 0) {
                 console.log('👤 Menu flow: No drivers yet → go to Add Driver');
                 router.replace('/add-driver');
-              } else if (accountStatus === 'Inactive' || accountStatus?.toLowerCase() !== 'active') {
-                console.log('⏳ Menu flow: Account not active → go to Verification');
-                router.replace('/verification');
               } else {
-                console.log('✅ Menu flow: All good → go back to previous page');
+                console.log('✅ Menu flow: Car added successfully → go back to previous page');
                 router.back();
               }
             }

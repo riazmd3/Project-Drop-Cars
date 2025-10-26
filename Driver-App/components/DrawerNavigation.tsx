@@ -164,7 +164,8 @@ export default function DrawerNavigation({ visible, onClose }: DrawerNavigationP
       paddingVertical: 20,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
-      marginTop: 40,
+      marginTop: 0,
+      paddingTop: 10,
     },
     headerLeft: {
       flex: 1,

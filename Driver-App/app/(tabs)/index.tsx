@@ -43,7 +43,7 @@ export default function DashboardScreen() {
   const { balance } = useWallet();
   const { colors } = useTheme();
   const { dashboardData, loading, error, fetchData, refreshData, futureRides } = useDashboard();
-  const { } = useNotifications();
+  const { notificationsEnabled, getNotificationStatus } = useNotifications();
   const router = useRouter();
   const [showDrawer, setShowDrawer] = useState(false);
   const [pendingOrders, setPendingOrders] = useState<PendingOrder[]>([]);
@@ -301,28 +301,21 @@ export default function DashboardScreen() {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: 20,
-      paddingVertical: 16,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
       backgroundColor: colors.surface,
       borderBottomWidth: 1,
       borderBottomColor: colors.border,
+      minHeight: 60,
     },
     menuButton: {
       padding: 8,
     },
     balanceContainer: {
       alignItems: 'center',
-    },
-    welcomeText: {
-      fontSize: 14,
-      fontFamily: 'Inter-SemiBold',
-      color: colors.primary,
-      marginBottom: 4,
-    },
-    balanceLabel: {
-      fontSize: 12,
-      fontFamily: 'Inter-Medium',
-      color: colors.textSecondary,
+      justifyContent: 'center',
+      flex: 1,
+      marginHorizontal: 4,
     },
     balanceAmount: {
       fontSize: 18,
@@ -332,12 +325,14 @@ export default function DashboardScreen() {
     headerRight: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: 6,
+      flexShrink: 0,
     },
     testButton: {
       paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 6,
+      paddingVertical: 6,
+      borderRadius: 20,
+      minWidth: 90,
     },
     testButtonText: {
       color: 'white',
@@ -345,11 +340,10 @@ export default function DashboardScreen() {
       fontWeight: '600',
     },
     refreshButton: {
-      padding: 8,
-      marginRight: 8,
+      padding: 6,
     },
     walletButton: {
-      padding: 8,
+      padding: 6,
     },
     warningBanner: {
       backgroundColor: '#FEF3C7',
@@ -372,8 +366,8 @@ export default function DashboardScreen() {
       backgroundColor: colors.primary,
       borderRadius: 16,
       padding: 20,
-      marginTop: 20,
-      marginBottom: 20,
+      marginTop: 10,
+      marginBottom: 10,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,
@@ -719,23 +713,37 @@ export default function DashboardScreen() {
         <TouchableOpacity 
           style={dynamicStyles.balanceContainer}
         >
-          <Text style={dynamicStyles.welcomeText}>
-            Welcome back, {dashboardData?.user_info?.full_name || user?.fullName || 'Vehicle Owner'}!
-          </Text>
-          <Text style={dynamicStyles.balanceLabel}>Available Balance</Text>
           <Text style={dynamicStyles.balanceAmount}>₹{Math.round(Number(dashboardData?.user_info?.wallet_balance || balance || 0))}</Text>
         </TouchableOpacity>
 
         <View style={dynamicStyles.headerRight}>
-          {/* Notification Test Buttons */}
+          {/* Notification Test Button */}
           <TouchableOpacity 
             onPress={async () => {
               try {
+                // Check notification status first
+                const isNotificationEnabled = await getNotificationStatus();
+                
+                if (!isNotificationEnabled) {
+                  Alert.alert(
+                    'Notifications Disabled',
+                    'Please turn on notifications in the Settings tab to receive test notifications.',
+                    [
+                      { text: 'Cancel', style: 'cancel' },
+                      { 
+                        text: 'Go to Settings', 
+                        onPress: () => router.push('/(tabs)/settings')
+                      }
+                    ]
+                  );
+                  return;
+                }
+                
                 console.log('🧪 VEHICLE OWNER TEST: Calling testForegroundNotification...');
                 const { testForegroundNotification } = await import('@/services/notifications/notificationService');
                 await testForegroundNotification();
                 console.log('✅ VEHICLE OWNER TEST: testForegroundNotification completed');
-                Alert.alert('Test Sent', 'Foreground notification test sent! Check console for logs.');
+                Alert.alert('Test Sent', 'Foreground notification test sent!');
               } catch (error) {
                 console.error('❌ VEHICLE OWNER TEST FAILED:', error);
                 Alert.alert('Error', 'Failed to send test notification');
@@ -743,25 +751,14 @@ export default function DashboardScreen() {
             }} 
             style={[dynamicStyles.testButton, { backgroundColor: '#10B981' }]}
           >
-            <Text style={dynamicStyles.testButtonText}>Test</Text>
+            <Text style={dynamicStyles.testButtonText}>NotificationTest</Text>
           </TouchableOpacity>
-          <TouchableOpacity 
-            onPress={() => {
-              console.log('🧪 VEHICLE OWNER ALERT TEST: Showing direct alert...');
-              Alert.alert('🔔 SIMPLE TEST', 'This is a direct alert test - if you see this, alerts work!');
-              console.log('✅ VEHICLE OWNER ALERT TEST: Alert shown');
-            }} 
-            style={[dynamicStyles.testButton, { backgroundColor: '#8B5CF6' }]}
-          >
-            <Text style={dynamicStyles.testButtonText}>Alert</Text>
-          </TouchableOpacity>
-        
           
           <TouchableOpacity onPress={handleRefresh} style={dynamicStyles.refreshButton} disabled={refreshing}>
-            <RefreshCw color={colors.primary} size={20} style={refreshing ? { transform: [{ rotate: '180deg' }] } : {}} />
+            <RefreshCw color={colors.primary} size={18} style={refreshing ? { transform: [{ rotate: '180deg' }] } : {}} />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => router.push('/(tabs)/wallet')} style={dynamicStyles.walletButton}>
-            <Wallet color={colors.primary} size={24} />
+            <Wallet color={colors.primary} size={20} />
           </TouchableOpacity>
         </View>
       </View>
@@ -804,7 +801,7 @@ export default function DashboardScreen() {
               </Text>
               <Text style={dynamicStyles.welcomeBannerSubtitle}>
                 {dashboardData?.cars && dashboardData.cars.length > 0 
-                  ? `Your ${dashboardData.cars[0].car_brand || 'Vehicle'} ${dashboardData.cars[0].car_model || ''} (${dashboardData.cars[0].car_number || 'Number'}) is ready for service. Start earning today!`
+                  ? `Your ${dashboardData.cars[0].car_name || `${dashboardData.cars[0].car_brand || 'Vehicle'} ${dashboardData.cars[0].car_model || ''}`.trim() || 'Vehicle'} (${dashboardData.cars[0].car_number || 'Number'}) is ready for service. Start earning today!`
                   : 'Complete your profile setup to start earning!'
                 }
               </Text>
