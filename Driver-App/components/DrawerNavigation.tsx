@@ -376,7 +376,7 @@ export default function DrawerNavigation({ visible, onClose }: DrawerNavigationP
                   if (dashboardData?.drivers && dashboardData.drivers.length > 0) {
                     router.push('/my-drivers');
                   } else {
-                    router.push('/add-driver');
+                    router.push('/add-driver-menu');
                   }
                 }}
                 rightComponent={<ChevronRight color={colors.textSecondary} size={20} />}

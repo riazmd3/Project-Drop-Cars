@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,15 +10,12 @@ import {
   SafeAreaView,
   ActivityIndicator,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, User, Save, Upload, CheckCircle, FileText, Image, Phone, Lock, MapPin, CreditCard } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { ArrowLeft, User, Save, Upload, CheckCircle, Image, Phone, Lock, MapPin, CreditCard } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { addDriverDetails, DriverDetails } from '@/services/driver/driverService';
 import * as ImagePicker from 'expo-image-picker';
-import * as SecureStore from 'expo-secure-store';
 import axiosInstance from '@/app/api/axiosInstance';
-import axiosDriver from '@/app/api/axiosDriver';
 import { getAuthHeaders } from '@/services/auth/authService';
 // Local MIME type resolver to avoid extra dependency
 const guessMimeTypeFromUri = (uri: string): string => {
@@ -54,95 +51,8 @@ export default function AddDriverScreen() {
   const [isLoading, setIsLoading] = useState(false);
   
   const router = useRouter();
-  const { user, refreshUserData } = useAuth();
-  const { flow } = useLocalSearchParams<{ flow?: string }>();
+  const { user } = useAuth();
   const { colors } = useTheme();
-  
-  // Refresh user data on screen load to ensure vehicle owner details are available
-  useEffect(() => {
-    const loadUserData = async () => {
-      try {
-        console.log('🔄 Loading user data on add-driver screen...');
-        await refreshUserData();
-        console.log('✅ User data loaded on add-driver screen, userId:', user?.id);
-      } catch (error) {
-        console.error('❌ Failed to load user data:', error);
-      }
-    };
-    loadUserData();
-  }, []);
-  
-  // Debug user data
-  useEffect(() => {
-    console.log('🔍 User data in add-driver:', {
-      hasUser: !!user,
-      userId: user?.id,
-      userName: user?.fullName,
-      userMobile: user?.primaryMobile
-    });
-  }, [user]);
-
-  // Function to check account status and redirect accordingly
-  const checkAccountStatusAndRedirect = async () => {
-    try {
-      // Get current user data to check account status
-      const response = await axiosInstance.post('/api/users/vehicleowner/login', {
-        mobile_number: user?.primaryMobile || '',
-        password: user?.password || ''
-      });
-
-      const accountStatus = response.data.account_status;
-      const carCount = response.data.car_details_count ?? 0;
-      const driverCount = response.data.car_driver_count ?? 0;
-
-      console.log('🔍 After driver addition - Account status:', accountStatus);
-      console.log('🔍 After driver addition - Car count:', carCount);
-      console.log('🔍 After driver addition - Driver count:', driverCount);
-
-      // Update the stored login response with new counts
-      await SecureStore.setItemAsync('loginResponse', JSON.stringify(response.data));
-      console.log('📊 Login response updated after driver addition');
-
-      // Check if user needs to add more documents
-      if (carCount === 0) {
-        // No cars - redirect to add car
-        console.log('🚗 No cars, redirecting to add car page');
-        router.replace('/add-car');
-        return;
-      }
-
-      if (driverCount === 0) {
-        // Still no drivers (shouldn't happen, but just in case)
-        console.log('👤 Still no drivers, staying on add driver page');
-        return;
-      }
-
-      // Both cars and drivers are added, check account status
-      if (accountStatus?.toLowerCase() !== 'active') {
-        // Documents uploaded but account is not active - show verification page
-        console.log('⏳ Documents uploaded but account not active, redirecting to verification');
-        router.replace('/verification');
-        return;
-      }
-
-      // Everything is ready - redirect based on flow context
-      if (flow === 'signup') {
-        console.log('✅ Signup flow: Everything ready, proceeding to dashboard');
-        router.replace('/(tabs)');
-      } else {
-        console.log('✅ Menu flow: Everything ready, going back to previous page');
-        router.back();
-      }
-    } catch (error) {
-      console.error('❌ Error checking account status:', error);
-      // Fallback based on flow context
-      if (flow === 'signup') {
-        router.replace('/(tabs)');
-      } else {
-        router.back();
-      }
-    }
-  };
 
   // Simple input handlers
   const handleInputChange = (field: string, value: string) => {
@@ -247,25 +157,7 @@ export default function AddDriverScreen() {
 
     try {
       setIsLoading(true);
-      console.log('👤 Starting driver registration process...');
-      
-      // Refresh user data to ensure vehicle owner details are available
-      console.log('🔄 Refreshing user data...');
-      await refreshUserData();
-      console.log('✅ User data refreshed, userId:', user?.id);
-      
-      // Verify auth before submitting (VO-protected endpoint)
-      try {
-        const authCheck = await axiosInstance.get('/api/users/vehicle-owner/me');
-        if (!authCheck || authCheck.status !== 200) {
-          Alert.alert('Authentication Required', 'Please log in again to continue.');
-          return;
-        }
-      } catch (authErr: any) {
-        console.error('🔒 Auth preflight failed:', authErr?.response?.status, authErr?.response?.data);
-        Alert.alert('Authentication Required', 'Session expired or invalid. Please log in again.');
-        return;
-      }
+      console.log('👤 Starting driver registration process (menu flow)...');
       // Helpers
       const toTenDigit = (phone: string) => {
         const digits = (phone || '').replace(/\D/g, '');
@@ -360,17 +252,16 @@ export default function AddDriverScreen() {
       });
       console.log('✅ Driver registration completed successfully!', res.data);
 
-      // After driver is added successfully, redirect based on signup flow
-      console.log('🔄 Driver added successfully, checking signup flow redirect...');
+      // After driver is added successfully, go back (MENU FLOW ONLY)
+      console.log('🔄 Driver added successfully via menu → going back');
       setIsLoading(false);
       
-      // Signup flow: Always redirect to verification page
       Alert.alert('Success', 'Driver details added successfully!', [
         { 
           text: 'OK', 
           onPress: () => {
-            console.log('✅ Signup flow: Driver added → redirect to verification');
-            router.replace('/verification');
+            console.log('✅ Menu flow: Driver added → going back');
+            router.back();
           }
         },
       ]);
@@ -401,17 +292,14 @@ export default function AddDriverScreen() {
         >
           <ArrowLeft color={isLoading ? colors.textSecondary : colors.text} size={24} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Add Your First Driver</Text>
-        <View style={styles.stepIndicator}>
-          <Text style={styles.stepText}>Step 2/3</Text>
-        </View>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Add Driver</Text>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.welcomeSection}>
           <Text style={[styles.welcomeTitle, { color: colors.text }]}>Driver Registration</Text>
           <Text style={styles.welcomeSubtitle}>
-            Hi {user?.fullName}, let's add your first driver to complete the setup.
+            Hi {user?.fullName}, let's add you driver to complete the setup.
           </Text>
         </View>
 

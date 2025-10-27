@@ -14,9 +14,6 @@ import { useEffect, useState } from 'react';
 import { 
   Clock, 
   CheckCircle, 
-  AlertCircle, 
-  FileText, 
-  Shield,
   ArrowRight,
   RefreshCw
 } from 'lucide-react-native';
@@ -25,6 +22,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import * as SecureStore from 'expo-secure-store';
 import axiosDriver from '@/app/api/axiosDriver';
 import axiosInstance from '@/app/api/axiosInstance';
+import WelcomeScreen from '@/components/WelcomeScreen';
 
 interface VerificationPageProps {
   accountStatus?: string;
@@ -44,6 +42,7 @@ export default function VerificationPage({
   const [accountStatus, setAccountStatus] = useState(propAccountStatus || 'inactive');
   const [isLoading, setIsLoading] = useState(propIsLoading);
   const [rotateAnim] = useState(new Animated.Value(0));
+  const [showWelcome, setShowWelcome] = useState(false);
 
   // Fetch account status if not provided as prop
   useEffect(() => {
@@ -131,7 +130,6 @@ export default function VerificationPage({
           
           if (response.data && response.data.account_status) {
             const newStatus = response.data.account_status;
-            setAccountStatus(newStatus);
             
             // Update stored login response with fresh data
             await SecureStore.setItemAsync('loginResponse', JSON.stringify(response.data));
@@ -143,12 +141,9 @@ export default function VerificationPage({
             
             console.log('✅ Account status updated:', newStatus);
             
-            // If status is now Active, redirect to dashboard
-            if (newStatus === 'Active') {
-              setTimeout(() => {
-                router.replace('/(tabs)');
-              }, 2000);
-            }
+            // Update the status but don't auto-show welcome screen
+            // User will click "Continue" button to see welcome screen
+            setAccountStatus(newStatus);
           }
         } catch (apiError: any) {
           console.warn('⚠️ Could not refresh from API:', apiError);
@@ -178,77 +173,47 @@ export default function VerificationPage({
     }
   };
 
+  const handleWelcomeComplete = () => {
+    setShowWelcome(false);
+    router.replace('/(tabs)');
+  };
+
   const getStatusInfo = () => {
-    switch (accountStatus?.toLowerCase()) {
-      case 'active':
-        return {
-          icon: <CheckCircle color="#10B981" size={64} />,
-          title: 'Account Verified!',
-          subtitle: 'Your account has been successfully verified',
-          message: 'Welcome to Drop Cars! Your documents have been approved and you can now access all features.',
-          buttonText: 'Go to Dashboard',
-          buttonAction: () => router.replace('/(tabs)'),
-          backgroundColor: '#F0FDF4',
-          borderColor: '#10B981',
-          showRefresh: false
-        };
-      
-      case 'inactive':
-      case 'processing': // Handle driver PROCESSING status
-        return {
-          icon: <Clock color="#F59E0B" size={64} />,
-          title: 'Account Under Verification',
-          subtitle: 'Our team is reviewing your documents',
-          message: 'Thank you for submitting your documents. Our verification team is currently reviewing your information. This process usually takes 8-48 hours. You will be notified once verification is complete.',
-          buttonText: 'Refresh Status',
-          buttonAction: handleRefresh,
-          backgroundColor: '#FFFBEB',
-          borderColor: '#F59E0B',
-          showRefresh: true
-        };
-      
-      case 'pending':
-        return {
-          icon: <FileText color="#3B82F6" size={64} />,
-          title: 'Documents Pending',
-          subtitle: 'Please complete your profile setup',
-          message: 'Your account is pending document verification. Please ensure all required documents are uploaded and your profile is complete.',
-          buttonText: 'Complete Profile',
-          buttonAction: () => router.push('/add-car?flow=signup'),
-          backgroundColor: '#EFF6FF',
-          borderColor: '#3B82F6',
-          showRefresh: false
-        };
-      
-      case 'rejected':
-        return {
-          icon: <AlertCircle color="#EF4444" size={64} />,
-          title: 'Verification Failed',
-          subtitle: 'Please review and resubmit your documents',
-          message: 'Your account verification was unsuccessful. Please review the feedback provided and resubmit your documents. Contact support if you need assistance.',
-          buttonText: 'Resubmit Documents',
-          buttonAction: () => router.push('/add-car'),
-          backgroundColor: '#FEF2F2',
-          borderColor: '#EF4444',
-          showRefresh: false
-        };
-      
-      default:
-        return {
-          icon: <Shield color="#6B7280" size={64} />,
-          title: 'Account Status Unknown',
-          subtitle: 'Please contact support',
-          message: 'We couldn\'t determine your account status. Please contact our support team for assistance.',
-          buttonText: 'Contact Support',
-          buttonAction: () => router.push('/login'),
-          backgroundColor: '#F9FAFB',
-          borderColor: '#6B7280',
-          showRefresh: false
-        };
+    // Check if status is PROCESSING or Inactive
+    if (accountStatus?.toUpperCase() === 'PROCESSING' || accountStatus?.toLowerCase() === 'inactive') {
+      return {
+        icon: <Clock color="#F59E0B" size={64} />,
+        title: 'Account Under Verification',
+        subtitle: 'Our team is reviewing your documents',
+        message: 'Thank you for submitting your documents. Our verification team is currently reviewing your information. This process usually takes 8-48 hours. You will be notified once verification is complete.',
+        buttonText: 'Refresh Status',
+        buttonAction: handleRefresh,
+        backgroundColor: '#FFFBEB',
+        borderColor: '#F59E0B',
+        showRefresh: true
+      };
     }
+    
+    // For any other status (including Active), show welcome screen
+    return {
+      icon: <CheckCircle color="#10B981" size={64} />,
+      title: 'Account Verified!',
+      subtitle: 'Your account has been verified',
+      message: 'Welcome to Drop Cars! You can now access all features.',
+      buttonText: 'Continue',
+      buttonAction: () => setShowWelcome(true),
+      backgroundColor: '#F0FDF4',
+      borderColor: '#10B981',
+      showRefresh: false
+    };
   };
 
   const statusInfo = getStatusInfo();
+
+  // Show welcome screen if account is verified
+  if (showWelcome) {
+    return <WelcomeScreen onComplete={handleWelcomeComplete} />;
+  }
 
   return (
     <SafeAreaView style={styles.container}>

@@ -14,9 +14,6 @@ import { useEffect, useState } from 'react';
 import { 
   Clock, 
   CheckCircle, 
-  AlertCircle, 
-  FileText, 
-  Shield,
   ArrowRight,
   RefreshCw
 } from 'lucide-react-native';
@@ -179,73 +176,33 @@ export default function DriverVerificationPage({
   };
 
   const getStatusInfo = () => {
-    switch (accountStatus?.toUpperCase()) {
-      case 'ONLINE':
-        return {
-          icon: <CheckCircle color="#10B981" size={64} />,
-          title: 'Account Verified!',
-          subtitle: 'Your driver account has been successfully verified',
-          message: 'Welcome to Drop Cars Driver App! Your documents have been approved and you can now access all features.',
-          buttonText: 'Go to Dashboard',
-          buttonAction: () => router.replace('/quick-dashboard'),
-          backgroundColor: '#F0FDF4',
-          borderColor: '#10B981',
-          showRefresh: false
-        };
-      
-      case 'PROCESSING':
-        return {
-          icon: <Clock color="#F59E0B" size={64} />,
-          title: 'Account Under Verification',
-          subtitle: 'Our team is reviewing your documents',
-          message: 'Thank you for submitting your documents. Our verification team is currently reviewing your information. This process usually takes 8-48 hours. You will be notified once verification is complete.',
-          buttonText: 'Refresh Status',
-          buttonAction: handleRefresh,
-          backgroundColor: '#FFFBEB',
-          borderColor: '#F59E0B',
-          showRefresh: true
-        };
-      
-      case 'PENDING':
-        return {
-          icon: <FileText color="#3B82F6" size={64} />,
-          title: 'Documents Pending',
-          subtitle: 'Please complete your profile setup',
-          message: 'Your driver account is pending document verification. Please ensure all required documents are uploaded and your profile is complete.',
-          buttonText: 'Complete Profile',
-          buttonAction: () => router.push('/add-driver?flow=signup'),
-          backgroundColor: '#EFF6FF',
-          borderColor: '#3B82F6',
-          showRefresh: false
-        };
-      
-      case 'OFFLINE':
-      case 'REJECTED':
-        return {
-          icon: <AlertCircle color="#EF4444" size={64} />,
-          title: 'Verification Failed',
-          subtitle: 'Please review and resubmit your documents',
-          message: 'Your driver account verification was unsuccessful. Please review the feedback provided and resubmit your documents. Contact support if you need assistance.',
-          buttonText: 'Resubmit Documents',
-          buttonAction: () => router.push('/add-driver'),
-          backgroundColor: '#FEF2F2',
-          borderColor: '#EF4444',
-          showRefresh: false
-        };
-      
-      default:
-        return {
-          icon: <Shield color="#6B7280" size={64} />,
-          title: 'Account Status Unknown',
-          subtitle: 'Please contact support',
-          message: 'We couldn\'t determine your account status. Please contact our support team for assistance.',
-          buttonText: 'Contact Support',
-          buttonAction: () => router.push('/quick-login'),
-          backgroundColor: '#F9FAFB',
-          borderColor: '#6B7280',
-          showRefresh: false
-        };
+    // Check if status is PROCESSING
+    if (accountStatus?.toUpperCase() === 'PROCESSING') {
+      return {
+        icon: <Clock color="#F59E0B" size={64} />,
+        title: 'Account Under Verification',
+        subtitle: 'Our team is reviewing your documents',
+        message: 'Thank you for submitting your documents. Our verification team is currently reviewing your information. This process usually takes 8-48 hours. You will be notified once verification is complete.',
+        buttonText: 'Refresh Status',
+        buttonAction: handleRefresh,
+        backgroundColor: '#FFFBEB',
+        borderColor: '#F59E0B',
+        showRefresh: true
+      };
     }
+    
+    // For any other status (including ONLINE), redirect to dashboard
+    return {
+      icon: <CheckCircle color="#10B981" size={64} />,
+      title: 'Account Verified!',
+      subtitle: 'Your driver account has been verified',
+      message: 'Welcome to Drop Cars Driver App! You can now access all features.',
+      buttonText: 'Go to Dashboard',
+      buttonAction: () => router.replace('/quick-dashboard'),
+      backgroundColor: '#F0FDF4',
+      borderColor: '#10B981',
+      showRefresh: false
+    };
   };
 
   const statusInfo = getStatusInfo();
