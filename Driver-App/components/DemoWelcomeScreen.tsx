@@ -18,6 +18,8 @@ import {
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
+import * as SecureStore from 'expo-secure-store';
+
 interface DemoWelcomeScreenProps {
   isVisible: boolean;
   onStartDemo: () => void;
@@ -29,6 +31,7 @@ const { width, height } = Dimensions.get('window');
 export default function DemoWelcomeScreen({ isVisible, onStartDemo, onSkip }: DemoWelcomeScreenProps) {
   const [fadeAnim] = useState(new Animated.Value(0));
   const [slideAnim] = useState(new Animated.Value(50));
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   useEffect(() => {
     if (isVisible) {
@@ -134,10 +137,35 @@ export default function DemoWelcomeScreen({ isVisible, onStartDemo, onSkip }: De
             </Text>
           </View>
 
+          {/* Terms and Conditions Checkbox */}
+          <View style={styles.termsContainer}>
+            <TouchableOpacity 
+              style={styles.checkbox}
+              onPress={() => setTermsAccepted(!termsAccepted)}
+              activeOpacity={0.7}
+            >
+              {termsAccepted ? (
+                <CheckCircle color="#10B981" size={20} fill="#10B981" />
+              ) : (
+                <View style={styles.checkboxEmpty} />
+              )}
+            </TouchableOpacity>
+            <Text style={styles.termsText}>
+              I agree to the{' '}
+              <Text style={styles.termsLink} onPress={() => {/* Open terms */}}>
+                Terms & Conditions
+              </Text>
+            </Text>
+          </View>
+
           <View style={styles.buttonContainer}>
             <TouchableOpacity 
-              style={styles.startButton}
+              style={[
+                styles.startButton, 
+                !termsAccepted && styles.startButtonDisabled
+              ]}
               onPress={onStartDemo}
+              disabled={!termsAccepted}
             >
               <Play color="#FFFFFF" size={20} />
               <Text style={styles.startButtonText}>Start Interactive Demo</Text>
@@ -279,6 +307,35 @@ const styles = StyleSheet.create({
     color: '#047857',
     lineHeight: 20,
   },
+  termsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFBEB',
+    padding: 12,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    marginBottom: 20,
+  },
+  checkbox: {
+    marginRight: 10,
+  },
+  checkboxEmpty: {
+    width: 20,
+    height: 20,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+  },
+  termsText: {
+    fontSize: 14,
+    color: '#1F2937',
+    flex: 1,
+  },
+  termsLink: {
+    color: '#3B82F6',
+    fontWeight: '600',
+  },
   buttonContainer: {
     gap: 12,
   },
@@ -291,6 +348,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     borderRadius: 12,
     gap: 8,
+  },
+  startButtonDisabled: {
+    backgroundColor: '#9CA3AF',
+    opacity: 0.6,
   },
   startButtonText: {
     color: '#FFFFFF',
