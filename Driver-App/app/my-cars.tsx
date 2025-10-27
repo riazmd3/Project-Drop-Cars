@@ -368,10 +368,6 @@ export default function MyCarsScreen() {
                   <Text style={dynamicStyles.carLabel}>Year:</Text>
                   <Text style={dynamicStyles.carValue}>{car.year_of_the_car || car.car_year || car.year || 'N/A'}</Text>
                 </View>
-                <View style={dynamicStyles.carRow}>
-                  <Text style={dynamicStyles.carLabel}>Organization:</Text>
-                  <Text style={dynamicStyles.carValue}>{car.organization_id}</Text>
-                </View>
               </View>
 
               <View style={dynamicStyles.carImages}>

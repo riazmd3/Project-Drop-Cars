@@ -340,6 +340,7 @@ export interface CarDetailsData {
   car_type: string;
   car_number: string;
   vehicle_owner_id: string;
+  year_of_the_car: number; // Year as number
   rc_front_img: any; // File object for FormData
   rc_back_img: any; // File object for FormData
   insurance_img: any; // File object for FormData
@@ -491,12 +492,14 @@ export const addCarDetails = async (carData: CarDetailsData): Promise<CarDetails
     formData.append('car_type', carData.car_type || '');
     formData.append('car_number', carData.car_number || '');
     formData.append('vehicle_owner_id', carData.vehicle_owner_id || '');
+    formData.append('year_of_the_car', carData.year_of_the_car?.toString() || '');
     
     console.log('📤 FormData created with fields:', {
       car_name: carData.car_name,
       car_type: carData.car_type,
       car_number: carData.car_number,
       vehicle_owner_id: carData.vehicle_owner_id,
+      year_of_the_car: carData.year_of_the_car,
       rc_front_img: carData.rc_front_img ? 'File attached' : 'No file',
       rc_back_img: carData.rc_back_img ? 'File attached' : 'No file',
       insurance_img: carData.insurance_img ? 'File attached' : 'No file',
@@ -515,7 +518,7 @@ export const addCarDetails = async (carData: CarDetailsData): Promise<CarDetails
         'Content-Type': 'multipart/form-data',
         ...authHeaders
       },
-      formDataKeys: ['car_name', 'car_type', 'car_number', 'organization_id', 'vehicle_owner_id', 'rc_front_img', 'rc_back_img', 'insurance_img', 'fc_img', 'car_img']
+      formDataKeys: ['car_name', 'car_type', 'car_number', 'vehicle_owner_id', 'year_of_the_car', 'rc_front_img', 'rc_back_img', 'insurance_img', 'fc_img', 'car_img']
     });
     
     const response = await axiosInstance.post('/api/users/cardetails/signup', formData, {
