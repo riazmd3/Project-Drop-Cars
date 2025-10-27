@@ -113,17 +113,9 @@ export default function DocumentUpdateModal({
           }
         );
       } else {
-        // Car documents use specific field names
-        const fieldNameMap: Record<string, string> = {
-          'rc_front': 'rc_front_img',
-          'rc_back': 'rc_back_img', 
-          'insurance': 'insurance_img',
-          'fc': 'fc_img',
-          'car_img': 'car_img'
-        };
-        
-        const fieldName = fieldNameMap[documentType] || 'licence_image';
-        formData.append(fieldName, file);
+        // Car documents - backend expects 'image' field name
+        // document_type is used to specify which document type
+        formData.append('image', file);
         
         await axiosInstance.post(
           `/api/users/cardetails/${entityId}/update-document`,

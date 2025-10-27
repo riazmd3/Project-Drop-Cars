@@ -76,6 +76,8 @@ export default function QuickLoginScreen() {
           // Store driver auth token
           if (loginResponse.access_token) {
             await SecureStore.setItemAsync('driverAuthToken', loginResponse.access_token);
+            // Store driver login timestamp
+            await SecureStore.setItemAsync('driverLastLogin', Date.now().toString());
           }
           
           // Create minimal driver user object for verification screen
@@ -123,6 +125,9 @@ export default function QuickLoginScreen() {
         
         // Login with the driver user data and token
         await login(driverUser, loginResponse.access_token);
+        
+        // Store driver login timestamp
+        await SecureStore.setItemAsync('driverLastLogin', Date.now().toString());
         
         console.log('✅ Driver logged in successfully, redirecting to dashboard...');
         router.replace('/quick-dashboard');

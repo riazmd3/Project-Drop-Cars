@@ -64,6 +64,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Save to SecureStore
       await SecureStore.setItemAsync('authToken', token);
       
+      // Store owner login timestamp
+      await SecureStore.setItemAsync('ownerLastLogin', Date.now().toString());
+      
       // Save password for verification page refresh functionality
       if (userData.password) {
         await SecureStore.setItemAsync('tempPassword', userData.password);

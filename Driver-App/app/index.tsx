@@ -11,18 +11,31 @@ export default function IndexScreen() {
   const { setUser } = useAuth();
   const { signout } = useCarDriver();
   const [userRole, setUserRole] = useState<'owner' | 'driver' | null>(null);
+  const [sessionExpiredCleared, setSessionExpiredCleared] = useState(false);
 
   useEffect(() => {
     checkAuthStatus();
     const off = onSessionExpired(async () => {
       try { Alert.alert('Session expired', 'Please login again.'); } catch {}
       
+      // Mark that session was expired - this will prevent auto-login
+      setSessionExpiredCleared(true);
+      
       // Clear data based on current role
       if (userRole === 'owner') {
-        try { await SecureStore.deleteItemAsync('authToken'); } catch {}
-        try { await SecureStore.deleteItemAsync('userData'); } catch {}
+        try { 
+          await SecureStore.deleteItemAsync('authToken'); 
+          await SecureStore.deleteItemAsync('userData');
+          await SecureStore.deleteItemAsync('loginResponse');
+          await SecureStore.deleteItemAsync('ownerLastLogin');
+        } catch {}
       } else if (userRole === 'driver') {
-        try { await signout(); } catch {}
+        try { 
+          await signout(); 
+          await SecureStore.deleteItemAsync('driverAuthToken');
+          await SecureStore.deleteItemAsync('driverAuthInfo');
+          await SecureStore.deleteItemAsync('driverLastLogin');
+        } catch {}
       }
       
       setUserRole(null);
@@ -33,24 +46,62 @@ export default function IndexScreen() {
 
   const checkAuthStatus = async () => {
     try {
+      // If session was explicitly expired, don't auto-login
+      if (sessionExpiredCleared) {
+        console.log('🛑 Session was expired, skipping auto-login');
+        return;
+      }
+      
       // Check for Vehicle Owner authentication
       const voToken = await SecureStore.getItemAsync('authToken');
       const voUserData = await SecureStore.getItemAsync('userData');
+      const voLastLogin = await SecureStore.getItemAsync('ownerLastLogin'); // Timestamp
       
       // Check for Quick Driver authentication
       const driverToken = await SecureStore.getItemAsync('driverAuthToken');
       const driverUserData = await SecureStore.getItemAsync('driverAuthInfo');
+      const driverLastLogin = await SecureStore.getItemAsync('driverLastLogin'); // Timestamp
       
       console.log('🔍 Auth check:', {
         hasVOToken: !!voToken,
         hasVOUserData: !!voUserData,
+        voLastLogin,
         hasDriverToken: !!driverToken,
-        hasDriverUserData: !!driverUserData
+        hasDriverUserData: !!driverUserData,
+        driverLastLogin
       });
       
+      // Determine which user logged in most recently
+      const hasOwnerAuth = voToken && voUserData;
+      const hasDriverAuth = driverToken && driverUserData;
+      
+      if (hasOwnerAuth && hasDriverAuth) {
+        // Both tokens exist - check who logged in last
+        const ownerTime = voLastLogin ? parseInt(voLastLogin) : 0;
+        const driverTime = driverLastLogin ? parseInt(driverLastLogin) : 0;
+        
+        console.log('⚠️ Both auths exist, comparing timestamps:', {
+          ownerTime,
+          driverTime
+        });
+        
+        if (driverTime > ownerTime) {
+          // Driver logged in more recently
+          console.log('✅ Driver logged in more recently, prioritizing driver');
+          setUserRole('driver');
+          const driverInfo = JSON.parse(driverUserData);
+          setUser(driverInfo);
+          router.replace('/quick-dashboard');
+          return;
+        } else {
+          // Owner logged in more recently or equal
+          console.log('✅ Vehicle Owner logged in more recently, prioritizing owner');
+        }
+      }
+      
       // Check authentication based on current context
-      // Prioritize vehicle owner authentication first
-      if (voToken && voUserData) {
+      // If both exist and owner is more recent, use owner
+      if (hasOwnerAuth) {
         // Vehicle Owner logged in - prioritize vehicle owner authentication
         console.log('✅ Vehicle Owner authentication found');
         setUserRole('owner');

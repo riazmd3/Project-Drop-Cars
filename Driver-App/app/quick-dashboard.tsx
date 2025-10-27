@@ -1170,12 +1170,105 @@ export default function QuickDashboardScreen() {
         onFeatureHighlight={handleFeatureHighlight}
       />
 
-      {/* Demo Welcome Screen */}
-      <DemoWelcomeScreen
-        isVisible={showWelcomeScreen}
-        onStartDemo={startDemo}
-        onSkip={hideWelcome}
-      />
+      {/* Terms and Conditions Modal - Simple Button Display */}
+      {showWelcomeScreen && (
+        <View style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          backgroundColor: 'rgba(0, 0, 0, 0.5)',
+          justifyContent: 'center',
+          alignItems: 'center',
+          zIndex: 9999,
+        }}>
+          <View style={{
+            backgroundColor: '#FFFFFF',
+            borderRadius: 16,
+            padding: 24,
+            width: '90%',
+            maxHeight: '80%',
+          }}>
+            <ScrollView style={{ maxHeight: 400 }}>
+              <Text style={{
+                fontSize: 20,
+                fontWeight: 'bold',
+                color: '#1F2937',
+                marginBottom: 16,
+                textAlign: 'center',
+              }}>
+                Terms & Conditions
+              </Text>
+              
+              <Text style={{
+                fontSize: 14,
+                color: '#374151',
+                lineHeight: 22,
+                marginBottom: 20,
+              }}>
+                By using Drop Cars Driver App, you agree to:{'\n\n'}
+                • Maintain vehicle safety and compliance{'\n'}
+                • Follow all traffic and local regulations{'\n'}
+                • Provide accurate trip information{'\n'}
+                • Treat customers with respect and professionalism{'\n'}
+                • Report any issues promptly{'\n'}
+                • Keep your account information secure{'\n\n'}
+                Drop Cars is committed to providing a safe and reliable platform for drivers and customers alike.
+              </Text>
+
+              <TouchableOpacity 
+                style={{
+                  flexDirection: 'row',
+                  alignItems: 'center',
+                  backgroundColor: '#FFFBEB',
+                  padding: 12,
+                  borderRadius: 8,
+                  borderWidth: 1,
+                  borderColor: '#FDE68A',
+                  marginBottom: 20,
+                }}
+                onPress={() => {
+                  // User accepts terms
+                  hideWelcome();
+                  startDemo();
+                }}
+                activeOpacity={0.7}
+              >
+                <Text style={{
+                  fontSize: 14,
+                  color: '#1F2937',
+                  flex: 1,
+                }}>
+                  I agree to the Terms & Conditions
+                </Text>
+              </TouchableOpacity>
+            </ScrollView>
+
+            <TouchableOpacity
+              style={{
+                backgroundColor: '#3B82F6',
+                paddingVertical: 14,
+                paddingHorizontal: 24,
+                borderRadius: 8,
+                alignItems: 'center',
+              }}
+              onPress={() => {
+                hideWelcome();
+                startDemo();
+              }}
+            >
+              <Text style={{
+                color: '#FFFFFF',
+                fontSize: 16,
+                fontWeight: '600',
+              }}>
+                Accept & Continue
+              </Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
 
       {/* Demo Mode Indicator */}
       <DemoModeIndicator
