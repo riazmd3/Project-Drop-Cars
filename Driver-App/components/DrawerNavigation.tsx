@@ -361,7 +361,7 @@ export default function DrawerNavigation({ visible, onClose }: DrawerNavigationP
                   if (dashboardData?.cars && dashboardData.cars.length > 0) {
                     router.push('/my-cars');
                   } else {
-                    router.push('/add-car');
+                    router.push('/add-car-menu');
                   }
                 }}
                 rightComponent={<ChevronRight color={colors.textSecondary} size={20} />}

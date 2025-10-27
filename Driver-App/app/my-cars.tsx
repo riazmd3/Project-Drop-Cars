@@ -13,7 +13,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, Car, Plus, Image as ImageIcon } from 'lucide-react-native';
+import { ArrowLeft, Car, Plus, Image as ImageIcon, RefreshCw } from 'lucide-react-native';
 import { fetchDashboardData } from '@/services/orders/dashboardService';
 import { fetchDocumentStatuses, DocumentStatusResponse } from '@/services/documents/documentStatusService';
 import DocumentStatusIcon from '@/components/DocumentStatusIcon';
@@ -22,7 +22,7 @@ import DocumentUpdateModal from '@/components/DocumentUpdateModal';
 export default function MyCarsScreen() {
   const { user } = useAuth();
   const { colors } = useTheme();
-  const { dashboardData, loading, error, fetchData } = useDashboard();
+  const { dashboardData, loading, error, fetchData, refreshData } = useDashboard();
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
   const [documentStatuses, setDocumentStatuses] = useState<DocumentStatusResponse[]>([]);
@@ -37,7 +37,7 @@ export default function MyCarsScreen() {
     setRefreshing(true);
     try {
       // Use simple refresh logic - only refresh cars data and document statuses
-      await fetchData();
+      await refreshData();
       await fetchDocumentStatuses().then(setDocumentStatuses);
     } catch (error: any) {
       console.error('Error refreshing cars:', error);
@@ -106,7 +106,7 @@ export default function MyCarsScreen() {
   };
 
   const handleAddCar = () => {
-    router.push('/add-car');
+    router.push('/add-car-menu');
   };
 
   // Edit/Delete not implemented – hide controls
@@ -128,6 +128,11 @@ export default function MyCarsScreen() {
     headerLeft: {
       flexDirection: 'row',
       alignItems: 'center',
+      gap: 12,
+    },
+    refreshButton: {
+      padding: 6,
+      borderRadius: 8,
     },
     backButton: {
       padding: 8,
@@ -319,6 +324,12 @@ export default function MyCarsScreen() {
             <ArrowLeft color={colors.text} size={24} />
           </TouchableOpacity>
           <Text style={dynamicStyles.headerTitle}>My Cars</Text>
+          <TouchableOpacity 
+            style={dynamicStyles.refreshButton} 
+            onPress={handleRefresh}
+          >
+            <RefreshCw color={colors.primary} size={16} />
+          </TouchableOpacity>
         </View>
         <TouchableOpacity style={dynamicStyles.addButton} onPress={handleAddCar}>
           <Plus color="#FFFFFF" size={16} />

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -54,17 +54,33 @@ export default function AddDriverScreen() {
   const [isLoading, setIsLoading] = useState(false);
   
   const router = useRouter();
-  const { user } = useAuth();
+  const { user, refreshUserData } = useAuth();
   const { flow } = useLocalSearchParams<{ flow?: string }>();
+  const { colors } = useTheme();
+  
+  // Refresh user data on screen load to ensure vehicle owner details are available
+  useEffect(() => {
+    const loadUserData = async () => {
+      try {
+        console.log('🔄 Loading user data on add-driver screen...');
+        await refreshUserData();
+        console.log('✅ User data loaded on add-driver screen, userId:', user?.id);
+      } catch (error) {
+        console.error('❌ Failed to load user data:', error);
+      }
+    };
+    loadUserData();
+  }, []);
   
   // Debug user data
-  console.log('🔍 User data in add-driver:', {
-    hasUser: !!user,
-    userId: user?.id,
-    userName: user?.fullName,
-    userMobile: user?.primaryMobile
-  });
-  const { colors } = useTheme();
+  useEffect(() => {
+    console.log('🔍 User data in add-driver:', {
+      hasUser: !!user,
+      userId: user?.id,
+      userName: user?.fullName,
+      userMobile: user?.primaryMobile
+    });
+  }, [user]);
 
   // Function to check account status and redirect accordingly
   const checkAccountStatusAndRedirect = async () => {
@@ -232,6 +248,12 @@ export default function AddDriverScreen() {
     try {
       setIsLoading(true);
       console.log('👤 Starting driver registration process...');
+      
+      // Refresh user data to ensure vehicle owner details are available
+      console.log('🔄 Refreshing user data...');
+      await refreshUserData();
+      console.log('✅ User data refreshed, userId:', user?.id);
+      
       // Verify auth before submitting (VO-protected endpoint)
       try {
         const authCheck = await axiosInstance.get('/api/users/vehicle-owner/me');
@@ -338,15 +360,72 @@ export default function AddDriverScreen() {
       });
       console.log('✅ Driver registration completed successfully!', res.data);
 
-      Alert.alert('Success', 'Driver details added successfully!', [
-        { 
-          text: 'OK', 
-          onPress: () => {
-            setIsLoading(false);
-            checkAccountStatusAndRedirect();
+      // After driver is added, check where to redirect
+      console.log('🔄 Checking redirect logic after driver addition...');
+      
+      // Re-fetch login data to get updated counts and account status
+      const loginDataStr = await SecureStore.getItemAsync('loginResponse');
+      if (loginDataStr) {
+        try {
+          // Fetch updated login response to check current status
+          const authToken = await SecureStore.getItemAsync('authToken');
+          const response = await axiosInstance.get('/api/users/vehicle-owner/me', {
+            headers: { 'Authorization': `Bearer ${authToken}` }
+          });
+          
+          // Get fresh counts and status from API
+          const carCount = Number(response.data?.car_details_count || 0);
+          const driverCount = Number(response.data?.car_driver_count || 1); // At least 1 since we just added
+          const accountStatus = response.data?.account_status || 'INACTIVE';
+          
+          console.log('📊 Updated data after driver addition:', {
+            carCount,
+            driverCount,
+            accountStatus
+          });
+          
+          // Update the stored login response with new counts
+          const loginData = JSON.parse(loginDataStr);
+          loginData.car_details_count = carCount;
+          loginData.car_driver_count = driverCount;
+          loginData.account_status = accountStatus;
+          await SecureStore.setItemAsync('loginResponse', JSON.stringify(loginData));
+          
+          // Redirect based on account status
+          setIsLoading(false);
+          
+          if (accountStatus === 'Inactive' || accountStatus?.toLowerCase() !== 'active') {
+            console.log('⏳ Account not active → redirect to verification');
+            router.replace('/verification');
+          } else if (flow === 'signup') {
+            console.log('✅ Account active, signup flow → go to dashboard');
+            router.replace('/(tabs)');
+          } else {
+            console.log('✅ Menu flow → go back');
+            router.back();
           }
-        },
-      ]);
+        } catch (error) {
+          console.error('❌ Error fetching updated data:', error);
+          setIsLoading(false);
+          
+          // Fallback: assume account is not active and redirect to verification
+          if (flow === 'signup') {
+            router.replace('/verification');
+          } else {
+            router.back();
+          }
+        }
+      } else {
+        console.log('ℹ️ No login response data available');
+        setIsLoading(false);
+        
+        // Fallback redirection
+        if (flow === 'signup') {
+          router.replace('/verification');
+        } else {
+          router.back();
+        }
+      }
     } catch (err: any) {
       console.error('❌ Error during driver registration:', err);
       setIsLoading(false);

@@ -10,17 +10,15 @@ import {
   SafeAreaView,
   ActivityIndicator,
 } from 'react-native';
-import { useRouter, useLocalSearchParams } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { ArrowLeft, Car, Save, Upload, CheckCircle, FileText, Image, ChevronDown } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { addCarDetails } from '@/services/auth/signupService';
 import * as ImagePicker from 'expo-image-picker';
-import * as SecureStore from 'expo-secure-store';
-import axiosInstance from '@/app/api/axiosInstance';
 
-export default function AddCarScreen() {
+export default function AddCarMenuScreen() {
   const [carData, setCarData] = useState({
     name: '',
     type: '',
@@ -45,88 +43,25 @@ export default function AddCarScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { colors } = useTheme();
-  const { dashboardData } = useDashboard();
-  const { flow } = useLocalSearchParams<{ flow?: string }>();
+  const { refreshData } = useDashboard();
 
   const carTypes = ['HATCHBACK', 'SEDAN', 'NEW_SEDAN', 'SUV', 'INNOVA', 'INNOVA_CRYSTA'];
 
-  // Function to redirect after successful car addition
+  // Function to redirect after successful car addition (MENU FLOW ONLY)
   const redirectAfterCarAddition = async () => {
     try {
-      console.log('🚗 Car added successfully, determining next step...');
+      console.log('🚗 Car added successfully via menu, going back to My Cars...');
       
-      // Re-fetch login data to get updated car/driver counts
-      const loginDataStr = await SecureStore.getItemAsync('loginResponse');
-      if (loginDataStr) {
-        // Re-login to get fresh counts
-        const userData = await SecureStore.getItemAsync('userData');
-        if (userData) {
-          const user = JSON.parse(userData);
-          const authToken = await SecureStore.getItemAsync('authToken');
-          
-          // Fetch updated login response by calling the API
-          try {
-            const response = await axiosInstance.get('/api/users/vehicle-owner/me', {
-              headers: { 'Authorization': `Bearer ${authToken}` }
-            });
-            
-            // Get counts from API response (fresh data)
-            const carCount = Number(response.data?.car_details_count || 1); // At least 1 since we just added
-            const driverCount = Number(response.data?.car_driver_count || 0);
-            const accountStatus = response.data?.account_status || 'INACTIVE';
-            
-            console.log('📊 Updated counts after car addition:', {
-              carCount,
-              driverCount,
-              accountStatus
-            });
-            
-            // Update the stored login response with new counts
-            const loginData = JSON.parse(loginDataStr);
-            loginData.car_details_count = carCount;
-            loginData.car_driver_count = driverCount;
-            loginData.account_status = accountStatus;
-            await SecureStore.setItemAsync('loginResponse', JSON.stringify(loginData));
-            
-            // Signup flow: sequential progression only
-            if (driverCount === 0) {
-              console.log('👤 Signup flow: No drivers yet → go to Add Driver');
-              router.replace('/add-driver?flow=signup');
-            } else if (accountStatus === 'Inactive' || accountStatus?.toLowerCase() !== 'active') {
-              console.log('⏳ Signup flow: Account not active → go to Verification');
-              router.replace('/verification');
-            } else {
-              console.log('✅ Signup flow: All good → go to dashboard');
-              router.replace('/(tabs)');
-            }
-          } catch (error) {
-            console.error('❌ Error fetching updated data:', error);
-            // Fallback: assume we just added a car, so car count is at least 1
-            // Check if we have any drivers from dashboard data
-            const driverCount = Number(dashboardData?.drivers?.length || 0);
-            if (driverCount === 0) {
-              console.log('👤 Signup flow fallback: No drivers yet → go to Add Driver');
-              router.replace('/add-driver?flow=signup');
-            } else {
-              console.log('✅ Signup flow fallback: Drivers present → go to dashboard');
-              router.replace('/(tabs)');
-            }
-          }
-        }
-      } else {
-        // No login data, fallback to dashboard data (signup flow only)
-        const driverCount = Number(dashboardData?.drivers?.length || 0);
-        if (driverCount === 0) {
-          console.log('👤 Signup flow (no login data): No drivers yet → go to Add Driver');
-          router.replace('/add-driver?flow=signup');
-        } else {
-          console.log('✅ Signup flow (no login data): Drivers already present → go to dashboard');
-          router.replace('/(tabs)');
-        }
-      }
+      // Refresh dashboard data to show the new car
+      await refreshData();
+      
+      // Always go back to My Cars page for menu flow
+      router.back();
+      
     } catch (error) {
       console.error('❌ Error during redirect:', error);
-      router.replace('/(tabs)');
+      // Fallback: go back anyway
+      router.back();
     }
   };
 
@@ -225,7 +160,7 @@ export default function AddCarScreen() {
   
     try {
       setIsLoading(true);
-      console.log('🚗 Starting car registration process...');
+      console.log('🚗 Starting car registration process via menu...');
       const payload = {
         car_name: carData.name.trim(),
         car_type: carData.type,
@@ -245,7 +180,7 @@ export default function AddCarScreen() {
   
       await addCarDetails(payload);
   
-      console.log('✅ Car registration completed successfully!');
+      console.log('✅ Car registration completed successfully via menu!');
       Alert.alert(
         'Success',
         'Car details added successfully!',
@@ -315,17 +250,15 @@ export default function AddCarScreen() {
         >
           <ArrowLeft color={isLoading ? colors.textSecondary : colors.text} size={24} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Add Your First Car</Text>
-        <View style={styles.stepIndicator}>
-          <Text style={styles.stepText}>Step 1/3</Text>
-        </View>
+        <Text style={[styles.headerTitle, { color: colors.text }]}>Add New Car</Text>
+        <View style={styles.placeholder} />
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.welcomeSection}>
-          <Text style={[styles.welcomeTitle, { color: colors.text }]}>Welcome to Drop Cars!</Text>
+          <Text style={[styles.welcomeTitle, { color: colors.text }]}>Add Another Car</Text>
           <Text style={styles.welcomeSubtitle}>
-            Hi {user?.fullName}, let's get you started by adding your first car and driver.
+            Add details for your new vehicle to expand your fleet.
           </Text>
         </View>
 
@@ -405,17 +338,6 @@ export default function AddCarScreen() {
           </View>
           {errors.year && <Text style={styles.errorText}>{errors.year}</Text>}
 
-          {/* <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }]}>
-            <Car color="#6B7280" size={20} />
-            <TextInput
-              style={[styles.input, { color: colors.text }]}
-              placeholder="Color (e.g., White, Black, Red)"
-              placeholderTextColor="#9CA3AF"
-              value={carData.color}
-              onChangeText={(text) => handleInputChange('color', text)}
-            />
-          </View> */}
-
           <Text style={styles.sectionTitle}>Required Documents & Images</Text>
           <Text style={styles.sectionSubtitle}>
             Please upload clear images of all required documents
@@ -469,7 +391,7 @@ export default function AddCarScreen() {
             ) : (
               <>
                 <Save color="#FFFFFF" size={20} />
-                <Text style={styles.saveButtonText}>Save Car & Continue</Text>
+                <Text style={styles.saveButtonText}>Save Car</Text>
               </>
             )}
           </TouchableOpacity>
@@ -504,16 +426,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-SemiBold',
     color: '#1F2937',
   },
-  stepIndicator: {
-    backgroundColor: '#3B82F6',
-    borderRadius: 12,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-  },
-  stepText: {
-    color: '#FFFFFF',
-    fontSize: 12,
-    fontFamily: 'Inter-SemiBold',
+  placeholder: {
+    width: 40, // Same width as back button for centering
   },
   content: {
     flex: 1,
@@ -712,5 +626,3 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
 });
-
-
