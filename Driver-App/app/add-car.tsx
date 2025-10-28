@@ -27,7 +27,6 @@ export default function AddCarScreen() {
     registration: '',
     model: '',
     year: '',
-    color: '',
   });
   
   const [carImages, setCarImages] = useState({
@@ -237,8 +236,7 @@ export default function AddCarScreen() {
         fc_img: carImages.fc,
         car_img: carImages.carImage,
         model: carData.model || carData.name, // Add model field
-        year_of_the_car: parseInt(carData.year), // Convert to number - backend expects this field name
-        color: carData.color || 'Unknown' // Default color
+        year_of_the_car: carData.year, // Convert to number - backend expects this field name
       };
   
       console.log('Sending payload:', JSON.stringify(payload, null, 2));
@@ -397,7 +395,7 @@ export default function AddCarScreen() {
               style={[styles.input, { color: colors.text }, errors.year && styles.inputError]}
               placeholder="Model Year (e.g., 2023)"
               placeholderTextColor="#9CA3AF"
-              value={carData.year}
+              value={carData.year.toString()}
               onChangeText={(text) => handleInputChange('year', text)}
               keyboardType="numeric"
               maxLength={4}

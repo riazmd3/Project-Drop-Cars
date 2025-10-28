@@ -57,7 +57,7 @@ export default function WalletScreen() {
   const [paymentLoading, setPaymentLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const quickAmounts = [100, 500, 1000, 2000];
+  const quickAmounts = [500, 1000, 2000, 3000];
 
   // Refresh wallet data
   const handleRefresh = async () => {
@@ -213,10 +213,17 @@ export default function WalletScreen() {
       console.error('❌ Payment failed:', error);
 
       // Razorpay detailed error parsing
+      let computedMessage: string | null = null;
+      let parsedDetails: any = null;
       try {
         const rawDescription = error?.description || error?.error?.description;
-        const parsed = rawDescription ? JSON.parse(rawDescription) : null;
-        const rzpErr = parsed?.error || error?.error || {};
+        // rawDescription may already be an object or a JSON string
+        if (typeof rawDescription === 'string') {
+          try { parsedDetails = JSON.parse(rawDescription); } catch { parsedDetails = null; }
+        } else if (rawDescription && typeof rawDescription === 'object') {
+          parsedDetails = rawDescription;
+        }
+        const rzpErr = parsedDetails?.error || error?.error || {};
         console.warn('Razorpay debug: failure details', {
           code: rzpErr.code,
           step: rzpErr.step,
@@ -225,6 +232,15 @@ export default function WalletScreen() {
           description: rzpErr.description,
           metadata: rzpErr.metadata,
         });
+
+        // Prefer backend-provided description when available
+        if (rzpErr?.description) {
+          const pid = rzpErr?.metadata?.payment_id || rzpErr?.metadata?.paymentId;
+          const oid = rzpErr?.metadata?.order_id || rzpErr?.metadata?.orderId;
+          computedMessage = `${rzpErr.description}${pid || oid ? `\n\nPayment ID: ${pid || '-'}\nOrder ID: ${oid || '-'}` : ''}`;
+        } else if (rzpErr.code === 'BAD_REQUEST_ERROR' || rzpErr.reason === 'payment_error' || rzpErr.reason === 'payment_failed') {
+          computedMessage = 'Payment failed. Please try again.';
+        }
       } catch (parseErr) {
         console.warn('Razorpay debug: could not parse error description JSON', parseErr);
       }
@@ -264,7 +280,7 @@ export default function WalletScreen() {
       // Handle other payment failures
       handlePaymentFailure(error);
       
-      let errorMessage = 'Payment failed. Please try again.';
+      let errorMessage = computedMessage || 'Payment failed. Please try again.';
       
       if (error.code === 'PAYMENT_CANCELLED') {
         errorMessage = 'Payment was cancelled by the user.';

@@ -15,6 +15,7 @@ import { useDashboard } from '@/contexts/DashboardContext';
 import { useRouter } from 'expo-router';
 import { ArrowLeft, Car, Plus, Image as ImageIcon, RefreshCw } from 'lucide-react-native';
 import { fetchDashboardData } from '@/services/orders/dashboardService';
+import axiosInstance from '@/app/api/axiosInstance';
 import { fetchDocumentStatuses, DocumentStatusResponse } from '@/services/documents/documentStatusService';
 import DocumentStatusIcon from '@/components/DocumentStatusIcon';
 import DocumentUpdateModal from '@/components/DocumentUpdateModal';
@@ -26,6 +27,7 @@ export default function MyCarsScreen() {
   const router = useRouter();
   const [refreshing, setRefreshing] = useState(false);
   const [documentStatuses, setDocumentStatuses] = useState<DocumentStatusResponse[]>([]);
+  const [availableCarsMap, setAvailableCarsMap] = useState<Record<string, any>>({});
   const [showUpdateModal, setShowUpdateModal] = useState(false);
   const [selectedDocument, setSelectedDocument] = useState<{
     entityId: string;
@@ -38,7 +40,8 @@ export default function MyCarsScreen() {
     try {
       // Use simple refresh logic - only refresh cars data and document statuses
       await refreshData();
-      await fetchDocumentStatuses().then(setDocumentStatuses);
+      await fetchDocumentStatuses().then(setDocumentStatuses);  
+      await loadAvailableCars();
     } catch (error: any) {
       console.error('Error refreshing cars:', error);
       
@@ -70,7 +73,25 @@ export default function MyCarsScreen() {
       .catch(error => {
         console.error('Failed to fetch document statuses:', error);
       });
+    // Also load available cars with status for display
+    loadAvailableCars();
   }, []);
+
+  // Fetch available cars (with car_status) and index by id for quick lookup
+  const loadAvailableCars = async () => {
+    try {
+      const res = await axiosInstance.get('/api/assignments/available-cars');
+      if (Array.isArray(res.data)) {
+        const map: Record<string, any> = {};
+        for (const c of res.data) {
+          if (c && c.id) map[c.id] = c;
+        }
+        setAvailableCarsMap(map);
+      }
+    } catch (err) {
+      console.warn('⚠️ Failed to load available cars status:', err);
+    }
+  };
 
   // Get document status for a specific car and document type
   const getDocumentStatus = (carId: string, documentType: string): 'PENDING' | 'INVALID' | 'VERIFIED' => {
@@ -378,6 +399,10 @@ export default function MyCarsScreen() {
                 <View style={dynamicStyles.carRow}>
                   <Text style={dynamicStyles.carLabel}>Year:</Text>
                   <Text style={dynamicStyles.carValue}>{car.year_of_the_car || car.car_year || car.year || 'N/A'}</Text>
+                </View>
+                <View style={dynamicStyles.carRow}>
+                  <Text style={dynamicStyles.carLabel}>Status:</Text>
+                  <Text style={dynamicStyles.carValue}>{availableCarsMap[car.id]?.car_status || 'PROCESSING'}</Text>
                 </View>
               </View>
 

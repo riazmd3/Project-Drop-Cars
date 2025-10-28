@@ -290,9 +290,9 @@ export default function AddDriverScreen() {
           style={[styles.backButton, isLoading && styles.backButtonDisabled]}
           disabled={isLoading}
         >
-          <ArrowLeft color={isLoading ? colors.textSecondary : colors.text} size={24} />
+          <ArrowLeft color="#FFFFFF" size={24} />
         </TouchableOpacity>
-        <Text style={[styles.headerTitle, { color: colors.text }]}>Add Driver</Text>
+        <Text style={styles.headerTitle}>Add Your Driver</Text>
       </View>
 
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
@@ -454,24 +454,26 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
   },
   header: {
-    flexDirection: 'row',
+    position: 'relative',
+    paddingTop:30,
     alignItems: 'center',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     paddingHorizontal: 20,
     paddingVertical: 16,
-    borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
+    backgroundColor: '#3B82F6',
   },
   backButton: {
+    position: 'absolute',
+    left: 16,
     padding: 8,
   },
   backButtonDisabled: {
     opacity: 0.5,
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 20,
     fontFamily: 'Inter-SemiBold',
-    color: '#1F2937',
+    color: '#FFFFFF',
   },
   stepIndicator: {
     backgroundColor: '#3B82F6',

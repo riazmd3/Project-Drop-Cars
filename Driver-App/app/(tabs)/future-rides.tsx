@@ -17,7 +17,7 @@ import { useNotifications } from '@/contexts/NotificationContext';
 import { MapPin, Clock, IndianRupee, User, Phone, Car, RefreshCw, UserPlus, X, CheckCircle, FileText, ChevronDown, ChevronUp } from 'lucide-react-native';
 import { RefreshControl } from 'react-native';
 import axiosInstance from '@/app/api/axiosInstance';
-import { fetchAvailableDrivers, fetchAvailableCars, assignCarDriverToOrder, AvailableDriver, AvailableCar } from '@/services/orders/assignmentService';
+import { fetchAvailableDrivers, assignCarDriverToOrder, AvailableDriver, AvailableCar } from '@/services/orders/assignmentService';
 
 // Simple interface for the new API response
 interface FutureRide {
@@ -165,10 +165,19 @@ export default function FutureRidesScreen() {
       setAssignmentsLoading(true);
       console.log('🔄 Fetching available drivers and cars...');
       
-      const [driversResponse, carsResponse] = await Promise.all([
-        fetchAvailableDrivers(),
-        fetchAvailableCars()
-      ]);
+      // Always fetch drivers from service
+      const driversResponse = await fetchAvailableDrivers();
+      // Fetch cars from API: /api/assignments/available-cars (VO priority-aware source)
+      let carsResponse: AvailableCar[] = [];
+      try {
+        const carsApi = await axiosInstance.get('/api/assignments/available-cars');
+        if (carsApi?.data && Array.isArray(carsApi.data)) {
+          carsResponse = carsApi.data as AvailableCar[];
+        }
+      } catch (carsErr) {
+        console.warn('⚠️ Fallback: available cars API failed, showing empty list', carsErr);
+        carsResponse = [];
+      }
       
       setAvailableDrivers(driversResponse || []);
       setAvailableCars(carsResponse || []);
@@ -805,22 +814,40 @@ export default function FutureRidesScreen() {
                   </Text>
                 </View>
               ) : availableCars.length > 0 ? (
-                // Filter cars by seat capacity: allow same or greater class than order's car_type
+                // Filter and sort cars: by compatibility and priority
                 (availableCars
                   .filter((car) => {
                     if (!selectedRide) return true;
                     const rank = (type: string) => {
                       switch ((type || '').toUpperCase()) {
-                        case 'HATCHBACK': return 1; // 4–5 seats
-                        case 'SEDAN':
-                        case 'NEW_SEDAN': return 2; // 5 seats
-                        case 'SUV': return 3; // 5–7 seats
-                        case 'INNOVA': return 4; // 7 seats
-                        case 'INNOVA_CRYSTA': return 5; // 7–8 seats
+                        case 'INNOVA_CRYSTA': return 5; // highest priority
+                        case 'INNOVA': return 4;
+                        case 'SUV': return 3;
+                        case 'NEW_SEDAN': return 2;
+                        case 'SEDAN': return 2;
+                        case 'HATCHBACK': return 1;
                         default: return 0;
                       }
                     };
-                    return rank(car.car_type) >= rank(selectedRide.car_type);
+                    // Only include cars with good status if provided
+                    const status = String((car as any)?.car_status || (car as any)?.status || '').toUpperCase();
+                    const statusOk = !status || ['AVAILABLE', 'ONLINE', 'IDLE', 'FREE'].includes(status);
+                    return statusOk && rank(car.car_type) >= rank(selectedRide.car_type);
+                  })
+                  .sort((a, b) => {
+                    const pr = (type: string) => {
+                      switch ((type || '').toUpperCase()) {
+                        case 'INNOVA_CRYSTA': return 5;
+                        case 'INNOVA': return 4;
+                        case 'SUV': return 3;
+                        case 'NEW_SEDAN': return 2;
+                        case 'SEDAN': return 2;
+                        case 'HATCHBACK': return 1;
+                        default: return 0;
+                      }
+                    };
+                    // Higher priority first
+                    return pr(b.car_type) - pr(a.car_type);
                   }))
                   .map((car) => (
                   <TouchableOpacity
@@ -836,6 +863,11 @@ export default function FutureRidesScreen() {
                       <Text style={[styles.carDetails, { color: colors.textSecondary }]}>
                         {car.car_number}
                       </Text>
+                      {!!(car as any)?.car_status && (
+                        <Text style={[styles.carDetails, { color: colors.textSecondary }]}>
+                          Status: {(car as any).car_status}
+                        </Text>
+                      )}
                     </View>
                     <CheckCircle color={colors.primary} size={24} />
                   </TouchableOpacity>

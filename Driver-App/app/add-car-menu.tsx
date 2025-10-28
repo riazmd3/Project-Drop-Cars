@@ -145,9 +145,9 @@ export default function AddCarMenuScreen() {
     }
 
     // Validate year field
-    const year = parseInt(carData.year);
+    const year = carData.year;
     const currentYear = new Date().getFullYear();
-    if (isNaN(year) || year < 1900 || year > currentYear + 1) {
+    if (isNaN(parseInt(year)) || parseInt(year) < 1900 || parseInt(year) > currentYear + 1) {
       Alert.alert('Validation Error', 'Please enter a valid year (1900 to ' + (currentYear + 1) + ')');
       return;
     }
@@ -165,21 +165,25 @@ export default function AddCarMenuScreen() {
         car_name: carData.name.trim(),
         car_type: carData.type,
         car_number: carData.registration.trim().toUpperCase(), // Convert to uppercase
-        vehicle_owner_id: user?.id || 'e5b9edb1-b4bb-48b8-a662-f7fd00abb6eb',
+        vehicle_owner_id: user?.id ,
         rc_front_img: carImages.rcFront,
         rc_back_img: carImages.rcBack,
         insurance_img: carImages.insurance,
         fc_img: carImages.fc,
         car_img: carImages.carImage,
         model: carData.model || carData.name, // Add model field
-        year_of_the_car: parseInt(carData.year), // Convert to number - backend expects this field name
-        color: carData.color || 'Unknown' // Default color
+        year_of_the_car: carData.year, // Convert to number - backend expects this field name
+  
       };
   
       console.log('Sending payload:', JSON.stringify(payload, null, 2));
-  
-      await addCarDetails(payload);
-  
+
+      // Ensure vehicle_owner_id is always a string to satisfy CarDetailsData type
+      await addCarDetails({
+        ...payload,
+        vehicle_owner_id: payload.vehicle_owner_id ?? ''
+      });
+
       console.log('✅ Car registration completed successfully via menu!');
       Alert.alert(
         'Success',

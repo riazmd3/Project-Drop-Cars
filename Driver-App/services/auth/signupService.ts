@@ -340,7 +340,7 @@ export interface CarDetailsData {
   car_type: string;
   car_number: string;
   vehicle_owner_id: string;
-  year_of_the_car: number; // Year as number
+  year_of_the_car: string; // Year as number
   rc_front_img: any; // File object for FormData
   rc_back_img: any; // File object for FormData
   insurance_img: any; // File object for FormData
