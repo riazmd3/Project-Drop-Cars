@@ -338,16 +338,10 @@ export default function FutureRidesScreen() {
     // Step 3: Calculate remaining time from now
     const now = new Date();
     const remainingMs = assignmentEndTime.getTime() - now.getTime();
-  
-    // Use a smaller buffer (10 seconds instead of 60 seconds)
-    if (remainingMs < -10000) {
-      return "Assignment window expired";
-    }
     
-    // Handle negative time (past deadline but within 10-second buffer)
-    if (remainingMs < 0) {
-      const overdueSeconds = Math.abs(Math.floor(remainingMs / 1000));
-      return `Overdue: ${overdueSeconds}s`;
+    // If the time is past due, mark as expired (no overdue countdown)
+    if (remainingMs <= 0) {
+      return "Assignment window expired";
     }
     
     const remainingMinutes = Math.floor(remainingMs / 60000);
@@ -381,11 +375,9 @@ export default function FutureRidesScreen() {
             <Text style={styles.timerText}>
               {remaining === 'Assignment window expired'
                 ? 'Assignment window expired'
-                : remaining.startsWith('Overdue:')
-                  ? `Assignment overdue: ${remaining.replace('Overdue: ', '')}`
-                  : remaining
-                    ? `Assign driver & car in ${remaining}`
-                    : ''}
+                : remaining
+                  ? `Assign driver & car in ${remaining}`
+                  : ''}
             </Text>
           </View>
         )}
@@ -615,7 +607,7 @@ export default function FutureRidesScreen() {
           <TouchableOpacity 
             style={[styles.assignButton, { backgroundColor: colors.primary }]}
             onPress={() => handleAssignDriver(ride)}
-            disabled={assignmentsLoading}
+            disabled={assignmentsLoading || getAssignmentRemaining(ride) === 'Assignment window expired'}
           >
             {assignmentsLoading ? (
               <ActivityIndicator color="#FFFFFF" size="small" />
@@ -623,7 +615,7 @@ export default function FutureRidesScreen() {
               <UserPlus color="#FFFFFF" size={20} />
             )}
             <Text style={styles.assignButtonText}>
-              {assignmentsLoading ? 'Loading...' : 'Assign Driver & Car'}
+              {assignmentsLoading ? 'Loading...' : (getAssignmentRemaining(ride) === 'Assignment window expired' ? 'Assignment expired' : 'Assign Driver & Car')}
             </Text>
           </TouchableOpacity>
         )}
