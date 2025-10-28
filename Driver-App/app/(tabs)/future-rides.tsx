@@ -822,11 +822,12 @@ export default function FutureRidesScreen() {
                   .filter((car) => {
                     if (!selectedRide) return true;
                     const rank = (type: string) => {
-                      switch ((type || '').toUpperCase()) {
-                        case 'INNOVA_CRYSTA': return 5; // highest priority
+                      const normalizedType = (type || '').toUpperCase().replace(/_/g, ' ');
+                      switch (normalizedType) {
+                        case 'INNOVA CRYSTA': return 5; // highest priority
                         case 'INNOVA': return 4;
                         case 'SUV': return 3;
-                        case 'NEW_SEDAN': return 2;
+                        case 'NEW SEDAN': return 2;
                         case 'SEDAN': return 2;
                         case 'HATCHBACK': return 1;
                         default: return 0;
@@ -839,11 +840,12 @@ export default function FutureRidesScreen() {
                   })
                   .sort((a, b) => {
                     const pr = (type: string) => {
-                      switch ((type || '').toUpperCase()) {
-                        case 'INNOVA_CRYSTA': return 5;
+                      const normalizedType = (type || '').toUpperCase().replace(/_/g, ' ');
+                      switch (normalizedType) {
+                        case 'INNOVA CRYSTA': return 5;
                         case 'INNOVA': return 4;
                         case 'SUV': return 3;
-                        case 'NEW_SEDAN': return 2;
+                        case 'NEW SEDAN': return 2;
                         case 'SEDAN': return 2;
                         case 'HATCHBACK': return 1;
                         default: return 0;
