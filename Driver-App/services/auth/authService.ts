@@ -235,18 +235,6 @@ class AuthService {
   // Logout user
   async logout(): Promise<void> {
     try {
-      // Send empty notification token to server before clearing local data
-      try {
-        const { updateNotificationSettings } = await import('@/services/notifications/notificationApi');
-        await updateNotificationSettings({
-          permission1: false,
-          permission2: false
-        });
-        console.log('✅ Notification token cleared on server');
-      } catch (notificationError) {
-        console.log('ℹ️ Could not clear notification token on server:', notificationError);
-      }
-
       await this.clearToken();
       console.log('✅ User logged out successfully');
     } catch (error) {

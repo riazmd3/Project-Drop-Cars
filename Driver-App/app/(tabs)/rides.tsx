@@ -48,6 +48,7 @@ interface RideData {
   assigned_at?: string | null;
   completed_at?: string | null;
   cancelled_at?: string | null;
+  cancelled_by?: string | null;
 }
 
 export default function RidesScreen() {
@@ -119,6 +120,7 @@ export default function RidesScreen() {
           status: order.assignment_status?.toLowerCase() || 'completed',
           assignment_status: order.assignment_status || 'COMPLETED',
           trip_status: order.trip_status || 'COMPLETED',
+          cancelled_by: (order as any).cancelled_by,
         };
         
         console.log('🔄 Processing completed order:', {
@@ -251,13 +253,16 @@ export default function RidesScreen() {
     }
   };
 
-  const getCancellationLabel = (assignmentStatus: string) => {
+  const getCancellationLabel = (assignmentStatus: string, cancelledBy?: string | null) => {
     switch (assignmentStatus) {
       case 'AUTO_CANCELLED':
         return 'Auto Cancelled';
       case 'CANCELLED_BY_VENDOR':
         return 'Cancelled by Vendor';
       case 'CANCELLED':
+        if (cancelledBy) {
+          return ` ${cancelledBy}`;
+        }
         return 'Cancelled';
       default:
         return 'Cancelled';
@@ -281,9 +286,8 @@ export default function RidesScreen() {
       <View key={`${ride.id}-${ride.order_id}-${ride.assignment_id || ride.id}`} style={[styles.rideCard, { backgroundColor: colors.surface }]}>
         <View style={styles.rideHeader}>
           <View style={styles.statusBadge}>
-            <Text style={styles.statusIcon}>{getStatusIcon(ride.status)}</Text>
-            <Text style={[styles.statusText, { color: getStatusColor(ride.status) }]}>
-              {activeTab === 'cancelled' ? getCancellationLabel(ride.assignment_status) : ride.status.toUpperCase()}
+          <Text style={[styles.statusText, { color: getStatusColor(ride.status) }]}>
+              {activeTab === 'cancelled' ? getCancellationLabel(ride.assignment_status, ride.cancelled_by) : ride.status.toUpperCase()}
             </Text>
           </View>
           <Text style={[styles.orderId, { color: colors.textSecondary }]}>
@@ -491,6 +495,14 @@ export default function RidesScreen() {
                   <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Completed:</Text>
                   <Text style={[styles.expandedValue, { color: colors.text }]}>
                     {new Date(ride.completed_at).toLocaleString()}
+                  </Text>
+                </View>
+              )}
+              {ride.cancelled_by && (
+                <View style={styles.expandedRow}>
+                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Cancelled By:</Text>
+                  <Text style={[styles.expandedValue, { color: colors.text }]}>
+                    {ride.cancelled_by}
                   </Text>
                 </View>
               )}

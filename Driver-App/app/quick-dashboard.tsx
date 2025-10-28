@@ -88,6 +88,7 @@ export default function QuickDashboardScreen() {
   // Animation values
   const statusAnimation = useState(new Animated.Value(0))[0];
   const pulseAnimation = useState(new Animated.Value(1))[0];
+  const notificationBlinkAnimation = useState(new Animated.Value(1))[0];
 
   // Get driver info from login data
   const driverInfo = {
@@ -198,6 +199,42 @@ export default function QuickDashboardScreen() {
   // SIMPLE TEST FUNCTION (FROM VENDOR APP)
   const testForegroundNotification = async () => {
     try {
+      // Check if notifications are enabled before testing
+      if (!notificationsEnabled) {
+        // Blink the notification toggle to draw attention
+        Alert.alert(
+          'Notifications Disabled',
+          'Please turn on notifications to test them. The notification toggle will blink to help you locate it.',
+          [{ text: 'OK' }]
+        );
+        
+        // Blink animation for notification toggle
+        // Blink animation for notification toggle with Orange color
+const blinkAnimation = Animated.loop(
+  Animated.sequence([
+    Animated.timing(notificationBlinkAnimation, {
+      toValue: 0.3,
+      duration: 1000, // Increased duration for slower blink
+      useNativeDriver: true,
+    }),
+    Animated.timing(notificationBlinkAnimation, {
+      toValue: 1,
+      duration: 1000, // Increased duration for slower blink
+      useNativeDriver: true,
+    }),
+  ])
+);
+blinkAnimation.start();
+
+// Stop blinking after 8 seconds
+setTimeout(() => {
+  blinkAnimation.stop();
+  notificationBlinkAnimation.setValue(1); // Reset to normal state
+}, 5000);
+        
+        return;
+      }
+      
       const { testForegroundNotification } = await import('@/services/notifications/notificationService');
       await testForegroundNotification();
       Alert.alert('Test Sent', 'Test notification sent!');
@@ -723,21 +760,34 @@ export default function QuickDashboardScreen() {
           </View>
           
           <View style={styles.headerActions}>
-            <TouchableOpacity 
-              onPress={toggleNotifications} 
-              style={styles.notificationToggle}
+          <Animated.View 
+          style={[
+            styles.notificationToggleContainer,
+            { 
+              backgroundColor: notificationBlinkAnimation.interpolate({
+                inputRange: [0.4, 1],
+                outputRange: ['orange', 'white'] // Orange blink color
+              }),
+              opacity: notificationBlinkAnimation
+            }
+          ]}
+        >
+          <TouchableOpacity 
+            onPress={toggleNotifications} 
+            style={styles.notificationToggle}
+            disabled={notificationLoading}
+          >
+            <Bell size={18} color={colors.primary} />
+            <Switch
+              value={notificationsEnabled}
+              onValueChange={toggleNotifications}
+              trackColor={{ false: colors.border, true: colors.primary }}
+              thumbColor={notificationsEnabled ? '#FFFFFF' : '#F3F4F6'}
               disabled={notificationLoading}
-            >
-              <Bell size={18} color={colors.primary} />
-              <Switch
-                value={notificationsEnabled}
-                onValueChange={toggleNotifications}
-                trackColor={{ false: colors.border, true: colors.primary }}
-                thumbColor={notificationsEnabled ? '#FFFFFF' : '#F3F4F6'}
-                disabled={notificationLoading}
-                style={styles.switch}
-              />
-            </TouchableOpacity>
+              style={styles.switch}
+            />
+          </TouchableOpacity>
+        </Animated.View>
             <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
               <LogOut size={20} color={colors.error} />
             </TouchableOpacity>
@@ -1256,6 +1306,10 @@ const styles = StyleSheet.create({
     },
   driverDetails: {
       flex: 1,
+    },
+    notificationToggleContainer: {
+      borderRadius: 8, // Optional: for rounded corners
+      padding: 4, // Optional: for better visual appearance
     },
   driverName: {
       fontSize: 18,
