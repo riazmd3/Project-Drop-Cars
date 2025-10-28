@@ -541,9 +541,37 @@ export default function WalletScreen() {
     },
   });
 
+  // Helper function to format date and time
+  const formatTransactionDateTime = (dateString: string) => {
+    try {
+      const date = new Date(dateString);
+      
+      // Format date (e.g., "Dec 15, 2024")
+      const formattedDate = date.toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric'
+      });
+      
+      // Format time with AM/PM (e.g., "2:30 PM")
+      const formattedTime = date.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+        hour12: true
+      });
+      
+      return { date: formattedDate, time: formattedTime };
+    } catch (error) {
+      console.warn('Failed to format date:', dateString, error);
+      return { date: 'Invalid Date', time: 'Invalid Time' };
+    }
+  };
+
   const TransactionCard = ({ transaction }: { transaction: any }) => {
     const isCredit = transaction.entry_type === 'CREDIT';
     const isDebit = transaction.entry_type === 'DEBIT';
+    
+    const { date, time } = formatTransactionDateTime(transaction.created_at || transaction.date);
     
     return (
       <View style={dynamicStyles.transactionCard}>
@@ -560,7 +588,8 @@ export default function WalletScreen() {
           </View>
           <View style={dynamicStyles.transactionInfo}>
             <Text style={dynamicStyles.transactionTitle}>{transaction.notes || transaction.description}</Text>
-            <Text style={dynamicStyles.transactionDate}>{transaction.created_at || transaction.date}</Text>
+            <Text style={dynamicStyles.transactionDate}>{date}</Text>
+            <Text style={dynamicStyles.transactionTime}>{time}</Text>
             <Text style={[
               dynamicStyles.transactionStatus,
               { 

@@ -17,7 +17,7 @@ import { getFutureRidesForVehicleOwner, getCompletedOrdersForVehicleOwner, Futur
 
 interface RideData {
   id: string;
-  order_id: number;
+  order_id: string | number; // Can be either string or number
   status: string;
   assignment_status: string;
   trip_status: string;
@@ -84,8 +84,16 @@ export default function RidesScreen() {
       
       // Process future rides (these are driving/pending)
       futureRides.forEach(ride => {
+        console.log('🔍 Future ride data structure:', {
+          id: ride.id,
+          order_id: ride.order_id,
+          source_order_id: (ride as any).source_order_id,
+          allFields: Object.keys(ride)
+        });
+        
         const rideData: RideData = {
           ...ride,
+          order_id: ride.order_id || (ride as any).source_order_id || ride.id, // Use source_order_id as fallback
           status: ride.assignment_status?.toLowerCase() || 'pending',
           assignment_status: ride.assignment_status || 'PENDING',
           trip_status: ride.trip_status || 'PENDING',
@@ -98,8 +106,16 @@ export default function RidesScreen() {
       
       // Process completed orders
       completedOrders.forEach(order => {
+        console.log('🔍 Completed order data structure:', {
+          id: order.id,
+          order_id: order.order_id,
+          source_order_id: (order as any).source_order_id,
+          allFields: Object.keys(order)
+        });
+        
         const rideData: RideData = {
           ...order,
+          order_id: order.order_id || (order as any).source_order_id || order.id, // Use source_order_id as fallback
           status: order.assignment_status?.toLowerCase() || 'completed',
           assignment_status: order.assignment_status || 'COMPLETED',
           trip_status: order.trip_status || 'COMPLETED',
@@ -271,7 +287,7 @@ export default function RidesScreen() {
             </Text>
           </View>
           <Text style={[styles.orderId, { color: colors.textSecondary }]}>
-            Order #{ride.order_id || ride.id || 'N/A'}
+            Order #{ride.order_id || 'N/A'}
           </Text>
         </View>
 
