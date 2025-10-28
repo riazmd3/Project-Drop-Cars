@@ -79,7 +79,7 @@ export default function EndTripScreen() {
   const handleEndTrip = async () => {
     // Check required fields (removed contact number requirement)
     if (!endKm || !odometerPhoto || !thanked) {
-      Alert.alert('Error', 'Please complete all required fields and thank your customer.');
+      Alert.alert('Error', 'Please complete all required fields and Wish your Customer.');
       return;
     }
 
@@ -217,7 +217,7 @@ export default function EndTripScreen() {
           <View style={[styles.checkbox, thanked && styles.checkedBox]}>
             {thanked && <Check color="#FFFFFF" size={16} />}
           </View>
-          <Text style={styles.checkboxText}>Thank your customer for trusting you</Text>
+          <Text style={styles.checkboxText}>Wish Your Customer: Thank you for being part of our journey. Your trust drives us forward! </Text>
         </TouchableOpacity>
 
         {/* Odometer Photo */}

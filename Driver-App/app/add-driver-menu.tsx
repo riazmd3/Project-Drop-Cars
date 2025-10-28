@@ -277,7 +277,7 @@ export default function AddDriverScreen() {
           status: err?.response?.status,
           data: err?.response?.data || err?.message,
         }));
-        Alert.alert('Error', err?.response?.data?.detail || 'Failed to add driver details');
+        Alert.alert('Error', err?.response?.data?.detail || 'Failed to add driver details info ');
       }
     }
   };

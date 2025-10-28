@@ -150,15 +150,17 @@ export default function QuickLoginScreen() {
       >
         <View style={styles.content}>
           <TouchableOpacity onPress={async () => {
-            // Clear any existing driver data before going back to owner login
+            // Clear any existing driver data before switching to owner login
             try {
               await SecureStore.deleteItemAsync('driverAuthToken');
               await SecureStore.deleteItemAsync('driverAuthInfo');
+              await SecureStore.deleteItemAsync('driverLastLogin');
               console.log('✅ Cleared driver data before switching to owner login');
             } catch (error) {
               console.log('ℹ️ No driver data to clear');
             }
-            router.back();
+            // Use replace to avoid GO_BACK errors when there's no history
+            router.replace('/login');
           }} style={styles.backButton}>
             <ArrowLeft color="#FFFFFF" size={24} />
           </TouchableOpacity>

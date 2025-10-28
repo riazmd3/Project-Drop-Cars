@@ -40,7 +40,7 @@ interface Booking {
 
 export default function DashboardScreen() {
   const { user } = useAuth();
-  const { balance } = useWallet();
+  const { balance, refreshBalance } = useWallet();
   const { colors } = useTheme();
   const { dashboardData, loading, error, fetchData, refreshData, futureRides } = useDashboard();
   const { notificationsEnabled, getNotificationStatus } = useNotifications();
@@ -283,6 +283,8 @@ export default function DashboardScreen() {
       await forceRefreshDashboardData();
       await refreshData();
       await fetchPendingOrdersData(); // Also refresh orders
+      // Refresh wallet balance to reflect latest amount
+      try { await refreshBalance(); } catch {}
       
       console.log('✅ Manual refresh completed successfully');
     } catch (error: any) {
@@ -832,7 +834,7 @@ export default function DashboardScreen() {
             {/* Welcome Banner */}
             <View style={dynamicStyles.welcomeBanner}>
               <Text style={dynamicStyles.welcomeBannerTitle}>
-                🚗 Welcome to Drop Cars, {dashboardData?.user_info?.full_name || user?.fullName || 'Vehicle Owner'}!
+                Welcome to Drop Cars, {dashboardData?.user_info?.full_name || user?.fullName || 'Vehicle Owner'}!
               </Text>
               <Text style={dynamicStyles.welcomeBannerSubtitle}>
                 {dashboardData?.cars && dashboardData.cars.length > 0 

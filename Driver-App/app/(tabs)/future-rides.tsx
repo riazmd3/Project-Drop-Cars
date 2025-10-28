@@ -11,6 +11,7 @@ import {
   Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext'; 
 import { useNotifications } from '@/contexts/NotificationContext';
@@ -152,6 +153,16 @@ export default function FutureRidesScreen() {
       fetchFutureRides();
     }
   }, [user?.id]);
+
+  // Refresh when tab/screen gains focus
+  useFocusEffect(
+    React.useCallback(() => {
+      if (user) {
+        console.log('📌 Future Rides focused, refreshing...');
+        fetchFutureRides();
+      }
+    }, [user?.id])
+  );
 
   // Ticker for countdowns
   useEffect(() => {

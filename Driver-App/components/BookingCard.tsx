@@ -435,11 +435,6 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
                 <Text style={dynamicStyles.detailText}><Text style={dynamicStyles.detailColLabel}>ETA:</Text> {estimatedTime}</Text>
               )}
             </View>
-            <View style={dynamicStyles.detailCol}>
-              {!!deadlineTime && (
-                <Text style={dynamicStyles.detailText}><Text style={dynamicStyles.detailColLabel}>Assign by:</Text> {deadlineTime}</Text>
-              )}
-            </View>
           </View>
         )}
       </View>
@@ -455,7 +450,7 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
       {chargesToDeduct > 0 && (
         <View style={dynamicStyles.tripInfo}>
           <Text style={dynamicStyles.tripInfoText}>
-            Deductible amount: ₹{chargesToDeduct} (from total fare: ₹{displayPrice})
+            Deductible amount: ₹{chargesToDeduct}
           </Text>
         </View>
       )}

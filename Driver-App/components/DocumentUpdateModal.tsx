@@ -90,7 +90,13 @@ export default function DocumentUpdateModal({
 
       // For React Native, we need to create a proper FormData object
       const formData = new FormData();
-      formData.append('document_type', documentType);
+      // Normalize backend document type keys
+      const normalizeDocumentType = (t: string) => {
+        const key = String(t || '').toLowerCase();
+        if (key === 'car_img' || key === 'car_image' || key === 'carimg' || key === 'carimg_url') return 'car';
+        return key;
+      };
+      formData.append('document_type', normalizeDocumentType(documentType));
       
       // Create the file object for React Native
       const file = {
