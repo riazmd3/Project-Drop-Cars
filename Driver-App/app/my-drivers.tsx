@@ -145,7 +145,7 @@ export default function MyDriversScreen() {
   };
 
   const handleAddDriver = () => {
-    router.push('/add-driver-menu');
+    router.push('/add-driver');
   };
 
   // Edit/Delete not implemented – hide controls
