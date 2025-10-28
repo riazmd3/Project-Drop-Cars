@@ -8,7 +8,7 @@ import {
   Alert,
   ScrollView,
 } from 'react-native';
-import { User, Phone, MapPin, ArrowRight, Lock, Hash } from 'lucide-react-native';
+import { User, Phone, MapPin, ArrowRight, Lock, Hash, Eye, EyeOff } from 'lucide-react-native';
 
 interface PersonalDetailsStepProps {
   data: any;
@@ -52,6 +52,7 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
   const [primaryMobile, setPrimaryMobile] = useState(data.primaryMobile || '');
   const [secondaryMobile, setSecondaryMobile] = useState(data.secondaryMobile || '');
   const [password, setPassword] = useState(data.password || '');
+  const [showPassword, setShowPassword] = useState(false);
   const [address, setAddress] = useState(data.address || '');
   const [city, setCity] = useState(data.city || '');
   const [pincode, setPincode] = useState(data.pincode || '');
@@ -145,8 +146,18 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
             placeholderTextColor="#9CA3AF"
             value={password}
             onChangeText={setPassword}
-            secureTextEntry
+            secureTextEntry={!showPassword}
           />
+          <TouchableOpacity 
+            onPress={() => setShowPassword(!showPassword)}
+            style={styles.eyeButton}
+          >
+            {showPassword ? (
+              <EyeOff color="#6B7280" size={20} />
+            ) : (
+              <Eye color="#6B7280" size={20} />
+            )}
+          </TouchableOpacity>
         </View>
 
         {/* Address */}
@@ -264,6 +275,9 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Medium', 
     color: '#1F2937',
     textAlign: 'left'
+  },
+  eyeButton: {
+    padding: 4,
   },
   label: { 
     fontSize: 16, 

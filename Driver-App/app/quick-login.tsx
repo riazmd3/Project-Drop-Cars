@@ -13,13 +13,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { Smartphone, Lock, ArrowRight, ArrowLeft } from 'lucide-react-native';
+import { Smartphone, Lock, ArrowRight, ArrowLeft, Eye, EyeOff } from 'lucide-react-native';
 import { loginDriver } from '@/services/driver/driverService';
 import * as SecureStore from 'expo-secure-store';
 
 export default function QuickLoginScreen() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { login } = useAuth();
@@ -192,8 +193,18 @@ export default function QuickLoginScreen() {
                 placeholderTextColor="#9CA3AF"
                 value={password}
                 onChangeText={setPassword}
-                secureTextEntry
+                secureTextEntry={!showPassword}
               />
+              <TouchableOpacity 
+                onPress={() => setShowPassword(!showPassword)}
+                style={styles.eyeButton}
+              >
+                {showPassword ? (
+                  <EyeOff color="#6B7280" size={20} />
+                ) : (
+                  <Eye color="#6B7280" size={20} />
+                )}
+              </TouchableOpacity>
             </View>
 
             <TouchableOpacity 
@@ -275,6 +286,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-Medium',
     color: '#1F2937',
+  },
+  eyeButton: {
+    padding: 4,
   },
   loginButton: {
     backgroundColor: '#3B82F6',

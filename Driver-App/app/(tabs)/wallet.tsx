@@ -519,13 +519,25 @@ export default function WalletScreen() {
       color: colors.textSecondary,
       marginTop: 2,
     },
+    transactionTime: {
+      fontSize: 11,
+      fontFamily: 'Inter-Regular',
+      color: colors.textSecondary,
+      marginTop: 1,
+    },
     transactionStatus: {
       fontSize: 10,
       fontFamily: 'Inter-Medium',
       marginTop: 2,
     },
+    transactionAmountContainer: {
+      borderRadius: 8,
+      paddingHorizontal: 8,
+      paddingVertical: 4,
+      alignSelf: 'flex-start',
+    },
     transactionAmount: {
-      fontSize: 16,
+      fontSize: 15,
       fontFamily: 'Inter-Bold',
     },
     emptyState: {
@@ -593,20 +605,24 @@ export default function WalletScreen() {
             <Text style={[
               dynamicStyles.transactionStatus,
               { 
-                color: isCredit ? colors.success : colors.error,
-                backgroundColor: isCredit ? '#D1FAE5' : '#FEE2E2'
+                color: isCredit ? colors.success : colors.error
               }
             ]}>
               {transaction.entry_type}
             </Text>
           </View>
         </View>
-        <Text style={[
-          dynamicStyles.transactionAmount,
-          { color: isCredit ? colors.success : colors.error }
+        <View style={[
+          dynamicStyles.transactionAmountContainer,
+          { backgroundColor: isCredit ? '#D1FAE5' : '#FEE2E2' }
         ]}>
-          {isCredit ? '+' : '-'}₹{transaction.amount}
-        </Text>
+          <Text style={[
+            dynamicStyles.transactionAmount,
+            { color: isCredit ? colors.success : colors.error }
+          ]}>
+            {isCredit ? '+' : '-'}₹{transaction.amount}
+          </Text>
+        </View>
       </View>
     );
   };

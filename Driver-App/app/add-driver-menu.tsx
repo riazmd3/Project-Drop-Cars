@@ -11,7 +11,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import { ArrowLeft, User, Save, Upload, CheckCircle, Image, Phone, Lock, MapPin, CreditCard } from 'lucide-react-native';
+import { ArrowLeft, User, Save, Upload, CheckCircle, Image, Phone, Lock, MapPin, CreditCard, Eye, EyeOff } from 'lucide-react-native';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import * as ImagePicker from 'expo-image-picker';
@@ -42,6 +42,7 @@ export default function AddDriverScreen() {
     city: '',
     pincode: '',
   });
+  const [showPassword, setShowPassword] = useState(false);
   
   const [driverImages, setDriverImages] = useState({
     licence_front_img: '',
@@ -350,8 +351,18 @@ export default function AddDriverScreen() {
               placeholder="Password"
               value={driverData.password}
               onChangeText={(text) => handleInputChange('password', text)}
-              secureTextEntry
+              secureTextEntry={!showPassword}
             />
+            <TouchableOpacity 
+              onPress={() => setShowPassword(!showPassword)}
+              style={styles.eyeButton}
+            >
+              {showPassword ? (
+                <EyeOff color="#6B7280" size={20} />
+              ) : (
+                <Eye color="#6B7280" size={20} />
+              )}
+            </TouchableOpacity>
           </View>
           {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
 
@@ -548,6 +559,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-Medium',
     color: '#1F2937',
+  },
+  eyeButton: {
+    padding: 4,
   },
   inputError: {
     borderColor: '#EF4444',

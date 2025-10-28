@@ -13,7 +13,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
-import { Smartphone, Lock, ArrowRight } from 'lucide-react-native';
+import { Smartphone, Lock, ArrowRight, Eye, EyeOff } from 'lucide-react-native';
 import WelcomeScreen from '@/components/WelcomeScreen';
 // REMOVED: AccountVerificationScreen - using verification.tsx page instead
 import axiosInstance from '@/app/api/axiosInstance';
@@ -40,6 +40,7 @@ const formatForBackend = (phone: string) => {
 export default function LoginScreen() {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [showWelcome, setShowWelcome] = useState(false);
   const [showAccountVerification, setShowAccountVerification] = useState(false);
@@ -306,8 +307,18 @@ export default function LoginScreen() {
                 placeholderTextColor="#9CA3AF"
                 value={password}
                 onChangeText={setPassword}
-                secureTextEntry
+                secureTextEntry={!showPassword}
               />
+              <TouchableOpacity 
+                onPress={() => setShowPassword(!showPassword)}
+                style={styles.eyeButton}
+              >
+                {showPassword ? (
+                  <EyeOff color="#6B7280" size={20} />
+                ) : (
+                  <Eye color="#6B7280" size={20} />
+                )}
+              </TouchableOpacity>
             </View>
 
             <TouchableOpacity 
@@ -402,6 +413,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-Medium',
     color: '#1F2937',
+  },
+  eyeButton: {
+    padding: 4,
   },
   loginButton: {
     backgroundColor: '#3B82F6',
