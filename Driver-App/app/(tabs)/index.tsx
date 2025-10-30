@@ -175,6 +175,48 @@ export default function DashboardScreen() {
     ])
   ).sort();
 
+  // Replace SecureStore persistence with API fetching and updating
+  useEffect(() => {
+    // On mount/first render, fetch selected cities from server
+    (async () => {
+      try {
+        // Only fetch if user is present (check user?.id)
+        if (!user) return;
+        const headers = await getAuthHeaders();
+        const res = await axiosInstance.get('/api/cities/vehicle-owner/selected', { headers });
+        const data = res.data;
+        // The API returns: { "Chennai": true, "Vellore": true, ... }
+        if (data && typeof data === 'object') {
+          setSelectedCities(Object.entries(data)
+            .filter(([_, v]: [any, any]) => v)
+            .map(([city]) => city)
+          );
+        }
+      } catch (e) {
+        Alert.alert('Error', 'Failed to fetch city selection: ' + String(e));
+      }
+    })();
+  }, [user?.id]);
+
+  // When city selection changes, send it to backend
+  useEffect(() => {
+    (async () => {
+      try {
+        if (!user) return;
+        // Only update when not first mount
+        if(!selectedCities) return;
+        const headers = await getAuthHeaders();
+        // POST/PUT is fine, backend will accept either
+        await axiosInstance.post('/api/cities/vehicle-owner/selected', selectedCities, {
+          headers,
+        });
+      } catch (e) {
+        Alert.alert('Error', 'Failed to update city selection: ' + String(e));
+      }
+    })();
+  }, [JSON.stringify(selectedCities), user?.id]);
+
+  // Update toggleCitySelection to just update state (effect syncs to API)
   const toggleCitySelection = (city: string) => {
     setSelectedCities(prev => {
       const exists = prev.includes(city);
@@ -182,32 +224,11 @@ export default function DashboardScreen() {
         return prev.filter(c => c !== city);
       }
       if (prev.length >= 5) {
-        return prev; // limit to 5
+        return prev;
       }
       return [...prev, city];
     });
   };
-
-  // Persist selected cities
-  useEffect(() => {
-    (async () => {
-      try {
-        const saved = await SecureStore.getItemAsync(CITY_STORAGE_KEY);
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (Array.isArray(parsed)) setSelectedCities(parsed);
-        }
-      } catch {}
-    })();
-  }, []);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        await SecureStore.setItemAsync(CITY_STORAGE_KEY, JSON.stringify(selectedCities));
-      } catch {}
-    })();
-  }, [selectedCities]);
 
   const isTripTypenearcity = (t: any) => {
     const val = String(t || '').toLowerCase();
