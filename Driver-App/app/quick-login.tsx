@@ -90,7 +90,6 @@ export default function QuickLoginScreen() {
             password: password,
             address: 'Driver Address',
             aadharNumber: '',
-            languages: ['English'],
             documents: {},
             driver_status: driverStatus,
             account_status: 'inactive' // Map PROCESSING to inactive for AccountVerificationScreen
@@ -119,7 +118,6 @@ export default function QuickLoginScreen() {
           password: password,
           address: 'Driver Address', // This could be fetched separately if needed
           aadharNumber: '', // Drivers don't have Aadhar in this context
-          languages: ['English'], // Default language
           documents: {}, // No documents needed for quick login
           driver_status: driverStatus // Include driver status from login response
         };

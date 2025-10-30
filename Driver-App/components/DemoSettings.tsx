@@ -34,7 +34,6 @@ export default function DemoSettings({ isVisible, onClose, onFeatureHighlight }:
     notifications: true,
     darkMode: false,
     location: true,
-    language: 'English',
   });
 
   useEffect(() => {

@@ -35,8 +35,8 @@ axiosDriver.interceptors.request.use(
       });
       
       if (!token) {
-        console.log('❌ No driver auth token found, emitting session expired');
-        emitSessionExpired('No driver authentication token found');
+        // On fresh app open (no driver token), do NOT emit session expired. Just block the request.
+        console.log('❌ No driver auth token found, blocking non-auth request without emitting session event');
         return Promise.reject(new Error('No driver authentication token found. Please login first.'));
       }
       config.headers.Authorization = `Bearer ${token}`;

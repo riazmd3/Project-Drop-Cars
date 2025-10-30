@@ -335,12 +335,6 @@ export default function DrawerNavigation({ visible, onClose }: DrawerNavigationP
                     </Text>
                   </View>
                   <View style={dynamicStyles.profileRow}>
-                    <Languages color={colors.textSecondary} size={14} />
-                    <Text style={dynamicStyles.profileText}>
-                      {user?.languages && user.languages.length > 0 ? user.languages.join(', ') : 'No languages'}
-                    </Text>
-                  </View>
-                  <View style={dynamicStyles.profileRow}>
                     <Wallet color={colors.textSecondary} size={14} />
                     <Text style={dynamicStyles.profileText}>
                       ₹{dashboardData?.user_info?.wallet_balance || 0}
@@ -401,14 +395,6 @@ export default function DrawerNavigation({ visible, onClose }: DrawerNavigationP
                   onClose();
                   router.push('/(tabs)/settings');
                 }}
-                rightComponent={<ChevronRight color={colors.textSecondary} size={20} />}
-              />
-
-              <MenuItem
-                icon={<User color={colors.textSecondary} size={20} />}
-                title="Refresh Data"
-                subtitle="Update user information"
-                onPress={handleRefreshUserData}
                 rightComponent={<ChevronRight color={colors.textSecondary} size={20} />}
               />
             </View>

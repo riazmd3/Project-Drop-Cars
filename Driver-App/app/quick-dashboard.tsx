@@ -9,7 +9,6 @@ import {
   RefreshControl,
   ActivityIndicator,
   Animated,
-  Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
@@ -31,13 +30,12 @@ import {
   Navigation,
   CheckCircle,
   AlertCircle,
-  Bell,
   FileText
 } from 'lucide-react-native';
 import { startTrip, endTrip } from '@/services/driver/carDriverService';
 import axiosDriver from '@/app/api/axiosDriver';
 import LoadingOverlay from '@/components/LoadingOverlay';
-import { testForegroundNotification } from '@/services/notifications/notificationService';
+// Removed test notification button
 interface DriverOrder {
   id: number;
   order_id: number;
@@ -81,14 +79,9 @@ export default function QuickDashboardScreen() {
   const [tripActionLoading, setTripActionLoading] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   
-  // Notification state
-  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
-  const [notificationLoading, setNotificationLoading] = useState(false);
-  
   // Animation values
   const statusAnimation = useState(new Animated.Value(0))[0];
   const pulseAnimation = useState(new Animated.Value(1))[0];
-  const notificationBlinkAnimation = useState(new Animated.Value(1))[0];
 
   // Get driver info from login data
   const driverInfo = {
@@ -170,107 +163,7 @@ export default function QuickDashboardScreen() {
 
   // SIMPLIFIED: Debug functions using the new simple API
 
-  // Load notification state from backend
-  const loadNotificationState = useCallback(async () => {
-    try {
-      const { getDriverNotificationSettings } = await import('@/services/notifications/driverNotificationApi');
-      const settings = await getDriverNotificationSettings();
-      if (settings) {
-        // Toggle state is determined by whether token exists (not empty)
-        const hasToken = !!(settings.token && settings.token.trim() !== '');
-        setNotificationsEnabled(hasToken);
-        console.log('📱 Loaded driver notification state from backend:', {
-          permission1: settings.permission1,
-          permission2: settings.permission2,
-          hasToken: hasToken,
-          tokenPreview: settings.token ? `${settings.token.substring(0, 20)}...` : 'EMPTY'
-        });
-      } else {
-        // No settings found, check if we have a local token
-        const token = await SecureStore.getItemAsync('expoPushToken');
-        setNotificationsEnabled(!!token);
-        console.log('📱 No backend settings, using local token state:', !!token);
-      }
-    } catch (error) {
-      console.error('❌ Failed to load notification state:', error);
-    }
-  }, []);
-
-  // SIMPLE TEST FUNCTION (FROM VENDOR APP)
-  const testForegroundNotification = async () => {
-    try {
-      // Check if notifications are enabled before testing
-      if (!notificationsEnabled) {
-        // Blink the notification toggle to draw attention
-        Alert.alert(
-          'Notifications Disabled',
-          'Please turn on notifications to test them. The notification toggle will blink to help you locate it.',
-          [{ text: 'OK' }]
-        );
-        
-        // Blink animation for notification toggle
-        // Blink animation for notification toggle with Orange color
-const blinkAnimation = Animated.loop(
-  Animated.sequence([
-    Animated.timing(notificationBlinkAnimation, {
-      toValue: 0.3,
-      duration: 1000, // Increased duration for slower blink
-      useNativeDriver: true,
-    }),
-    Animated.timing(notificationBlinkAnimation, {
-      toValue: 1,
-      duration: 1000, // Increased duration for slower blink
-      useNativeDriver: true,
-    }),
-  ])
-);
-blinkAnimation.start();
-
-// Stop blinking after 8 seconds
-setTimeout(() => {
-  blinkAnimation.stop();
-  notificationBlinkAnimation.setValue(1); // Reset to normal state
-}, 5000);
-        
-        return;
-      }
-      
-      const { testForegroundNotification } = await import('@/services/notifications/notificationService');
-      await testForegroundNotification();
-      Alert.alert('Test Sent', 'Test notification sent!');
-    } catch (error) {
-      console.error('❌ Test notification failed:', error);
-      Alert.alert('Error', 'Failed to send test notification');
-    }
-  };
-
-  // SIMPLE NOTIFICATION TOGGLE (VENDOR APP APPROACH)
-  const toggleNotifications = async () => {
-    try {
-      setNotificationLoading(true);
-      
-      const { updateDriverNotificationPermissions } = await import('@/services/notifications/driverNotificationApi');
-      const newStatus = !notificationsEnabled;
-      const res = await updateDriverNotificationPermissions({ 
-        permission1: newStatus, 
-        permission2: newStatus 
-      });
-      
-      // Update state based on whether token was sent (not permissions)
-      const hasToken = !!(res.token && res.token.trim() !== '');
-      setNotificationsEnabled(hasToken);
-      console.log('✅ Driver notifications toggled:', {
-        newStatus,
-        hasToken,
-        tokenPreview: res.token ? `${res.token.substring(0, 20)}...` : 'EMPTY'
-      });
-    } catch (error: any) {
-      console.error('❌ Failed to toggle notifications:', error);
-      Alert.alert('Error', `Failed to toggle notifications: ${error.message}`);
-    } finally {
-      setNotificationLoading(false);
-    }
-  };
+  // Removed notification toggle functionality for Quick Driver
 
   // Optimized data fetching with proper authentication
   const loadDriverData = useCallback(async () => {
@@ -291,11 +184,8 @@ setTimeout(() => {
       
       if (!driverToken) {
         console.error('❌ No driver token found');
-        Alert.alert(
-          'Authentication Error',
-          'Driver token not found. Please login again.',
-          [{ text: 'OK', onPress: () => router.replace('/quick-login') }]
-        );
+        // Silently redirect to login without alarming fresh users
+        router.replace('/quick-login');
         return;
       }
       
@@ -303,11 +193,8 @@ setTimeout(() => {
       const { isJWTExpired } = await import('@/utils/jwtDecoder');
       if (isJWTExpired(driverToken)) {
         console.error('❌ Driver token expired');
-        Alert.alert(
-          'Session Expired',
-          'Your session has expired. Please login again.',
-          [{ text: 'OK', onPress: () => router.replace('/quick-login') }]
-        );
+        // Silently redirect to login
+        router.replace('/quick-login');
         return;
       }
       
@@ -510,9 +397,6 @@ setTimeout(() => {
       }
     }
     
-    // Load notification state from backend
-    loadNotificationState();
-    
     // Debug authentication first
     debugAuthentication().then((success) => {
       if (success) {
@@ -522,7 +406,7 @@ setTimeout(() => {
         loadDriverData();
       }
     });
-  }, [user?.driver_status, loadDriverData, debugAuthentication, loadNotificationState]);
+  }, [user?.driver_status, loadDriverData, debugAuthentication]);
 
   // Pulse animation for online status
   useEffect(() => {
@@ -760,106 +644,11 @@ setTimeout(() => {
           </View>
           
           <View style={styles.headerActions}>
-          <Animated.View 
-          style={[
-            styles.notificationToggleContainer,
-            { 
-              backgroundColor: notificationBlinkAnimation.interpolate({
-                inputRange: [0.4, 1],
-                outputRange: ['orange', 'white'] // Orange blink color
-              }),
-              opacity: notificationBlinkAnimation
-            }
-          ]}
-        >
-          <TouchableOpacity 
-            onPress={toggleNotifications} 
-            style={styles.notificationToggle}
-            disabled={notificationLoading}
-          >
-            <Bell size={18} color={colors.primary} />
-            <Switch
-              value={notificationsEnabled}
-              onValueChange={toggleNotifications}
-              trackColor={{ false: colors.border, true: colors.primary }}
-              thumbColor={notificationsEnabled ? '#FFFFFF' : '#F3F4F6'}
-              disabled={notificationLoading}
-              style={styles.switch}
-            />
-          </TouchableOpacity>
-        </Animated.View>
             <TouchableOpacity onPress={handleLogout} style={styles.logoutButton}>
               <LogOut size={20} color={colors.error} />
             </TouchableOpacity>
           </View>
         </View>
-      </View>
-
-      {/* Status Toggle Switch */}
-      <View style={[styles.statusSection, { backgroundColor: colors.surface }]}>
-        <View style={styles.statusToggleContainer}>
-          <View style={styles.statusInfo}>
-            <Text style={[styles.statusLabel, { color: colors.text }]}>
-              Driver Status
-            </Text>
-            <View style={styles.statusRow}>
-              <View style={[
-                styles.statusDot, 
-                { 
-                  backgroundColor: driverStatus === 'ONLINE' ? '#10B981' : 
-                                  driverStatus === 'DRIVING' ? '#3B82F6' : '#EF4444' 
-                }
-              ]} />
-              <Text style={[
-                styles.statusText, 
-                { 
-                  color: driverStatus === 'ONLINE' ? '#10B981' : 
-                        driverStatus === 'DRIVING' ? '#3B82F6' : '#EF4444',
-                  fontWeight: 'bold'
-                }
-              ]}>
-                {driverStatus === 'ONLINE' ? 'ONLINE' : 
-                 driverStatus === 'DRIVING' ? 'DRIVING' : 'OFFLINE'}
-              </Text>
-            </View>
-          </View>
-          
-          <View style={styles.switchContainer}>
-            {statusChanging ? (
-              <ActivityIndicator color={colors.primary} size="small" />
-            ) : (
-              <Switch
-                value={driverStatus === 'ONLINE'}
-                onValueChange={toggleDriverStatus}
-                disabled={driverStatus === 'DRIVING' || statusChanging}
-                trackColor={{
-                  false: '#EF4444',
-                  true: '#10B981'
-                }}
-                thumbColor={driverStatus === 'ONLINE' ? '#FFFFFF' : '#FFFFFF'}
-                ios_backgroundColor="#EF4444"
-              />
-            )}
-          </View>
-        </View>
-        
-        <Text style={[styles.statusDescription, { color: colors.textSecondary }]}>
-          {activeTrip 
-            ? `Active trip: Order #${activeTrip.order_id}` 
-            : driverStatus === 'ONLINE' 
-              ? 'You are available for new trips' 
-              : 'You are not available for new trips'
-          }
-        </Text>
-        
-        {activeTrip && (
-          <View style={[styles.activeTripIndicator, { backgroundColor: '#FEF3C7', borderColor: '#F59E0B' }]}>
-            <Text style={[styles.activeTripText, { color: '#92400E' }]}>
-              🚗 Trip in progress - {activeTrip.pickup}
-              {!String(activeTrip.trip_type || '').toLowerCase().includes('hour') && ` to ${activeTrip.drop}`}
-            </Text>
-          </View>
-        )}
       </View>
 
       {/* Orders Section */}
@@ -869,12 +658,6 @@ setTimeout(() => {
             Assigned Orders ({driverOrders.length})
           </Text>
           <View style={styles.headerButtons}>
-            <TouchableOpacity 
-              onPress={testForegroundNotification}
-              style={[styles.debugButton, { backgroundColor: '#10B981' }]}
-            >
-              <Text style={styles.debugButtonText}>Test Notification</Text>
-            </TouchableOpacity>
             <TouchableOpacity onPress={handleRefresh} disabled={refreshing}>
               <RefreshCw 
                 size={20} 
@@ -915,243 +698,147 @@ setTimeout(() => {
             }
           >
             {driverOrders.map((order, index) => {
-              const isDisabled = driverStatus === 'DRIVING';
               const isActiveTrip = activeTrip && activeTrip.order_id === order.order_id;
-              
+              // Allow interaction with any order, regardless of status.
+
               return (
                 <TouchableOpacity
                   key={`${order.order_id}-${index}`}
                   style={[
-                    styles.orderCard, 
-                    { backgroundColor: colors.surface },
-                    isDisabled && !isActiveTrip && styles.disabledOrderCard
+                    styles.orderCard,
+                    { backgroundColor: colors.surface }
                   ]}
-                  onPress={() => {
-                    if (isDisabled && !isActiveTrip) {
-                      Alert.alert(
-                        'Cannot Access Order',
-                        'You are currently driving. Please end your current trip first to access other orders.',
-                        [{ text: 'OK' }]
-                      );
-                      return;
-                    }
-                    navigateToTrip(order);
-                  }}
-                  disabled={isDisabled && !isActiveTrip}
+                  onPress={() => navigateToTrip(order)}
                 >
-                <View style={styles.orderHeader}>
-                  <View style={styles.orderInfo}>
-                    <Text style={[
-                      styles.orderId, 
-                      { color: isDisabled && !isActiveTrip ? colors.textSecondary : colors.text }
-                    ]}>
-                      Order #{order.order_id}
-                    </Text>
-                    <View style={styles.statusBadge}>
-                      {getStatusIcon(order.assignment_status)}
-                      <Text style={[
-                        styles.statusText, 
-                        { 
-                          color: isDisabled && !isActiveTrip ? colors.textSecondary : getStatusColor(order.assignment_status)
-                        }
-                      ]}>
-                        {order.assignment_status}
-                      </Text>
-                    </View>
-                  </View>
-                  <ArrowRight 
-                    size={20} 
-                    color={isDisabled && !isActiveTrip ? colors.textSecondary : colors.textSecondary} 
-                  />
-                </View>
-
-                <View style={styles.routeInfo}>
-                  <View style={styles.locationRow}>
-                    <View style={[
-                      styles.locationDot, 
-                      { backgroundColor: isDisabled && !isActiveTrip ? colors.textSecondary : '#10B981' }
-                    ]} />
-                    <Text style={[
-                      styles.locationText, 
-                      { color: isDisabled && !isActiveTrip ? colors.textSecondary : colors.text }
-                    ]} numberOfLines={1}>
-                      {order.pickup}
-                    </Text>
-                  </View>
-                  {/* Only show "To" destination for non-hourly rentals */}
-                  {!String(order.trip_type || '').toLowerCase().includes('hour') && (
-                    <View style={styles.locationRow}>
-                      <View style={[
-                        styles.locationDot, 
-                        { backgroundColor: isDisabled && !isActiveTrip ? colors.textSecondary : '#EF4444' }
-                      ]} />
-                      <Text style={[
-                        styles.locationText, 
-                        { color: isDisabled && !isActiveTrip ? colors.textSecondary : colors.text }
-                      ]} numberOfLines={1}>
-                        {order.drop}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-
-                <View style={styles.orderDetails}>
-                  <View style={styles.detailRow}>
-                    <User size={16} color={isDisabled && !isActiveTrip ? colors.textSecondary : colors.textSecondary} />
-                    <Text style={[
-                      styles.detailText, 
-                      { color: isDisabled && !isActiveTrip ? colors.textSecondary : colors.text }
-                    ]}>
-                      {order.customer_name}
-                    </Text>
-                  </View>
-                  <View style={styles.detailRow}>
-                    <Phone size={16} color={isDisabled && !isActiveTrip ? colors.textSecondary : colors.textSecondary} />
-                    <Text style={[
-                      styles.detailText, 
-                      { color: isDisabled && !isActiveTrip ? colors.textSecondary : colors.text }
-                    ]}>
-                      {order.customer_mobile}
-                    </Text>
-                  </View>
-                  
-                  {/* Vendor Information */}
-                  {order.vendor_name && (
-                    <View style={styles.detailRow}>
-                      <User size={16} color={isDisabled && !isActiveTrip ? colors.textSecondary : colors.primary} />
-                      <Text style={[
-                        styles.detailText, 
-                        { color: isDisabled && !isActiveTrip ? colors.textSecondary : colors.primary }
-                      ]}>
-                        Vendor: {order.vendor_name}
-                      </Text>
-                    </View>
-                  )}
-                  
-                  {order.vendor_primary_number && (
-                    <View style={styles.detailRow}>
-                      <Phone size={16} color={isDisabled && !isActiveTrip ? colors.textSecondary : colors.primary} />
-                      <Text style={[
-                        styles.detailText, 
-                        { color: isDisabled && !isActiveTrip ? colors.textSecondary : colors.primary }
-                      ]}>
-                        Vendor: {order.vendor_primary_number}
-                      </Text>
-                    </View>
-                  )}
-                  
-                  {order.vendor_secondary_number && order.vendor_secondary_number !== order.vendor_primary_number && (
-                    <View style={styles.detailRow}>
-                      <Phone size={16} color={isDisabled && !isActiveTrip ? colors.textSecondary : colors.primary} />
-                      <Text style={[
-                        styles.detailText, 
-                        { color: isDisabled && !isActiveTrip ? colors.textSecondary : colors.primary }
-                      ]}>
-                        Vendor Alt: {order.vendor_secondary_number}
-                      </Text>
-                    </View>
-                  )}
-                  <View style={styles.detailRow}>
-                    <Car size={16} color={isDisabled && !isActiveTrip ? colors.textSecondary : colors.textSecondary} />
-                    <Text style={[
-                      styles.detailText, 
-                      { color: isDisabled && !isActiveTrip ? colors.textSecondary : colors.text }
-                    ]}>
-                      {order.car_type} • {order.trip_type}
-                    </Text>
-                  </View>
-                  <View style={styles.detailRow}>
-                    <Clock size={16} color={isDisabled && !isActiveTrip ? colors.textSecondary : colors.textSecondary} />
-                    <Text style={[
-                      styles.detailText, 
-                      { color: isDisabled && !isActiveTrip ? colors.textSecondary : colors.text }
-                    ]}>
-                      {formatDateTime(order.scheduled_at || order.start_date_time).date} at {formatDateTime(order.scheduled_at || order.start_date_time).time}
-                    </Text>
-                  </View>
-                  {order.toll_charge_update && (
-                    <View style={styles.detailRow}>
-                      <View style={[
-                        styles.tollIndicator, 
-                        { 
-                          backgroundColor: isDisabled && !isActiveTrip ? colors.textSecondary : '#FEF3C7' 
-                        }
-                      ]}>
-                        <Text style={[
-                          styles.tollText, 
-                          { 
-                            color: isDisabled && !isActiveTrip ? colors.textSecondary : '#92400E' 
-                          }
-                        ]}>
-                          💰 Toll charges can be updated
-                        </Text>
+                  <View style={styles.orderHeader}>
+                    <View style={styles.orderInfo}>
+                      <Text style={styles.orderId}>Order #{order.order_id}</Text>
+                      <View style={styles.statusBadge}>
+                        {getStatusIcon(order.assignment_status)}
+                        <Text style={{ ...styles.statusText, color: getStatusColor(order.assignment_status) }}>{order.assignment_status}</Text>
                       </View>
                     </View>
-                  )}
-                  {/* Pickup Notes */}
-                  {order.pickup_notes && (
-                    <View style={styles.detailRow}>
-                      <FileText size={16} color={isDisabled && !isActiveTrip ? colors.textSecondary : colors.textSecondary} />
-                      <Text style={[
-                        styles.detailText, 
-                        { color: isDisabled && !isActiveTrip ? colors.textSecondary : colors.text }
-                      ]}>
-                        Notes: {order.pickup_notes}
-                      </Text>
-                    </View>
-                  )}
-                </View>
-
-                <View style={styles.orderFooter}>
-                  <View style={styles.fareContainer}>
-                    <Text style={styles.fareAmount}>₹{(order as any).customer_price ?? order.total_fare ?? order.estimated_price}</Text>
+                    <ArrowRight size={20} color={colors.textSecondary} />
                   </View>
-                  
-                  {/* Show different buttons based on trip state */}
-                  {(activeTrip && activeTrip.order_id === order.order_id) || order.assignment_status === 'DRIVING' ? (
-                    // Active trip or DRIVING status - show end trip button
-                    <TouchableOpacity 
-                      style={[styles.endTripButton, { backgroundColor: '#EF4444' }]}
-                      onPress={() => handleEndTrip(order)}
-                      disabled={tripActionLoading === order.order_id}
-                    >
-                      {tripActionLoading === order.order_id ? (
-                        <ActivityIndicator size="small" color="white" />
-                      ) : (
-                        <>
-                          <CheckCircle size={16} color="white" />
-                          <Text style={styles.endTripText}>End Trip</Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
-                  ) : activeTrip ? (
-                    // Another trip is active - show disabled button
-                    <TouchableOpacity 
-                      style={[styles.startTripButton, { backgroundColor: '#9CA3AF' }]}
-                      disabled={true}
-                    >
-                      <AlertCircle size={16} color="white" />
-                      <Text style={styles.startTripText}>Trip Active</Text>
-                    </TouchableOpacity>
-                  ) : (
-                    // No active trip and not DRIVING - show start trip button
-                    <TouchableOpacity 
-                      style={[styles.startTripButton, { backgroundColor: colors.primary }]}
-                      onPress={() => handleStartTrip(order)}
-                      disabled={tripActionLoading === order.order_id}
-                    >
-                      {tripActionLoading === order.order_id ? (
-                        <ActivityIndicator size="small" color="white" />
-                      ) : (
-                        <>
-                          <Navigation size={16} color="white" />
-                          <Text style={styles.startTripText}>Start Trip</Text>
-                        </>
-                      )}
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </TouchableOpacity>
+
+                  <View style={styles.routeInfo}>
+                    <View style={styles.locationRow}>
+                      <View style={[styles.locationDot, { backgroundColor: '#10B981' }]} />
+                      <Text style={[styles.locationText, { color: colors.text }]} numberOfLines={1}>{order.pickup}</Text>
+                    </View>
+                    {!String(order.trip_type || '').toLowerCase().includes('hour') && (
+                      <View style={styles.locationRow}>
+                        <View style={[styles.locationDot, { backgroundColor: '#EF4444' }]} />
+                        <Text style={[styles.locationText, { color: colors.text }]} numberOfLines={1}>{order.drop}</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <View style={styles.orderDetails}>
+                    <View style={styles.detailRow}>
+                      <User size={16} color={colors.textSecondary} />
+                      <Text style={[styles.detailText, { color: colors.text }]}>{order.customer_name}</Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Phone size={16} color={colors.textSecondary} />
+                      <Text style={[styles.detailText, { color: colors.text }]}>{order.customer_mobile}</Text>
+                    </View>
+                    
+                    {/* Vendor Information */}
+                    {order.vendor_name && (
+                      <View style={styles.detailRow}>
+                        <User size={16} color={colors.primary} />
+                        <Text style={[styles.detailText, { color: colors.primary }]}>Vendor: {order.vendor_name}</Text>
+                      </View>
+                    )}
+                    
+                    {order.vendor_primary_number && (
+                      <View style={styles.detailRow}>
+                        <Phone size={16} color={colors.primary} />
+                        <Text style={[styles.detailText, { color: colors.primary }]}>Vendor: {order.vendor_primary_number}</Text>
+                      </View>
+                    )}
+                    
+                    {order.vendor_secondary_number && order.vendor_secondary_number !== order.vendor_primary_number && (
+                      <View style={styles.detailRow}>
+                        <Phone size={16} color={colors.primary} />
+                        <Text style={[styles.detailText, { color: colors.primary }]}>Vendor Alt: {order.vendor_secondary_number}</Text>
+                      </View>
+                    )}
+                    <View style={styles.detailRow}>
+                      <Car size={16} color={colors.textSecondary} />
+                      <Text style={[styles.detailText, { color: colors.text }]}>{order.car_type} • {order.trip_type}</Text>
+                    </View>
+                    <View style={styles.detailRow}>
+                      <Clock size={16} color={colors.textSecondary} />
+                      <Text style={[styles.detailText, { color: colors.text }]}>{formatDateTime(order.scheduled_at || order.start_date_time).date} at {formatDateTime(order.scheduled_at || order.start_date_time).time}</Text>
+                    </View>
+                    {order.toll_charge_update && (
+                      <View style={styles.detailRow}>
+                        <View style={[styles.tollIndicator, { backgroundColor: '#FEF3C7' }]}>
+                          <Text style={[styles.tollText, { color: '#92400E' }]}>💰 Toll charges can be updated</Text>
+                        </View>
+                      </View>
+                    )}
+                    {/* Pickup Notes */}
+                    {order.pickup_notes && (
+                      <View style={styles.detailRow}>
+                        <FileText size={16} color={colors.textSecondary} />
+                        <Text style={[styles.detailText, { color: colors.text }]}>Notes: {order.pickup_notes}</Text>
+                      </View>
+                    )}
+                  </View>
+
+                  <View style={styles.orderFooter}>
+                    <View style={styles.fareContainer}>
+                      <Text style={styles.fareAmount}>₹{(order as any).customer_price ?? order.total_fare ?? order.estimated_price}</Text>
+                    </View>
+                    
+                    {/* Show different buttons based on trip state */}
+                    {(activeTrip && activeTrip.order_id === order.order_id) || order.assignment_status === 'DRIVING' ? (
+                      // Active trip or DRIVING status - show end trip button
+                      <TouchableOpacity 
+                        style={[styles.endTripButton, { backgroundColor: '#EF4444' }]}
+                        onPress={() => handleEndTrip(order)}
+                        disabled={tripActionLoading === order.order_id}
+                      >
+                        {tripActionLoading === order.order_id ? (
+                          <ActivityIndicator size="small" color="white" />
+                        ) : (
+                          <>
+                            <CheckCircle size={16} color="white" />
+                            <Text style={styles.endTripText}>End Trip</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    ) : activeTrip ? (
+                      // Another trip is active - show disabled button
+                      <TouchableOpacity 
+                        style={[styles.startTripButton, { backgroundColor: '#9CA3AF' }]}
+                        disabled={true}
+                      >
+                        <AlertCircle size={16} color="white" />
+                        <Text style={styles.startTripText}>Trip Active</Text>
+                      </TouchableOpacity>
+                    ) : (
+                      // No active trip and not DRIVING - show start trip button
+                      <TouchableOpacity 
+                        style={[styles.startTripButton, { backgroundColor: colors.primary }]}
+                        onPress={() => handleStartTrip(order)}
+                        disabled={tripActionLoading === order.order_id}
+                      >
+                        {tripActionLoading === order.order_id ? (
+                          <ActivityIndicator size="small" color="white" />
+                        ) : (
+                          <>
+                            <Navigation size={16} color="white" />
+                            <Text style={styles.startTripText}>Start Trip</Text>
+                          </>
+                        )}
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                </TouchableOpacity>
               );
             })}
           </ScrollView>
@@ -1306,10 +993,6 @@ const styles = StyleSheet.create({
     },
   driverDetails: {
       flex: 1,
-    },
-    notificationToggleContainer: {
-      borderRadius: 8, // Optional: for rounded corners
-      padding: 4, // Optional: for better visual appearance
     },
   driverName: {
       fontSize: 18,

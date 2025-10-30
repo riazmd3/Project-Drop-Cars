@@ -51,8 +51,8 @@ axiosInstance.interceptors.request.use(
       // Check for valid token before making request (only for non-auth endpoints)
       const token = await SecureStore.getItemAsync('authToken');
       if (!token) {
-        console.log('❌ No auth token found, emitting session expired');
-        emitSessionExpired('No authentication token found');
+        // On fresh app open (no token), do NOT emit session expired. Just block the request.
+        console.log('❌ No auth token found, blocking non-auth request without emitting session event');
         return Promise.reject(new Error('No authentication token found. Please login first.'));
       }
       config.headers.Authorization = `Bearer ${token}`;

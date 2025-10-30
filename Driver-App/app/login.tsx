@@ -99,7 +99,6 @@ export default function LoginScreen() {
         password: password,
         address: response.data.address || '',
         aadharNumber: response.data.aadhar_number || '',
-        languages: response.data.languages || ['English'],
         documents: {}
       };
 
