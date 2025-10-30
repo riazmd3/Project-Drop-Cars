@@ -107,12 +107,12 @@ export default function TripReportScreen() {
   };
 
   const getPickupDropLocations = (pickupDropLocation: Record<string, string>) => {
-    if (!pickupDropLocation) return { pickup: 'Unknown', drop: 'Unknown' };
+    if (!pickupDropLocation) return { pickup: 'Unknown', drop: 'Hourly Rental' };
     
     const locations = Object.values(pickupDropLocation);
     return {
       pickup: locations[0] || 'Unknown',
-      drop: locations[1] || 'Unknown'
+      drop: locations[1] || 'Hourly Rental order does not have a drop location'
     };
   };
 
@@ -170,22 +170,6 @@ export default function TripReportScreen() {
             Order #{report.order_id}
           </Text>
         </View>
-
-        {/* Customer Information */}
-        <View style={[styles.section, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Customer Details</Text>
-          
-          <View style={styles.detailRow}>
-            <User size={20} color={colors.primary} />
-            <Text style={[styles.detailText, { color: colors.text }]}>{report.customer_name}</Text>
-          </View>
-          
-          <View style={styles.detailRow}>
-            <Phone size={20} color={colors.primary} />
-            <Text style={[styles.detailText, { color: colors.text }]}>{report.customer_number}</Text>
-          </View>
-        </View>
-
         {/* Vendor Information */}
         {(report.vendor_name || report.vendor_primary_number || report.vendor_secondary_number) && (
           <View style={[styles.section, { backgroundColor: colors.surface }]}>
@@ -259,7 +243,7 @@ export default function TripReportScreen() {
 
         {/* Financial Summary */}
         <View style={[styles.section, { backgroundColor: colors.surface }]}>
-          <Text style={[styles.sectionTitle, { color: colors.text }]}>Financial Summary</Text>
+          <Text style={[styles.sectionTitle, { color: colors.text }]}>Fare Breakdown</Text>
           
           <View style={styles.financialRow}>
             <DollarSign size={20} color={colors.success} />

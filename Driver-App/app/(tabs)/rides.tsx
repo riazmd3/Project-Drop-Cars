@@ -224,7 +224,7 @@ export default function RidesScreen() {
 
   const getTabTitle = () => {
     switch (activeTab) {
-      case 'driving': return 'Driving';
+      case 'driving': return 'Running';
       case 'completed': return 'Completed';
       case 'cancelled': return 'Cancelled';
       default: return 'Rides';
@@ -550,7 +550,7 @@ export default function RidesScreen() {
       </View>
 
       <View style={styles.tabContainer}>
-        {renderTabButton('driving', 'Driving', drivingRides.length)}
+        {renderTabButton('driving', 'Running', drivingRides.length)}
         {renderTabButton('completed', 'Completed', completedRides.length)}
         {renderTabButton('cancelled', 'Cancelled', cancelledRides.length)}
       </View>

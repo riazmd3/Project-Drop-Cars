@@ -11,7 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { Camera, Upload, ArrowLeft } from 'lucide-react-native';
+import { Camera, Upload, ArrowLeft, CheckCircle } from 'lucide-react-native';
 import { startTrip } from '@/services/driver/carDriverService';
 import * as ImagePicker from 'expo-image-picker';
 import LoadingOverlay from '@/components/LoadingOverlay';
@@ -20,6 +20,7 @@ export default function StartTripScreen() {
   const [startKm, setStartKm] = useState('');
   const [odometerPhoto, setOdometerPhoto] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [odometerShown, setOdometerShown] = useState(false); // <-- Checkbox state
   const router = useRouter();
   const params = useLocalSearchParams<{ 
     order_id?: string; 
@@ -149,10 +150,22 @@ export default function StartTripScreen() {
           />
         </View>
 
+        {/* Tick box UI: Shown Odometer to the Customer */}
         <TouchableOpacity
-          style={[styles.startButton, (!startKm || !odometerPhoto || submitting) && styles.disabledButton]}
+          style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 18 }}
+          onPress={() => setOdometerShown(v => !v)}
+          activeOpacity={0.7}
+        >
+          <View style={{ width: 22, height: 22, borderRadius: 6, borderWidth: 2, borderColor: odometerShown ? '#10B981' : '#E5E7EB', backgroundColor: odometerShown ? '#10B981' : '#FFFFFF', alignItems: 'center', justifyContent: 'center', marginRight: 10 }}>
+            {odometerShown && <CheckCircle color="#FFFFFF" fill="#10B981" size={18} />}
+          </View>
+          <Text style={{ fontSize: 15, fontFamily: 'Inter-Medium', color: '#374151' }}>Shown Odometer to the Customer</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity
+          style={[styles.startButton, (!startKm || !odometerPhoto || submitting || !odometerShown) && styles.disabledButton]}
           onPress={handleStartTrip}
-          disabled={!startKm || !odometerPhoto || submitting}
+          disabled={!startKm || !odometerPhoto || submitting || !odometerShown}
         >
           {submitting ? (
             <View style={styles.loadingContainer}>

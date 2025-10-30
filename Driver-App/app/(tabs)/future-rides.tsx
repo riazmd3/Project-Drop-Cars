@@ -36,7 +36,7 @@ interface FutureRide {
   customer_name: string;
   customer_number: string;
   trip_status: string;
-  pick_near_city: string;
+  pick_near_city: string | string[];
   trip_distance: number;
   trip_time: string;
   estimated_price: number;
@@ -107,6 +107,7 @@ export default function FutureRidesScreen() {
   // Simple search state
   const [search, setSearch] = useState('');
   const normalized = (s: string) => String(s || '').toLowerCase();
+  const getDisplayCity = (v: string | string[]) => Array.isArray(v) ? v.join(', ') : v;
   const filteredFutureRides = futureRides.filter((r) => {
     const q = normalized(search);
     if (!q) return true;
@@ -114,6 +115,7 @@ export default function FutureRidesScreen() {
     // Get pickup and drop locations
     const pickupLocation = r.pickup_drop_location?.["0"] || '';
     const dropLocation = r.pickup_drop_location?.["1"] || '';
+    const pickNearCitySafe = getDisplayCity(r.pick_near_city);
     
     return [
       r.id,
@@ -122,7 +124,7 @@ export default function FutureRidesScreen() {
       r.customer_number,
       r.trip_type,
       r.car_type,
-      r.pick_near_city,
+      pickNearCitySafe,
       r.start_date_time,
       r.trip_time,
       r.source,
@@ -491,7 +493,7 @@ export default function FutureRidesScreen() {
           <View style={[styles.expandedDetails, { backgroundColor: colors.background }]}>
             <Text style={[styles.expandedTitle, { color: colors.text }]}>Order Details</Text>
             
-            {/* Order Information */}
+            {/* Order Information - expanded drawer */}
             <View style={styles.expandedSection}>
               <Text style={[styles.expandedSectionTitle, { color: colors.text }]}>Order Information</Text>
               <View style={styles.expandedRow}>
@@ -508,7 +510,7 @@ export default function FutureRidesScreen() {
               </View>
               <View style={styles.expandedRow}>
                 <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Pick Near City:</Text>
-                <Text style={[styles.expandedValue, { color: colors.text }]}>{ride.pick_near_city}</Text>
+                <Text style={[styles.expandedValue, { color: colors.text }]}>{getDisplayCity(ride.pick_near_city)}</Text>
               </View>
             </View>
 

@@ -9,6 +9,7 @@ import {
   RefreshControl,
   ActivityIndicator,
   Animated,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
@@ -35,6 +36,7 @@ import {
 import { startTrip, endTrip } from '@/services/driver/carDriverService';
 import axiosDriver from '@/app/api/axiosDriver';
 import LoadingOverlay from '@/components/LoadingOverlay';
+import axiosInstance from '@/app/api/axiosInstance';
 // Removed test notification button
 interface DriverOrder {
   id: number;
@@ -78,7 +80,12 @@ export default function QuickDashboardScreen() {
   const [activeTrip, setActiveTrip] = useState<DriverOrder | null>(null);
   const [tripActionLoading, setTripActionLoading] = useState<number | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  
+  const [historyVisible, setHistoryVisible] = useState(false);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [orderHistory, setOrderHistory] = useState<any[]>([]);
+  const [historyError, setHistoryError] = useState('');
+  const [expandedOrderId, setExpandedOrderId] = useState<number | null>(null);
+
   // Animation values
   const statusAnimation = useState(new Animated.Value(0))[0];
   const pulseAnimation = useState(new Animated.Value(1))[0];
@@ -619,6 +626,18 @@ export default function QuickDashboardScreen() {
     }
   };
 
+  const fetchOrderHistory = async () => {
+    if (!user?.id) return;
+    setHistoryLoading(true); setHistoryError('');
+    try {
+      const res = await axiosInstance.get(`/api/assignments/driver/assigned-orders/${user.id}`);
+      setOrderHistory(Array.isArray(res.data) ? res.data : []);
+    } catch(e: any) {
+      setOrderHistory([]);
+      setHistoryError(e?.response?.data?.detail || e?.message || 'Failed to load history');
+    } finally { setHistoryLoading(false); }
+  };
+
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <LoadingOverlay 
@@ -944,6 +963,76 @@ export default function QuickDashboardScreen() {
           </View>
         </View>
       )}
+
+      <View style={{ paddingHorizontal: 20, marginTop: 18, marginBottom: 6 }}>
+        <TouchableOpacity onPress={() => { setHistoryVisible(true); fetchOrderHistory(); }} style={{backgroundColor: colors.primary, borderRadius: 10, paddingVertical: 12, alignItems: 'center', flexDirection: 'row', justifyContent: 'center'}}>
+          <Text style={{ color: 'white', fontSize: 16, fontFamily: 'Inter-SemiBold', marginRight: 8 }}>History</Text>
+          <Clock color="#fff" size={20} />
+        </TouchableOpacity>
+      </View>
+      <Modal
+        visible={historyVisible}
+        animationType="slide"
+        onRequestClose={() => setHistoryVisible(false)}
+        transparent
+      >
+        <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.3)', justifyContent: 'flex-end' }}>
+          <View style={{ backgroundColor: colors.background, borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, maxHeight: '85%' }}>
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 18 }}>
+              <Text style={{ fontSize: 18, fontFamily: 'Inter-Bold', color: colors.text }}>Completed Trips</Text>
+              <TouchableOpacity onPress={() => setHistoryVisible(false)}><Text style={{ color: colors.primary, fontSize: 15 }}>Close</Text></TouchableOpacity>
+            </View>
+            {historyLoading ? (
+              <ActivityIndicator color={colors.primary} size="large" style={{ marginVertical: 30 }} />
+            ) : historyError ? (
+              <Text style={{ color: colors.error, textAlign: 'center', marginVertical: 30 }}>{historyError}</Text>
+            ) : orderHistory.length === 0 ? (
+              <Text style={{ textAlign: 'center', color: colors.textSecondary, marginVertical: 30 }}>No completed trips found.</Text>
+            ) : (
+              <ScrollView showsVerticalScrollIndicator={false} style={{ maxHeight: 400 }}>
+                {orderHistory.map((order, idx) => (
+                  <View key={order.order_id || idx} style={{ borderWidth: 1, borderRadius: 14, borderColor: '#E5E7EB', backgroundColor: '#FFF', marginBottom: 18, padding: 16 }}>
+                    {/* Row 1: Basic info */}
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <View>
+                        <Text style={{ fontFamily: 'Inter-SemiBold', fontSize: 15, color: colors.text }}>Order #{order.order_id}</Text>
+                        <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 2 }}>From: <Text style={{ color: colors.primary }}>{((order.pickup_drop_location && order.pickup_drop_location["0"]) || '-')}</Text></Text>
+                        <Text style={{ color: colors.textSecondary, fontSize: 13 }}>To: <Text style={{ color: colors.primary }}>{((order.pickup_drop_location && order.pickup_drop_location["1"]) || '-')}</Text></Text>
+                        <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Date: {order.start_date_time ? new Date(order.start_date_time).toLocaleDateString() : '-'}</Text>
+                        <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Fare: <Text style={{ color: '#10B981', fontWeight: 'bold' }}>₹{order.customer_price || 0}</Text></Text>
+                      </View>
+                      <TouchableOpacity onPress={() => setExpandedOrderId(expandedOrderId === order.order_id ? null : order.order_id)}>
+                        <Text style={{ color: colors.primary, fontSize: 15, fontFamily: 'Inter-SemiBold' }}>{expandedOrderId === order.order_id ? 'Hide' : 'See More'}</Text>
+                      </TouchableOpacity>
+                    </View>
+                    {/* Expanded details */}
+                    {expandedOrderId === order.order_id && (
+                      <View style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: '#E5E7EB', paddingTop: 8 }}>
+                        {/* list extra details, omit customer name/number */}
+                        <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Trip Type: {order.trip_type}</Text>
+                        <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Car Type: {order.car_type}</Text>
+                        <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Distance: {order.trip_distance} km</Text>
+                        <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Duration: {order.trip_time}</Text>
+                        <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Toll: ₹{order.toll_charges || 0}</Text>
+                        <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Permit: ₹{order.permit_charges || 0}</Text>
+                        <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Hill Charges: ₹{order.hill_charges || 0}</Text>
+                        <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Driver Allowance: ₹{order.driver_allowance || 0}</Text>
+                        <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Vendor: {order.vendor_name || '-'}</Text>
+                        <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Vendor Number: {order.vendor_primary_number || '-'}</Text>
+                        <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Pickup Notes: {order.pickup_notes || '-'}</Text>
+                        <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Completed At: {order.completed_at ? new Date(order.completed_at).toLocaleString() : '-'}</Text>
+                        <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Created At: {order.created_at ? new Date(order.created_at).toLocaleString() : '-'}</Text>
+                        <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Total KM: {order.total_km || '-'}</Text>
+                        <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Updated Toll Charge: {order.updated_toll_charge || '-'}</Text>
+                      </View>
+                    )}
+                  </View>
+                ))}
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }

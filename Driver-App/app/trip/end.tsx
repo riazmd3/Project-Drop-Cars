@@ -24,6 +24,7 @@ export default function EndTripScreen() {
   const [thanked, setThanked] = useState(false);
   const [tollCharge, setTollCharge] = useState('');
   const [tollChargeUpdate, setTollChargeUpdate] = useState(false);
+  const [endingKmShown, setEndingKmShown] = useState(false);
   const router = useRouter();
   const params = useLocalSearchParams<{ 
     order_id?: string; 
@@ -78,8 +79,8 @@ export default function EndTripScreen() {
 
   const handleEndTrip = async () => {
     // Check required fields (removed contact number requirement)
-    if (!endKm || !odometerPhoto || !thanked) {
-      Alert.alert('Error', 'Please complete all required fields and Wish your Customer.');
+    if (!endKm || !odometerPhoto || !endingKmShown) {
+      Alert.alert('Error', 'Please complete all required fields and ensure the Ending Km is shown.');
       return;
     }
 
@@ -210,15 +211,8 @@ export default function EndTripScreen() {
       <ScrollView style={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.title}>Complete Your Trip</Text>
         <Text style={styles.subtitle}>Upload final odometer photo and reading</Text>
-        <TouchableOpacity 
-          style={styles.checkboxContainer}
-          onPress={() => setThanked(!thanked)}
-        >
-          <View style={[styles.checkbox, thanked && styles.checkedBox]}>
-            {thanked && <Check color="#FFFFFF" size={16} />}
-          </View>
-          <Text style={styles.checkboxText}>Wish Your Customer: Thank you for being part of our journey. Your trust drives us forward! </Text>
-        </TouchableOpacity>
+
+
 
         {/* Odometer Photo */}
         <View style={styles.photoSection}>
@@ -261,19 +255,30 @@ export default function EndTripScreen() {
               onChangeText={setTollCharge}
               keyboardType="numeric"
             />
+                    {/* ENDING KM SHOWN TICKBOX - new location */}
+        <TouchableOpacity 
+          style={styles.checkboxContainer}
+          onPress={() => setEndingKmShown(v => !v)}
+        >
+          <View style={[styles.checkbox, endingKmShown && styles.checkedBox]}>
+            {endingKmShown && <Check color="#FFFFFF" size={16} />}
+          </View>
+          <Text style={styles.checkboxText}>Shown the Ending Km</Text>
+        </TouchableOpacity>
             <Text style={styles.helperText}>
               Enter the toll charges incurred during the trip
             </Text>
           </View>
+          
         )}
 
         <TouchableOpacity
           style={[
             styles.endButton,
-            (!endKm || !odometerPhoto || !thanked || (tollChargeUpdate === true && !tollCharge) || submitting) && styles.disabledButton,
+            (!endKm || !odometerPhoto || !endingKmShown || (tollChargeUpdate === true && !tollCharge) || submitting) && styles.disabledButton,
           ]}
           onPress={handleEndTrip}
-          disabled={!endKm || !odometerPhoto || !thanked || (tollChargeUpdate === true && !tollCharge) || submitting}
+          disabled={!endKm || !odometerPhoto || !endingKmShown || (tollChargeUpdate === true && !tollCharge) || submitting}
         >
           {submitting ? (
             <View style={styles.loadingContainer}>
@@ -315,6 +320,7 @@ const styles = StyleSheet.create({
     paddingTop: 24,
   },
   title: {
+    marginTop: 1,
     fontSize: 24,
     fontFamily: 'Inter-Bold',
     color: '#1F2937',
@@ -402,9 +408,9 @@ const styles = StyleSheet.create({
     borderColor: '#10B981',
   },
   checkboxText: {
-    fontSize: 14,
+    fontSize: 15,
     fontFamily: 'Inter-Medium',
-    color: '#374151',
+    color: '#fc2421',
     flex: 1,
   },
   photoSection: {
@@ -452,7 +458,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-SemiBold',
   },
   inputSection: {
-    marginBottom: 32,
+    marginBottom: 12,
   },
   kmInput: {
     backgroundColor: '#FFFFFF',
@@ -469,7 +475,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingVertical: 16,
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 50,
   },
   disabledButton: {
     backgroundColor: '#9CA3AF',
@@ -487,7 +493,7 @@ const styles = StyleSheet.create({
   helperText: {
     fontSize: 12,
     color: '#666',
-    marginTop: 4,
+    marginTop: 5,
     fontStyle: 'italic',
   },
 });
