@@ -329,20 +329,21 @@ export default function AddCarScreen() {
 
         <View style={styles.form}>
           <Text style={styles.sectionTitle}>Car Details</Text>
-          
-          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }] }>
+          {/* Car Name label */}
+          <Text style={styles.inputLabel}>Car Name:</Text>
+          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Car color="#6B7280" size={20} />
             <TextInput
               style={[styles.input, { color: colors.text }, errors.name && styles.inputError]}
-              placeholder="Car Name (e.g., Toyota Camry)"
-              placeholderTextColor="#9CA3AF"
               value={carData.name}
               onChangeText={(text) => handleInputChange('name', text)}
             />
           </View>
           {errors.name && <Text style={styles.errorText}>{errors.name}</Text>}
 
-          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }] }>
+          {/* Car Type label */}
+          <Text style={styles.inputLabel}>Car Type:</Text>
+          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Car color="#6B7280" size={20} />
             <TouchableOpacity 
               style={[styles.dropdownButton, errors.type && styles.inputError]}
@@ -373,28 +374,26 @@ export default function AddCarScreen() {
           )}
           {errors.type && <Text style={styles.errorText}>{errors.type}</Text>}
 
-          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          {/* Registration Number label */}
+          <Text style={styles.inputLabel}>Registration Number:</Text>
+          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
             <Car color="#6B7280" size={20} />
             <TextInput
               style={[styles.input, { color: colors.text }, errors.registration && styles.inputError]}
-              placeholder="Registration Number (e.g., MH 12 AB 1234)"
-              placeholderTextColor="#9CA3AF"
               value={carData.registration}
               onChangeText={(text) => handleInputChange('registration', text)}
               autoCapitalize="characters"
             />
           </View>
           {errors.registration && <Text style={styles.errorText}>{errors.registration}</Text>}
-          <Text style={styles.helpText}>
-            Enter your car registration number exactly as it appears on your RC
-          </Text>
+          <Text style={styles.helpText}>Enter your car registration number exactly as it appears on your RC</Text>
 
-          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+          {/* Model Year label */}
+          <Text style={styles.inputLabel}>Model Year:</Text>
+          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }]}> 
             <Car color="#6B7280" size={20} />
             <TextInput
               style={[styles.input, { color: colors.text }, errors.year && styles.inputError]}
-              placeholder="Model Year (e.g., 2023)"
-              placeholderTextColor="#9CA3AF"
               value={carData.year.toString()}
               onChangeText={(text) => handleInputChange('year', text)}
               keyboardType="numeric"
@@ -559,7 +558,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 6,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -708,6 +707,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
     marginLeft: 8,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: '#6B7280',
+    marginBottom: 8,
   },
 });
 

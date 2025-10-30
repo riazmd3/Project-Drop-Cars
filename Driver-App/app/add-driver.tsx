@@ -418,54 +418,55 @@ export default function AddDriverScreen() {
 
         <View style={styles.form}>
           <Text style={styles.sectionTitle}>Driver Details</Text>
-          
-          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }] }>
+          {/* Full Name label */}
+          <Text style={styles.inputLabel}>Full Name:</Text>
+          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <User color="#6B7280" size={20} />
             <TextInput
               style={[styles.input, { color: colors.text }, errors.full_name && styles.inputError]}
-              placeholder="Full Name (e.g., John Doe)"
               value={driverData.full_name}
               onChangeText={(text) => handleInputChange('full_name', text)}
             />
           </View>
           {errors.full_name && <Text style={styles.errorText}>{errors.full_name}</Text>}
 
-          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }] }>
+          {/* Primary Mobile Number label */}
+          <Text style={styles.inputLabel}>Primary Mobile Number:</Text>
+          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Phone color="#6B7280" size={20} />
             <TextInput
               style={[styles.input, { color: colors.text }, errors.primary_number && styles.inputError]}
-              placeholder="Primary Mobile Number (+91XXXXXXXXXX)"
               value={driverData.primary_number}
               onChangeText={(text) => handleInputChange('primary_number', text)}
               keyboardType="phone-pad"
             />
           </View>
           {errors.primary_number && <Text style={styles.errorText}>{errors.primary_number}</Text>}
-          <Text style={styles.helpText}>
-            Enter your mobile number exactly as you want it stored
-          </Text>
+          <Text style={styles.helpText}>Enter your mobile number exactly as you want it stored</Text>
 
-          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }] }>
+          {/* Secondary Mobile Number label */}
+          <Text style={styles.inputLabel}>Secondary Mobile Number (Optional):</Text>
+          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Phone color="#6B7280" size={20} />
             <TextInput
               style={[styles.input, { color: colors.text }, errors.secondary_number && styles.inputError]}
-              placeholder="Secondary Mobile Number (Optional)"
               value={driverData.secondary_number}
               onChangeText={(text) => handleInputChange('secondary_number', text)}
               keyboardType="phone-pad"
             />
           </View>
 
-          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }] }>
+          {/* Password label */}
+          <Text style={styles.inputLabel}>Password:</Text>
+          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <Lock color="#6B7280" size={20} />
             <TextInput
               style={[styles.input, { color: colors.text }, errors.password && styles.inputError]}
-              placeholder="Password"
               value={driverData.password}
               onChangeText={(text) => handleInputChange('password', text)}
               secureTextEntry={!showPassword}
             />
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={() => setShowPassword(!showPassword)}
               style={styles.eyeButton}
             >
@@ -478,11 +479,12 @@ export default function AddDriverScreen() {
           </View>
           {errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
 
-          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }] }>
+          {/* Driving Licence Number label */}
+          <Text style={styles.inputLabel}>Driving Licence Number:</Text>
+          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <CreditCard color="#6B7280" size={20} />
             <TextInput
               style={[styles.input, { color: colors.text }, errors.licence_number && styles.inputError]}
-              placeholder="Driving Licence Number (e.g., MH-12-1990-1234567)"
               value={driverData.licence_number}
               onChangeText={(text) => handleInputChange('licence_number', text)}
               autoCapitalize="characters"
@@ -493,11 +495,12 @@ export default function AddDriverScreen() {
             Enter your driving licence number exactly as it appears on your licence
           </Text>
 
-          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }] }>
+          {/* Address label */}
+          <Text style={styles.inputLabel}>Street Address:</Text>
+          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <MapPin color="#6B7280" size={20} />
             <TextInput
               style={[styles.input, { color: colors.text }, errors.adress && styles.inputError]}
-              placeholder="Street Address (e.g., 123 Main Street)"
               value={driverData.adress}
               onChangeText={(text) => handleInputChange('adress', text)}
               multiline
@@ -506,22 +509,24 @@ export default function AddDriverScreen() {
           </View>
           {errors.adress && <Text style={styles.errorText}>{errors.adress}</Text>}
 
-          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }] }>
+          {/* City label */}
+          <Text style={styles.inputLabel}>City:</Text>
+          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <MapPin color="#6B7280" size={20} />
             <TextInput
               style={[styles.input, { color: colors.text }, errors.city && styles.inputError]}
-              placeholder="City"
               value={driverData.city}
               onChangeText={(text) => handleInputChange('city', text)}
             />
           </View>
           {errors.city && <Text style={styles.errorText}>{errors.city}</Text>}
 
-          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }] }>
+          {/* Pincode label */}
+          <Text style={styles.inputLabel}>Pincode:</Text>
+          <View style={[styles.inputGroup, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <MapPin color="#6B7280" size={20} />
             <TextInput
               style={[styles.input, { color: colors.text }, errors.pincode && styles.inputError]}
-              placeholder="Pincode (6 digits)"
               value={driverData.pincode}
               onChangeText={(text) => {
                 const cleanText = text.replace(/\D/g, '');
@@ -653,7 +658,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 6,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#E5E7EB',
@@ -758,6 +763,12 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
     marginLeft: 8,
+  },
+  inputLabel: {
+    fontSize: 14,
+    fontFamily: 'Inter-Medium',
+    color: '#6B7280',
+    marginBottom: 8,
   },
 });
 

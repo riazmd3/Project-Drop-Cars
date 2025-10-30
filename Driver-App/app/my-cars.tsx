@@ -420,7 +420,7 @@ export default function MyCarsScreen() {
                   <Text style={dynamicStyles.imageText}>RC Front</Text>
                   <DocumentStatusIcon 
                     status={getDocumentStatus(car.id, 'rc_front')} 
-                    size={16}
+                    size={5}
                   />
                 </TouchableOpacity>
                 <TouchableOpacity 
@@ -436,7 +436,7 @@ export default function MyCarsScreen() {
                   <Text style={dynamicStyles.imageText}>RC Back</Text>
                   <DocumentStatusIcon 
                     status={getDocumentStatus(car.id, 'rc_back')} 
-                    size={16}
+                    size={5}
                   />
                 </TouchableOpacity>
                 <TouchableOpacity 
@@ -452,7 +452,7 @@ export default function MyCarsScreen() {
                   <Text style={dynamicStyles.imageText}>Insurance</Text>
                   <DocumentStatusIcon 
                     status={getDocumentStatus(car.id, 'insurance')} 
-                    size={16}
+                    size={5}
                   />
                 </TouchableOpacity>
                 <TouchableOpacity 
@@ -468,7 +468,7 @@ export default function MyCarsScreen() {
                   <Text style={dynamicStyles.imageText}>FC</Text>
                   <DocumentStatusIcon 
                     status={getDocumentStatus(car.id, 'fc')} 
-                    size={16}
+                    size={5}
                   />
                 </TouchableOpacity>
                 <TouchableOpacity 
@@ -484,7 +484,7 @@ export default function MyCarsScreen() {
                   <Text style={dynamicStyles.imageText}>Car Image</Text>
                   <DocumentStatusIcon 
                     status={getDocumentStatus(car.id, 'car_img')} 
-                    size={16}
+                    size={5}
                   />
                 </TouchableOpacity>
               </View>

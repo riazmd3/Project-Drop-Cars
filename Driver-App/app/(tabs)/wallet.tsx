@@ -17,25 +17,25 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'expo-router';
 import { IndianRupee, Plus, ArrowUpRight, ArrowDownLeft, RefreshCw, AlertCircle } from 'lucide-react-native';
-// Import Razorpay with error handling
-let RazorpayCheckout: any = null;
-try {
-  if (Platform.OS === 'android' || Platform.OS === 'ios') {
-    RazorpayCheckout = require('react-native-razorpay').default;
-    console.log('✅ Razorpay SDK loaded successfully for', Platform.OS);
-  } else {
-    console.warn('⚠️ Razorpay SDK only supports Android and iOS, current platform:', Platform.OS);
-  }
-} catch (error) {
-  console.warn('⚠️ Razorpay SDK not available:', error);
-  RazorpayCheckout = null;
-}
-import { 
-  processWalletTopup,
-  handleRazorpayPaymentSuccess,
-  handleRazorpayPaymentFailure,
-  getRazorpayOptions
-} from '@/services/payment/paymentService';
+// import { 
+//   processWalletTopup,
+//   handleRazorpayPaymentSuccess,
+//   handleRazorpayPaymentFailure,
+//   getRazorpayOptions
+// } from '@/services/payment/paymentService';
+//
+// let RazorpayCheckout: any = null;
+// try {
+//   if (Platform.OS === 'android' || Platform.OS === 'ios') {
+//     RazorpayCheckout = require('react-native-razorpay').default;
+//     console.log('✅ Razorpay SDK loaded successfully for', Platform.OS);
+//   } else {
+//     console.warn('⚠️ Razorpay SDK only supports Android and iOS, current platform:', Platform.OS);
+//   }
+// } catch (error) {
+//   console.warn('⚠️ Razorpay SDK not available:', error);
+//   RazorpayCheckout = null;
+// }
 
 export default function WalletScreen() {
   const router = useRouter();
@@ -53,11 +53,7 @@ export default function WalletScreen() {
   } = useWallet();
   const { colors } = useTheme();
   const { user } = useAuth();
-  const [addAmount, setAddAmount] = useState('');
-  const [paymentLoading, setPaymentLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-
-  const quickAmounts = [500, 1000, 2000, 3000];
 
   // Refresh wallet data
   const handleRefresh = async () => {
@@ -85,220 +81,6 @@ export default function WalletScreen() {
       }
     } finally {
       setRefreshing(false);
-    }
-  };
-
-  // Handle wallet top-up with Razorpay
-  const handleAddMoney = async (amount: number) => {
-    if (!user?.id) {
-      Alert.alert('Error', 'User information not available. Please login again.');
-      return;
-    }
-
-    try {
-      setPaymentLoading(true);
-      
-      console.log('💰 Starting wallet top-up process:', { amount, userId: user.id });
-
-      // Step 1: Create Razorpay order using the new API
-      const orderResponse = await processTopup(amount, {
-        name: user.fullName || 'Driver',
-        email: `${user.primaryMobile}@dropcars.com`, // Fallback email 
-        contact: user.primaryMobile
-      });
-      
-      if (!orderResponse.success || !orderResponse.razorpay_order_id) {
-        throw new Error('Failed to create Razorpay order');
-      }
-
-      console.log('✅ Razorpay order created:', orderResponse.razorpay_order_id);
-
-      // Check if Razorpay SDK is available
-      if (!RazorpayCheckout) {
-        console.log('🔧 Razorpay SDK not available, using mock payment...');
-        
-        // Simulate successful payment
-        const mockPaymentResponse = {
-          razorpay_payment_id: `mock_pay_${Date.now()}`,
-          razorpay_order_id: orderResponse.razorpay_order_id,
-          razorpay_signature: `mock_signature_${Date.now()}`
-        };
-
-        await handlePaymentSuccess(mockPaymentResponse);
-
-        Alert.alert(
-          'Payment Successful! 🎉 (Mock)',
-          `₹${amount} has been added to your wallet successfully.\n\nNote: Razorpay SDK is not available on this platform, so this is a mock payment for development.\n\nPayment ID: ${mockPaymentResponse.razorpay_payment_id}`,
-          [{ text: 'OK' }]
-        );
-        
-        setAddAmount('');
-        return;
-      }
-
-      // Check if we're using mock data (backend not available)
-      if (orderResponse.message.includes('mock') || orderResponse.message.includes('fallback')) {
-        // Simulate payment success with mock data
-        console.log('🔧 Using mock payment flow');
-        
-        // Simulate successful payment
-        const mockPaymentResponse = {
-          razorpay_payment_id: `mock_pay_${Date.now()}`,
-          razorpay_order_id: orderResponse.razorpay_order_id,
-          razorpay_signature: `mock_signature_${Date.now()}`
-        };
-
-        await handlePaymentSuccess(mockPaymentResponse);
-
-        Alert.alert(
-          'Payment Successful! 🎉 (Mock)',
-          `₹${amount} has been added to your wallet successfully.\n\nThis is a mock payment for development.\n\nPayment ID: ${mockPaymentResponse.razorpay_payment_id}`,
-          [{ text: 'OK' }]
-        );
-        
-        setAddAmount('');
-        return;
-      }
-
-      // Step 2: Prepare Razorpay options for real payment
-      const razorpayOptions = getRazorpayOptions(
-        orderResponse.razorpay_order_id,
-        amount,
-        `Wallet top-up of ₹${amount}`,
-        {
-          name: user.fullName || 'Driver',
-          email: `${user.primaryMobile}@dropcars.com`,
-          contact: user.primaryMobile
-        }
-      );
-
-      console.warn('Razorpay debug: options prepared', {
-        hasKey: !!razorpayOptions?.key,
-        originalAmount: amount, // rupees entered by user
-        razorpayAmount: razorpayOptions?.amount, // amount in paise sent to SDK
-        currency: razorpayOptions?.currency,
-        orderId: razorpayOptions?.order_id,
-        platform: Platform.OS
-      });
-
-      // Step 3: Open Razorpay checkout
-      console.log('🔧 Opening Razorpay checkout...');
-      
-      // Check if RazorpayCheckout is available
-      if (!RazorpayCheckout || typeof RazorpayCheckout.open !== 'function') {
-        throw new Error('Razorpay SDK not available. Using mock payment instead.');
-      }
-      
-      const paymentData = await RazorpayCheckout.open(razorpayOptions);
-      
-      // Check if payment data is valid
-      if (!paymentData || !paymentData.razorpay_payment_id) {
-        throw new Error('Payment data is invalid or payment was cancelled.');
-      }
-      
-      console.log('✅ Payment successful:', paymentData);
-
-      // Step 4: Handle payment success
-      await handlePaymentSuccess(paymentData);
-
-      Alert.alert(
-        'Payment Successful! 🎉',
-        `₹${amount} has been added to your wallet successfully.\n\nPayment ID: ${paymentData.razorpay_payment_id}`,
-        [{ text: 'OK' }]
-      );
-      
-      setAddAmount('');
-
-    } catch (error: any) {
-      console.error('❌ Payment failed:', error);
-
-      // Razorpay detailed error parsing
-      let computedMessage: string | null = null;
-      let parsedDetails: any = null;
-      try {
-        const rawDescription = error?.description || error?.error?.description;
-        // rawDescription may already be an object or a JSON string
-        if (typeof rawDescription === 'string') {
-          try { parsedDetails = JSON.parse(rawDescription); } catch { parsedDetails = null; }
-        } else if (rawDescription && typeof rawDescription === 'object') {
-          parsedDetails = rawDescription;
-        }
-        const rzpErr = parsedDetails?.error || error?.error || {};
-        console.warn('Razorpay debug: failure details', {
-          code: rzpErr.code,
-          step: rzpErr.step,
-          reason: rzpErr.reason,
-          source: rzpErr.source,
-          description: rzpErr.description,
-          metadata: rzpErr.metadata,
-        });
-
-        // Prefer backend-provided description when available
-        if (rzpErr?.description) {
-          const pid = rzpErr?.metadata?.payment_id || rzpErr?.metadata?.paymentId;
-          const oid = rzpErr?.metadata?.order_id || rzpErr?.metadata?.orderId;
-          computedMessage = `${rzpErr.description}${pid || oid ? `\n\nPayment ID: ${pid || '-'}\nOrder ID: ${oid || '-'}` : ''}`;
-        } else if (rzpErr.code === 'BAD_REQUEST_ERROR' || rzpErr.reason === 'payment_error' || rzpErr.reason === 'payment_failed') {
-          computedMessage = 'Payment failed. Please try again.';
-        }
-      } catch (parseErr) {
-        console.warn('Razorpay debug: could not parse error description JSON', parseErr);
-      }
-      
-      // Check if it's a Razorpay SDK issue and offer fallback
-      if (error.message.includes('Razorpay SDK not available') || 
-          error.message.includes('Cannot read property \'open\' of null')) {
-        
-        console.log('🔧 Razorpay SDK not available, using mock payment fallback...');
-        
-        try {
-          // Use mock payment as fallback
-          // Use mock payment as fallback
-          const mockPaymentResponse = {
-            razorpay_payment_id: `mock_pay_${Date.now()}`,
-            razorpay_order_id: `mock_order_${Date.now()}`,
-            razorpay_signature: `mock_signature_${Date.now()}`
-          };
-
-          await handlePaymentSuccess(mockPaymentResponse);
-
-          Alert.alert(
-            'Payment Successful! 🎉 (Mock)',
-            `₹${amount} has been added to your wallet successfully.\n\nNote: Razorpay SDK is not available, so this is a mock payment for development.\n\nPayment ID: ${mockPaymentResponse.razorpay_payment_id}`,
-            [{ text: 'OK' }]
-          );
-          
-          setAddAmount('');
-          return;
-        } catch (fallbackError: any) {
-          console.error('❌ Mock payment fallback also failed:', fallbackError);
-          Alert.alert('Payment Failed', 'Both Razorpay and mock payment failed. Please try again later.');
-          return;
-        }
-      }
-      
-      // Handle other payment failures
-      handlePaymentFailure(error);
-      
-      let errorMessage = computedMessage || 'Payment failed. Please try again.';
-      
-      if (error.code === 'PAYMENT_CANCELLED') {
-        errorMessage = 'Payment was cancelled by the user.';
-      } else if (error.code === 'NETWORK_ERROR') {
-        errorMessage = 'Network error. Please check your internet connection. If the issue persists, contact our team at 7092959900 for payment verification.';
-      } else if (error.message.includes('verification failed')) {
-        errorMessage = 'Payment verification failed. Please contact our team at 7092959900 for payment verification.';
-      } else if (error.message.includes('order creation failed')) {
-        errorMessage = 'Unable to create payment order. Please try again.';
-      } else if (error.message.includes('Payment data is invalid')) {
-        errorMessage = 'Payment was cancelled or failed. Please try again.';
-      } else if (error?.error?.reason === 'payment_cancelled') {
-        errorMessage = 'UPI app cancelled the payment or timed out. Please retry.';
-      }
-      
-      Alert.alert('Payment Failed', errorMessage);
-    } finally {
-      setPaymentLoading(false);
     }
   };
 
@@ -666,70 +448,7 @@ export default function WalletScreen() {
           </View>
         )}
 
-        <View style={dynamicStyles.addMoneySection}>
-          <Text style={dynamicStyles.sectionTitle}>Add Money</Text>
-          
-          {/* Network Issue Fallback Info */}
-          <View style={[dynamicStyles.networkInfoBanner]}>
-            <AlertCircle color="#FFFFFF" size={18} />
-            <Text style={dynamicStyles.networkInfoText}>
-              If any network issue occurs in Razorpay payment, kindly use this number to GPay and call to verify the payment ID with our team: 
-              <Text style={dynamicStyles.contactNumber}> 7092959900</Text>
-            </Text>
-          </View>
-          
-          <View style={dynamicStyles.amountInput}>
-            <IndianRupee color={colors.textSecondary} size={20} />
-            <TextInput
-              style={dynamicStyles.input}
-              placeholder="Enter amount"
-              value={addAmount}
-              onChangeText={(text) => {
-                // Allow only numbers (integers only)
-                const cleanText = text.replace(/[^0-9]/g, '');
-                setAddAmount(cleanText);
-              }}
-              keyboardType="number-pad"
-              placeholderTextColor={colors.textSecondary}
-              editable={!paymentLoading}
-              autoFocus={false}
-            />
-          </View>
-
-          <View style={dynamicStyles.quickAmounts}>
-            {quickAmounts.map((amount) => (
-              <TouchableOpacity
-                key={amount}
-                style={dynamicStyles.quickAmountButton}
-                onPress={() => setAddAmount(amount.toString())}
-                disabled={paymentLoading}
-              >
-                <Text style={dynamicStyles.quickAmountText}>₹{amount}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          <TouchableOpacity
-            style={[
-              dynamicStyles.addMoneyButton,
-              { opacity: (addAmount && parseInt(addAmount) > 0 && !paymentLoading) ? 1 : 0.5 }
-            ]}
-            onPress={() => handleAddMoney(parseInt(addAmount))}
-            disabled={!addAmount || parseInt(addAmount) <= 0 || paymentLoading}
-          >
-            {paymentLoading ? (
-              <>
-                <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
-                <Text style={dynamicStyles.addMoneyButtonText}>Processing...</Text>
-              </>
-            ) : (
-              <>
-                <Plus color="#FFFFFF" size={20} />
-                <Text style={dynamicStyles.addMoneyButtonText}>Add Money</Text>
-              </>
-            )}
-          </TouchableOpacity>
-        </View>
+        {/* Remove add-money/payment UI & logic. Only show balance and transaction history. */}
 
         <View style={dynamicStyles.transactionsSection}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>

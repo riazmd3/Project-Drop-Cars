@@ -85,27 +85,24 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
 
       <View style={styles.form}>
         {/* Full Name */}
+        <Text style={styles.label}>Full Name:</Text>
         <View style={styles.inputGroup}>
           <User color="#6B7280" size={20} />
           <TextInput
             style={styles.input}
-            placeholder="Full Name"
-            placeholderTextColor="#9CA3AF"
             value={fullName}
             onChangeText={setFullName}
           />
         </View>
 
         {/* Primary Mobile */}
+        <Text style={styles.label}>Primary Mobile Number:</Text>
         <View style={styles.inputGroup}>
           <Phone color="#6B7280" size={20} />
           <TextInput
             style={styles.input}
-            placeholder="Primary Mobile Number (10 digits)"
-            placeholderTextColor="#9CA3AF"
             value={primaryMobile}
             onChangeText={(text) => {
-              // Allow only digits, max 10 digits
               const cleanText = text.replace(/\D/g, '');
               if (cleanText.length <= 10) {
                 setPrimaryMobile(cleanText);
@@ -118,15 +115,13 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
         {/* Helper/error hints removed to avoid blocking UX */}
 
         {/* Secondary Mobile */}
+        <Text style={styles.label}>Secondary Mobile Number (Optional):</Text>
         <View style={styles.inputGroup}>
           <Phone color="#6B7280" size={20} />
           <TextInput
             style={styles.input}
-            placeholder="Secondary Mobile Number (Optional)"
-            placeholderTextColor="#9CA3AF"
             value={secondaryMobile}
             onChangeText={(text) => {
-              // Allow only digits, max 10 digits
               const cleanText = text.replace(/\D/g, '');
               if (cleanText.length <= 10) {
                 setSecondaryMobile(cleanText);
@@ -138,12 +133,11 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
         </View>
 
         {/* Password */}
+        <Text style={styles.label}>Password:</Text>
         <View style={styles.inputGroup}>
           <Lock color="#6B7280" size={20} />
           <TextInput
             style={styles.input}
-            placeholder="Password"
-            placeholderTextColor="#9CA3AF"
             value={password}
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
@@ -161,12 +155,11 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
         </View>
 
         {/* Address */}
+        <Text style={styles.label}>Street Address:</Text>
         <View style={styles.inputGroup}>
           <MapPin color="#6B7280" size={20} />
           <TextInput
             style={styles.input}
-            placeholder="Street Address"
-            placeholderTextColor="#9CA3AF"
             value={address}
             onChangeText={setAddress}
             multiline
@@ -175,24 +168,22 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
         </View>
 
         {/* City */}
+        <Text style={styles.label}>City:</Text>
         <View style={styles.inputGroup}>
           <MapPin color="#6B7280" size={20} />
           <TextInput
             style={styles.input}
-            placeholder="City"
-            placeholderTextColor="#9CA3AF"
             value={city}
             onChangeText={setCity}
           />
         </View>
 
         {/* Pincode */}
+        <Text style={styles.label}>Pincode:</Text>
         <View style={styles.inputGroup}>
           <MapPin color="#6B7280" size={20} />
           <TextInput
             style={styles.input}
-            placeholder="Pincode (6 digits)"
-            placeholderTextColor="#9CA3AF"
             value={pincode}
             onChangeText={(text) => {
               const cleanText = text.replace(/\D/g, '');
@@ -206,12 +197,11 @@ export default function PersonalDetailsStep({ data, onUpdate, onNext }: Personal
         </View>
 
         {/* Aadhar Number */}
+        <Text style={styles.label}>Aadhar Number:</Text>
         <View style={styles.inputGroup}>
           <Hash color="#6B7280" size={20} />
           <TextInput
             style={styles.input}
-            placeholder="Aadhar Number"
-            placeholderTextColor="#9CA3AF"
             value={aadharNumber}
             onChangeText={setAadharNumber}
             keyboardType="numeric"
@@ -258,7 +248,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingVertical: 6,
     marginBottom: 16,
     borderWidth: 1,
     borderColor: '#E5E7EB',

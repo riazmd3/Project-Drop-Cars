@@ -99,6 +99,7 @@ export default function LoginScreen() {
         password: password,
         address: response.data.address || '',
         aadharNumber: response.data.aadhar_number || '',
+        languages: [], // patch to fix linter error, pass empty string array
         documents: {}
       };
 
@@ -275,12 +276,12 @@ export default function LoginScreen() {
           </View>
 
           <View style={styles.form}>
+            {/* Phone Number label */}
+            <Text style={styles.inputLabel}>Mobile Number:</Text>
             <View style={styles.inputGroup}>
               <Smartphone color="#6B7280" size={20} />
               <TextInput
                 style={styles.input}
-                placeholder="Enter mobile number (10 digits)"
-                placeholderTextColor="#9CA3AF"
                 value={phoneNumber}
                 onChangeText={(text) => {
                   // Allow only digits, max 10 digits
@@ -293,17 +294,16 @@ export default function LoginScreen() {
                 maxLength={10}
               />
             </View>
-            <Text style={styles.helperText}>Enter 10-digit mobile number starting with 6, 7, 8, or 9</Text>
             {phoneNumber && !validateIndianMobile(phoneNumber) && (
-              <Text style={styles.errorText}>Must start with 6, 7, 8, or 9</Text>
+              <Text style={styles.errorText}>Enter a Valid Number,Must Contain 10 Digits</Text>
             )}
 
+            {/* Password label */}
+            <Text style={styles.inputLabel}>Password:</Text>
             <View style={styles.inputGroup}>
               <Lock color="#6B7280" size={20} />
               <TextInput
                 style={styles.input}
-                placeholder="Enter password"
-                placeholderTextColor="#9CA3AF"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
@@ -384,6 +384,13 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontFamily: 'Inter-Medium',
     color: '#E5E7EB',
+  },
+  inputLabel: {
+    fontSize: 15,
+    color: '#1F2937',
+    fontWeight: '600',
+    marginBottom: 4,
+    marginLeft: 2,
   },
   form: {
     backgroundColor: '#FFFFFF',
