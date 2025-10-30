@@ -8,6 +8,7 @@ import {
   Alert,
   RefreshControl,
   TextInput,
+  Modal,
 } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -38,6 +39,19 @@ interface Booking {
   status?: string; // Make status optional to match both interfaces
 }
 
+// Enhanced debug version of parse/filter logic:
+function parseCityListField(field: string | null | undefined): string[] {
+  if (!field) return [];
+  let raw = field.trim();
+  // Remove brackets if array-like
+  if (raw.startsWith('[') && raw.endsWith(']')) {
+    raw = raw.slice(1, -1);
+  }
+  // Remove quotes
+  raw = raw.replace(/['\"]/g, '');
+  return raw.split(',').map(c => c.trim()).filter(Boolean);
+}
+
 export default function DashboardScreen() {
   const { user } = useAuth();
   const { balance, refreshBalance } = useWallet();
@@ -58,6 +72,8 @@ export default function DashboardScreen() {
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [citySearch, setCitySearch] = useState('');
   const [bookingSearch, setBookingSearch] = useState('');
+  const [selectedCity, setSelectedCity] = useState<string | null>(null);
+  const [showCityModal, setShowCityModal] = useState(false);
 
   const CITY_STORAGE_KEY = 'vo_nearcity_selected_cities';
 
@@ -242,41 +258,56 @@ export default function DashboardScreen() {
     return city !== '' && city !== 'ALL';
   };
 
+  // Bookings filter: above bookings list, show the selected cities as chips similar to above.
+  {availableTab === 'nearcity' && selectedCities.length > 0 && (
+    <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row', marginBottom: 10, marginTop: 4 }}>
+      {selectedCities.map(city => (
+        <View key={city} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary + '22', borderRadius: 20, marginRight: 8, paddingHorizontal: 12, paddingVertical: 5 }}>
+          <Text style={{ color: colors.primary, marginRight: 4 }}>{city}</Text>
+          <TouchableOpacity onPress={() => setSelectedCities(selectedCities.filter(x => x !== city))}>
+            <Text style={{ color: colors.error, fontWeight: '700', fontSize: 15 }}>✕</Text>
+          </TouchableOpacity>
+        </View>
+      ))}
+    </ScrollView>
+  )}
+
+  // Enhanced debug version of parse/filter logic:
+  const debugOrderMatch: Array<{order_id:number, pick_near_city:any, pickCitiesArr:string[], selectedCities:string[], didMatch:boolean}> = [];
   const filteredOrders: PendingOrder[] = (() => {
-    let filtered = [];
-    
-    if (availableTab === 'all') {
-      filtered = pendingOrders.filter(o => {
-        const isMulti = isTripTypenearcity(o.trip_type) || isNearCityMode(o) || hasCityTarget(o);
-        const pickCity = getNearCity(o);
-        // Hide nearcity orders unless pick_near_city is 'ALL'
-        if (isMulti && pickCity !== 'ALL') return false;
-        return true;
+    if (!pendingOrders) return [];
+    let orders = pendingOrders.filter(o => {
+      const pickCitiesArr = parseCityListField(o.pick_near_city ? String(o.pick_near_city) : '');
+      const isAll = pickCitiesArr.some(city => city.trim().toUpperCase() === 'ALL');
+      let didMatch = false;
+      if (isAll) {
+        didMatch = true;
+      } else if (selectedCities.length > 0) {
+        didMatch = selectedCities.some(sel =>
+          pickCitiesArr.some(pick => pick.trim().toLowerCase() === sel.trim().toLowerCase())
+        );
+      }
+      debugOrderMatch.push({
+        order_id: Number(o.order_id),
+        pick_near_city: o.pick_near_city,
+        pickCitiesArr,
+        selectedCities: [...selectedCities],
+        didMatch
       });
-    } else {
-      // nearcity tab
-      const onlynearcity = pendingOrders.filter(o => isTripTypenearcity(o.trip_type) || isNearCityMode(o) || hasCityTarget(o));
-      if (selectedCities.length === 0) return [];
-      const setSel = new Set(selectedCities.map(c => c.toUpperCase()));
-      filtered = onlynearcity.filter(o => setSel.has(getNearCity(o)));
-    }
-    
-    // Apply search filter
+      return didMatch;
+    });
     if (bookingSearch.trim()) {
       const searchTerm = bookingSearch.toLowerCase().trim();
-      filtered = filtered.filter(o => {
+      orders = orders.filter(o => {
         const locations = getPickupDropLocations(o.pickup_drop_location);
-        const orderId = String(o.order_id || '');
-        
-        return (
-          orderId.includes(searchTerm) ||
-          locations.pickup.toLowerCase().includes(searchTerm) ||
-          locations.drop.toLowerCase().includes(searchTerm)
-        );
+        return [
+          String(o.order_id),
+          locations.pickup,
+          locations.drop
+        ].some(field => field && String(field).toLowerCase().includes(searchTerm));
       });
     }
-    
-    return filtered;
+    return orders;
   })();
 
   // Tab counts
@@ -760,67 +791,23 @@ export default function DashboardScreen() {
   if (showWelcome) {
     return <WelcomeScreen onComplete={handleWelcomeComplete} />;
   }
-
   return (
     <SafeAreaView style={dynamicStyles.container}>
-      <View style={dynamicStyles.header}>
+      <View style={[dynamicStyles.header, { justifyContent: 'space-between', alignItems: 'center' }]}> 
         <TouchableOpacity onPress={() => setShowDrawer(true)} style={dynamicStyles.menuButton}>
           <Menu color={colors.text} size={24} />
         </TouchableOpacity>
-        
-        <TouchableOpacity 
-          style={dynamicStyles.balanceContainer}
+        <Text style={{ fontSize: 18, fontFamily: 'Inter-Bold', color: colors.text, flex: 1, textAlign: 'center' }}>
+          Hi! {dashboardData?.user_info?.full_name || user?.fullName || 'Vehicle Owner'}
+        </Text>
+        <TouchableOpacity
+          style={{ padding: 6, flexDirection: 'row', alignItems: 'center', minWidth: 120, justifyContent: 'flex-end' }}
+          onPress={() => router.push('/(tabs)/wallet')}
         >
-          <Text style={dynamicStyles.balanceAmount}>₹{Math.round(Number(dashboardData?.user_info?.wallet_balance || balance || 0))}</Text>
+          <Text style={{ fontSize: 18, color: colors.primary, fontFamily: 'Inter-Bold' }}>₹{Math.round(Number(dashboardData?.user_info?.wallet_balance || balance || 0))}</Text>
+          <Text style={{ fontSize: 15, color: colors.primary, fontFamily: 'Inter-SemiBold', marginLeft: 8 }}>| Add money</Text>
         </TouchableOpacity>
-
-        <View style={dynamicStyles.headerRight}>
-          {/* Notification Test Button */}
-          <TouchableOpacity 
-            onPress={async () => {
-              try {
-                // Check notification status first
-                const isNotificationEnabled = await getNotificationStatus();
-                
-                if (!isNotificationEnabled) {
-                  Alert.alert(
-                    'Notifications Disabled',
-                    'Please turn on notifications in the Settings tab to receive test notifications.',
-                    [
-                      { text: 'Cancel', style: 'cancel' },
-                      { 
-                        text: 'Go to Settings', 
-                        onPress: () => router.push('/(tabs)/settings')
-                      }
-                    ]
-                  );
-                  return;
-                }
-                
-                console.log('🧪 VEHICLE OWNER TEST: Calling testForegroundNotification...');
-                const { testForegroundNotification } = await import('@/services/notifications/notificationService');
-                await testForegroundNotification();
-                console.log('✅ VEHICLE OWNER TEST: testForegroundNotification completed');
-                Alert.alert('Test Sent', 'Foreground notification test sent!');
-              } catch (error) {
-                console.error('❌ VEHICLE OWNER TEST FAILED:', error);
-                Alert.alert('Error', 'Failed to send test notification');
-              }
-            }} 
-            style={[dynamicStyles.testButton, { backgroundColor: '#10B981' }]}
-          >
-            <Text style={dynamicStyles.testButtonText}>NotificationTest</Text>
-          </TouchableOpacity>
-          
-          <TouchableOpacity onPress={handleRefresh} style={dynamicStyles.refreshButton} disabled={refreshing}>
-            <RefreshCw color={colors.primary} size={18} style={refreshing ? { transform: [{ rotate: '180deg' }] } : {}} />
-          </TouchableOpacity>
-          <TouchableOpacity onPress={() => router.push('/(tabs)/wallet')} style={dynamicStyles.walletButton}>
-            <Wallet color={colors.primary} size={20} />
-          </TouchableOpacity>
-        </View>
       </View>
-
       {currentWallet < 1000 && (
         <View style={dynamicStyles.warningBanner}>
           <Text style={dynamicStyles.warningText}>
@@ -828,9 +815,8 @@ export default function DashboardScreen() {
           </Text>
         </View>
       )}
-
-      <ScrollView 
-        style={dynamicStyles.content} 
+      <ScrollView
+        style={dynamicStyles.content}
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
@@ -843,7 +829,7 @@ export default function DashboardScreen() {
         ) : error ? (
           <View style={dynamicStyles.loadingContainer}>
             <Text style={dynamicStyles.loadingText}>Error: {error}</Text>
-            <TouchableOpacity 
+            <TouchableOpacity
               style={[dynamicStyles.endTripButton, { marginTop: 16 }]}
               onPress={fetchData}
             >
@@ -852,189 +838,142 @@ export default function DashboardScreen() {
           </View>
         ) : (
           <>
-            {/* Welcome Banner */}
-            <View style={dynamicStyles.welcomeBanner}>
-              <Text style={dynamicStyles.welcomeBannerTitle}>
-                Welcome to Drop Cars, {dashboardData?.user_info?.full_name || user?.fullName || 'Vehicle Owner'}!
-              </Text>
-              <Text style={dynamicStyles.welcomeBannerSubtitle}>
-                {dashboardData?.cars && dashboardData.cars.length > 0 
-                  ? `Your ${dashboardData.cars[0].car_name || `${dashboardData.cars[0].car_brand || 'Vehicle'} ${dashboardData.cars[0].car_model || ''}`.trim() || 'Vehicle'} (${dashboardData.cars[0].car_number || 'Number'}) is ready for service. Start earning today!`
-                  : 'Complete your profile setup to start earning!'
-                }
-              </Text>
-              <TouchableOpacity 
-                style={dynamicStyles.termsButton}
-                onPress={() => Alert.alert(
-                  'Terms and Conditions',
-                  'By using Drop Cars, you agree to our Terms and Conditions. Please review them in Settings > Privacy & Security.',
-                  [{ text: 'OK' }]
-                )}
-              >
-                <Text style={dynamicStyles.termsButtonText}>
-                  Terms and Conditions
-                </Text>
-              </TouchableOpacity>
-            </View>
-
-            {/* Quick Stats */}
-            <View style={dynamicStyles.statsContainer}>
-              <View style={dynamicStyles.statCard}>
-                <Text style={dynamicStyles.statNumber}>₹{Math.round(Number(dashboardData?.user_info?.wallet_balance || balance || 0))}</Text>
-                <Text style={dynamicStyles.statLabel}>Wallet Balance</Text>
-              </View>
-              <View style={dynamicStyles.statCard}>
-                <Text style={dynamicStyles.statNumber}>{dashboardData?.cars?.length || 0}</Text>
-                <Text style={dynamicStyles.statLabel}>Vehicles</Text>
-              </View>
-              <View style={dynamicStyles.statCard}>
-                <Text style={dynamicStyles.statNumber}>{dashboardData?.drivers?.length || 0}</Text>
-                <Text style={dynamicStyles.statLabel}>Drivers</Text>
-              </View>
-            </View>
-
-
-            {
-              <View style={dynamicStyles.bookingsSection}>
+            <View style={dynamicStyles.bookingsSection}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
                 <Text style={dynamicStyles.sectionTitle}>Available Bookings</Text>
-
-                {/* Search Input */}
-                <View style={dynamicStyles.searchContainer}>
-                  <TextInput
-                    style={dynamicStyles.searchInput}
-                    placeholder="Search by ID, from city, or to city..."
-                    placeholderTextColor={colors.textSecondary}
-                    value={bookingSearch}
-                    onChangeText={setBookingSearch}
-                  />
-                </View>
-
-                {/* Tabs: All | nearcity */}
-                <View style={{ flexDirection: 'row', marginBottom: 12 }}>
-                  <TouchableOpacity onPress={() => setAvailableTab('all')} style={{ marginRight: 12 }}>
-                    <Text style={{
-                      fontFamily: 'Inter-SemiBold',
-                      color: availableTab === 'all' ? colors.primary : colors.textSecondary
-                    }}>All ({allTabCount})</Text>
+                <View style={{ flex: 1 }} />
+                <TouchableOpacity
+                  onPress={() => setShowCityModal(true)}
+                  style={{
+                    backgroundColor: colors.primary,
+                    paddingHorizontal: 18,
+                    paddingVertical: 8,
+                    borderRadius: 8,
+                    marginLeft: 10,
+                  }}
+                >
+                  <Text style={{ color: '#fff', fontWeight: '600', fontSize: 15 }}>Select City</Text>
+                </TouchableOpacity>
+              </View>
+            
+              {selectedCity && (
+                <View
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    marginBottom: 10,
+                    backgroundColor: colors.primary + '20',
+                    borderRadius: 6,
+                    paddingHorizontal: 12,
+                    paddingVertical: 4,
+                    alignSelf: 'flex-start',
+                  }}
+                >
+                  <Text style={{ color: colors.primary, fontWeight: '600', marginRight: 8 }}>
+                    Selected City: {selectedCity}
+                  </Text>
+                  <TouchableOpacity onPress={() => setSelectedCity(null)}>
+                    <Text style={{ color: colors.error, fontSize: 13 }}>Clear</Text>
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => setAvailableTab('nearcity')}>
-                    <Text style={{
-                      fontFamily: 'Inter-SemiBold',
-                      color: availableTab === 'nearcity' ? colors.primary : colors.textSecondary
-                    }}>Near City ({multiTabCount})</Text>
-                  </TouchableOpacity>
                 </View>
-
-                {/* City search for nearcity tab */}
-                {availableTab === 'nearcity' && (
-                  <>
-                    {/* Selected cities count display */}
+              )}
+            
+              {/* City Selection Modal (simple) */}
+              <Modal visible={showCityModal} transparent animationType="fade">
+                <View style={{
+                  flex: 1, backgroundColor: '#0008', alignItems: 'center', justifyContent: 'center'
+                }}>
+                  <View style={{ backgroundColor: colors.surface, padding: 18, borderRadius: 12, width: 320 }}>
+                    <Text style={{ fontWeight: '700', fontSize: 17, color: colors.text, marginBottom: 14 }}>Select City</Text>
+                    {/* Search Field */}
+                    <TextInput
+                      style={[dynamicStyles.searchInput, { marginBottom: 10 }]}
+                      value={citySearch}
+                      onChangeText={setCitySearch}
+                      placeholder="Search City..."
+                      placeholderTextColor={colors.textSecondary}
+                    />
+                    {/* Chips for selected cities */}
                     {selectedCities.length > 0 && (
-                      <View style={{ 
-                        flexDirection: 'row', 
-                        alignItems: 'center', 
-                        marginBottom: 8,
-                        paddingHorizontal: 12,
-                        paddingVertical: 8,
-                        backgroundColor: colors.primary + '20',
-                        borderRadius: 8,
-                      }}>
-                        <Text style={{ 
-                          color: colors.primary, 
-                          fontFamily: 'Inter-SemiBold',
-                          fontSize: 14 
-                        }}>
-                          {selectedCities.length} cities selected
-                        </Text>
-                        <TouchableOpacity 
-                          onPress={() => setSelectedCities([])} 
-                          style={{ marginLeft: 8 }}
-                        >
-                          <Text style={{ 
-                            color: colors.error,
-                            fontFamily: 'Inter-Medium',
-                            fontSize: 12 
-                          }}>Clear All</Text>
-                        </TouchableOpacity>
-                      </View>
+                      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row', marginBottom: 10 }}>
+                        {selectedCities.map(city => (
+                          <View key={city} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary + '22', borderRadius: 20, marginRight: 8, paddingHorizontal: 12, paddingVertical: 5 }}>
+                            <Text style={{ color: colors.primary, marginRight: 4 }}>{city}</Text>
+                            <TouchableOpacity onPress={() => setSelectedCities(selectedCities.filter(x => x !== city))}>
+                              <Text style={{ color: colors.error, fontWeight: '700', fontSize: 15 }}>✕</Text>
+                            </TouchableOpacity>
+                          </View>
+                        ))}
+                      </ScrollView>
                     )}
-
-                    {/* Search input */}
-                    <View style={{
-                      borderWidth: 1,
-                      borderColor: colors.border,
-                      borderRadius: 8,
-                      paddingHorizontal: 12,
-                      paddingVertical: 8,
-                      marginBottom: 8,
-                      backgroundColor: colors.surface,
-                    }}>
-                      <TextInput
-                        placeholder="Search and select cities..."
-                        placeholderTextColor={colors.textSecondary}
-                        value={citySearch}
-                        onChangeText={setCitySearch}
-                        style={{ color: colors.text }}
-                      />
-                    </View>
-
-                    {/* Options list (filtered) - only show when searching */}
-                    {citySearch.length > 0 && (
-                      <View style={{ 
-                        flexDirection: 'row', 
-                        flexWrap: 'wrap', 
-                        marginBottom: 12,
-                        maxHeight: 200,
-                        backgroundColor: colors.surface,
-                        borderRadius: 8,
-                        padding: 8,
-                        borderWidth: 1,
-                        borderColor: colors.border,
-                      }}>
-                        {nearcityOptions
-                          .filter(c => c.toLowerCase().includes(citySearch.toLowerCase()))
-                          .slice(0, 20) // Limit to 20 results for performance
-                          .map((city) => {
-                            const selected = selectedCities.includes(city);
-                            return (
-                              <TouchableOpacity key={city} onPress={() => toggleCitySelection(city)} style={{
-                                paddingHorizontal: 12,
-                                paddingVertical: 6,
-                                borderRadius: 16,
-                                marginRight: 8,
-                                marginBottom: 8,
-                                backgroundColor: selected ? colors.primary : colors.background,
-                                borderWidth: 1,
-                                borderColor: selected ? colors.primary : colors.border,
+                    {/* Selectable city list */}
+                    <ScrollView style={{ maxHeight: 220 }}>
+                      {MASTER_CITIES.filter(city => city.toLowerCase().includes(citySearch.toLowerCase()))
+                        .map(city => {
+                          const isSelected = selectedCities.includes(city);
+                          return (
+                            <TouchableOpacity
+                              key={city}
+                              onPress={() => {
+                                if (isSelected) {
+                                  setSelectedCities(selectedCities.filter(c => c !== city));
+                                } else if (selectedCities.length < 5) {
+                                  setSelectedCities([...selectedCities, city]);
+                                }
+                              }}
+                              disabled={!isSelected && selectedCities.length >= 5}
+                              style={{
+                                flexDirection: 'row',
+                                alignItems: 'center',
+                                paddingVertical: 9,
+                                borderBottomWidth: 1,
+                                borderBottomColor: colors.border,
+                                opacity: !isSelected && selectedCities.length >= 5 ? 0.3 : 1,
                               }}>
-                                <Text style={{ 
-                                  color: selected ? '#FFFFFF' : colors.text,
-                                  fontSize: 12,
-                                  fontFamily: 'Inter-Medium'
-                                }}>{city}</Text>
-                              </TouchableOpacity>
-                            );
-                          })}
-                        {nearcityOptions.filter(c => c.toLowerCase().includes(citySearch.toLowerCase())).length === 0 && (
-                          <Text style={{ 
-                            color: colors.textSecondary, 
-                            fontFamily: 'Inter-Medium',
-                            textAlign: 'center',
-                            padding: 20 
-                          }}>
-                            No cities found
-                          </Text>
-                        )}
-                      </View>
-                    )}
-                  </>
-                )}
-                {ordersLoading ? (
-                  <View style={dynamicStyles.loadingContainer}>
-                    <Text style={dynamicStyles.loadingText}>Loading pending orders...</Text>
+                              <Text style={{ color: isSelected ? colors.primary : colors.text, fontWeight: isSelected ? '700' : '400', fontSize: 16 }}>{city}</Text>
+                              {isSelected && <Text style={{ marginLeft: 12, color: colors.primary, fontWeight: 'bold' }}>✔</Text>}
+                            </TouchableOpacity>
+                          );
+                        })}
+                    </ScrollView>
+                    <TouchableOpacity style={{ marginTop: 16, alignSelf: 'flex-end' }} onPress={() => setShowCityModal(false)}>
+                      <Text style={{ color: colors.error, fontWeight: '700', fontSize: 15 }}>Close</Text>
+                    </TouchableOpacity>
                   </View>
-                ) : filteredOrders.length > 0 ? (
-                  filteredOrders.map((order) => {
+                </View>
+              </Modal>
+            
+              {/* Search Input */}
+              <View style={dynamicStyles.searchContainer}>
+                <TextInput
+                  style={dynamicStyles.searchInput}
+                  placeholder="Search by ID, from city, or to city..."
+                  placeholderTextColor={colors.textSecondary}
+                  value={bookingSearch}
+                  onChangeText={setBookingSearch}
+                />
+              </View>
+            
+              {/* Bookings list */}
+              {ordersLoading ? (
+                <View style={dynamicStyles.loadingContainer}>
+                  <Text style={dynamicStyles.loadingText}>Loading pending orders...</Text>
+                </View>
+              ) : filteredOrders.length > 0 ? (
+                filteredOrders
+                  .filter(order => {
+                    if (!selectedCity) return true;
+                    // Check if selected city matches pickup, drop, pick_near_city, or near_city
+                    const locations = getPickupDropLocations(order.pickup_drop_location);
+                    const near = ((order.pick_near_city || order.near_city || '') + '').trim().toLowerCase();
+                    const city = selectedCity.trim().toLowerCase();
+                    return (
+                      (locations.pickup && locations.pickup.toLowerCase().includes(city)) ||
+                      (locations.drop && locations.drop.toLowerCase().includes(city)) ||
+                      near.includes(city)
+                    );
+                  })
+                  .map((order) => {
                     const locations = getPickupDropLocations(order.pickup_drop_location);
                     return (
                       <BookingCard
@@ -1053,7 +992,6 @@ export default function DashboardScreen() {
                           pick_near_city: String((order as any).pick_near_city || (order as any).near_city || ''),
                           start_date_time: String(order.start_date_time || ''),
                           trip_time: String(((order as any).trip_time) || ''),
-                          // Add the timer fields explicitly
                           created_at: String((order as any).created_at || ''),
                           max_time_to_assign_order: String((order as any).max_time_to_assign_order || ''),
                           expires_at: String((order as any).expires_at || ''),
@@ -1066,21 +1004,20 @@ export default function DashboardScreen() {
                       />
                     );
                   })
-                ) : (
-                  <View style={dynamicStyles.noBookings}>
-                    <Text style={dynamicStyles.noBookingsText}>No pending bookings available</Text>
-                    <Text style={dynamicStyles.noBookingsSubtext}>New bookings will appear here</Text>
-                  </View>
-                )}
-              </View>
-            }
+              ) : (
+                <View style={dynamicStyles.noBookings}>
+                  <Text style={dynamicStyles.noBookingsText}>No pending bookings available</Text>
+                  <Text style={dynamicStyles.noBookingsSubtext}>New bookings will appear here</Text>
+                </View>
+              )}
+            </View>
           </>
         )}
       </ScrollView>
-
-      <DrawerNavigation 
-        visible={showDrawer} 
-        onClose={() => setShowDrawer(false)} 
+      {/* DrawerNavigation must be rendered outside ScrollView */}
+      <DrawerNavigation
+        visible={showDrawer}
+        onClose={() => setShowDrawer(false)}
       />
     </SafeAreaView>
   );
