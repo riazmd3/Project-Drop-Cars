@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   RefreshControl,
   Platform,
+  Modal,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useWallet } from '@/contexts/WalletContext';
@@ -17,6 +18,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'expo-router';
 import { IndianRupee, Plus, ArrowUpRight, ArrowDownLeft, RefreshCw, AlertCircle } from 'lucide-react-native';
+import { Linking } from 'react-native';
 // import { 
 //   processWalletTopup,
 //   handleRazorpayPaymentSuccess,
@@ -54,6 +56,34 @@ export default function WalletScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
+
+  // Manual UPI modal state
+  const [upiModalVisible, setUpiModalVisible] = useState(false);
+  const [upiAmount, setUpiAmount] = useState('');
+  const [upiError, setUpiError] = useState('');
+  const quickUpiAmounts = [500, 1000, 2000, 3000];
+
+  const handleUPIPayment = (amountValue: string | number) => {
+    const amt = String(amountValue).trim();
+    if (!amt || isNaN(Number(amt)) || Number(amt) <= 0) {
+      setUpiError('Enter a valid amount');
+      return;
+    }
+    setUpiError('');
+    setUpiModalVisible(false);
+    // UPI ID as mobile number
+    const upiBase = 'upi://pay';
+    const params = [
+      `pa=9500820541@axl`, // UPI ID or mobile
+      `pn=DropCars`,
+      `am=${amt}`,
+      `cu=INR`
+    ].join('&');
+    const upiUrl = `${upiBase}?${params}`;
+    Linking.openURL(upiUrl).catch(() => {
+      Alert.alert('Error', 'No UPI app found. Please install a UPI payment app.');
+    });
+  };
 
   // Refresh wallet data
   const handleRefresh = async () => {
@@ -447,6 +477,52 @@ export default function WalletScreen() {
             <Text style={dynamicStyles.errorText}>{error}</Text>
           </View>
         )}
+
+        {/* Add Money with UPI Button and Modal */}
+        <TouchableOpacity style={{ marginTop: 24, alignSelf: 'center', backgroundColor: colors.primary, paddingVertical: 14, paddingHorizontal: 32, borderRadius: 12, flexDirection: 'row', alignItems: 'center' }} onPress={() => { setUpiError(''); setUpiAmount(''); setUpiModalVisible(true); }}>
+          <Text style={{ color: '#FFF', fontSize: 16, fontFamily: 'Inter-SemiBold', marginRight: 10 }}>Tap to Add Money</Text>
+          <Plus color="#FFF" size={20} />
+        </TouchableOpacity>
+        <Modal
+          visible={upiModalVisible}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setUpiModalVisible(false)}
+        >
+          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }}>
+            <View style={{ backgroundColor: colors.background, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 24 }}>
+              <Text style={[dynamicStyles.sectionTitle, { marginBottom: 10, textAlign: 'center' }]}>Add Money via UPI</Text>
+              <Text style={{ textAlign: 'center', color: colors.textSecondary, marginBottom: 22 }}>Choose amount or enter custom, then select UPI app to pay to <Text style={{ fontWeight: 'bold', color: colors.primary }}>9500820542</Text></Text>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 }}>
+                {quickUpiAmounts.map((amt) => (
+                  <TouchableOpacity key={amt} style={{ backgroundColor: '#EFF6FF', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16, marginHorizontal: 2 }} onPress={() => handleUPIPayment(amt)}>
+                    <Text style={{ color: colors.primary, fontWeight: 'bold', fontSize: 16 }}>₹{amt}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFB', borderRadius: 12, paddingHorizontal: 16, borderWidth: 1, borderColor: '#E5E7EB', marginBottom: 22 }}>
+                <IndianRupee color={colors.textSecondary} size={20} />
+                <TextInput
+                  style={{ flex: 1, marginLeft: 10, fontSize: 15, color: colors.text, paddingVertical: 8, fontFamily: 'Inter-Regular' }}
+                  value={upiAmount}
+                  onChangeText={setUpiAmount}
+                  placeholder="Custom amount"
+                  placeholderTextColor={colors.textSecondary}
+                  keyboardType="numeric"
+                  maxLength={7}
+                  autoFocus
+                />
+                <TouchableOpacity onPress={() => handleUPIPayment(upiAmount)} style={{ marginLeft: 10, backgroundColor: colors.primary, borderRadius: 8, paddingVertical: 6, paddingHorizontal: 16 }}>
+                  <Text style={{ color: '#FFF', fontWeight: 'bold', fontSize: 15 }}>Pay</Text>
+                </TouchableOpacity>
+              </View>
+              {!!upiError && <Text style={{ color: '#EF4444', textAlign: 'center', marginBottom: 8 }}>{upiError}</Text>}
+              <TouchableOpacity style={{ alignSelf: 'center', marginTop: 5 }} onPress={() => setUpiModalVisible(false)}>
+                <Text style={{ color: colors.primary, fontSize: 15, fontFamily: 'Inter-SemiBold' }}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
 
         {/* Remove add-money/payment UI & logic. Only show balance and transaction history. */}
 
