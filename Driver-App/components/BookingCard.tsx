@@ -5,9 +5,11 @@ import {
   TouchableOpacity,
   StyleSheet,
   ActivityIndicator,
+  Modal,
+  ScrollView,
 } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
-import { MapPin, Clock, IndianRupee, User, Phone, Car, AlertCircle } from 'lucide-react-native';
+import { MapPin, Clock, IndianRupee, User, Phone, Car, AlertCircle, X } from 'lucide-react-native';
 
 interface Booking {
   order_id: number;
@@ -28,6 +30,7 @@ interface Booking {
   expires_at?: string;
   charges_to_deduct?: number;
   pickup_notes?: string;
+  pickup_drop_location?: any; // Add this to access raw location data
 }
 
 interface BookingCardProps {
@@ -40,6 +43,9 @@ interface BookingCardProps {
 export default function BookingCard({ booking, onAccept, disabled, loading }: BookingCardProps) {
   const { colors } = useTheme();
   const [timeRemaining, setTimeRemaining] = useState<string>('');
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [acknowledgeInterest, setAcknowledgeInterest] = useState(false);
+  const [acknowledgePenalties, setAcknowledgePenalties] = useState(false);
   console.log('booking data', booking);
 
   const toNumber = (v: any): number => {
@@ -57,11 +63,65 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
   };
 
   // Derive fields robustly in case parent passes raw VO pending order
-  const loc = safePickLoc((booking as any).pickup_drop_location);
-  const pickupFromLoc = (loc && (loc['0'] || (loc as any).pickup)) || '';
-  const dropFromLoc = (loc && (loc['1'] || (loc as any).drop)) || '';
-  const pickup = booking.pickup || String(pickupFromLoc);
-  const drop = booking.drop || String(dropFromLoc);
+  // Priority: use booking.pickup_drop_location if available, otherwise parse from booking props
+  const rawLocation = booking.pickup_drop_location || (booking as any).pickup_drop_location;
+  const loc = safePickLoc(rawLocation);
+  
+  // Parse all cities for multicity trips - extract ALL numeric keys (0, 1, 2, 3, etc.)
+  const getAllCities = (): string[] => {
+    const cities: string[] = [];
+    
+    // First, try to get from pickup_drop_location object
+    if (loc && typeof loc === 'object' && !Array.isArray(loc)) {
+      // Extract all numeric keys (0, 1, 2, 3, etc.) and sort them
+      const allKeys = Object.keys(loc);
+      const numericKeys = allKeys
+        .filter(k => {
+          const num = Number(k);
+          return !isNaN(num) && isFinite(num) && num >= 0;
+        })
+        .map(k => Number(k))
+        .sort((a, b) => a - b);
+      
+      if (numericKeys.length > 0) {
+        // Add cities in order based on numeric keys (preserve duplicates for proper ordering)
+        numericKeys.forEach(key => {
+          const cityValue = loc[String(key)];
+          const city = cityValue ? String(cityValue).trim() : '';
+          if (city) {
+            cities.push(city);
+          }
+        });
+        
+        if (cities.length > 0) {
+          return cities;
+        }
+      }
+      
+      // Fallback to named keys
+      if (loc.pickup) cities.push(String(loc.pickup));
+      if (loc.drop && loc.drop !== loc.pickup) cities.push(String(loc.drop));
+      if (cities.length > 0) return cities;
+    }
+    
+    // Final fallback: use booking pickup/drop props
+    const pickup = booking.pickup || '';
+    const drop = booking.drop || '';
+    if (pickup) cities.push(pickup);
+    if (drop && drop !== pickup) cities.push(drop);
+    
+    return cities;
+  };
+  
+  const allCities = getAllCities();
+  const isMulticity = allCities.length > 2;
+  const startCity = allCities[0] || booking.pickup || '';
+  const endCity = allCities.length > 1 ? allCities[allCities.length - 1] : (booking.drop || '');
+  const middleCities = allCities.length > 2 ? allCities.slice(1, -1) : [];
+  
+  // For display, use parsed cities or fallback to props
+  const pickup = startCity;
+  const drop = endCity;
 
   const displayPrice = toNumber((booking as any).estimated_price ?? (booking as any).vendor_price ?? (booking as any).total_fare);
   const customerNumber = (booking as any).customer_number || (booking as any).customer_mobile || '';
@@ -75,6 +135,31 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
   const createdAt = booking.created_at || '';
   const maxTimeToAssign = booking.max_time_to_assign_order || '';
   const expiresAt = booking.expires_at || '';
+  
+  // Parse date and time from start_date_time
+  const getPickupDate = (): string => {
+    if (!startDateTime) return '';
+    try {
+      const date = new Date(startDateTime);
+      return date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+    } catch {
+      return '';
+    }
+  };
+  
+  const getPickupTime = (): string => {
+    if (!startDateTime) return '';
+    try {
+      const date = new Date(startDateTime);
+      return date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+    } catch {
+      return '';
+    }
+  };
+  
+  const pickupDate = getPickupDate();
+  const pickupTime = getPickupTime();
+  const tripDistance = toNumber((booking as any).trip_distance || 0);
   
   const computeDeadline = (): string => {
     try {
@@ -206,6 +291,19 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
     return () => clearInterval(interval);
   }, [booking]);
 
+  const handleAcceptPress = () => {
+    setShowConfirmModal(true);
+  };
+  
+  const handleConfirmAccept = () => {
+    if (acknowledgeInterest && acknowledgePenalties) {
+      setShowConfirmModal(false);
+      setAcknowledgeInterest(false);
+      setAcknowledgePenalties(false);
+      onAccept(booking);
+    }
+  };
+
   const dynamicStyles = StyleSheet.create({
     card: {
       backgroundColor: colors.surface,
@@ -225,40 +323,41 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 12,
+      marginBottom: 16,
     },
     bookingId: {
-      fontSize: 16,
-      fontFamily: 'Inter-SemiBold',
+      fontSize: 18,
+      fontFamily: 'Inter-Bold',
       color: colors.text,
     },
-    fareContainer: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      backgroundColor: '#D1FAE5',
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-      borderRadius: 8,
-    },
-    totalFare: {
-      marginLeft: 4,
+    tripTypeText: {
       fontSize: 16,
       fontFamily: 'Inter-Bold',
-      color: '#065F46',
+      color: '#EF4444', // Red color
     },
     routeContainer: {
-      marginBottom: 12,
+      marginBottom: 16,
     },
     routeRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: 4,
+      marginBottom: 6,
     },
     routeText: {
       marginLeft: 8,
-      fontSize: 14,
-      fontFamily: 'Inter-Medium',
+      fontSize: 15,
+      fontFamily: 'Inter-Bold',
       color: colors.text,
+      flex: 1,
+    },
+    routeTextGreen: {
+      color: '#10B981', // Green for start
+    },
+    routeTextRed: {
+      color: '#EF4444', // Red for end
+    },
+    routeTextBlue: {
+      color: '#3B82F6', // Blue for middle cities
     },
     routeLine: {
       width: 1,
@@ -268,60 +367,47 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
       marginVertical: 4,
     },
     detailsContainer: {
-      marginBottom: 12,
-    },
-    detailRowMatrix: {
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      gap: 12,
-      marginBottom: 6,
-    },
-    detailCol: {
-      flex: 1,
-    },
-    detailColLabel: {
-      color: colors.textSecondary,
+      marginBottom: 16,
     },
     detailRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: 6,
+      marginBottom: 10,
     },
-    detailText: {
-      marginLeft: 8,
-      fontSize: 13,
-      fontFamily: 'Inter-Medium',
+    detailLabel: {
+      fontSize: 14,
+      fontFamily: 'Inter-Bold',
       color: colors.textSecondary,
+      minWidth: 120,
     },
-    tripInfo: {
-      backgroundColor: colors.background,
-      borderRadius: 8,
-      padding: 8,
-      marginBottom: 16,
-    },
-    tripInfoText: {
-      fontSize: 12,
-      fontFamily: 'Inter-Medium',
+    detailValue: {
+      fontSize: 14,
+      fontFamily: 'Inter-Bold',
       color: colors.text,
-      textAlign: 'center',
+      flex: 1,
     },
-    assignmentWindowLabel: {
-      backgroundColor: '#3B82F6', // Blue color
-      paddingHorizontal: 12,
-      paddingVertical: 6,
+    fareContainer: {
+      backgroundColor: '#D1FAE5',
       borderRadius: 12,
-      alignSelf: 'flex-start',
-      marginBottom: 12,
+      padding: 10,
+      marginBottom: 10,
+      alignItems: 'center',
     },
-    assignmentWindowText: {
-      fontSize: 12,
+    fareLabel: {
+      fontSize: 14,
       fontFamily: 'Inter-SemiBold',
-      color: '#FFFFFF',
+      color: '#065F46',
+      marginBottom: 4,
+    },
+    totalFare: {
+      fontSize: 24,
+      fontFamily: 'Inter-Bold',
+      color: '#065F46',
     },
     acceptButton: {
       backgroundColor: colors.primary,
       borderRadius: 12,
-      paddingVertical: 14,
+      paddingVertical: 16,
       alignItems: 'center',
       flexDirection: 'row',
       justifyContent: 'center',
@@ -329,7 +415,7 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
     acceptButtonText: {
       color: '#FFFFFF',
       fontSize: 16,
-      fontFamily: 'Inter-SemiBold',
+      fontFamily: 'Inter-Bold',
     },
     disabledButton: {
       backgroundColor: '#9CA3AF',
@@ -341,140 +427,373 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
       backgroundColor: colors.primary,
       opacity: 0.8,
     },
-    // Timer styles removed for home card
+    // Modal styles
+    modalOverlay: {
+      flex: 1,
+      backgroundColor: 'rgba(0, 0, 0, 0.5)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 20,
+    },
+    modalContent: {
+      backgroundColor: colors.surface,
+      borderRadius: 16,
+      width: '100%',
+      maxWidth: 400,
+      maxHeight: '90%',
+    },
+    modalHeader: {
+      backgroundColor: colors.primary,
+      padding: 16,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+    },
+    modalHeaderText: {
+      fontSize: 18,
+      fontFamily: 'Inter-Bold',
+      color: '#FFFFFF',
+      flex: 1,
+    },
+    modalCloseButton: {
+      padding: 4,
+      color: 'red',
+    },
+    modalBody: {
+      padding: 20,
+    },
+    modalSection: {
+      marginBottom: 20,
+    },
+    modalLabel: {
+      fontSize: 14,
+      fontFamily: 'Inter-SemiBold',
+      color: colors.textSecondary,
+      marginBottom: 4,
+    },
+    modalValue: {
+      fontSize: 15,
+      fontFamily: 'Inter-Medium',
+      color: colors.text,
+      marginBottom: 12,
+    },
+    termsContainer: {
+      backgroundColor: colors.background,
+      borderRadius: 8,
+      padding: 12,
+      marginBottom: 16,
+    },
+    termsText: {
+      fontSize: 13,
+      fontFamily: 'Inter-Regular',
+      color: colors.text,
+      lineHeight: 20,
+      marginBottom: 8,
+    },
+    checkboxRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      marginBottom: 12,
+    },
+    checkbox: {
+      width: 20,
+      height: 20,
+      borderWidth: 2,
+      borderColor: colors.primary,
+      borderRadius: 4,
+      marginRight: 12,
+      marginTop: 2,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    checkboxChecked: {
+      backgroundColor: colors.primary,
+    },
+    checkboxText: {
+      flex: 1,
+      fontSize: 13,
+      fontFamily: 'Inter-Regular',
+      color: 'red',
+      lineHeight: 20,
+    },
+    modalButtons: {
+      flexDirection: 'row',
+      marginTop: 8,
+      justifyContent: 'space-between',
+      paddingBottom: 50,
+    },
+    cancelButton: {
+      flex: 1,
+      backgroundColor: '#FFFFFF',
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 12,
+      paddingVertical: 14,
+      alignItems: 'center',
+    },
+    cancelButtonText: {
+      fontSize: 15,
+      fontFamily: 'Inter-SemiBold',
+      color: colors.text,
+    },
+    confirmButton: {
+      flex: 1,
+      backgroundColor: colors.primary,
+      borderRadius: 12,
+      paddingVertical: 14,
+      alignItems: 'center',
+      paddingBottom: 10,
+    },
+    confirmButtonText: {
+      fontSize: 15,
+      fontFamily: 'Inter-SemiBold',
+      color: '#FFFFFF',
+    },
+    confirmButtonDisabled: {
+      opacity: 0.5,
+    },
   });
   return (
-    <View style={[dynamicStyles.card, disabled && dynamicStyles.disabledCard]}>
-      <View style={dynamicStyles.header}>
-        <Text style={dynamicStyles.bookingId}>#{booking.order_id}</Text>
+    <>
+      <View style={[dynamicStyles.card, disabled && dynamicStyles.disabledCard]}>
+        {/* Header: Booking ID and Trip Type */}
+        <View style={dynamicStyles.header}>
+          <Text style={dynamicStyles.bookingId}>Booking ID: #{booking.order_id}</Text>
+          {tripType && (
+            <Text style={dynamicStyles.tripTypeText}>{tripType}</Text>
+          )}
+        </View>
+
+        {/* Route: From/To with multicity support */}
+        <View style={dynamicStyles.routeContainer}>
+          {allCities.length > 0 && (
+            <>
+              {/* Start city - Green */}
+              <View style={dynamicStyles.routeRow}>
+                <MapPin color="#10B981" size={18} />
+                <Text style={[dynamicStyles.routeText, dynamicStyles.routeTextGreen]}>
+                  From: {startCity}
+                </Text>
+              </View>
+              
+              {/* Middle cities - Blue (only show if there are 3+ cities) */}
+              {allCities.length > 2 && middleCities.map((city, idx) => (
+                <View key={`middle-${idx}-${city}`}>
+                  <View style={dynamicStyles.routeLine} />
+                  <View style={dynamicStyles.routeRow}>
+                    <MapPin color="#3B82F6" size={18} />
+                    <Text style={[dynamicStyles.routeText, dynamicStyles.routeTextBlue]}>
+                      {city}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+              
+              {/* End city - Red (always show if different from start or if there are multiple cities) */}
+              {allCities.length > 1 && (
+                <>
+                  <View style={dynamicStyles.routeLine} />
+                  <View style={dynamicStyles.routeRow}>
+                    <MapPin color="#EF4444" size={18} />
+                    <Text style={[dynamicStyles.routeText, dynamicStyles.routeTextRed]}>
+                      To: {endCity}
+                    </Text>
+                  </View>
+                </>
+              )}
+            </>
+          )}
+        </View>
+
+        {/* Details Section */}
+        <View style={dynamicStyles.detailsContainer}>
+          {pickupDate && (
+            <View style={dynamicStyles.detailRow}>
+              <Text style={dynamicStyles.detailLabel}>Pick Up Date:</Text>
+              <Text style={dynamicStyles.detailValue}>{pickupDate}</Text>
+            </View>
+          )}
+          
+          {pickupTime && (
+            <View style={dynamicStyles.detailRow}>
+              <Text style={dynamicStyles.detailLabel}>Pick Up Time:</Text>
+              <Text style={dynamicStyles.detailValue}>{pickupTime}</Text>
+            </View>
+          )}
+          
+          {estimatedTime && (
+            <View style={dynamicStyles.detailRow}>
+              <Text style={dynamicStyles.detailLabel}>Trip Duration:</Text>
+              <Text style={dynamicStyles.detailValue}>{estimatedTime}</Text>
+            </View>
+          )}
+          
+          {tripDistance > 0 && (
+            <View style={dynamicStyles.detailRow}>
+              <Text style={dynamicStyles.detailLabel}>Trip Distance:</Text>
+              <Text style={dynamicStyles.detailValue}>{tripDistance} km</Text>
+            </View>
+          )}
+        </View>
+
+        {/* Fare - Above Accept Button */}
         <View style={dynamicStyles.fareContainer}>
-          {/* Show estimated price as main fare */}
-          <IndianRupee color={colors.success} size={16} />
-          <Text style={dynamicStyles.totalFare}>
-            {displayPrice}
-          </Text>
+          <Text style={dynamicStyles.fareLabel}>Total Fare</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <IndianRupee color="#065F46" size={20} />
+            <Text style={dynamicStyles.totalFare}>{displayPrice}</Text>
+          </View>
         </View>
+
+        {/* Accept Button */}
+        <TouchableOpacity
+          style={[
+            dynamicStyles.acceptButton,
+            disabled && dynamicStyles.disabledButton,
+            loading && dynamicStyles.loadingButton
+          ]}
+          onPress={handleAcceptPress}
+          disabled={disabled || loading}
+        >
+          {loading ? (
+            <>
+              <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
+              <Text style={dynamicStyles.acceptButtonText}>Accepting...</Text>
+            </>
+          ) : (
+            <Text style={[dynamicStyles.acceptButtonText, disabled && dynamicStyles.disabledButtonText]}>
+              {disabled ? 'Insufficient Balance' : 'Accept Booking'}
+            </Text>
+          )}
+        </TouchableOpacity>
       </View>
 
-      {/* Assignment Window Duration Label */}
-      {/* {assignmentWindowDuration && (
-        <View style={dynamicStyles.assignmentWindowLabel}>
-          <Text style={dynamicStyles.assignmentWindowText}>
-            Assignment Time: {assignmentWindowDuration}
-          </Text>
-        </View>
-      )} */}
-
-      <View style={dynamicStyles.routeContainer}>
-        <View style={dynamicStyles.routeRow}>
-          <MapPin color={colors.success} size={16} />
-          <Text style={dynamicStyles.routeText}>{pickup}</Text>
-        </View>
-        {!isHourlyRental && (
-          <>
-            <View style={dynamicStyles.routeLine} />
-            <View style={dynamicStyles.routeRow}>
-              <MapPin color={colors.error} size={16} />
-              <Text style={dynamicStyles.routeText}>{drop}</Text>
-            </View>
-          </>
-        )}
-      </View>
-
-      <View style={dynamicStyles.detailsContainer}>
-        {!!booking.customer_name && (
-          <View style={dynamicStyles.detailRow}>
-            <User color={colors.textSecondary} size={14} />
-            <Text style={dynamicStyles.detailText}>{booking.customer_name}</Text>
-          </View>
-        )}
-        {!!customerNumber && (
-          <View style={dynamicStyles.detailRow}>
-            <Phone color={colors.textSecondary} size={14} />
-            <Text style={dynamicStyles.detailText}>{customerNumber}</Text>
-          </View>
-        )}
-        {(carType || tripType) && (
-          <View style={dynamicStyles.detailRowMatrix}>
-            <View style={dynamicStyles.detailCol}>
-              {!!carType && (
-                <Text style={dynamicStyles.detailText}><Text style={dynamicStyles.detailColLabel}>Car:</Text> {carType}</Text>
-              )}
-            </View>
-            <View style={dynamicStyles.detailCol}>
-              {!!tripType && (
-                <Text style={dynamicStyles.detailText}><Text style={dynamicStyles.detailColLabel}>Trip:</Text> {tripType}</Text>
-              )}
-            </View>
-          </View>
-        )}
-        {(nearCity || startDateTime) && (
-          <View style={dynamicStyles.detailRowMatrix}>
-            <View style={dynamicStyles.detailCol}>
-              {!!nearCity && (
-                <Text style={dynamicStyles.detailText}><Text style={dynamicStyles.detailColLabel}>City:</Text> {nearCity}</Text>
-              )}
-            </View>
-            <View style={dynamicStyles.detailCol}>
-              {!!startDateTime && (
-                <Text style={dynamicStyles.detailText}><Text style={dynamicStyles.detailColLabel}>Start:</Text> {new Date(startDateTime).toLocaleString()}</Text>
-              )}
-            </View>
-          </View>
-        )}
-        {/* Pickup Notes */}
-        {booking.pickup_notes && (
-          <View style={dynamicStyles.detailRow}>
-            <Text style={dynamicStyles.detailText}><Text style={dynamicStyles.detailColLabel}>Notes:</Text> {booking.pickup_notes}</Text>
-          </View>
-        )}
-        {(estimatedTime || deadlineTime) && (
-          <View style={dynamicStyles.detailRowMatrix}>
-            <View style={dynamicStyles.detailCol}>
-              {!!estimatedTime && (
-                <Text style={dynamicStyles.detailText}><Text style={dynamicStyles.detailColLabel}>ETA:</Text> {estimatedTime}</Text>
-              )}
-            </View>
-          </View>
-        )}
-      </View>
-
-      {!!((booking as any).trip_distance || booking.fare_per_km) && (
-        <View style={dynamicStyles.tripInfo}>
-          <Text style={dynamicStyles.tripInfoText}>
-            {(booking as any).trip_distance ?? 0} km {booking.fare_per_km ? `• ₹${booking.fare_per_km}/km` : ''}
-          </Text>
-        </View>
-      )}
-
-      {chargesToDeduct > 0 && (
-        <View style={dynamicStyles.tripInfo}>
-          <Text style={dynamicStyles.tripInfoText}>
-            Deductible amount: ₹{chargesToDeduct}
-          </Text>
-        </View>
-      )}
-
-      <TouchableOpacity
-        style={[
-          dynamicStyles.acceptButton,
-          disabled && dynamicStyles.disabledButton,
-          loading && dynamicStyles.loadingButton
-        ]}
-        onPress={() => onAccept(booking)}
-        disabled={disabled || loading}
+      {/* Confirmation Modal */}
+      <Modal
+        visible={showConfirmModal}
+        transparent={true}
+        animationType="slide"
+        onRequestClose={() => {
+          setShowConfirmModal(false);
+          setAcknowledgeInterest(false);
+          setAcknowledgePenalties(false);
+        }}
       >
-        {loading ? (
-          <>
-            <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
-            <Text style={dynamicStyles.acceptButtonText}>Accepting...</Text>
-          </>
-        ) : (
-          <Text style={[dynamicStyles.acceptButtonText, disabled && dynamicStyles.disabledButtonText]}>
-            {disabled ? 'Insufficient Balance' : 'Accept Booking'}
-          </Text>
-        )}
-      </TouchableOpacity>
-    </View>
+        <View style={dynamicStyles.modalOverlay}>
+          <View style={dynamicStyles.modalContent}>
+            {/* Modal Header */}
+            <View style={dynamicStyles.modalHeader}>
+              <Text style={dynamicStyles.modalHeaderText}>
+                Booking Response Details #{booking.order_id}
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowConfirmModal(false);
+                  setAcknowledgeInterest(false);
+                  setAcknowledgePenalties(false);
+                }}
+                style={dynamicStyles.modalCloseButton}
+              >
+                <X color="#FFFFFF" size={24} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Modal Body */}
+            <ScrollView style={dynamicStyles.modalBody} showsVerticalScrollIndicator={false}>
+              {/* Trip Details */}
+              <View style={dynamicStyles.modalSection}>
+                <Text style={dynamicStyles.modalLabel}>Trip:</Text>
+                <Text style={dynamicStyles.modalValue}>
+                  {startCity && endCity ? `${startCity} → ${endCity}` : pickup && drop ? `${pickup} → ${drop}` : 'N/A'}
+                  {tripType && `, ${tripType}`}
+                  {carType && ` For ${carType}`}
+                </Text>
+
+                {pickupDate && (
+                  <>
+                    <Text style={dynamicStyles.modalLabel}>Pickup:</Text>
+                    <Text style={dynamicStyles.modalValue}>
+                      {pickupDate} At {pickup || startCity}
+                    </Text>
+                  </>
+                )}
+
+                {endCity && (
+                  <>
+                    <Text style={dynamicStyles.modalLabel}>Drop Location:</Text>
+                    <Text style={dynamicStyles.modalValue}>{endCity}</Text>
+                  </>
+                )}
+              </View>
+
+              {/* Terms and Conditions */}
+              <View style={dynamicStyles.modalSection}>
+                <Text style={[dynamicStyles.modalLabel, { marginBottom: 8 }]}>Terms and Conditions</Text>
+                <View style={dynamicStyles.termsContainer}>
+                  <Text style={dynamicStyles.termsText}>
+                    I'm interested in this trip and will comply with all the terms and conditions of savaari.
+                  </Text>
+                  <Text style={dynamicStyles.termsText}>
+                    I acknowledge and agree to the penalties in case of any non-compliance or delays from my side: Unallocation penalty up to ₹2000, Assignment penalty up to ₹500, On Time/App Related penalty up to ₹500.
+                  </Text>
+                </View>
+              </View>
+
+              {/* Checkboxes */}
+              <View style={dynamicStyles.checkboxRow}>
+                <TouchableOpacity
+                  style={[dynamicStyles.checkbox, acknowledgeInterest && dynamicStyles.checkboxChecked]}
+                  onPress={() => setAcknowledgeInterest(!acknowledgeInterest)}
+                >
+                  {acknowledgeInterest && <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: 'bold' }}>✓</Text>}
+                </TouchableOpacity>
+                <Text style={dynamicStyles.checkboxText}>
+                  I'm interested in this trip and will comply with all the terms and conditions of savaari.
+                </Text>
+              </View>
+
+              <View style={dynamicStyles.checkboxRow}>
+                <TouchableOpacity
+                  style={[dynamicStyles.checkbox, acknowledgePenalties && dynamicStyles.checkboxChecked]}
+                  onPress={() => setAcknowledgePenalties(!acknowledgePenalties)}
+                >
+                  {acknowledgePenalties && <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: 'bold' }}>✓</Text>}
+                </TouchableOpacity>
+                <Text style={dynamicStyles.checkboxText}>
+                  I acknowledge and agree to the above penalties in case of any non-compliance or delays from my side.
+                </Text>
+              </View>
+
+              {/* Action Buttons */}
+              <View style={dynamicStyles.modalButtons}>
+                <TouchableOpacity
+                  style={[dynamicStyles.cancelButton, { marginRight: 6 }]}
+                  onPress={() => {
+                    setShowConfirmModal(false);
+                    setAcknowledgeInterest(false);
+                    setAcknowledgePenalties(false);
+                  }}
+                >
+                  <Text style={dynamicStyles.cancelButtonText}>Do not Confirm</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={[
+                    dynamicStyles.confirmButton,
+                    { marginLeft: 6 },
+                    (!acknowledgeInterest || !acknowledgePenalties) && dynamicStyles.confirmButtonDisabled
+                  ]}
+                  onPress={handleConfirmAccept}
+                  disabled={!acknowledgeInterest || !acknowledgePenalties}
+                >
+                  <Text style={dynamicStyles.confirmButtonText}>Confirm</Text>
+                </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+    </>
   );
 }

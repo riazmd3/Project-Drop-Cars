@@ -462,7 +462,7 @@ For any queries or support, contact us at:
             }
           />
 
-          <SettingItem
+          {/* <SettingItem
             icon={<Bell color={colors.textSecondary} size={20} />}
             title="Notifications"
             subtitle="Receive booking and trip notifications"
@@ -474,7 +474,7 @@ For any queries or support, contact us at:
                 thumbColor={notificationsEnabled ? '#FFFFFF' : '#F3F4F6'}
               />
             }
-          />
+          /> */}
 
         </View>
 

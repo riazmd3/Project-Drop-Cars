@@ -365,21 +365,44 @@ export default function FutureRidesScreen() {
   const renderRideCard = (ride: FutureRide) => {
     const { pickup, drop } = getPickupDrop(ride.pickup_drop_location);
     const isHourly = String(ride.trip_type || '').toLowerCase().includes('hour');
+    const isMulticity = String(ride.trip_type || '').toLowerCase().includes('multicity') || String(ride.trip_type || '').toLowerCase().includes('multy');
     
     const remaining = getAssignmentRemaining(ride);
     
+    // Parse date and time
+    const parseDateTime = (dateStr: string) => {
+      if (!dateStr) return { date: '', time: '' };
+      try {
+        const date = new Date(dateStr);
+        const formattedDate = date.toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
+        const formattedTime = date.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' });
+        return { date: formattedDate, time: formattedTime };
+      } catch {
+        return { date: '', time: '' };
+      }
+    };
+    
+    const { date: pickupDate, time: pickupTime } = parseDateTime(ride.start_date_time);
+    
+    // Access fare breakdown fields (may come from API response)
+    const fareData = (ride as any);
+    const pricePerKm = fareData.cost_per_km || fareData.price_per_km || 0;
+    const driverAllowance = fareData.driver_allowance || 0;
+    const permitCharge = fareData.permit_charges || fareData.permit_charge || 0;
+    const hillsCharge = fareData.hill_charges || fareData.hills_charge || 0;
+    const tollCharge = fareData.toll_charges || fareData.toll_charge || 0;
+    const waitingCharge = isMulticity ? (fareData.waiting_charge || fareData.waiting_charges || 0) : null;
+    
     return (
       <View key={ride.id} style={[styles.rideCard, { backgroundColor: colors.surface }]}>
-        {/* Header */}
+        {/* Header: Booking ID and Trip Type */}
         <View style={styles.rideHeader}>
-          <View style={styles.statusBadge}>
-            <Text style={[styles.statusText, { color: getStatusColor(ride.assignment_status) }]}>
-              {ride.assignment_status}
-            </Text>
-          </View>
-          <Text style={[styles.orderId, { color: colors.textSecondary }]}>
-            Order #{ride.source_order_id}
+          <Text style={[styles.orderIdBold, { color: colors.text }]}>
+            Booking ID: #{ride.source_order_id}
           </Text>
+          {ride.trip_type && (
+            <Text style={styles.tripTypeBold}>{ride.trip_type}</Text>
+          )}
         </View>
 
         {/* Assignment countdown (only for accepted orders without driver/car assigned) */}
@@ -398,88 +421,74 @@ export default function FutureRidesScreen() {
         {/* Route */}
         <View style={styles.routeContainer}>
           <View style={styles.routeRow}>
-            <View style={[styles.locationDot, { backgroundColor: '#10B981' }]} />
-            <Text style={[styles.locationText, { color: colors.text }]} numberOfLines={1}>
-              {pickup}
+            <MapPin color="#10B981" size={18} />
+            <Text style={[styles.routeTextBold, { color: '#10B981' }]}>
+              From: {pickup}
             </Text>
           </View>
           {!isHourly && !!drop && (
-            <View style={styles.routeRow}>
-              <View style={[styles.locationDot, { backgroundColor: '#EF4444' }]} />
-              <Text style={[styles.locationText, { color: colors.text }]} numberOfLines={1}>
-                {drop}
-              </Text>
+            <>
+              <View style={styles.routeLine} />
+              <View style={styles.routeRow}>
+                <MapPin color="#EF4444" size={18} />
+                <Text style={[styles.routeTextBold, { color: '#EF4444' }]}>
+                  To: {drop}
+                </Text>
+              </View>
+            </>
+          )}
+        </View>
+
+        {/* Order Details in Bold Styling */}
+        <View style={styles.detailsContainerBold}>
+          {ride.trip_type && (
+            <View style={styles.detailRowBold}>
+              <Text style={styles.detailLabelBold}>Trip Type:</Text>
+              <Text style={styles.detailValueBold}>{ride.trip_type}</Text>
+            </View>
+          )}
+          {ride.car_type && (
+            <View style={styles.detailRowBold}>
+              <Text style={styles.detailLabelBold}>Vehicle Type:</Text>
+              <Text style={styles.detailValueBold}>{ride.car_type}</Text>
+            </View>
+          )}
+          {pickupDate && (
+            <View style={styles.detailRowBold}>
+              <Text style={styles.detailLabelBold}>Date & Time:</Text>
+              <Text style={styles.detailValueBold}>{pickupDate} {pickupTime}</Text>
+            </View>
+          )}
+          {ride.trip_distance && (
+            <View style={styles.detailRowBold}>
+              <Text style={styles.detailLabelBold}>Distance:</Text>
+              <Text style={styles.detailValueBold}>{ride.trip_distance} km</Text>
+            </View>
+          )}
+          {ride.trip_time && (
+            <View style={styles.detailRowBold}>
+              <Text style={styles.detailLabelBold}>Duration:</Text>
+              <Text style={styles.detailValueBold}>{ride.trip_time}</Text>
             </View>
           )}
         </View>
 
-        {/* Details */}
-        <View style={styles.detailsContainer}>
-          {/* Trip Type */}
-          {!!ride.trip_type && (
-            <View style={styles.detailRow}>
-              <Car size={16} color={colors.textSecondary} />
-              <Text style={[styles.detailText, { color: colors.textSecondary }]}>Trip: {ride.trip_type}</Text>
-            </View>
-          )}
-          <View style={styles.detailRow}>
-            <User size={16} color={colors.textSecondary} />
-            <Text style={[styles.detailText, { color: colors.textSecondary }]}>
-              {ride.customer_name}
-            </Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Phone size={16} color={colors.textSecondary} />
-            <Text style={[styles.detailText, { color: colors.textSecondary }]}>
-              {ride.customer_number}
-            </Text>
-          </View>
-          <View style={styles.detailRow}>
-            <Car size={16} color={colors.textSecondary} />
-            <Text style={[styles.detailText, { color: colors.textSecondary }]}>
-              {ride.car_type}
-            </Text>
-          </View>
-          <View style={styles.detailRow}>
-            <MapPin size={16} color={colors.textSecondary} />
-            <Text style={[styles.detailText, { color: colors.textSecondary }]}>
-              {ride.trip_distance} km • {ride.trip_time}
-            </Text>
-          </View>
-          {/* Pickup Notes */}
-          {ride.pickup_notes && (
-            <View style={styles.detailRow}>
-              <FileText size={16} color={colors.textSecondary} />
-              <Text style={[styles.detailText, { color: colors.textSecondary }]}>
-                Notes: {ride.pickup_notes}
-              </Text>
-            </View>
-          )}
-        </View>
-
-        {/* Footer */}
-        <View style={styles.rideFooter}>
-          <View style={styles.timeContainer}>
-            <Clock size={16} color={colors.textSecondary} />
-            <Text style={[styles.timeText, { color: colors.textSecondary }]}>
-              {formatDate(ride.start_date_time)}
-            </Text>
-          </View>
-          <View style={styles.priceContainer}>
-            <IndianRupee size={16} color="#10B981" />
-            <Text style={styles.priceText}>
-              {ride.vendor_price}
-            </Text>
+        {/* Total Amount */}
+        <View style={styles.fareContainer}>
+          <Text style={styles.fareLabel}>Total Amount</Text>
+          <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+            <IndianRupee color="#065F46" size={20} />
+            <Text style={styles.totalFare}>{ride.vendor_price || ride.estimated_price || 0}</Text>
           </View>
         </View>
 
-        {/* See More Button */}
+        {/* Fare Breakdown Button */}
         <TouchableOpacity 
           style={[styles.seeMoreButton, { backgroundColor: colors.background }]}
           onPress={() => setExpandedOrderId(expandedOrderId === ride.id ? null : ride.id)}
         >
           <Text style={[styles.seeMoreText, { color: colors.primary }]}>
-            {expandedOrderId === ride.id ? 'See Less' : 'See More'}
+            {expandedOrderId === ride.id ? 'Hide Fare Breakdown' : 'Fare Breakdown'}
           </Text>
           {expandedOrderId === ride.id ? (
             <ChevronUp size={16} color={colors.primary} />
@@ -488,12 +497,42 @@ export default function FutureRidesScreen() {
           )}
         </TouchableOpacity>
 
-        {/* Expanded Details Drawer */}
+        {/* Expanded Details Drawer - Fare Breakdown */}
         {expandedOrderId === ride.id && (
           <View style={[styles.expandedDetails, { backgroundColor: colors.background }]}>
-            <Text style={[styles.expandedTitle, { color: colors.text }]}>Order Details</Text>
+            <Text style={[styles.expandedTitle, { color: colors.text }]}>Fare Breakdown</Text>
             
-            {/* Order Information - expanded drawer */}
+            {/* Fare Breakdown Details */}
+            <View style={styles.expandedSection}>
+              <View style={styles.expandedRow}>
+                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Price per km:</Text>
+                <Text style={[styles.expandedValue, { color: colors.text }]}>₹{pricePerKm}</Text>
+              </View>
+              <View style={styles.expandedRow}>
+                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Driver allowance:</Text>
+                <Text style={[styles.expandedValue, { color: colors.text }]}>₹{driverAllowance}</Text>
+              </View>
+              <View style={styles.expandedRow}>
+                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Permit charge:</Text>
+                <Text style={[styles.expandedValue, { color: colors.text }]}>₹{permitCharge}</Text>
+              </View>
+              <View style={styles.expandedRow}>
+                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Hills charge:</Text>
+                <Text style={[styles.expandedValue, { color: colors.text }]}>₹{hillsCharge}</Text>
+              </View>
+              <View style={styles.expandedRow}>
+                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Toll charge:</Text>
+                <Text style={[styles.expandedValue, { color: colors.text }]}>₹{tollCharge}</Text>
+              </View>
+              <View style={styles.expandedRow}>
+                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Waiting charge:</Text>
+                <Text style={[styles.expandedValue, { color: colors.text }]}>
+                  {isMulticity ? (waitingCharge ? `₹${waitingCharge}` : '₹0') : 'N/A'}
+                </Text>
+              </View>
+            </View>
+            
+            {/* Order Information - Additional details */}
             <View style={styles.expandedSection}>
               <Text style={[styles.expandedSectionTitle, { color: colors.text }]}>Order Information</Text>
               <View style={styles.expandedRow}>
@@ -949,13 +988,29 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontFamily: 'Inter-Medium',
     },
+    orderIdBold: {
+      fontSize: 18,
+      fontFamily: 'Inter-Bold',
+    },
+    tripTypeBold: {
+      fontSize: 16,
+      fontFamily: 'Inter-Bold',
+      color: '#EF4444', // Red color
+    },
     routeContainer: {
-      marginBottom: 12,
+      marginBottom: 16,
     },
     routeRow: {
       flexDirection: 'row',
       alignItems: 'center',
-    marginBottom: 8,
+    marginBottom: 6,
+  },
+  routeLine: {
+    width: 1,
+    height: 20,
+    marginLeft: 8,
+    marginVertical: 4,
+    backgroundColor: '#E5E7EB',
   },
   locationDot: {
     width: 8,
@@ -968,6 +1023,12 @@ const styles = StyleSheet.create({
       fontFamily: 'Inter-Medium',
     flex: 1,
   },
+  routeTextBold: {
+    fontSize: 15,
+    fontFamily: 'Inter-Bold',
+    flex: 1,
+    marginLeft: 8,
+  },
   detailsContainer: {
     borderTopWidth: 1,
     borderTopColor: '#E5E7EB',
@@ -975,14 +1036,52 @@ const styles = StyleSheet.create({
       marginBottom: 12,
     gap: 8,
     },
+    detailsContainerBold: {
+      marginBottom: 16,
+    },
     detailRow: {
       flexDirection: 'row',
       alignItems: 'center',
     gap: 8,
     },
+    detailRowBold: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      marginBottom: 10,
+    },
+    detailLabelBold: {
+      fontSize: 14,
+      fontFamily: 'Inter-Bold',
+      color: '#6B7280',
+      minWidth: 120,
+    },
+    detailValueBold: {
+      fontSize: 14,
+      fontFamily: 'Inter-Bold',
+      color: '#111827',
+      flex: 1,
+    },
     detailText: {
     fontSize: 14,
     fontFamily: 'Inter-Regular',
+  },
+  fareContainer: {
+    backgroundColor: '#D1FAE5',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    alignItems: 'center',
+  },
+  fareLabel: {
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+    color: '#065F46',
+    marginBottom: 4,
+  },
+  totalFare: {
+    fontSize: 24,
+    fontFamily: 'Inter-Bold',
+    color: '#065F46',
   },
   rideFooter: {
     flexDirection: 'row',

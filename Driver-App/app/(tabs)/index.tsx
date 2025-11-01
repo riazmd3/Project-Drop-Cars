@@ -24,6 +24,7 @@ import DrawerNavigation from '@/components/DrawerNavigation';
 import WelcomeScreen from '@/components/WelcomeScreen';
 import { fetchDashboardData, DashboardData, forceRefreshDashboardData } from '@/services/orders/dashboardService';
 import { getPendingOrders, PendingOrder } from '@/services/orders/assignmentService';
+import { updateNotificationSettings } from '@/services/notifications/notificationApi';
 import axiosInstance from '@/app/api/axiosInstance';
 import { getAuthHeaders } from '@/services/auth/authService';
 
@@ -145,6 +146,23 @@ export default function DashboardScreen() {
       console.log('👤 User changed, refreshing dashboard data...');
       fetchData();
       fetchPendingOrdersData();
+      
+      // Automatically send notification token on login (same as toggle ON)
+      const sendNotificationTokenOnLogin = async () => {
+        try {
+          console.log('📱 Sending notification token on login...');
+          await updateNotificationSettings({ 
+            permission1: true, 
+            permission2: true
+          });
+          console.log('✅ Notification token sent successfully on login');
+        } catch (error) {
+          console.warn('⚠️ Failed to send notification token on login:', error);
+          // Don't block login if notification token sending fails
+        }
+      };
+      
+      sendNotificationTokenOnLogin();
     }
   }, [user?.id]); // Only trigger when user ID changes (login/logout)
 
@@ -1064,6 +1082,7 @@ export default function DashboardScreen() {
                           expires_at: String((order as any).expires_at || ''),
                           charges_to_deduct: Number((order as any).charges_to_deduct || 0),
                           pickup_notes: String((order as any).pickup_notes || ''),
+                          pickup_drop_location: order.pickup_drop_location, // Pass raw location for multicity parsing
                         }}
                         onAccept={() => handleAcceptBooking(order)}
                         disabled={!canAcceptOrder(order) || processingOrderId === order.order_id.toString()}
