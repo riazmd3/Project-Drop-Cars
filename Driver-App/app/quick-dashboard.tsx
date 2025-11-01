@@ -37,6 +37,7 @@ import { startTrip, endTrip } from '@/services/driver/carDriverService';
 import axiosDriver from '@/app/api/axiosDriver';
 import LoadingOverlay from '@/components/LoadingOverlay';
 import axiosInstance from '@/app/api/axiosInstance';
+import Svg, { Path, Circle } from 'react-native-svg';
 // Removed test notification button
 interface DriverOrder {
   id: number;
@@ -650,7 +651,31 @@ export default function QuickDashboardScreen() {
         <View style={styles.headerContent}>
           <View style={styles.driverInfo}>
             <View style={styles.avatar}>
-              <User size={24} color={colors.primary} />
+              <Svg width={36} height={36} viewBox="0 0 64 64" stroke={colors.primary} strokeWidth={2.5} fill="none">
+                {/* Head */}
+                <Circle cx="32" cy="20" r="10" strokeLinejoin="round" />
+                {/* Cap brim and body */}
+                <Path d="M22 16 Q32 8 42 16" />
+                <Path d="M24 16 h16 v5 h-16z" />
+                {/* Cap front line */}
+                <Path d="M29 19 h6" strokeLinecap="round" />
+                {/* Ears */}
+                <Path d="M21 21 q-2 4 2 6" />
+                <Path d="M43 21 q2 4 -2 6" />
+                {/* Body/torso outline */}
+                <Path d="M20 38 Q10 46 16 56 h32 q6-10-4-18" />
+                {/* Arms/hands to steering wheel */}
+                <Path d="M22 44 Q32 62 42 44" />
+                {/* Steering wheel outer */}
+                <Circle cx="32" cy="48" r="10" />
+                {/* Steering wheel spokes */}
+                <Path d="M32 38 v10" />
+                <Path d="M32 48 h9" />
+                <Path d="M32 48 h-9" />
+                <Path d="M27 53 l5 -5 5 5" />
+                {/* Center hub */}
+                <Circle cx="32" cy="48" r="2.2" fill={colors.primary} />
+              </Svg>
             </View>
             <View style={styles.driverDetails}>
               <Text style={[styles.driverName, { color: colors.text }]}>

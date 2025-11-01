@@ -170,12 +170,11 @@ export default function QuickLoginScreen() {
           </View>
 
           <View style={styles.form}>
-            <View style={styles.inputGroup}>
+          <Text style={styles.inputLabel}>Mobile Number:</Text>
+          <View style={styles.inputGroup}>
               <Smartphone color="#6B7280" size={20} />
               <TextInput
                 style={styles.input}
-                placeholder="Enter mobile number"
-                placeholderTextColor="#9CA3AF"
                 value={phoneNumber}
                 onChangeText={setPhoneNumber}
                 keyboardType="phone-pad"
@@ -183,12 +182,12 @@ export default function QuickLoginScreen() {
               />
             </View>
 
+            <Text style={styles.inputLabel}>Password:</Text>
             <View style={styles.inputGroup}>
               <Lock color="#6B7280" size={20} />
+              
               <TextInput
                 style={styles.input}
-                placeholder="Enter password"
-                placeholderTextColor="#9CA3AF"
                 value={password}
                 onChangeText={setPassword}
                 secureTextEntry={!showPassword}
@@ -252,6 +251,24 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     marginBottom: 8,
   },
+  inputGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 6,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  inputLabel: {
+    fontSize: 15,
+    color: '#1F2937',
+    fontWeight: '600',
+    marginBottom: 4,
+    marginLeft: 2,
+  },
   subtitle: {
     fontSize: 18,
     fontFamily: 'Inter-Medium',
@@ -266,17 +283,6 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 12,
     elevation: 8,
-  },
-  inputGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#F9FAFB',
-    borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 16,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
   },
   input: {
     flex: 1,

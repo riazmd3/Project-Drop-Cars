@@ -72,8 +72,8 @@ export default function DashboardScreen() {
   const [selectedCities, setSelectedCities] = useState<string[]>([]);
   const [citySearch, setCitySearch] = useState('');
   const [bookingSearch, setBookingSearch] = useState('');
-  const [selectedCity, setSelectedCity] = useState<string | null>(null);
   const [showCityModal, setShowCityModal] = useState(false);
+  const [selectAllCities, setSelectAllCities] = useState(false);
 
   const CITY_STORAGE_KEY = 'vo_nearcity_selected_cities';
 
@@ -280,13 +280,26 @@ export default function DashboardScreen() {
       const pickCitiesArr = parseCityListField(o.pick_near_city ? String(o.pick_near_city) : '');
       const isAll = pickCitiesArr.some(city => city.trim().toUpperCase() === 'ALL');
       let didMatch = false;
-      if (isAll) {
+      
+      // If "All" is selected in the city selector, show all orders
+      if (selectAllCities) {
         didMatch = true;
-      } else if (selectedCities.length > 0) {
+      } 
+      // If order has "ALL" in pick_near_city, always show it
+      else if (isAll) {
+        didMatch = true;
+      } 
+      // If specific cities are selected, check if order matches
+      else if (selectedCities.length > 0) {
         didMatch = selectedCities.some(sel =>
           pickCitiesArr.some(pick => pick.trim().toLowerCase() === sel.trim().toLowerCase())
         );
       }
+      // If no cities selected, show all orders
+      else {
+        didMatch = true;
+      }
+      
       debugOrderMatch.push({
         order_id: Number(o.order_id),
         pick_near_city: o.pick_near_city,
@@ -742,7 +755,7 @@ export default function DashboardScreen() {
 
         Alert.alert(
           'Booking Accepted',
-          'Order accepted successfully! Check Future rides to assign the car and driver within 10 minutes.'
+          'Order accepted successfully! Check Future rides to assign the car.'
         );
       } else {
         console.log('❌ Accept order response:', acceptResponse);
@@ -805,7 +818,7 @@ export default function DashboardScreen() {
           onPress={() => router.push('/(tabs)/wallet')}
         >
           <Text style={{ fontSize: 18, color: colors.primary, fontFamily: 'Inter-Bold' }}>₹{Math.round(Number(dashboardData?.user_info?.wallet_balance || balance || 0))}</Text>
-          <Text style={{ fontSize: 15, color: colors.primary, fontFamily: 'Inter-SemiBold', marginLeft: 8 }}>| Add money</Text>
+          <Text style={{ fontSize: 15, color:'rgb(15, 187, 35)', fontFamily: 'Inter-SemiBold', marginLeft: 8 }}>| Add money</Text>
         </TouchableOpacity>
       </View>
       {currentWallet < 1000 && (
@@ -839,52 +852,57 @@ export default function DashboardScreen() {
         ) : (
           <>
             <View style={dynamicStyles.bookingsSection}>
-              <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 8 }}>
-                <Text style={dynamicStyles.sectionTitle}>Available Bookings</Text>
-                <View style={{ flex: 1 }} />
-                <TouchableOpacity
-                  onPress={() => setShowCityModal(true)}
-                  style={{
-                    backgroundColor: colors.primary,
-                    paddingHorizontal: 18,
-                    paddingVertical: 8,
-                    borderRadius: 8,
-                    marginLeft: 10,
-                  }}
-                >
-                  <Text style={{ color: '#fff', fontWeight: '600', fontSize: 15 }}>Select City</Text>
-                </TouchableOpacity>
-              </View>
-            
-              {selectedCity && (
-                <View
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    marginBottom: 10,
-                    backgroundColor: colors.primary + '20',
-                    borderRadius: 6,
-                    paddingHorizontal: 12,
-                    paddingVertical: 4,
-                    alignSelf: 'flex-start',
-                  }}
-                >
-                  <Text style={{ color: colors.primary, fontWeight: '600', marginRight: 8 }}>
-                    Selected City: {selectedCity}
-                  </Text>
-                  <TouchableOpacity onPress={() => setSelectedCity(null)}>
-                    <Text style={{ color: colors.error, fontSize: 13 }}>Clear</Text>
-                  </TouchableOpacity>
+              <Text style={dynamicStyles.sectionTitle}>Available Bookings</Text>
+              
+              {/* Select City Button */}
+              <TouchableOpacity
+                onPress={() => setShowCityModal(true)}
+                style={{
+                  backgroundColor: colors.primary,
+                  paddingVertical: 12,
+                  paddingHorizontal: 20,
+                  borderRadius: 8,
+                  marginBottom: 12,
+                  alignItems: 'center',
+                  width: '100%',
+                }}
+              >
+                <Text style={{ color: '#fff', fontWeight: '600', fontSize: 15 }}>Select City to Receive Bookings</Text>
+              </TouchableOpacity>
+
+              {/* Selected Cities Display */}
+              {(selectAllCities || selectedCities.length > 0) && (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 12 }}>
+                  {selectAllCities && (
+                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary + '22', borderRadius: 20, marginRight: 8, marginBottom: 8, paddingHorizontal: 12, paddingVertical: 5 }}>
+                      <Text style={{ color: colors.primary, marginRight: 4, fontWeight: '600' }}>All</Text>
+                      <TouchableOpacity onPress={() => {
+                        setSelectAllCities(false);
+                        setSelectedCities([]);
+                      }}>
+                        <Text style={{ color: colors.error, fontWeight: '700', fontSize: 15 }}>✕</Text>
+                      </TouchableOpacity>
+                    </View>
+                  )}
+                  {selectedCities.map(city => (
+                    <View key={city} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary + '22', borderRadius: 20, marginRight: 8, marginBottom: 8, paddingHorizontal: 12, paddingVertical: 5 }}>
+                      <Text style={{ color: colors.primary, marginRight: 4, fontWeight: '600' }}>{city}</Text>
+                      <TouchableOpacity onPress={() => setSelectedCities(selectedCities.filter(x => x !== city))}>
+                        <Text style={{ color: colors.error, fontWeight: '700', fontSize: 15 }}>✕</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
                 </View>
               )}
             
-              {/* City Selection Modal (simple) */}
+              {/* City Selection Modal */}
               <Modal visible={showCityModal} transparent animationType="fade">
                 <View style={{
                   flex: 1, backgroundColor: '#0008', alignItems: 'center', justifyContent: 'center'
                 }}>
-                  <View style={{ backgroundColor: colors.surface, padding: 18, borderRadius: 12, width: 320 }}>
-                    <Text style={{ fontWeight: '700', fontSize: 17, color: colors.text, marginBottom: 14 }}>Select City</Text>
+                  <View style={{ backgroundColor: colors.surface, padding: 18, borderRadius: 12, width: 320, maxHeight: '80%' }}>
+                    <Text style={{ fontWeight: '700', fontSize: 17, color: colors.text, marginBottom: 14 }}>Select City to Receive Bookings</Text>
+                    
                     {/* Search Field */}
                     <TextInput
                       style={[dynamicStyles.searchInput, { marginBottom: 10 }]}
@@ -893,6 +911,44 @@ export default function DashboardScreen() {
                       placeholder="Search City..."
                       placeholderTextColor={colors.textSecondary}
                     />
+                    
+                    {/* All checkbox */}
+                    <TouchableOpacity
+                      onPress={() => {
+                        if (selectAllCities) {
+                          setSelectAllCities(false);
+                          setSelectedCities([]);
+                        } else {
+                          setSelectAllCities(true);
+                          setSelectedCities([]);
+                        }
+                      }}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        paddingVertical: 12,
+                        paddingHorizontal: 4,
+                        marginBottom: 8,
+                        borderBottomWidth: 1,
+                        borderBottomColor: colors.border,
+                      }}
+                    >
+                      <View style={{
+                        width: 20,
+                        height: 20,
+                        borderWidth: 2,
+                        borderColor: selectAllCities ? colors.primary : colors.border,
+                        backgroundColor: selectAllCities ? colors.primary : 'transparent',
+                        borderRadius: 4,
+                        marginRight: 12,
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                      }}>
+                        {selectAllCities && <Text style={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}>✓</Text>}
+                      </View>
+                      <Text style={{ color: selectAllCities ? colors.primary : colors.text, fontWeight: selectAllCities ? '700' : '400', fontSize: 16 }}>All</Text>
+                    </TouchableOpacity>
+
                     {/* Chips for selected cities */}
                     {selectedCities.length > 0 && (
                       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row', marginBottom: 10 }}>
@@ -906,39 +962,62 @@ export default function DashboardScreen() {
                         ))}
                       </ScrollView>
                     )}
+                    
                     {/* Selectable city list */}
                     <ScrollView style={{ maxHeight: 220 }}>
                       {MASTER_CITIES.filter(city => city.toLowerCase().includes(citySearch.toLowerCase()))
                         .map(city => {
-                          const isSelected = selectedCities.includes(city);
+                          const isSelected = selectAllCities || selectedCities.includes(city);
                           return (
                             <TouchableOpacity
                               key={city}
                               onPress={() => {
-                                if (isSelected) {
+                                if (selectAllCities) {
+                                  // If All is selected, deselect it and select this city
+                                  setSelectAllCities(false);
+                                  setSelectedCities([city]);
+                                } else if (selectedCities.includes(city)) {
                                   setSelectedCities(selectedCities.filter(c => c !== city));
-                                } else if (selectedCities.length < 5) {
+                                } else {
                                   setSelectedCities([...selectedCities, city]);
                                 }
                               }}
-                              disabled={!isSelected && selectedCities.length >= 5}
                               style={{
                                 flexDirection: 'row',
                                 alignItems: 'center',
                                 paddingVertical: 9,
                                 borderBottomWidth: 1,
                                 borderBottomColor: colors.border,
-                                opacity: !isSelected && selectedCities.length >= 5 ? 0.3 : 1,
                               }}>
+                              <View style={{
+                                width: 20,
+                                height: 20,
+                                borderWidth: 2,
+                                borderColor: isSelected ? colors.primary : colors.border,
+                                backgroundColor: isSelected ? colors.primary : 'transparent',
+                                borderRadius: 4,
+                                marginRight: 12,
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                              }}>
+                                {isSelected && <Text style={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}>✓</Text>}
+                              </View>
                               <Text style={{ color: isSelected ? colors.primary : colors.text, fontWeight: isSelected ? '700' : '400', fontSize: 16 }}>{city}</Text>
-                              {isSelected && <Text style={{ marginLeft: 12, color: colors.primary, fontWeight: 'bold' }}>✔</Text>}
                             </TouchableOpacity>
                           );
                         })}
                     </ScrollView>
-                    <TouchableOpacity style={{ marginTop: 16, alignSelf: 'flex-end' }} onPress={() => setShowCityModal(false)}>
-                      <Text style={{ color: colors.error, fontWeight: '700', fontSize: 15 }}>Close</Text>
-                    </TouchableOpacity>
+                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
+                      <TouchableOpacity onPress={() => {
+                        setSelectAllCities(false);
+                        setSelectedCities([]);
+                      }}>
+                        <Text style={{ color: colors.error, fontWeight: '700', fontSize: 15 }}>Clear</Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity onPress={() => setShowCityModal(false)}>
+                        <Text style={{ color: 'rgb(15, 187, 35)', fontWeight: '700', fontSize: 15 }}>Save</Text>
+                      </TouchableOpacity>
+                    </View>
                   </View>
                 </View>
               </Modal>
@@ -960,20 +1039,7 @@ export default function DashboardScreen() {
                   <Text style={dynamicStyles.loadingText}>Loading pending orders...</Text>
                 </View>
               ) : filteredOrders.length > 0 ? (
-                filteredOrders
-                  .filter(order => {
-                    if (!selectedCity) return true;
-                    // Check if selected city matches pickup, drop, pick_near_city, or near_city
-                    const locations = getPickupDropLocations(order.pickup_drop_location);
-                    const near = ((order.pick_near_city || order.near_city || '') + '').trim().toLowerCase();
-                    const city = selectedCity.trim().toLowerCase();
-                    return (
-                      (locations.pickup && locations.pickup.toLowerCase().includes(city)) ||
-                      (locations.drop && locations.drop.toLowerCase().includes(city)) ||
-                      near.includes(city)
-                    );
-                  })
-                  .map((order) => {
+                filteredOrders.map((order) => {
                     const locations = getPickupDropLocations(order.pickup_drop_location);
                     return (
                       <BookingCard
