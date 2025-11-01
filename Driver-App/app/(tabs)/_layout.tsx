@@ -34,6 +34,17 @@ export default function TabLayout() {
             <Home size={size} color={color} />
           ),
         }}
+        
+      />
+
+      <Tabs.Screen
+        name="future-rides"
+        options={{
+          title: 'Accepted',
+          tabBarIcon: ({ size, color }) => (
+            <Calendar size={size} color={color} />
+          ),
+        }}
       />
       <Tabs.Screen
         name="rides"
@@ -44,15 +55,7 @@ export default function TabLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="future-rides"
-        options={{
-          title: 'Future Rides',
-          tabBarIcon: ({ size, color }) => (
-            <Calendar size={size} color={color} />
-          ),
-        }}
-      />
+
       <Tabs.Screen
         name="wallet"
         options={{

@@ -357,13 +357,13 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
       </View>
 
       {/* Assignment Window Duration Label */}
-      {assignmentWindowDuration && (
+      {/* {assignmentWindowDuration && (
         <View style={dynamicStyles.assignmentWindowLabel}>
           <Text style={dynamicStyles.assignmentWindowText}>
             Assignment Time: {assignmentWindowDuration}
           </Text>
         </View>
-      )}
+      )} */}
 
       <View style={dynamicStyles.routeContainer}>
         <View style={dynamicStyles.routeRow}>

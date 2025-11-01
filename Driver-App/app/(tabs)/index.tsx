@@ -901,7 +901,13 @@ export default function DashboardScreen() {
                   flex: 1, backgroundColor: '#0008', alignItems: 'center', justifyContent: 'center'
                 }}>
                   <View style={{ backgroundColor: colors.surface, padding: 18, borderRadius: 12, width: 320, maxHeight: '80%' }}>
-                    <Text style={{ fontWeight: '700', fontSize: 17, color: colors.text, marginBottom: 14 }}>Select City to Receive Bookings</Text>
+                    {/* Header with title and close button */}
+                    <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                      <Text style={{ fontWeight: '700', fontSize: 17, color: colors.text, flex: 1 }}>Select City to Receive Bookings</Text>
+                      <TouchableOpacity onPress={() => setShowCityModal(false)} style={{ padding: 4 }}>
+                        <Text style={{ color: colors.textSecondary, fontSize: 20, fontWeight: 'bold' }}>×</Text>
+                      </TouchableOpacity>
+                    </View>
                     
                     {/* Search Field */}
                     <TextInput
@@ -1007,17 +1013,12 @@ export default function DashboardScreen() {
                           );
                         })}
                     </ScrollView>
-                    <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
-                      <TouchableOpacity onPress={() => {
-                        setSelectAllCities(false);
-                        setSelectedCities([]);
-                      }}>
-                        <Text style={{ color: colors.error, fontWeight: '700', fontSize: 15 }}>Clear</Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity onPress={() => setShowCityModal(false)}>
-                        <Text style={{ color: 'rgb(15, 187, 35)', fontWeight: '700', fontSize: 15 }}>Save</Text>
-                      </TouchableOpacity>
-                    </View>
+                    <TouchableOpacity 
+                      onPress={() => setShowCityModal(false)}
+                      style={{ marginTop: 16, alignSelf: 'flex-end' }}
+                    >
+                      <Text style={{ color: 'rgb(15, 187, 35)', fontWeight: '700', fontSize: 15 }}>Save</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
               </Modal>

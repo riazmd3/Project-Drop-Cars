@@ -89,16 +89,16 @@ export default function FutureRidesScreen() {
     try {
       setLoading(true);
       setError(null);
-      console.log('🔄 Fetching future rides from /api/orders/vehicle-owner/pending...');
+      console.log('🔄 Fetching Accepted Rides from /api/orders/vehicle-owner/pending...');
 
       const response = await axiosInstance.get('/api/orders/vehicle-owner/pending');
       const ridesArray = Array.isArray(response.data) ? response.data : [];
 
-      console.log('✅ Future rides fetched successfully:', ridesArray.length, 'rides');
+      console.log('✅ Accepted Rides fetched successfully:', ridesArray.length, 'rides');
       setFutureRides(ridesArray);
     } catch (error: any) {
-      console.error('❌ Failed to fetch future rides:', error);
-      setError(error.message || 'Failed to fetch future rides');
+      console.error('❌ Failed to fetch Accepted Rides:', error);
+      setError(error.message || 'Failed to fetch Accepted Rides');
     } finally {
       setLoading(false);
     }
@@ -143,7 +143,7 @@ export default function FutureRidesScreen() {
   // Auto-load data when user is available
   useEffect(() => {
     if (user) {
-      console.log('🔄 Auto-loading future rides data...');
+      console.log('🔄 Auto-loading Accepted Rides data...');
       fetchFutureRides();
     }
   }, [user]);
@@ -151,7 +151,7 @@ export default function FutureRidesScreen() {
   // Also load data when user changes (login/logout)
   useEffect(() => {
     if (user) {
-      console.log('👤 User changed, refreshing future rides data...');
+      console.log('👤 User changed, refreshing Accepted Rides data...');
       fetchFutureRides();
     }
   }, [user?.id]);
@@ -160,7 +160,7 @@ export default function FutureRidesScreen() {
   useFocusEffect(
     React.useCallback(() => {
       if (user) {
-        console.log('📌 Future Rides focused, refreshing...');
+        console.log('📌 Accepted Rides focused, refreshing...');
         fetchFutureRides();
       }
     }, [user?.id])
@@ -641,7 +641,7 @@ export default function FutureRidesScreen() {
     <View style={styles.emptyContainer}>
       <Car size={64} color={colors.textSecondary} />
       <Text style={[styles.emptyTitle, { color: colors.text }]}>
-        No Future Rides
+        No Accepted Rides
       </Text>
       <Text style={[styles.emptySubtitle, { color: colors.textSecondary }]}>
         You don't have any upcoming rides at the moment.
@@ -674,7 +674,7 @@ export default function FutureRidesScreen() {
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={[styles.title, { color: colors.text }]}>Future Rides</Text>
+        <Text style={[styles.title, { color: colors.text }]}>Accepted Rides</Text>
         <TouchableOpacity onPress={fetchFutureRides} disabled={loading}>
           <RefreshCw size={24} color={loading ? colors.textSecondary : colors.primary} />
         </TouchableOpacity>
@@ -692,7 +692,7 @@ export default function FutureRidesScreen() {
           <View style={styles.loadingContainer}>
             <ActivityIndicator size="large" color={colors.primary} />
             <Text style={[styles.loadingText, { color: colors.textSecondary }]}>
-              Loading future rides...
+              Loading accepted rides...
             </Text>
           </View>
         ) : error ? (
