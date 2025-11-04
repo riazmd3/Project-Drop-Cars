@@ -56,7 +56,7 @@ function parseCityListField(field: string | null | undefined): string[] {
 export default function DashboardScreen() {
   const { user } = useAuth();
   const { balance, refreshBalance } = useWallet();
-  const { colors } = useTheme();
+  const { colors, isDarkMode } = useTheme();
   const { dashboardData, loading, error, fetchData, refreshData, futureRides } = useDashboard();
   const { notificationsEnabled, getNotificationStatus } = useNotifications();
   const router = useRouter();
@@ -441,7 +441,7 @@ export default function DashboardScreen() {
       minWidth: 90,
     },
     testButtonText: {
-      color: 'white',
+      color: colors.text,
       fontSize: 10,
       fontWeight: '600',
     },
@@ -452,7 +452,7 @@ export default function DashboardScreen() {
       padding: 6,
     },
     warningBanner: {
-      backgroundColor: '#FEF3C7',
+      backgroundColor: isDarkMode ? '#78350F' : '#FEF3C7',
       paddingHorizontal: 20,
       paddingVertical: 12,
       borderBottomWidth: 1,
@@ -461,7 +461,7 @@ export default function DashboardScreen() {
     warningText: {
       fontSize: 14,
       fontFamily: 'Inter-Medium',
-      color: '#92400E',
+      color: isDarkMode ? '#FCD34D' : '#92400E',
       textAlign: 'center',
     },
     content: {
@@ -824,21 +824,21 @@ export default function DashboardScreen() {
   }
   return (
     <SafeAreaView style={dynamicStyles.container}>
-      <View style={[dynamicStyles.header, { justifyContent: 'space-between', alignItems: 'center' }]}> 
-        <TouchableOpacity onPress={() => setShowDrawer(true)} style={dynamicStyles.menuButton}>
-          <Menu color={colors.text} size={24} />
-        </TouchableOpacity>
-        <Text style={{ fontSize: 18, fontFamily: 'Inter-Bold', color: colors.text, flex: 1, textAlign: 'center' }}>
-          Hi! {dashboardData?.user_info?.full_name || user?.fullName || 'Vehicle Owner'}
-        </Text>
-        <TouchableOpacity
-          style={{ padding: 6, flexDirection: 'row', alignItems: 'center', minWidth: 120, justifyContent: 'flex-end' }}
-          onPress={() => router.push('/(tabs)/wallet')}
-        >
-          <Text style={{ fontSize: 18, color: colors.primary, fontFamily: 'Inter-Bold' }}>₹{Math.round(Number(dashboardData?.user_info?.wallet_balance || balance || 0))}</Text>
+      <View style={[dynamicStyles.header, { justifyContent: 'space-between', alignItems: 'center' }]}>
+  <TouchableOpacity onPress={() => setShowDrawer(true)} style={dynamicStyles.menuButton}>
+    <Menu color={colors.text} size={24} />
+  </TouchableOpacity>
+  <Text style={{ fontSize: 18, fontFamily: 'Inter-Bold', color: colors.text, flex: 1, textAlign: 'center' }}>
+    Hi! {dashboardData?.user_info?.full_name || user?.fullName || 'Vehicle Owner'}
+  </Text>
+  <TouchableOpacity
+    style={{ padding: 6, flexDirection: 'row', alignItems: 'center', minWidth: 120, justifyContent: 'flex-end' }}
+    onPress={() => router.push('/(tabs)/wallet')}
+  >
+    <Text style={{ fontSize: 18, color: colors.primary, fontFamily: 'Inter-Bold' }}>₹{Math.round(Number(dashboardData?.user_info?.wallet_balance || balance || 0))}</Text>
           <Text style={{ fontSize: 15, color:'rgb(15, 187, 35)', fontFamily: 'Inter-SemiBold', marginLeft: 8 }}>| Add money</Text>
-        </TouchableOpacity>
-      </View>
+  </TouchableOpacity>
+</View>
       {currentWallet < 1000 && (
         <View style={dynamicStyles.warningBanner}>
           <Text style={dynamicStyles.warningText}>
@@ -846,8 +846,8 @@ export default function DashboardScreen() {
           </Text>
         </View>
       )}
-      <ScrollView
-        style={dynamicStyles.content}
+      <ScrollView 
+        style={dynamicStyles.content} 
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />
@@ -860,7 +860,7 @@ export default function DashboardScreen() {
         ) : error ? (
           <View style={dynamicStyles.loadingContainer}>
             <Text style={dynamicStyles.loadingText}>Error: {error}</Text>
-            <TouchableOpacity
+            <TouchableOpacity 
               style={[dynamicStyles.endTripButton, { marginTop: 16 }]}
               onPress={fetchData}
             >
@@ -869,22 +869,22 @@ export default function DashboardScreen() {
           </View>
         ) : (
           <>
-            <View style={dynamicStyles.bookingsSection}>
-              <Text style={dynamicStyles.sectionTitle}>Available Bookings</Text>
+              <View style={dynamicStyles.bookingsSection}>
+                <Text style={dynamicStyles.sectionTitle}>Available Bookings</Text>
               
               {/* Select City Button */}
-              <TouchableOpacity
-                onPress={() => setShowCityModal(true)}
-                style={{
-                  backgroundColor: colors.primary,
+                <TouchableOpacity
+                  onPress={() => setShowCityModal(true)}
+                  style={{
+                    backgroundColor: colors.primary,
                   paddingVertical: 12,
                   paddingHorizontal: 20,
-                  borderRadius: 8,
+                    borderRadius: 8,
                   marginBottom: 12,
                   alignItems: 'center',
                   width: '100%',
-                }}
-              >
+                  }}
+                >
                 <Text style={{ color: '#fff', fontWeight: '600', fontSize: 15 }}>Select City to Receive Bookings</Text>
               </TouchableOpacity>
 
@@ -899,8 +899,8 @@ export default function DashboardScreen() {
                         setSelectedCities([]);
                       }}>
                         <Text style={{ color: colors.error, fontWeight: '700', fontSize: 15 }}>✕</Text>
-                      </TouchableOpacity>
-                    </View>
+                </TouchableOpacity>
+              </View>
                   )}
                   {selectedCities.map(city => (
                     <View key={city} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary + '22', borderRadius: 20, marginRight: 8, marginBottom: 8, paddingHorizontal: 12, paddingVertical: 5 }}>
@@ -947,9 +947,9 @@ export default function DashboardScreen() {
                           setSelectedCities([]);
                         }
                       }}
-                      style={{
-                        flexDirection: 'row',
-                        alignItems: 'center',
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
                         paddingVertical: 12,
                         paddingHorizontal: 4,
                         marginBottom: 8,
@@ -981,21 +981,21 @@ export default function DashboardScreen() {
                             <Text style={{ color: colors.primary, marginRight: 4 }}>{city}</Text>
                             <TouchableOpacity onPress={() => setSelectedCities(selectedCities.filter(x => x !== city))}>
                               <Text style={{ color: colors.error, fontWeight: '700', fontSize: 15 }}>✕</Text>
-                            </TouchableOpacity>
-                          </View>
+                  </TouchableOpacity>
+                </View>
                         ))}
                       </ScrollView>
-                    )}
-                    
+              )}
+            
                     {/* Selectable city list */}
                     <ScrollView style={{ maxHeight: 220 }}>
                       {MASTER_CITIES.filter(city => city.toLowerCase().includes(citySearch.toLowerCase()))
                         .map(city => {
                           const isSelected = selectAllCities || selectedCities.includes(city);
                           return (
-                            <TouchableOpacity
-                              key={city}
-                              onPress={() => {
+                        <TouchableOpacity
+                          key={city}
+                          onPress={() => {
                                 if (selectAllCities) {
                                   // If All is selected, deselect it and select this city
                                   setSelectAllCities(false);
@@ -1005,13 +1005,13 @@ export default function DashboardScreen() {
                                 } else {
                                   setSelectedCities([...selectedCities, city]);
                                 }
-                              }}
-                              style={{
+                          }}
+                          style={{
                                 flexDirection: 'row',
                                 alignItems: 'center',
-                                paddingVertical: 9,
-                                borderBottomWidth: 1,
-                                borderBottomColor: colors.border,
+                            paddingVertical: 9,
+                            borderBottomWidth: 1,
+                            borderBottomColor: colors.border,
                               }}>
                               <View style={{
                                 width: 20,
@@ -1027,11 +1027,11 @@ export default function DashboardScreen() {
                                 {isSelected && <Text style={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}>✓</Text>}
                               </View>
                               <Text style={{ color: isSelected ? colors.primary : colors.text, fontWeight: isSelected ? '700' : '400', fontSize: 16 }}>{city}</Text>
-                            </TouchableOpacity>
+                        </TouchableOpacity>
                           );
                         })}
                     </ScrollView>
-                    <TouchableOpacity 
+                    <TouchableOpacity
                       onPress={() => setShowCityModal(false)}
                       style={{ marginTop: 16, alignSelf: 'flex-end' }}
                     >
@@ -1101,9 +1101,9 @@ export default function DashboardScreen() {
         )}
       </ScrollView>
       {/* DrawerNavigation must be rendered outside ScrollView */}
-      <DrawerNavigation
-        visible={showDrawer}
-        onClose={() => setShowDrawer(false)}
+      <DrawerNavigation 
+        visible={showDrawer} 
+        onClose={() => setShowDrawer(false)} 
       />
     </SafeAreaView>
   );

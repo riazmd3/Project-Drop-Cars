@@ -51,6 +51,7 @@ interface RideData {
 }
 
 export default function RidesScreen() {
+  const { colors, isDarkMode } = useTheme();
   const [activeTab, setActiveTab] = useState<'driving' | 'completed' | 'cancelled'>('driving');
   const [drivingRides, setDrivingRides] = useState<RideData[]>([]);
   const [completedRides, setCompletedRides] = useState<RideData[]>([]);
@@ -59,7 +60,6 @@ export default function RidesScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [expandedOrderId, setExpandedOrderId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
-  const { colors } = useTheme();
   const { user } = useAuth();
 
   // Fetch all rides data
@@ -312,7 +312,7 @@ export default function RidesScreen() {
               From: {ride.pickup_city || 'Pickup Location'}
             </Text>
           </View>
-          <View style={styles.routeLine} />
+          <View style={[styles.routeLine, { backgroundColor: colors.border }]} />
           <View style={styles.locationRow}>
             <MapPin color="#EF4444" size={18} />
             <Text style={[styles.routeTextBold, { color: '#EF4444' }]}>
@@ -325,32 +325,32 @@ export default function RidesScreen() {
         <View style={styles.detailsContainerBold}>
           {ride.trip_type && (
             <View style={styles.detailRowBold}>
-              <Text style={styles.detailLabelBold}>Trip Type:</Text>
-              <Text style={styles.detailValueBold}>{ride.trip_type}</Text>
+              <Text style={[styles.detailLabelBold, { color: colors.textSecondary }]}>Trip Type:</Text>
+              <Text style={[styles.detailValueBold, { color: colors.text }]}>{ride.trip_type}</Text>
             </View>
           )}
           {ride.car_type && (
             <View style={styles.detailRowBold}>
-              <Text style={styles.detailLabelBold}>Vehicle Type:</Text>
-              <Text style={styles.detailValueBold}>{ride.car_type}</Text>
+              <Text style={[styles.detailLabelBold, { color: colors.textSecondary }]}>Vehicle Type:</Text>
+              <Text style={[styles.detailValueBold, { color: colors.text }]}>{ride.car_type}</Text>
             </View>
           )}
           {pickupDate && (
             <View style={styles.detailRowBold}>
-              <Text style={styles.detailLabelBold}>Date & Time:</Text>
-              <Text style={styles.detailValueBold}>{pickupDate} {pickupTime}</Text>
+              <Text style={[styles.detailLabelBold, { color: colors.textSecondary }]}>Date & Time:</Text>
+              <Text style={[styles.detailValueBold, { color: colors.text }]}>{pickupDate} {pickupTime}</Text>
             </View>
           )}
           {ride.trip_distance !== undefined && (
             <View style={styles.detailRowBold}>
-              <Text style={styles.detailLabelBold}>Distance:</Text>
-              <Text style={styles.detailValueBold}>{ride.trip_distance || 0} km</Text>
+              <Text style={[styles.detailLabelBold, { color: colors.textSecondary }]}>Distance:</Text>
+              <Text style={[styles.detailValueBold, { color: colors.text }]}>{ride.trip_distance || 0} km</Text>
             </View>
           )}
           {ride.trip_time && (
             <View style={styles.detailRowBold}>
-              <Text style={styles.detailLabelBold}>Duration:</Text>
-              <Text style={styles.detailValueBold}>{ride.trip_time}</Text>
+              <Text style={[styles.detailLabelBold, { color: colors.textSecondary }]}>Duration:</Text>
+              <Text style={[styles.detailValueBold, { color: colors.text }]}>{ride.trip_time}</Text>
             </View>
           )}
         </View>
@@ -366,7 +366,7 @@ export default function RidesScreen() {
 
         {/* Fare Breakdown Button */}
         <TouchableOpacity
-          style={styles.seeMoreButton}
+          style={[styles.seeMoreButton, { backgroundColor: colors.background, borderColor: colors.border }]}
           onPress={() => setExpandedOrderId(isExpanded ? null : ride.id.toString())}
         >
           <Text style={[styles.seeMoreText, { color: colors.primary }]}>
@@ -381,7 +381,7 @@ export default function RidesScreen() {
 
         {/* Expanded Details - Fare Breakdown */}
         {isExpanded && (
-          <View style={styles.expandedDetails}>
+          <View style={[styles.expandedDetails, { borderTopColor: colors.border }]}>
             <Text style={[styles.expandedTitle, { color: colors.text }]}>Fare Breakdown</Text>
             
             {/* Fare Breakdown Details */}
@@ -559,7 +559,7 @@ export default function RidesScreen() {
       key={tab}
       style={[
         styles.tabButton,
-        activeTab === tab && { backgroundColor: colors.primary },
+        { backgroundColor: activeTab === tab ? colors.primary : colors.surface },
       ]}
       onPress={() => setActiveTab(tab)}
     >
@@ -654,7 +654,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
       borderRadius: 8,
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
   },
   tabButtonText: {
       fontSize: 14,
@@ -706,7 +705,6 @@ const styles = StyleSheet.create({
     statusBadge: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#F3F4F6',
       paddingHorizontal: 8,
       paddingVertical: 4,
     borderRadius: 6,
@@ -740,7 +738,6 @@ const styles = StyleSheet.create({
     height: 20,
     marginLeft: 8,
     marginVertical: 4,
-    backgroundColor: '#E5E7EB',
   },
   locationRow: {
       flexDirection: 'row',
@@ -783,13 +780,11 @@ const styles = StyleSheet.create({
     detailLabelBold: {
       fontSize: 14,
       fontFamily: 'Inter-Bold',
-      color: '#6B7280',
       minWidth: 120,
     },
     detailValueBold: {
       fontSize: 14,
       fontFamily: 'Inter-Bold',
-      color: '#111827',
       flex: 1,
     },
     detailText: {
@@ -820,7 +815,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingTop: 12,
       borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
   },
   timeInfo: {
     flexDirection: 'row',
@@ -858,12 +852,10 @@ const styles = StyleSheet.create({
     },
   // Pickup Notes Styles
   pickupNotesContainer: {
-    backgroundColor: '#F0F9FF',
     borderRadius: 8,
     padding: 12,
     marginBottom: 12,
     borderLeftWidth: 3,
-    borderLeftColor: '#3B82F6',
   },
   pickupNotesHeader: {
     flexDirection: 'row',
@@ -887,10 +879,8 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     paddingHorizontal: 16,
     marginTop: 8,
-    backgroundColor: '#F8FAFC',
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E2E8F0',
   },
   seeMoreText: {
     fontSize: 14,
@@ -902,7 +892,6 @@ const styles = StyleSheet.create({
     marginTop: 16,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
   },
   expandedSection: {
     marginBottom: 20,
@@ -911,7 +900,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     marginBottom: 12,
-    color: '#374151',
   },
   expandedRow: {
     flexDirection: 'row',

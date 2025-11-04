@@ -64,7 +64,7 @@ interface FutureRide {
 }
 
 export default function FutureRidesScreen() {
-  const { colors } = useTheme();
+  const { colors, isDarkMode } = useTheme();
   const { user } = useAuth();
   const { } = useNotifications();
   const [futureRides, setFutureRides] = useState<FutureRide[]>([]);
@@ -428,7 +428,7 @@ export default function FutureRidesScreen() {
           </View>
           {!isHourly && !!drop && (
             <>
-              <View style={styles.routeLine} />
+              <View style={[styles.routeLine, { backgroundColor: colors.border }]} />
               <View style={styles.routeRow}>
                 <MapPin color="#EF4444" size={18} />
                 <Text style={[styles.routeTextBold, { color: '#EF4444' }]}>
@@ -443,32 +443,32 @@ export default function FutureRidesScreen() {
         <View style={styles.detailsContainerBold}>
           {ride.trip_type && (
             <View style={styles.detailRowBold}>
-              <Text style={styles.detailLabelBold}>Trip Type:</Text>
-              <Text style={styles.detailValueBold}>{ride.trip_type}</Text>
+              <Text style={[styles.detailLabelBold, { color: colors.textSecondary }]}>Trip Type:</Text>
+              <Text style={[styles.detailValueBold, { color: colors.text }]}>{ride.trip_type}</Text>
             </View>
           )}
           {ride.car_type && (
             <View style={styles.detailRowBold}>
-              <Text style={styles.detailLabelBold}>Vehicle Type:</Text>
-              <Text style={styles.detailValueBold}>{ride.car_type}</Text>
+              <Text style={[styles.detailLabelBold, { color: colors.textSecondary }]}>Vehicle Type:</Text>
+              <Text style={[styles.detailValueBold, { color: colors.text }]}>{ride.car_type}</Text>
             </View>
           )}
           {pickupDate && (
             <View style={styles.detailRowBold}>
-              <Text style={styles.detailLabelBold}>Date & Time:</Text>
-              <Text style={styles.detailValueBold}>{pickupDate} {pickupTime}</Text>
+              <Text style={[styles.detailLabelBold, { color: colors.textSecondary }]}>Date & Time:</Text>
+              <Text style={[styles.detailValueBold, { color: colors.text }]}>{pickupDate} {pickupTime}</Text>
             </View>
           )}
           {ride.trip_distance && (
             <View style={styles.detailRowBold}>
-              <Text style={styles.detailLabelBold}>Distance:</Text>
-              <Text style={styles.detailValueBold}>{ride.trip_distance} km</Text>
+              <Text style={[styles.detailLabelBold, { color: colors.textSecondary }]}>Distance:</Text>
+              <Text style={[styles.detailValueBold, { color: colors.text }]}>{ride.trip_distance} km</Text>
             </View>
           )}
           {ride.trip_time && (
             <View style={styles.detailRowBold}>
-              <Text style={styles.detailLabelBold}>Duration:</Text>
-              <Text style={styles.detailValueBold}>{ride.trip_time}</Text>
+              <Text style={[styles.detailLabelBold, { color: colors.textSecondary }]}>Duration:</Text>
+              <Text style={[styles.detailValueBold, { color: colors.text }]}>{ride.trip_time}</Text>
             </View>
           )}
         </View>
@@ -499,7 +499,7 @@ export default function FutureRidesScreen() {
 
         {/* Expanded Details Drawer - Fare Breakdown */}
         {expandedOrderId === ride.id && (
-          <View style={[styles.expandedDetails, { backgroundColor: colors.background }]}>
+          <View style={[styles.expandedDetails, { backgroundColor: colors.background, borderColor: colors.border }]}>
             <Text style={[styles.expandedTitle, { color: colors.text }]}>Fare Breakdown</Text>
             
             {/* Fare Breakdown Details */}
@@ -773,7 +773,7 @@ export default function FutureRidesScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-            <View style={styles.modalHeader}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>
                 Select Driver
               </Text>
@@ -832,7 +832,7 @@ export default function FutureRidesScreen() {
       >
         <View style={styles.modalOverlay}>
           <View style={[styles.modalContent, { backgroundColor: colors.surface }]}>
-            <View style={styles.modalHeader}>
+            <View style={[styles.modalHeader, { borderBottomColor: colors.border }]}>
               <Text style={[styles.modalTitle, { color: colors.text }]}>
                 Select Car
               </Text>
@@ -944,7 +944,6 @@ const styles = StyleSheet.create({
       paddingHorizontal: 20,
     paddingVertical: 16,
       borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
     },
   title: {
       fontSize: 24,
@@ -1010,7 +1009,6 @@ const styles = StyleSheet.create({
     height: 20,
     marginLeft: 8,
     marginVertical: 4,
-    backgroundColor: '#E5E7EB',
   },
   locationDot: {
     width: 8,
@@ -1031,7 +1029,6 @@ const styles = StyleSheet.create({
   },
   detailsContainer: {
     borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
     paddingTop: 12,
       marginBottom: 12,
     gap: 8,
@@ -1052,13 +1049,11 @@ const styles = StyleSheet.create({
     detailLabelBold: {
       fontSize: 14,
       fontFamily: 'Inter-Bold',
-      color: '#6B7280',
       minWidth: 120,
     },
     detailValueBold: {
       fontSize: 14,
       fontFamily: 'Inter-Bold',
-      color: '#111827',
       flex: 1,
     },
     detailText: {
@@ -1088,7 +1083,6 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
       borderTopWidth: 1,
-    borderTopColor: '#E5E7EB',
       paddingTop: 12,
   },
   timeContainer: {
@@ -1225,7 +1219,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingBottom: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#E5E7EB',
     },
     modalTitle: {
       fontSize: 18,
@@ -1336,7 +1329,6 @@ const styles = StyleSheet.create({
     padding: 16,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#E5E7EB',
   },
   expandedTitle: {
     fontSize: 18,

@@ -53,7 +53,7 @@ export default function WalletScreen() {
     handlePaymentFailure,
     syncWithBackend 
   } = useWallet();
-  const { colors } = useTheme();
+  const { colors, isDarkMode } = useTheme();
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
 
@@ -479,7 +479,7 @@ export default function WalletScreen() {
         )}
 
         {/* Add Money with UPI Button and Modal */}
-        <TouchableOpacity style={{ marginTop: 24, alignSelf: 'center', backgroundColor: colors.primary, paddingVertical: 14, paddingHorizontal: 32, borderRadius: 12, flexDirection: 'row', alignItems: 'center' }} onPress={() => { setUpiError(''); setUpiAmount(''); setUpiModalVisible(true); }}>
+        <TouchableOpacity style={{ marginTop: 24, alignSelf: 'center', backgroundColor:"", paddingVertical: 14, paddingHorizontal: 32, borderRadius: 12, flexDirection: 'row', alignItems: 'center' }} onPress={() => { setUpiError(''); setUpiAmount(''); setUpiModalVisible(true); }}>
           <Text style={{ color: '#FFF', fontSize: 16, fontFamily: 'Inter-SemiBold', marginRight: 10 }}>Tap to Add Money</Text>
           <Plus color="#FFF" size={20} />
         </TouchableOpacity>
@@ -495,12 +495,12 @@ export default function WalletScreen() {
               <Text style={{ textAlign: 'center', color: colors.textSecondary, marginBottom: 22 }}>Choose amount or enter custom, then select UPI app to pay to <Text style={{ fontWeight: 'bold', color: colors.primary }}>9500820542</Text></Text>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 }}>
                 {quickUpiAmounts.map((amt) => (
-                  <TouchableOpacity key={amt} style={{ backgroundColor: '#EFF6FF', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16, marginHorizontal: 2 }} onPress={() => handleUPIPayment(amt)}>
+                  <TouchableOpacity key={amt} style={{ backgroundColor: isDarkMode ? '#1E3A8A' : '#EFF6FF', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16, marginHorizontal: 2 }} onPress={() => handleUPIPayment(amt)}>
                     <Text style={{ color: colors.primary, fontWeight: 'bold', fontSize: 16 }}>₹{amt}</Text>
                   </TouchableOpacity>
                 ))}
               </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: '#F9FAFB', borderRadius: 12, paddingHorizontal: 16, borderWidth: 1, borderColor: '#E5E7EB', marginBottom: 22 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: 12, paddingHorizontal: 16, borderWidth: 1, borderColor: colors.border, marginBottom: 22 }}>
                 <IndianRupee color={colors.textSecondary} size={20} />
                 <TextInput
                   style={{ flex: 1, marginLeft: 10, fontSize: 15, color: colors.text, paddingVertical: 8, fontFamily: 'Inter-Regular' }}
