@@ -336,7 +336,7 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
       color: '#EF4444', // Red color
     },
     routeContainer: {
-      marginBottom: 10,
+      marginBottom: 8,
     },
     routeRow: {
       flexDirection: 'row',
@@ -389,8 +389,8 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
     fareContainer: {
       backgroundColor: '#D1FAE5',
       borderRadius: 10,
-      paddingVertical: 6,
-      paddingHorizontal: 8,
+      paddingVertical: 3,
+      paddingHorizontal: 5,
       marginBottom: 8,
       alignItems: 'center',
     },
@@ -401,7 +401,7 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
       marginBottom: 4,
     },
     totalFare: {
-      fontSize: 20,
+      fontSize: 16,
       fontFamily: 'Inter-Bold',
       color: '#065F46',
     },

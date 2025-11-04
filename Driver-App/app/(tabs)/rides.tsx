@@ -688,8 +688,8 @@ const styles = StyleSheet.create({
     },
     rideCard: {
     borderRadius: 12,
-      padding: 16,
-      marginBottom: 16,
+      padding: 12,
+      marginBottom: 10,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,
@@ -731,13 +731,13 @@ const styles = StyleSheet.create({
     color: '#EF4444', // Red color
   },
   routeInfo: {
-      marginBottom: 16,
+      marginBottom: 10,
     },
   routeLine: {
     width: 1,
-    height: 20,
+    height: 12,
     marginLeft: 8,
-    marginVertical: 4,
+    marginVertical: 2,
   },
   locationRow: {
       flexDirection: 'row',
@@ -765,7 +765,7 @@ const styles = StyleSheet.create({
       marginBottom: 12,
     },
     detailsContainerBold: {
-      marginBottom: 16,
+      marginBottom: 8,
     },
     detailRow: {
       flexDirection: 'row',
@@ -775,7 +775,7 @@ const styles = StyleSheet.create({
     detailRowBold: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: 10,
+      marginBottom: 6,
     },
     detailLabelBold: {
       fontSize: 14,
@@ -793,9 +793,10 @@ const styles = StyleSheet.create({
   },
   fareContainer: {
     backgroundColor: '#D1FAE5',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
+    borderRadius: 10,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    marginBottom: 8,
     alignItems: 'center',
   },
   fareLabel: {
@@ -805,7 +806,7 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   totalFare: {
-    fontSize: 24,
+    fontSize: 20,
     fontFamily: 'Inter-Bold',
     color: '#065F46',
   },
