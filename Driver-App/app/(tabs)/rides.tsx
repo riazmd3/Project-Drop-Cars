@@ -415,7 +415,7 @@ export default function RidesScreen() {
             </View>
             
             {/* Order Details */}
-            <View style={styles.expandedSection}>
+            {/* <View style={styles.expandedSection}>
               <Text style={[styles.expandedTitle, { color: colors.text }]}>Order Details</Text>
               <View style={styles.expandedRow}>
                 <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Order ID:</Text>
@@ -461,10 +461,10 @@ export default function RidesScreen() {
                   <Text style={[styles.expandedValue, { color: colors.text }]}>₹{ride.commision_amount}</Text>
                 </View>
               )}
-            </View>
+            </View> */}
 
             {/* Assignment Details */}
-            {ride.assigned_driver_name && (
+            {/* {ride.assigned_driver_name && (
               <View style={styles.expandedSection}>
                 <Text style={[styles.expandedTitle, { color: colors.text }]}>Assignment Details</Text>
                 <View style={styles.expandedRow}>
@@ -491,11 +491,11 @@ export default function RidesScreen() {
                     </Text>
                   </View>
                 )}
-              </View>
-            )}
+              </View> */}
+            {/* )} */}
 
             {/* Vendor Details */}
-            {ride.vendor_name && (
+            {/* {ride.vendor_name && (
               <View style={styles.expandedSection}>
                 <Text style={[styles.expandedTitle, { color: colors.text }]}>Vendor Details</Text>
                 <View style={styles.expandedRow}>
@@ -507,7 +507,7 @@ export default function RidesScreen() {
                   <Text style={[styles.expandedValue, { color: colors.text }]}>{ride.vendor_phone}</Text>
                 </View>
               </View>
-            )}
+            )} */}
 
             {/* Timestamps */}
             <View style={styles.expandedSection}>

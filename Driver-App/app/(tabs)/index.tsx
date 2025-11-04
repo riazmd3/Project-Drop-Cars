@@ -74,7 +74,7 @@ export default function DashboardScreen() {
   const [citySearch, setCitySearch] = useState('');
   const [bookingSearch, setBookingSearch] = useState('');
   const [showCityModal, setShowCityModal] = useState(false);
-  const [selectAllCities, setSelectAllCities] = useState(true);
+  const [selectAllCities, setSelectAllCities] = useState(false);
 
   const CITY_STORAGE_KEY = 'vo_nearcity_selected_cities';
 
@@ -294,6 +294,8 @@ export default function DashboardScreen() {
   const debugOrderMatch: Array<{order_id:number, pick_near_city:any, pickCitiesArr:string[], selectedCities:string[], didMatch:boolean}> = [];
   const filteredOrders: PendingOrder[] = (() => {
     if (!pendingOrders) return [];
+    // If neither 'All' nor any specific city is selected, show no orders by default
+    if (!selectAllCities && selectedCities.length === 0) return [];
     let orders = pendingOrders.filter(o => {
       const pickCitiesArr = parseCityListField(o.pick_near_city ? String(o.pick_near_city) : '');
       const isAll = pickCitiesArr.some(city => city.trim().toUpperCase() === 'ALL');
@@ -313,9 +315,9 @@ export default function DashboardScreen() {
           pickCitiesArr.some(pick => pick.trim().toLowerCase() === sel.trim().toLowerCase())
         );
       }
-      // If no cities selected, show all orders
+      // If no cities selected (handled above), keep as false
       else {
-        didMatch = true;
+        didMatch = false;
       }
       
       debugOrderMatch.push({
@@ -872,7 +874,7 @@ export default function DashboardScreen() {
               <View style={dynamicStyles.bookingsSection}>
                 <Text style={dynamicStyles.sectionTitle}>Available Bookings</Text>
               
-              {/* Select City Button */}
+              {/* Select City Button with selection summary */}
                 <TouchableOpacity
                   onPress={() => setShowCityModal(true)}
                   style={{
@@ -885,33 +887,22 @@ export default function DashboardScreen() {
                   width: '100%',
                   }}
                 >
-                <Text style={{ color: '#fff', fontWeight: '600', fontSize: 15 }}>Select City to Receive Bookings</Text>
+                {(() => {
+                  const summary = selectAllCities
+                    ? 'All'
+                    : (selectedCities.length === 0
+                        ? 'None'
+                        : (selectedCities.length <= 2
+                            ? selectedCities.join(', ')
+                            : `${selectedCities.slice(0,2).join(', ')}, ...`));
+                  return (
+                    <Text style={{ color: '#fff', fontWeight: '600', fontSize: 15 }}>
+                      Select City to Receive Bookings — {summary}
+                    </Text>
+                  );
+                })()}
               </TouchableOpacity>
 
-              {/* Selected Cities Display */}
-              {(selectAllCities || selectedCities.length > 0) && (
-                <View style={{ flexDirection: 'row', flexWrap: 'wrap', marginBottom: 12 }}>
-                  {selectAllCities && (
-                    <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary + '22', borderRadius: 20, marginRight: 8, marginBottom: 8, paddingHorizontal: 12, paddingVertical: 5 }}>
-                      <Text style={{ color: colors.primary, marginRight: 4, fontWeight: '600' }}>All</Text>
-                      <TouchableOpacity onPress={() => {
-                        setSelectAllCities(false);
-                        setSelectedCities([]);
-                      }}>
-                        <Text style={{ color: colors.error, fontWeight: '700', fontSize: 15 }}>✕</Text>
-                </TouchableOpacity>
-              </View>
-                  )}
-                  {selectedCities.map(city => (
-                    <View key={city} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary + '22', borderRadius: 20, marginRight: 8, marginBottom: 8, paddingHorizontal: 12, paddingVertical: 5 }}>
-                      <Text style={{ color: colors.primary, marginRight: 4, fontWeight: '600' }}>{city}</Text>
-                      <TouchableOpacity onPress={() => setSelectedCities(selectedCities.filter(x => x !== city))}>
-                        <Text style={{ color: colors.error, fontWeight: '700', fontSize: 15 }}>✕</Text>
-                      </TouchableOpacity>
-                    </View>
-                  ))}
-                </View>
-              )}
             
               {/* City Selection Modal */}
               <Modal visible={showCityModal} transparent animationType="fade">
