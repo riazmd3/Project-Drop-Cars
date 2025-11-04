@@ -308,8 +308,8 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
     card: {
       backgroundColor: colors.surface,
       borderRadius: 16,
-      padding: 16,
-      marginBottom: 16,
+      padding: 12,
+      marginBottom: 10,
       shadowColor: '#000',
       shadowOffset: { width: 0, height: 2 },
       shadowOpacity: 0.1,
@@ -323,7 +323,7 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      marginBottom: 16,
+      marginBottom: 10,
     },
     bookingId: {
       fontSize: 18,
@@ -336,12 +336,12 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
       color: '#EF4444', // Red color
     },
     routeContainer: {
-      marginBottom: 16,
+      marginBottom: 10,
     },
     routeRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: 6,
+      marginBottom: 4,
     },
     routeText: {
       marginLeft: 8,
@@ -361,18 +361,18 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
     },
     routeLine: {
       width: 1,
-      height: 20,
+      height: 12,
       backgroundColor: colors.border,
       marginLeft: 8,
-      marginVertical: 4,
+      marginVertical: 2,
     },
     detailsContainer: {
-      marginBottom: 16,
+      marginBottom: 8,
     },
     detailRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: 10,
+      marginBottom: 6,
     },
     detailLabel: {
       fontSize: 14,
@@ -388,9 +388,10 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
     },
     fareContainer: {
       backgroundColor: '#D1FAE5',
-      borderRadius: 12,
-      padding: 10,
-      marginBottom: 10,
+      borderRadius: 10,
+      paddingVertical: 6,
+      paddingHorizontal: 8,
+      marginBottom: 8,
       alignItems: 'center',
     },
     fareLabel: {
@@ -400,14 +401,14 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
       marginBottom: 4,
     },
     totalFare: {
-      fontSize: 24,
+      fontSize: 20,
       fontFamily: 'Inter-Bold',
       color: '#065F46',
     },
     acceptButton: {
       backgroundColor: colors.primary,
       borderRadius: 12,
-      paddingVertical: 16,
+      paddingVertical: 12,
       alignItems: 'center',
       flexDirection: 'row',
       justifyContent: 'center',

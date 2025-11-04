@@ -439,7 +439,7 @@ export default function FutureRidesScreen() {
           )}
         </View>
 
-        {/* Order Details in Bold Styling */}
+        Order Details in Bold Styling
         <View style={styles.detailsContainerBold}>
           {ride.trip_type && (
             <View style={styles.detailRowBold}>
@@ -533,7 +533,7 @@ export default function FutureRidesScreen() {
             </View>
             
             {/* Order Information - Additional details */}
-            <View style={styles.expandedSection}>
+            {/* <View style={styles.expandedSection}>
               <Text style={[styles.expandedSectionTitle, { color: colors.text }]}>Order Information</Text>
               <View style={styles.expandedRow}>
                 <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Order ID:</Text>
@@ -551,10 +551,10 @@ export default function FutureRidesScreen() {
                 <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Pick Near City:</Text>
                 <Text style={[styles.expandedValue, { color: colors.text }]}>{getDisplayCity(ride.pick_near_city)}</Text>
               </View>
-            </View>
+            </View> */}
 
             {/* Pricing Information */}
-            <View style={styles.expandedSection}>
+            {/* <View style={styles.expandedSection}>
               <Text style={[styles.expandedSectionTitle, { color: colors.text }]}>Pricing</Text>
               <View style={styles.expandedRow}>
                 <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Estimated Price:</Text>
@@ -580,10 +580,10 @@ export default function FutureRidesScreen() {
                   <Text style={[styles.expandedValue, { color: colors.text }]}>₹{ride.closed_driver_price}</Text>
                 </View>
               )}
-            </View>
+            </View> */}
 
             {/* Assignment Information */}
-            <View style={styles.expandedSection}>
+            {/* <View style={styles.expandedSection}>
               <Text style={[styles.expandedSectionTitle, { color: colors.text }]}>Assignment</Text>
               <View style={styles.expandedRow}>
                 <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Assignment ID:</Text>
@@ -605,7 +605,7 @@ export default function FutureRidesScreen() {
                   <Text style={[styles.expandedValue, { color: colors.text }]}>{formatDate(ride.expires_at)}</Text>
                 </View>
               )}
-            </View>
+            </View> */}
 
             {/* Timestamps */}
             <View style={styles.expandedSection}>

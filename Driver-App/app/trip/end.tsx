@@ -255,7 +255,14 @@ export default function EndTripScreen() {
               onChangeText={setTollCharge}
               keyboardType="numeric"
             />
-                    {/* ENDING KM SHOWN TICKBOX - new location */}
+            <Text style={styles.helperText}>
+              Enter the toll charges incurred during the trip
+            </Text>
+          </View>
+          
+        )}
+
+        {/* ENDING KM SHOWN CHECKBOX - always visible */}
         <TouchableOpacity 
           style={styles.checkboxContainer}
           onPress={() => setEndingKmShown(v => !v)}
@@ -263,14 +270,8 @@ export default function EndTripScreen() {
           <View style={[styles.checkbox, endingKmShown && styles.checkedBox]}>
             {endingKmShown && <Check color="#FFFFFF" size={16} />}
           </View>
-          <Text style={styles.checkboxText}>Shown the Ending Km</Text>
+          <Text style={styles.checkboxText}>Shown Ending km Odometer</Text>
         </TouchableOpacity>
-            <Text style={styles.helperText}>
-              Enter the toll charges incurred during the trip
-            </Text>
-          </View>
-          
-        )}
 
         <TouchableOpacity
           style={[

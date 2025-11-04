@@ -74,7 +74,7 @@ export default function DashboardScreen() {
   const [citySearch, setCitySearch] = useState('');
   const [bookingSearch, setBookingSearch] = useState('');
   const [showCityModal, setShowCityModal] = useState(false);
-  const [selectAllCities, setSelectAllCities] = useState(false);
+  const [selectAllCities, setSelectAllCities] = useState(true);
 
   const CITY_STORAGE_KEY = 'vo_nearcity_selected_cities';
 
