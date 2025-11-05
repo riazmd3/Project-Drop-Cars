@@ -108,7 +108,10 @@ export default function FutureRidesScreen() {
   const [search, setSearch] = useState('');
   const normalized = (s: string) => String(s || '').toLowerCase();
   const getDisplayCity = (v: string | string[]) => Array.isArray(v) ? v.join(', ') : v;
-  const filteredFutureRides = futureRides.filter((r) => {
+  // Exclude orders where both driver and car are already assigned
+  const visibleFutureRides = futureRides.filter((r: any) => !(r.assigned_driver_name && r.assigned_car_name));
+
+  const filteredFutureRides = visibleFutureRides.filter((r) => {
     const q = normalized(search);
     if (!q) return true;
     
@@ -607,32 +610,7 @@ export default function FutureRidesScreen() {
               )}
             </View> */}
 
-            {/* Timestamps */}
-            <View style={styles.expandedSection}>
-              <Text style={[styles.expandedSectionTitle, { color: colors.text }]}>Timestamps</Text>
-              <View style={styles.expandedRow}>
-                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Created:</Text>
-                <Text style={[styles.expandedValue, { color: colors.text }]}>{formatDate(ride.created_at)}</Text>
-              </View>
-              {ride.assignment_created_at && (
-                <View style={styles.expandedRow}>
-                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Assignment Created:</Text>
-                  <Text style={[styles.expandedValue, { color: colors.text }]}>{formatDate(ride.assignment_created_at)}</Text>
-                </View>
-              )}
-              {ride.cancelled_at && (
-                <View style={styles.expandedRow}>
-                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Cancelled:</Text>
-                  <Text style={[styles.expandedValue, { color: colors.text }]}>{formatDate(ride.cancelled_at)}</Text>
-                </View>
-              )}
-              {ride.completed_at && (
-                <View style={styles.expandedRow}>
-                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Completed:</Text>
-                  <Text style={[styles.expandedValue, { color: colors.text }]}>{formatDate(ride.completed_at)}</Text>
-                </View>
-              )}
-            </View>
+            {/* Timestamps removed per request */}
           </View>
         )}
 

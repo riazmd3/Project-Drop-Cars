@@ -514,32 +514,7 @@ export default function RidesScreen() {
               </View>
             )} */}
 
-            {/* Timestamps */}
-            <View style={styles.expandedSection}>
-              <Text style={[styles.expandedTitle, { color: colors.text }]}>Timestamps</Text>
-              <View style={styles.expandedRow}>
-                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Created:</Text>
-                <Text style={[styles.expandedValue, { color: colors.text }]}>
-                  {ride.created_at ? new Date(ride.created_at).toLocaleString() : 'N/A'}
-                </Text>
-              </View>
-              {ride.completed_at && (
-                <View style={styles.expandedRow}>
-                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Completed:</Text>
-                  <Text style={[styles.expandedValue, { color: colors.text }]}>
-                    {new Date(ride.completed_at).toLocaleString()}
-                  </Text>
-                </View>
-              )}
-              {ride.cancelled_at && (
-                <View style={styles.expandedRow}>
-                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Cancelled:</Text>
-                  <Text style={[styles.expandedValue, { color: colors.text }]}>
-                    {new Date(ride.cancelled_at).toLocaleString()}
-                  </Text>
-                </View>
-              )}
-            </View>
+            {/* Timestamps removed per request */}
           </View>
         )}
       </View>
