@@ -99,7 +99,12 @@ export default function RidesScreen() {
           trip_status: ride.trip_status || 'PENDING',
         };
         
-        if (rideData.assignment_status === 'PENDING' || rideData.assignment_status === 'ASSIGNED') {
+        // Only include in Assigned tab when both driver and car are assigned
+        if (
+          rideData.assignment_status === 'ASSIGNED' &&
+          !!(ride as any).assigned_driver_name &&
+          !!(ride as any).assigned_car_name
+        ) {
           driving.push(rideData);
         }
       });
