@@ -422,7 +422,7 @@ export default function FutureRidesScreen() {
         <View style={styles.rideHeader}>
           <Text style={[styles.orderIdBold, { color: colors.text }]}>
             Booking ID: #{ride.id}
-          </Text>
+            </Text>
           {ride.trip_type && (
             <Text style={styles.tripTypeBold}>{ride.trip_type}</Text>
           )}
@@ -452,12 +452,12 @@ export default function FutureRidesScreen() {
           {!isHourly && !!drop && (
             <>
               <View style={[styles.routeLine, { backgroundColor: colors.border }]} />
-              <View style={styles.routeRow}>
+            <View style={styles.routeRow}>
                 <MapPin color="#EF4444" size={18} />
                 <Text style={[styles.routeTextBold, { color: '#EF4444' }]}>
                   To: {drop}
-                </Text>
-              </View>
+              </Text>
+            </View>
             </>
           )}
         </View>
@@ -474,19 +474,19 @@ export default function FutureRidesScreen() {
             <View style={styles.detailRowBold}>
               <Text style={[styles.detailLabelBold, { color: colors.textSecondary }]}>Vehicle Type:</Text>
               <Text style={[styles.detailValueBold, { color: colors.text }]}>{ride.car_type}</Text>
-            </View>
+          </View>
           )}
           {pickupDate && (
             <View style={styles.detailRowBold}>
               <Text style={[styles.detailLabelBold, { color: colors.textSecondary }]}>Date & Time:</Text>
               <Text style={[styles.detailValueBold, { color: colors.text }]}>{pickupDate} {pickupTime}</Text>
-            </View>
+          </View>
           )}
           {ride.trip_distance && (
             <View style={styles.detailRowBold}>
               <Text style={[styles.detailLabelBold, { color: colors.textSecondary }]}>Distance:</Text>
               <Text style={[styles.detailValueBold, { color: colors.text }]}>{ride.trip_distance} km</Text>
-            </View>
+          </View>
           )}
           {ride.trip_time && (
             <View style={styles.detailRowBold}>
@@ -997,7 +997,7 @@ const styles = StyleSheet.create({
     routeContainer: {
       marginBottom: 10,
     },
-  routeRow: {
+    routeRow: {
       flexDirection: 'row',
       alignItems: 'center',
     marginBottom: 4,

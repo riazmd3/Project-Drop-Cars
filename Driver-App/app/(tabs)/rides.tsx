@@ -324,7 +324,7 @@ export default function RidesScreen() {
         <View style={styles.rideHeader}>
           <Text style={[styles.orderIdBold, { color: colors.text }]}>
             Booking ID: #{ride.id}
-          </Text>
+            </Text>
           {ride.trip_type && (
             <Text style={styles.tripTypeBold}>{ride.trip_type}</Text>
           )}
@@ -352,32 +352,32 @@ export default function RidesScreen() {
             <View style={styles.detailRowBold}>
               <Text style={[styles.detailLabelBold, { color: colors.textSecondary }]}>Trip Type:</Text>
               <Text style={[styles.detailValueBold, { color: colors.text }]}>{ride.trip_type}</Text>
-            </View>
+          </View>
           )}
           {ride.car_type && (
             <View style={styles.detailRowBold}>
               <Text style={[styles.detailLabelBold, { color: colors.textSecondary }]}>Vehicle Type:</Text>
               <Text style={[styles.detailValueBold, { color: colors.text }]}>{ride.car_type}</Text>
-            </View>
+          </View>
           )}
           {pickupDate && (
             <View style={styles.detailRowBold}>
               <Text style={[styles.detailLabelBold, { color: colors.textSecondary }]}>Date & Time:</Text>
               <Text style={[styles.detailValueBold, { color: colors.text }]}>{pickupDate} {pickupTime}</Text>
-            </View>
+          </View>
           )}
           {ride.trip_distance !== undefined && (
             <View style={styles.detailRowBold}>
               <Text style={[styles.detailLabelBold, { color: colors.textSecondary }]}>Distance:</Text>
               <Text style={[styles.detailValueBold, { color: colors.text }]}>{ride.trip_distance || 0} km</Text>
-            </View>
+          </View>
           )}
           {ride.trip_time && (
             <View style={styles.detailRowBold}>
               <Text style={[styles.detailLabelBold, { color: colors.textSecondary }]}>Duration:</Text>
               <Text style={[styles.detailValueBold, { color: colors.text }]}>{formatRoundedDuration(ride.trip_time)}</Text>
-            </View>
-          )}
+          </View>
+        )}
         </View>
 
         {/* Total Amount */}
@@ -738,7 +738,7 @@ const styles = StyleSheet.create({
     height: 12,
     marginLeft: 8,
     marginVertical: 2,
-  },
+    },
   locationRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -760,7 +760,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter-Bold',
     flex: 1,
     marginLeft: 8,
-  },
+    },
     rideDetails: {
       marginBottom: 12,
     },

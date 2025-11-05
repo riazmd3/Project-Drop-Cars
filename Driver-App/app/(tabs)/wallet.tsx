@@ -479,9 +479,12 @@ export default function WalletScreen() {
         )}
 
         {/* Add Money with UPI Button and Modal */}
-        <TouchableOpacity style={{ marginTop: 24, alignSelf: 'center', backgroundColor:"", paddingVertical: 14, paddingHorizontal: 32, borderRadius: 12, flexDirection: 'row', alignItems: 'center' }} onPress={() => { setUpiError(''); setUpiAmount(''); setUpiModalVisible(true); }}>
-          <Text style={{ color: '#FFF', fontSize: 16, fontFamily: 'Inter-SemiBold', marginRight: 10 }}>Tap to Add Money</Text>
-          <Plus color="#FFF" size={20} />
+        <TouchableOpacity 
+          style={[dynamicStyles.addMoneyButton, { marginTop: 24, alignSelf: 'center', paddingHorizontal: 32 }]}
+          onPress={() => { setUpiError(''); setUpiAmount(''); setUpiModalVisible(true); }}
+        >
+          <Text style={dynamicStyles.addMoneyButtonText}>Tap to Add Money</Text>
+          <Plus color="#FFFFFF" size={20} style={{ marginLeft: 10 }} />
         </TouchableOpacity>
         <Modal
           visible={upiModalVisible}

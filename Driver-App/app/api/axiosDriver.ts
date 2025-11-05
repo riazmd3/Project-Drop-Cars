@@ -22,7 +22,7 @@ axiosDriver.interceptors.request.use(
                           config.url?.includes('/signup') ||
                           config.url?.includes('/signin') ||
                           config.url?.includes('/auth/') ||
-                          config.url?.includes('/driver/login');
+                          config.url?.includes('/driver/login'); 
     
     if (!isAuthEndpoint) {
       // Check for valid token before making request (only for non-auth endpoints)

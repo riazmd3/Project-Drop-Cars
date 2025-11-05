@@ -776,7 +776,7 @@ export default function MyDriversScreen() {
                       <Text style={dynamicStyles.imageText}>Licence</Text>
                       <DocumentStatusIcon 
                         status={getDocumentStatus(driver.id, 'licence')} 
-                        size={16}
+                        size={5}
                       />
                     </TouchableOpacity>
                   </View>

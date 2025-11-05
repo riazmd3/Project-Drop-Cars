@@ -44,6 +44,7 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
   const { colors } = useTheme();
   const [timeRemaining, setTimeRemaining] = useState<string>('');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [showTermsModal, setShowTermsModal] = useState(false);
   const [acknowledgeInterest, setAcknowledgeInterest] = useState(false);
   const [acknowledgePenalties, setAcknowledgePenalties] = useState(false);
   console.log('booking data', booking);
@@ -316,7 +317,7 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
   };
   
   const handleConfirmAccept = () => {
-    if (acknowledgeInterest && acknowledgePenalties) {
+    if (acknowledgeInterest) {
       setShowConfirmModal(false);
       setAcknowledgeInterest(false);
       setAcknowledgePenalties(false);
@@ -454,7 +455,7 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
       backgroundColor: 'rgba(0, 0, 0, 0.5)',
       justifyContent: 'center',
       alignItems: 'center',
-      padding: 20,
+      padding: 12,
     },
     modalContent: {
       backgroundColor: colors.surface,
@@ -483,40 +484,80 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
       color: 'red',
     },
     modalBody: {
-      padding: 20,
+      padding: 14,
     },
     modalSection: {
-      marginBottom: 20,
+      marginBottom: 8,
     },
     modalLabel: {
       fontSize: 14,
       fontFamily: 'Inter-SemiBold',
       color: colors.textSecondary,
-      marginBottom: 4,
+      marginBottom: 2,
     },
     modalValue: {
       fontSize: 15,
       fontFamily: 'Inter-Medium',
       color: colors.text,
-      marginBottom: 12,
+      marginBottom: 6,
     },
-    termsContainer: {
-      backgroundColor: colors.background,
+    infoTable: {
+      backgroundColor: colors.surface,
       borderRadius: 8,
-      padding: 12,
-      marginBottom: 16,
-    },
-    termsText: {
-      fontSize: 13,
-      fontFamily: 'Inter-Regular',
-      color: colors.text,
-      lineHeight: 20,
+      paddingVertical: 8,
+      paddingHorizontal: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
       marginBottom: 8,
+    },
+    infoRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      paddingVertical: 6,
+      borderBottomWidth: 1,
+      borderBottomColor: colors.border,
+    },
+    infoRowLast: {
+      borderBottomWidth: 0,
+    },
+    infoCellLabel: {
+      flex: 1,
+      paddingRight: 10,
+      backgroundColor: colors.surface,
+      borderRightWidth: 1,
+      borderRightColor: colors.border,
+    },
+    infoCellValue: {
+      flex: 1,
+      paddingLeft: 10,
+      backgroundColor: colors.background,
+    },
+    infoLabel: {
+      fontSize: 14,
+      fontFamily: 'Inter-SemiBold',
+      color: colors.textSecondary,
+    },
+    infoValue: {
+      fontSize: 14,
+      fontFamily: 'Inter-Bold',
+      color: colors.text,
+      textAlign: 'right',
+    },
+    infoValuePositive: {
+      color: '#22c55e',
+    },
+    cityStart: {
+      color: '#22c55e',
+      fontFamily: 'Inter-Bold',
+    },
+    cityEnd: {
+      color: '#3b82f6',
+      fontFamily: 'Inter-Bold',
     },
     checkboxRow: {
       flexDirection: 'row',
       alignItems: 'flex-start',
-      marginBottom: 12,
+      marginBottom: 8,
     },
     checkbox: {
       width: 20,
@@ -536,14 +577,18 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
       flex: 1,
       fontSize: 13,
       fontFamily: 'Inter-Regular',
-      color: 'red',
-      lineHeight: 20,
+      color: colors.text,
+      lineHeight: 18,
+    },
+    link: {
+      textDecorationLine: 'underline',
+      color: colors.primary,
     },
     modalButtons: {
       flexDirection: 'row',
-      marginTop: 8,
+      marginTop: 6,
       justifyContent: 'space-between',
-      paddingBottom: 50,
+      paddingBottom: 0,
     },
     cancelButton: {
       flex: 1,
@@ -551,7 +596,7 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
       borderWidth: 1,
       borderColor: colors.border,
       borderRadius: 12,
-      paddingVertical: 14,
+      paddingVertical: 12,
       alignItems: 'center',
     },
     cancelButtonText: {
@@ -563,9 +608,9 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
       flex: 1,
       backgroundColor: colors.primary,
       borderRadius: 12,
-      paddingVertical: 14,
+      paddingVertical: 12,
       alignItems: 'center',
-      paddingBottom: 10,
+      paddingBottom: 0,
     },
     confirmButtonText: {
       fontSize: 15,
@@ -578,9 +623,9 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
   });
   return (
     <>
-      <View style={[dynamicStyles.card, disabled && dynamicStyles.disabledCard]}>
+    <View style={[dynamicStyles.card, disabled && dynamicStyles.disabledCard]}>
         {/* Header: Booking ID and Trip Type */}
-        <View style={dynamicStyles.header}>
+      <View style={dynamicStyles.header}>
           <Text style={dynamicStyles.bookingId}>Booking ID: #{booking.order_id}</Text>
           {tripType && (
             <Text style={dynamicStyles.tripTypeText}>{tripType}</Text>
@@ -597,8 +642,8 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
                 <Text style={[dynamicStyles.routeText, dynamicStyles.routeTextGreen]}>
                   From: {startCity}
                 </Text>
-              </View>
-              
+      </View>
+
               {/* Middle cities - Blue (only show if there are 3+ cities) */}
               {allCities.length > 2 && middleCities.map((city, idx) => (
                 <View key={`middle-${idx}-${city}`}>
@@ -607,41 +652,41 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
                     <MapPin color="#3B82F6" size={18} />
                     <Text style={[dynamicStyles.routeText, dynamicStyles.routeTextBlue]}>
                       {city}
-                    </Text>
-                  </View>
+          </Text>
+        </View>
                 </View>
               ))}
               
               {/* End city - Red (always show if different from start or if there are multiple cities) */}
               {allCities.length > 1 && (
-                <>
-                  <View style={dynamicStyles.routeLine} />
-                  <View style={dynamicStyles.routeRow}>
+          <>
+            <View style={dynamicStyles.routeLine} />
+            <View style={dynamicStyles.routeRow}>
                     <MapPin color="#EF4444" size={18} />
                     <Text style={[dynamicStyles.routeText, dynamicStyles.routeTextRed]}>
                       To: {endCity}
                     </Text>
-                  </View>
+            </View>
                 </>
               )}
-            </>
-          )}
-        </View>
+          </>
+        )}
+      </View>
 
         {/* Details Section */}
-        <View style={dynamicStyles.detailsContainer}>
+      <View style={dynamicStyles.detailsContainer}>
           {carType && (
-            <View style={dynamicStyles.detailRow}>
+          <View style={dynamicStyles.detailRow}>
               <Text style={dynamicStyles.detailLabel}>Vehicle Type:</Text>
               <Text style={dynamicStyles.detailValue}>{carType}</Text>
             </View>
-          )}
+              )}
           {pickupDate && (
             <View style={dynamicStyles.detailRow}>
               <Text style={dynamicStyles.detailLabel}>Pick Up Date:</Text>
               <Text style={dynamicStyles.detailValue}>{pickupDate}</Text>
-            </View>
-          )}
+          </View>
+        )}
           
           {pickupTime && (
             <View style={dynamicStyles.detailRow}>
@@ -654,16 +699,16 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
             <View style={dynamicStyles.detailRow}>
               <Text style={dynamicStyles.detailLabel}>Trip Duration:</Text>
               <Text style={dynamicStyles.detailValue}>{formatRoundedDuration(estimatedTime)}</Text>
-            </View>
-          )}
+          </View>
+        )}
           
           {tripDistance > 0 && (
-            <View style={dynamicStyles.detailRow}>
+          <View style={dynamicStyles.detailRow}>
               <Text style={dynamicStyles.detailLabel}>Trip Distance:</Text>
               <Text style={dynamicStyles.detailValue}>{tripDistance} km</Text>
-            </View>
-          )}
-        </View>
+          </View>
+        )}
+      </View>
 
         {/* Fare - Above Accept Button */}
         <View style={dynamicStyles.fareContainer}>
@@ -671,31 +716,31 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
           <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             <IndianRupee color="#065F46" size={20} />
             <Text style={dynamicStyles.totalFare}>{displayPrice}</Text>
-          </View>
+        </View>
         </View>
 
         {/* Accept Button */}
-        <TouchableOpacity
-          style={[
-            dynamicStyles.acceptButton,
-            disabled && dynamicStyles.disabledButton,
-            loading && dynamicStyles.loadingButton
-          ]}
+      <TouchableOpacity
+        style={[
+          dynamicStyles.acceptButton,
+          disabled && dynamicStyles.disabledButton,
+          loading && dynamicStyles.loadingButton
+        ]}
           onPress={handleAcceptPress}
-          disabled={disabled || loading}
-        >
-          {loading ? (
-            <>
-              <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
-              <Text style={dynamicStyles.acceptButtonText}>Accepting...</Text>
-            </>
-          ) : (
-            <Text style={[dynamicStyles.acceptButtonText, disabled && dynamicStyles.disabledButtonText]}>
-              {disabled ? 'Insufficient Balance' : 'Accept Booking'}
-            </Text>
-          )}
-        </TouchableOpacity>
-      </View>
+        disabled={disabled || loading}
+      >
+        {loading ? (
+          <>
+            <ActivityIndicator size="small" color="#FFFFFF" style={{ marginRight: 8 }} />
+            <Text style={dynamicStyles.acceptButtonText}>Accepting...</Text>
+          </>
+        ) : (
+          <Text style={[dynamicStyles.acceptButtonText, disabled && dynamicStyles.disabledButtonText]}>
+            {disabled ? 'Insufficient Balance' : 'Accept Booking'}
+          </Text>
+        )}
+      </TouchableOpacity>
+    </View>
 
       {/* Confirmation Modal */}
       <Modal
@@ -729,69 +774,89 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
 
             {/* Modal Body */}
             <ScrollView style={dynamicStyles.modalBody} showsVerticalScrollIndicator={false}>
-              {/* Trip Details */}
+              {/* Trip Details Table */}
               <View style={dynamicStyles.modalSection}>
-                <Text style={dynamicStyles.modalLabel}>Trip:</Text>
-                <Text style={dynamicStyles.modalValue}>
-                  {startCity && endCity ? `${startCity} → ${endCity}` : pickup && drop ? `${pickup} → ${drop}` : 'N/A'}
-                  {tripType && `, ${tripType}`}
-                  {carType && ` For ${carType}`}
-                </Text>
-
-                {pickupDate && (
-                  <>
-                    <Text style={dynamicStyles.modalLabel}>Pickup:</Text>
-                    <Text style={dynamicStyles.modalValue}>
-                      {pickupDate} At {pickup || startCity}
-                    </Text>
-                  </>
-                )}
-
-                {endCity && (
-                  <>
-                    <Text style={dynamicStyles.modalLabel}>Drop Location:</Text>
-                    <Text style={dynamicStyles.modalValue}>{endCity}</Text>
-                  </>
-                )}
+                <View style={dynamicStyles.infoTable}>
+                  <View style={dynamicStyles.infoRow}>
+                    <View style={dynamicStyles.infoCellLabel}>
+                      <Text style={dynamicStyles.infoLabel}>Trip</Text>
+                    </View>
+                    <View style={dynamicStyles.infoCellValue}>
+                      <Text style={dynamicStyles.infoValue}>
+                        {startCity && endCity ? (
+                          <Text>
+                            <Text style={dynamicStyles.cityStart}>{startCity}</Text>
+                            <Text> → </Text>
+                            <Text style={dynamicStyles.cityEnd}>{endCity}</Text>
+                          </Text>
+                        ) : pickup && drop ? (
+                          <Text>
+                            <Text style={dynamicStyles.cityStart}>{pickup}</Text>
+                            <Text> → </Text>
+                            <Text style={dynamicStyles.cityEnd}>{drop}</Text>
+                          </Text>
+                        ) : (
+                          <Text>N/A</Text>
+                        )}
+                        {tripType ? <Text>{`, ${tripType}`}</Text> : null}
+                        {carType ? <Text>{` • ${carType}`}</Text> : null}
+                        {(tripDistance > 0 || estimatedTime) ? (
+                          <Text>{` (${tripDistance || 0}kms - ${formatRoundedDuration(estimatedTime)})`}</Text>
+                        ) : null}
+                      </Text>
+                    </View>
+                  </View>
+                  {pickupDate && (
+                    <View style={dynamicStyles.infoRow}>
+                      <View style={dynamicStyles.infoCellLabel}>
+                        <Text style={dynamicStyles.infoLabel}>Pickup</Text>
+                      </View>
+                      <View style={dynamicStyles.infoCellValue}>
+                        <Text style={dynamicStyles.infoValue}>{pickupDate}{pickupTime ? ` • ${pickupTime}` : ''}</Text>
+                      </View>
+                    </View>
+                  )}
+                  {endCity && (
+                    <View style={dynamicStyles.infoRow}>
+                      <View style={dynamicStyles.infoCellLabel}>
+                        <Text style={dynamicStyles.infoLabel}>Drop Location</Text>
+                      </View>
+                      <View style={dynamicStyles.infoCellValue}>
+                        <Text style={dynamicStyles.infoValue}>{endCity}</Text>
+                      </View>
+                    </View>
+                  )}
+                  {(assignmentWindowDuration || deadlineTime) && (
+                    <View style={[dynamicStyles.infoRow, dynamicStyles.infoRowLast]}>
+                      <View style={dynamicStyles.infoCellLabel}>
+                        <Text style={dynamicStyles.infoLabel}>Driver & Car Assignment Time</Text>
+                      </View>
+                      <View style={dynamicStyles.infoCellValue}>
+                        <Text style={[dynamicStyles.infoValue, dynamicStyles.infoValuePositive]}>
+                          {assignmentWindowDuration || ''}{(assignmentWindowDuration && deadlineTime) ? ' - ' : ''}{deadlineTime || ''}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+                </View>
               </View>
 
-              {/* Terms and Conditions */}
+              {/* Terms acknowledgement */}
               <View style={dynamicStyles.modalSection}>
-                <Text style={[dynamicStyles.modalLabel, { marginBottom: 8 }]}>Terms and Conditions</Text>
-                <View style={dynamicStyles.termsContainer}>
-                  <Text style={dynamicStyles.termsText}>
-                    I'm interested in this trip and will comply with all the terms and conditions of Drop Cars.
-                  </Text>
-                  <Text style={dynamicStyles.termsText}>
-                    I acknowledge and agree to the penalties in case of any non-compliance or delays from my side: Unallocation penalty up to ₹2000, Assignment penalty up to ₹500, On Time/App Related penalty up to ₹500.
+                <View style={dynamicStyles.checkboxRow}>
+                  <TouchableOpacity
+                    style={[dynamicStyles.checkbox, acknowledgeInterest && dynamicStyles.checkboxChecked]}
+                    onPress={() => setAcknowledgeInterest(!acknowledgeInterest)}
+                  >
+                    {acknowledgeInterest && <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: 'bold' }}>✓</Text>}
+                  </TouchableOpacity>
+                  <Text style={dynamicStyles.checkboxText}>
+                    I accept the Drop Cars <Text style={dynamicStyles.link} onPress={() => setShowTermsModal(true)}>Terms and Conditions</Text>.
                   </Text>
                 </View>
               </View>
 
-              {/* Checkboxes */}
-              <View style={dynamicStyles.checkboxRow}>
-                <TouchableOpacity
-                  style={[dynamicStyles.checkbox, acknowledgeInterest && dynamicStyles.checkboxChecked]}
-                  onPress={() => setAcknowledgeInterest(!acknowledgeInterest)}
-                >
-                  {acknowledgeInterest && <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: 'bold' }}>✓</Text>}
-                </TouchableOpacity>
-                <Text style={dynamicStyles.checkboxText}>
-                I'm interested in this trip and comply with all terms and conditions of Drop Cars And I acknowledge and agree to the penalty in case of any non-compliance from my side and unallocation and assignment penalty as per terms.
-                </Text>
-              </View>
-
-              {/* <View style={dynamicStyles.checkboxRow}>
-                <TouchableOpacity
-                  style={[dynamicStyles.checkbox, acknowledgePenalties && dynamicStyles.checkboxChecked]}
-                  onPress={() => setAcknowledgePenalties(!acknowledgePenalties)}
-                >
-                  {acknowledgePenalties && <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: 'bold' }}>✓</Text>}
-                </TouchableOpacity>
-                <Text style={dynamicStyles.checkboxText}>
-                  I acknowledge and agree to the above penalties in case of any non-compliance or delays from my side.
-                </Text>
-              </View> */}
+              
 
               {/* Action Buttons */}
               <View style={dynamicStyles.modalButtons}>
@@ -803,7 +868,7 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
                     setAcknowledgePenalties(false);
                   }}
                 >
-                  <Text style={dynamicStyles.cancelButtonText}>Do not Confirm</Text>
+                  <Text style={dynamicStyles.cancelButtonText}>Back</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={[
@@ -816,6 +881,36 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
                 >
                   <Text style={dynamicStyles.confirmButtonText}>Confirm</Text>
                 </TouchableOpacity>
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Terms & Conditions Modal */}
+      <Modal
+        visible={showTermsModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowTermsModal(false)}
+      >
+        <View style={dynamicStyles.modalOverlay}>
+          <View style={[dynamicStyles.modalContent, { maxWidth: 420 }]}> 
+            <View style={dynamicStyles.modalHeader}>
+              <Text style={dynamicStyles.modalHeaderText}>Terms & Conditions</Text>
+              <TouchableOpacity onPress={() => setShowTermsModal(false)} style={dynamicStyles.modalCloseButton}>
+                <X color="#FFFFFF" size={24} />
+              </TouchableOpacity>
+            </View>
+            <ScrollView style={dynamicStyles.modalBody}>
+              <View style={dynamicStyles.modalSection}>
+                <Text style={dynamicStyles.modalValue}>
+                  I'm interested in this trip and comply with all terms and conditions of Drop Cars and I acknowledge and agree to the penalty in case of any non-compliance from my side and unallocation and assignment penalty as per terms.
+                </Text>
+                <Text style={[dynamicStyles.modalLabel, { marginTop: 8 }]}>Penalties</Text>
+                <Text style={dynamicStyles.modalValue}>1) Unallocation penalty up to ₹2000</Text>
+                <Text style={dynamicStyles.modalValue}>2) Assignment penalty up to ₹500</Text>
+                <Text style={dynamicStyles.modalValue}>3) On Time/App related penalty up to ₹500</Text>
               </View>
             </ScrollView>
           </View>
