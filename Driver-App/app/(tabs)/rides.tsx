@@ -298,7 +298,7 @@ export default function RidesScreen() {
         {/* Header: Booking ID and Trip Type */}
         <View style={styles.rideHeader}>
           <Text style={[styles.orderIdBold, { color: colors.text }]}>
-            Booking ID: #{ride.order_id || 'N/A'}
+            Booking ID: #{ride.id}
           </Text>
           {ride.trip_type && (
             <Text style={styles.tripTypeBold}>{ride.trip_type}</Text>

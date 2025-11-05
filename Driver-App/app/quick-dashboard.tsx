@@ -754,9 +754,9 @@ export default function QuickDashboardScreen() {
                   ]}
                   onPress={() => navigateToTrip(order)}
                 >
-                  <View style={styles.orderHeader}>
+                    <View style={styles.orderHeader}>
                     <View style={styles.orderInfo}>
-                      <Text style={styles.orderId}>Order #{order.order_id}</Text>
+                      <Text style={styles.orderId}>Order #{(order as any).id ?? order.order_id ?? (order as any).source_order_id}</Text>
                       <View style={styles.statusBadge}>
                         {getStatusIcon(order.assignment_status)}
                         <Text style={{ ...styles.statusText, color: getStatusColor(order.assignment_status) }}>{order.assignment_status}</Text>
@@ -1028,11 +1028,11 @@ export default function QuickDashboardScreen() {
                   }
                   const hasToll = !!order.toll_charge_update;
                   return (
-                    <View key={order.order_id || idx} style={{ borderWidth: 1, borderRadius: 14, borderColor: '#E5E7EB', backgroundColor: '#FFF', marginBottom: 18, padding: 16 }}>
+                    <View key={(order as any).id || order.order_id || idx} style={{ borderWidth: 1, borderRadius: 14, borderColor: '#E5E7EB', backgroundColor: '#FFF', marginBottom: 18, padding: 16 }}>
                       {/* Basic info */}
                       <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
                         <View>
-                          <Text style={{ fontFamily: 'Inter-Bold', fontSize: 16, color: colors.text }}>Order #{order.order_id}</Text>
+                          <Text style={{ fontFamily: 'Inter-Bold', fontSize: 16, color: colors.text }}>Order #{(order as any).id ?? order.order_id ?? (order as any).source_order_id}</Text>
                           <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 4 }}>Vendor: <Text style={{ color: colors.text }}>{order.vendor_name || '-'}</Text></Text>
                           <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Number: <Text style={{ color: colors.text }}>{order.vendor_primary_number || '-'}</Text></Text>
                           <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 2 }}>From: <Text style={{ color: colors.primary }}>{pickup}</Text></Text>
@@ -1051,11 +1051,11 @@ export default function QuickDashboardScreen() {
                           <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Toll: {hasToll ? 'Yes' : 'No toll'}</Text>
                           <Text style={{ color: '#10B981', fontSize: 15, fontFamily: 'Inter-Bold', marginTop: 4 }}>Closed Vendor Price: ₹{order.closed_vendor_price || 0}</Text>
                         </View>
-                        <TouchableOpacity onPress={() => setExpandedOrderId(expandedOrderId === order.order_id ? null : order.order_id)}>
-                          <Text style={{ color: colors.primary, fontSize: 15, fontFamily: 'Inter-SemiBold' }}>{expandedOrderId === order.order_id ? 'Hide' : 'See More'}</Text>
+                        <TouchableOpacity onPress={() => setExpandedOrderId(expandedOrderId === ((order as any).id ?? order.order_id) ? null : ((order as any).id ?? order.order_id))}>
+                          <Text style={{ color: colors.primary, fontSize: 15, fontFamily: 'Inter-SemiBold' }}>{expandedOrderId === ((order as any).id ?? order.order_id) ? 'Hide' : 'See More'}</Text>
                         </TouchableOpacity>
                       </View>
-                      {expandedOrderId === order.order_id && (
+                      {expandedOrderId === ((order as any).id ?? order.order_id) && (
                         <View style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: '#E5E7EB', paddingTop: 8 }}>
                           <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Duration: {order.trip_time}</Text>
                           <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Permit: ₹{order.permit_charges || 0}</Text>
