@@ -610,6 +610,12 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
 
         {/* Details Section */}
         <View style={dynamicStyles.detailsContainer}>
+          {carType && (
+            <View style={dynamicStyles.detailRow}>
+              <Text style={dynamicStyles.detailLabel}>Vehicle Type:</Text>
+              <Text style={dynamicStyles.detailValue}>{carType}</Text>
+            </View>
+          )}
           {pickupDate && (
             <View style={dynamicStyles.detailRow}>
               <Text style={dynamicStyles.detailLabel}>Pick Up Date:</Text>
@@ -734,7 +740,7 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
                 <Text style={[dynamicStyles.modalLabel, { marginBottom: 8 }]}>Terms and Conditions</Text>
                 <View style={dynamicStyles.termsContainer}>
                   <Text style={dynamicStyles.termsText}>
-                    I'm interested in this trip and will comply with all the terms and conditions of savaari.
+                    I'm interested in this trip and will comply with all the terms and conditions of Drop Cars.
                   </Text>
                   <Text style={dynamicStyles.termsText}>
                     I acknowledge and agree to the penalties in case of any non-compliance or delays from my side: Unallocation penalty up to ₹2000, Assignment penalty up to ₹500, On Time/App Related penalty up to ₹500.
@@ -751,11 +757,11 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
                   {acknowledgeInterest && <Text style={{ color: '#FFFFFF', fontSize: 12, fontWeight: 'bold' }}>✓</Text>}
                 </TouchableOpacity>
                 <Text style={dynamicStyles.checkboxText}>
-                  I'm interested in this trip and will comply with all the terms and conditions of savaari.
+                I'm interested in this trip and comply with all terms and conditions of Drop Cars And I acknowledge and agree to the penalty in case of any non-compliance from my side and unallocation and assignment penalty as per terms.
                 </Text>
               </View>
 
-              <View style={dynamicStyles.checkboxRow}>
+              {/* <View style={dynamicStyles.checkboxRow}>
                 <TouchableOpacity
                   style={[dynamicStyles.checkbox, acknowledgePenalties && dynamicStyles.checkboxChecked]}
                   onPress={() => setAcknowledgePenalties(!acknowledgePenalties)}
@@ -765,7 +771,7 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
                 <Text style={dynamicStyles.checkboxText}>
                   I acknowledge and agree to the above penalties in case of any non-compliance or delays from my side.
                 </Text>
-              </View>
+              </View> */}
 
               {/* Action Buttons */}
               <View style={dynamicStyles.modalButtons}>
@@ -783,10 +789,10 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
                   style={[
                     dynamicStyles.confirmButton,
                     { marginLeft: 6 },
-                    (!acknowledgeInterest || !acknowledgePenalties) && dynamicStyles.confirmButtonDisabled
+                    (!acknowledgeInterest) && dynamicStyles.confirmButtonDisabled
                   ]}
                   onPress={handleConfirmAccept}
-                  disabled={!acknowledgeInterest || !acknowledgePenalties}
+                  disabled={!acknowledgeInterest }
                 >
                   <Text style={dynamicStyles.confirmButtonText}>Confirm</Text>
                 </TouchableOpacity>

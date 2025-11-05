@@ -692,16 +692,8 @@ export default function DashboardScreen() {
       );
       return;
     }
-
-    const locations = getPickupDropLocations(order.pickup_drop_location);
-    Alert.alert(
-      'Accept Booking',
-      `Accept trip from ${locations.pickup} to ${locations.drop}?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Accept', onPress: () => acceptBooking(order) }
-      ]
-    );
+    // Confirmation already handled in BookingCard modal; proceed directly
+    acceptBooking(order);
   };
 
   const { addFutureRide } = useDashboard();
@@ -1046,7 +1038,7 @@ export default function DashboardScreen() {
               {/* Bookings list */}
               {ordersLoading ? (
                 <View style={dynamicStyles.loadingContainer}>
-                  <Text style={dynamicStyles.loadingText}>Loading pending orders...</Text>
+                  <Text style={dynamicStyles.loadingText}>Loading Booking orders...</Text>
                 </View>
               ) : filteredOrders.length > 0 ? (
                 filteredOrders.map((order) => {
