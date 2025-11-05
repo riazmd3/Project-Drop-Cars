@@ -160,6 +160,26 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
   const pickupDate = getPickupDate();
   const pickupTime = getPickupTime();
   const tripDistance = toNumber((booking as any).trip_distance || 0);
+
+  const formatRoundedDuration = (raw: string): string => {
+    if (!raw) return '';
+    try {
+      const segments = String(raw).split('+');
+      let totalMinutes = 0;
+      segments.forEach((seg) => {
+        const s = seg.toLowerCase();
+        const hMatch = s.match(/(\d+)\s*(?:hours?|hrs?|h)\b/);
+        const mMatch = s.match(/(\d+)\s*(?:minutes?|mins?|m)\b/);
+        const h = hMatch ? Number(hMatch[1]) : 0;
+        const m = mMatch ? Number(mMatch[1]) : 0;
+        totalMinutes += h * 60 + m;
+      });
+      const roundedHours = Math.round(totalMinutes / 60);
+      return roundedHours > 0 ? `${roundedHours} hrs` : '0 hrs';
+    } catch {
+      return raw;
+    }
+  };
   
   const computeDeadline = (): string => {
     try {
@@ -633,7 +653,7 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
           {estimatedTime && (
             <View style={dynamicStyles.detailRow}>
               <Text style={dynamicStyles.detailLabel}>Trip Duration:</Text>
-              <Text style={dynamicStyles.detailValue}>{estimatedTime}</Text>
+              <Text style={dynamicStyles.detailValue}>{formatRoundedDuration(estimatedTime)}</Text>
             </View>
           )}
           

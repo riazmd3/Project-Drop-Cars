@@ -288,6 +288,26 @@ export default function RidesScreen() {
     };
     
     const { date: pickupDate, time: pickupTime } = parseDateTime(ride.start_date_time);
+
+    const formatRoundedDuration = (raw: string): string => {
+      if (!raw) return '';
+      try {
+        const segments = String(raw).split('+');
+        let totalMinutes = 0;
+        segments.forEach((seg) => {
+          const s = seg.toLowerCase();
+          const hMatch = s.match(/(\d+)\s*(?:hours?|hrs?|h)\b/);
+          const mMatch = s.match(/(\d+)\s*(?:minutes?|mins?|m)\b/);
+          const h = hMatch ? Number(hMatch[1]) : 0;
+          const m = mMatch ? Number(mMatch[1]) : 0;
+          totalMinutes += h * 60 + m;
+        });
+        const roundedHours = Math.round(totalMinutes / 60);
+        return roundedHours > 0 ? `${roundedHours} hrs` : '0 hrs';
+      } catch {
+        return raw;
+      }
+    };
     
     // Access fare breakdown fields
     const fareData = (ride as any);
@@ -355,7 +375,7 @@ export default function RidesScreen() {
           {ride.trip_time && (
             <View style={styles.detailRowBold}>
               <Text style={[styles.detailLabelBold, { color: colors.textSecondary }]}>Duration:</Text>
-              <Text style={[styles.detailValueBold, { color: colors.text }]}>{ride.trip_time}</Text>
+              <Text style={[styles.detailValueBold, { color: colors.text }]}>{formatRoundedDuration(ride.trip_time)}</Text>
             </View>
           )}
         </View>
