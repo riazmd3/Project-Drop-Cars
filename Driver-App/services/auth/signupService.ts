@@ -345,6 +345,7 @@ export interface CarDetailsData {
   rc_back_img: any; // File object for FormData
   insurance_img: any; // File object for FormData
   fc_img: any; // File object for FormData
+  permit_img?: any; // File object for FormData
   car_img: any; // File object for FormData
 }
 
@@ -485,6 +486,7 @@ export const addCarDetails = async (carData: CarDetailsData): Promise<CarDetails
     appendImageFile('rc_back_img', carData.rc_back_img, 'rc_back.jpg');
     appendImageFile('insurance_img', carData.insurance_img, 'insurance.jpg');
     appendImageFile('fc_img', carData.fc_img, 'fc.jpg');
+    appendImageFile('permit_img', carData.permit_img, 'permit.jpg');
     appendImageFile('car_img', carData.car_img, 'car.jpg');
     
     // Append text fields exactly as shown in Postman
@@ -518,7 +520,7 @@ export const addCarDetails = async (carData: CarDetailsData): Promise<CarDetails
         'Content-Type': 'multipart/form-data',
         ...authHeaders
       },
-      formDataKeys: ['car_name', 'car_type', 'car_number', 'vehicle_owner_id', 'year_of_the_car', 'rc_front_img', 'rc_back_img', 'insurance_img', 'fc_img', 'car_img']
+      formDataKeys: ['car_name', 'car_type', 'car_number', 'vehicle_owner_id', 'year_of_the_car', 'rc_front_img', 'rc_back_img', 'insurance_img', 'fc_img', 'permit_img', 'car_img']
     });
     
     const response = await axiosInstance.post('/api/users/cardetails/signup', formData, {
@@ -726,6 +728,7 @@ export const testCarDetailsDataStructure = (carData: CarDetailsData) => {
     rc_back_img: carData.rc_back_img ? 'File will be attached' : 'No file',
     insurance_img: carData.insurance_img ? 'File will be attached' : 'No file',
     fc_img: carData.fc_img ? 'File will be attached' : 'No file',
+    permit_img: carData.permit_img ? 'File will be attached' : 'No file',
     car_img: carData.car_img ? 'File will be attached' : 'No file',
   };
   
@@ -752,7 +755,7 @@ export const testCarDetailsDataStructure = (carData: CarDetailsData) => {
   });
   
   console.log('🖼️ Image details:');
-  const imageFields = ['rc_front_img', 'rc_back_img', 'insurance_img', 'fc_img', 'car_img'];
+  const imageFields = ['rc_front_img', 'rc_back_img', 'insurance_img', 'fc_img', 'permit_img', 'car_img'];
   imageFields.forEach(field => {
     const imageUri = carData[field as keyof CarDetailsData];
     if (imageUri) {

@@ -47,8 +47,7 @@ export default function DocumentUpdateModal({
 
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
+        allowsEditing: false,
         quality: 0.8,
       });
 
@@ -65,8 +64,7 @@ export default function DocumentUpdateModal({
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
+        allowsEditing: false,
         quality: 0.8,
       });
 
@@ -90,13 +88,9 @@ export default function DocumentUpdateModal({
 
       // For React Native, we need to create a proper FormData object
       const formData = new FormData();
-      // Normalize backend document type keys
-      const normalizeDocumentType = (t: string) => {
-        const key = String(t || '').toLowerCase();
-        if (key === 'car_img' || key === 'car_image' || key === 'carimg' || key === 'carimg_url') return 'car';
-        return key;
-      };
-      formData.append('document_type', normalizeDocumentType(documentType));
+      // Normalize backend document type key (lowercase)
+      const docKey = String(documentType || '').toLowerCase();
+      formData.append('document_type', docKey);
       
       // Create the file object for React Native
       const file = {
@@ -119,10 +113,18 @@ export default function DocumentUpdateModal({
           }
         );
       } else {
-        // Car documents - backend expects 'image' field name
-        // document_type is used to specify which document type
-        formData.append('image', file);
-        
+        // Car documents - backend expects specific field names
+        const fieldNameMap: Record<string, string> = {
+          'rc_front': 'rc_front_img',
+          'rc_back': 'rc_back_img',
+          'insurance': 'insurance_img',
+          'fc': 'fc_img',
+          'permit': 'permit_img',
+          'car_img': 'car_img',
+        };
+        const fieldName = fieldNameMap[docKey] || 'image';
+        formData.append(fieldName, file);
+
         await axiosInstance.post(
           `/api/users/cardetails/${entityId}/update-document`,
           formData,

@@ -34,6 +34,7 @@ export default function AddCarScreen() {
     rcBack: '',
     insurance: '',
     fc: '',
+    permit: '',
     carImage: '',
   });
 
@@ -143,8 +144,7 @@ export default function AddCarScreen() {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
+        allowsEditing: false,
         quality: 1,
       });
 
@@ -217,8 +217,8 @@ export default function AddCarScreen() {
     }
   
     // Check required images
-    if (!carImages.rcFront || !carImages.rcBack || !carImages.insurance || !carImages.fc || !carImages.carImage) {
-      Alert.alert('Error', 'Please upload all required images (RC Front, RC Back, Insurance, FC, Car Image)');
+    if (!carImages.rcFront || !carImages.rcBack || !carImages.insurance || !carImages.fc || !carImages.permit || !carImages.carImage) {
+      Alert.alert('Error', 'Please upload all required images (RC Front, RC Back, Insurance, FC, Permit, Car Image)');
       return;
     }
   
@@ -234,6 +234,7 @@ export default function AddCarScreen() {
         rc_back_img: carImages.rcBack,
         insurance_img: carImages.insurance,
         fc_img: carImages.fc,
+      permit_img: carImages.permit,
         car_img: carImages.carImage,
         model: carData.model || carData.name, // Add model field
         year_of_the_car: carData.year, // Convert to number - backend expects this field name
@@ -443,6 +444,13 @@ export default function AddCarScreen() {
             title="FC Image"
             description="Fitness Certificate"
             imageKey="fc"
+            isRequired={true}
+          />
+
+          <ImageUploadField
+            title="Permit Image"
+            description="Vehicle Permit"
+            imageKey="permit"
             isRequired={true}
           />
 

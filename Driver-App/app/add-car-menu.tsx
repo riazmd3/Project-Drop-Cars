@@ -33,6 +33,7 @@ export default function AddCarMenuScreen() {
     rcBack: '',
     insurance: '',
     fc: '',
+    permit: '',
     carImage: '',
   });
 
@@ -79,8 +80,7 @@ export default function AddCarMenuScreen() {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: true,
-        aspect: [4, 3],
+        allowsEditing: false,
         quality: 1,
       });
 
@@ -153,8 +153,8 @@ export default function AddCarMenuScreen() {
     }
   
     // Check required images
-    if (!carImages.rcFront || !carImages.rcBack || !carImages.insurance || !carImages.fc || !carImages.carImage) {
-      Alert.alert('Error', 'Please upload all required images (RC Front, RC Back, Insurance, FC, Car Image)');
+    if (!carImages.rcFront || !carImages.rcBack || !carImages.insurance || !carImages.fc || !carImages.permit || !carImages.carImage) {
+      Alert.alert('Error', 'Please upload all required images (RC Front, RC Back, Insurance, FC, Permit, Car Image)');
       return;
     }
   
@@ -170,6 +170,7 @@ export default function AddCarMenuScreen() {
         rc_back_img: carImages.rcBack,
         insurance_img: carImages.insurance,
         fc_img: carImages.fc,
+      permit_img: carImages.permit,
         car_img: carImages.carImage,
         model: carData.model || carData.name, // Add model field
         year_of_the_car: carData.year, // Convert to number - backend expects this field name
@@ -373,6 +374,13 @@ export default function AddCarMenuScreen() {
             imageKey="fc"
             isRequired={true}
           />
+
+        <ImageUploadField
+          title="Permit Image"
+          description="Vehicle Permit"
+          imageKey="permit"
+          isRequired={true}
+        />
 
           <ImageUploadField
             title="Car Image"

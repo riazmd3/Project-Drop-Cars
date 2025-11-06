@@ -474,6 +474,22 @@ export default function MyCarsScreen() {
                 <TouchableOpacity 
                   style={dynamicStyles.imageItem}
                   onPress={() => {
+                    const status = getDocumentStatus(car.id, 'permit');
+                    if (status === 'INVALID') {
+                      handleDocumentUpdate(car.id, 'permit', 'Permit');
+                    }
+                  }}
+                >
+                  <ImageIcon color={colors.textSecondary} size={20} />
+                  <Text style={dynamicStyles.imageText}>Permit</Text>
+                  <DocumentStatusIcon 
+                    status={getDocumentStatus(car.id, 'permit')} 
+                    size={5}
+                  />
+                </TouchableOpacity>
+                <TouchableOpacity 
+                  style={dynamicStyles.imageItem}
+                  onPress={() => {
                     const status = getDocumentStatus(car.id, 'car_img');
                     if (status === 'INVALID') {
                       handleDocumentUpdate(car.id, 'car_img', 'Car Image');
