@@ -54,7 +54,7 @@ function parseCityListField(field: string | null | undefined): string[] {
 }
 
 export default function DashboardScreen() {
-  const { user } = useAuth();
+  const { user, logout } = useAuth();
   const { balance, refreshBalance } = useWallet();
   const { colors, isDarkMode } = useTheme();
   const { dashboardData, loading, error, fetchData, refreshData, futureRides } = useDashboard();
@@ -77,10 +77,14 @@ export default function DashboardScreen() {
   const [selectAllCities, setSelectAllCities] = useState(false);
 
   const CITY_STORAGE_KEY = 'vo_nearcity_selected_cities';
+  
+  // Track if we've initialized from server to prevent duplicate API calls
+  const hasInitializedCities = React.useRef(false);
 
   // Master list of cities (can be moved to a separate module later)
   const MASTER_CITIES: string[] = [
-    'Chennai','Coimbatore','Madurai','Tiruchirappalli','Salem','Tirunelveli','Tiruppur','Vellore','Erode','Thoothukudi','Dindigul','Thanjavur','Hosur','Nagercoil','Avadi','Kancheepuram','Kumbakonam','Cuddalore','Karaikudi','Sivakasi','Ariyalur','Jayankondam','Varadarajanpettai','Udayarpalayam','Chengalpattu','Madurantakam','Mamallapuram','Tirukalukundram','Acharapakkam','Mettupalayam','Pollachi','Valparai','Annur','Karamadai','Sulur','Kinathukadavu','Chidambaram','Virudhachalam','Panruti','Nellikuppam','Parangipettai','Bhuvanagiri','Dharmapuri','Harur','Palacode','Pennagaram','Karimangalam','Palani','Kodaikanal','Oddanchatram','Nilakottai','Vedasandur','Batlagundu','Gobichettipalayam','Sathyamangalam','Bhavani','Perundurai','Anthiyur','Kallakurichi','Sankarapuram','Chinnasalem','Thiagadurgam','Sriperumbudur','Uthiramerur','Walajabad','Colachel','Kuzhithurai','Padmanabhapuram','Anjugramam','Tiruvannamalai','Tiruvannamalai District','Katpadi','Jolarpettai','Nagapattinam','Kanchipuram','Rameswaram','Villupuram','Gingee'
+    'Chennai','Coimbatore','Madurai','Tiruchirappalli','Salem','Tirunelveli','Tiruppur','Vellore','Erode','Thoothukudi','Dindigul','Thanjavur','Hosur','Nagercoil','Avadi','Kancheepuram','Kumbakonam','Cuddalore','Karaikudi','Sivakasi','Ariyalur','Jayankondam','Varadarajanpettai','Udayarpalayam','Chengalpattu','Madurantakam','Mamallapuram','Tirukalukundram','Acharapakkam','Mettupalayam','Pollachi','Valparai','Annur','Karamadai','Sulur','Kinathukadavu','Chidambaram','Virudhachalam','Panruti','Nellikuppam','Parangipettai','Bhuvanagiri','Dharmapuri','Harur','Palacode','Pennagaram','Karimangalam','Palani','Kodaikanal','Oddanchatram','Nilakottai','Vedasandur','Batlagundu','Gobichettipalayam','Sathyamangalam','Bhavani','Perundurai','Anthiyur','Kallakurichi','Sankarapuram','Chinnasalem','Thiagadurgam','Sriperumbudur','Uthiramerur','Walajabad','Colachel','Kuzhithurai','Padmanabhapuram','Anjugramam','Tiruvannamalai','Tiruvannamalai District','Katpadi','Jolarpettai','Nagapattinam','Kanchipuram','Rameswaram','Villupuram','Gingee',
+    'Ooty','Udhagamandalam','Yercaud','Kanyakumari','Rajapalayam','Sivaganga','Pudukkottai','Ambur','Ranipet','Vaniyambadi','Tiruchengode','Namakkal','Paramakudi','Ramanathapuram','Tenkasi','Sankarankovil','Kovilpatti','Mettur','Mylapore','Tambaram','Ambattur','Pallavaram','Poonamallee','Tiruvallur','Pattukkottai','Arcot','Krishnagiri','Udumalaipettai','Dharapuram','Pernampattu','Tindivanam','Vikravandi','Ulundurpettai','Arakkonam','Sholingur','Tirupattur','Vedaranyam','Manamadurai','Devakottai','Sirkazhi','Mayiladuthurai','Thuraiyur','Manapparai','Puliyankudi','Sengottai','Vadipatti','Usilampatti','Nilakkottai','Rasipuram','Sendamangalam','Kumarapalayam','Mohanur','Kattumannarkoil','Vadalur','Neyveli','Kurinjipadi','Veppur','Kunnam','Lalgudi','Manachanallur','Thuvakudi','Thiruthuraipoondi','Mannargudi','Needamangalam','Kottur','Tiruvadanai','Mudukulathur','Kamuthi','Mallankinaru','Kariapatti','Natham','Melur','Tirumangalam','Kallupatti','Thirumangalam','Sedapatti','Chellampatti','Kallikudi','Nagalapuram','Papanasam','Thiruvidaimarudur','Swamimalai','Thiruppanandal','Thiruvaiyaru','Orathanadu','Peravurani','Gandarvakkottai','Arantangi','Avudayarkoil','Vallam'
   ];
 
   // Compute available balance after reserving future rides' estimated totals
@@ -191,9 +195,28 @@ export default function DashboardScreen() {
       console.log('✅ Pending orders loaded:', orders.length);
       
       setPendingOrders(orders);
-    } catch (error) {
+    } catch (error: any) {
       console.error('❌ Failed to fetch pending orders:', error);
-      // Don't show error alert, just log it
+      
+      // Check if it's an authentication error
+      if (error?.message?.includes('Authentication failed') || 
+          error?.message?.includes('Please login again') ||
+          error?.response?.status === 401) {
+        console.log('🔐 Authentication error detected, forcing logout...');
+        try {
+          // Clear dashboard data
+          refreshData();
+          // Logout and redirect
+          await logout();
+          router.replace('/login');
+        } catch (logoutError) {
+          console.error('❌ Error during forced logout:', logoutError);
+          // Even if logout fails, redirect to login
+          router.replace('/login');
+        }
+        return;
+      }
+      // Don't show error alert for other errors, just log it
     } finally {
       setOrdersLoading(false);
     }
@@ -221,13 +244,22 @@ export default function DashboardScreen() {
         const data = res.data;
         // The API returns: { "Chennai": true, "Vellore": true, ... }
         if (data && typeof data === 'object') {
-          setSelectedCities(Object.entries(data)
+          const cities = Object.entries(data)
             .filter(([_, v]: [any, any]) => v)
             .map(([city]) => city)
-          );
+            .filter(city => MASTER_CITIES.includes(city)); // Only include cities that are in MASTER_CITIES
+          setSelectedCities(cities);
+          // Check if all cities are selected (all MASTER_CITIES are in the response)
+          const allCitiesSelected = MASTER_CITIES.every(city => {
+            const cityValue = data[city];
+            return cityValue === true;
+          });
+          setSelectAllCities(allCitiesSelected);
+          hasInitializedCities.current = true;
         }
       } catch (e) {
         Alert.alert('Error', 'Failed to fetch city selection: ' + String(e));
+        hasInitializedCities.current = true; // Still mark as initialized to allow manual selection
       }
     })();
   }, [user?.id]);
@@ -237,18 +269,36 @@ export default function DashboardScreen() {
     (async () => {
       try {
         if (!user) return;
-        // Only update when not first mount
-        if(!selectedCities) return;
+        // Don't send updates until we've initialized from server
+        if (!hasInitializedCities.current) {
+          console.log('⚠️ Cities not yet initialized, skipping API call');
+          return;
+        }
+        
         const headers = await getAuthHeaders();
-        // POST/PUT is fine, backend will accept either
-        await axiosInstance.post('/api/cities/vehicle-owner/selected', selectedCities, {
+        // Prepare cities array: if "All" is selected, use all MASTER_CITIES, otherwise use selectedCities
+        // Filter to only include cities that are in MASTER_CITIES to avoid sending invalid cities
+        const citiesToSend = selectAllCities 
+          ? MASTER_CITIES 
+          : (selectedCities || []).filter(city => MASTER_CITIES.includes(city));
+        
+        // Always send the array, even if empty (when "All" is unchecked or no cities selected)
+        // POST with correct format: array directly (not wrapped in object)
+        await axiosInstance.post('/api/cities/vehicle-owner/selected', citiesToSend, {
           headers,
         });
-      } catch (e) {
-        Alert.alert('Error', 'Failed to update city selection: ' + String(e));
+        
+        console.log('✅ City selection updated:', { selectAllCities, citiesCount: citiesToSend.length, citiesToSend });
+      } catch (e: any) {
+        console.error('❌ Failed to update city selection:', e);
+        console.error('❌ Request payload:', { selectAllCities, selectedCities });
+        if (e.response?.data) {
+          console.error('❌ Error response:', e.response.data);
+        }
+        Alert.alert('Error', 'Failed to update city selection: ' + (e.response?.data?.detail || e.message || String(e)));
       }
     })();
-  }, [JSON.stringify(selectedCities), user?.id]);
+  }, [JSON.stringify(selectedCities), selectAllCities, user?.id]);
 
   // Update toggleCitySelection to just update state (effect syncs to API)
   const toggleCitySelection = (city: string) => {
@@ -378,18 +428,21 @@ export default function DashboardScreen() {
       // Handle authentication errors
       if (error.message?.includes('No authentication token found') || 
           error.message?.includes('Authentication failed') || 
-          error.message?.includes('401')) {
-        console.log('🔐 Authentication error detected, redirecting to login');
-        Alert.alert(
-          'Session Expired',
-          'Your session has expired. Please login again.',
-          [
-            {
-              text: 'OK',
-              onPress: () => router.replace('/login')
-            }
-          ]
-        );
+          error.message?.includes('Please login again') ||
+          error?.response?.status === 401) {
+        console.log('🔐 Authentication error detected, forcing logout...');
+        try {
+          // Clear dashboard data
+          refreshData();
+          // Logout and redirect
+          await logout();
+          router.replace('/login');
+        } catch (logoutError) {
+          console.error('❌ Error during forced logout:', logoutError);
+          // Even if logout fails, redirect to login
+          router.replace('/login');
+        }
+        return;
       }
     } finally {
       setRefreshing(false);
@@ -806,6 +859,24 @@ export default function DashboardScreen() {
       } else if (backendMsg?.toLowerCase?.().includes('insufficient balance')) {
         Alert.alert('Insufficient Balance', 'Please top up your wallet.');
       } else {
+        // Check if it's an authentication error
+        if (error?.message?.includes('Authentication failed') || 
+            error?.message?.includes('Please login again') ||
+            error?.response?.status === 401) {
+          console.log('🔐 Authentication error detected, forcing logout...');
+          try {
+            // Clear dashboard data
+            refreshData();
+            // Logout and redirect
+            await logout();
+            router.replace('/login');
+          } catch (logoutError) {
+            console.error('❌ Error during forced logout:', logoutError);
+            // Even if logout fails, redirect to login
+            router.replace('/login');
+          }
+          return;
+        }
         Alert.alert('Error', backendMsg || error.message || 'Failed to accept order. Please try again.');
       }
     } finally {

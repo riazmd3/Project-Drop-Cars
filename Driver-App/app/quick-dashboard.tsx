@@ -554,6 +554,11 @@ export default function QuickDashboardScreen() {
           startKm: '0', // Default start KM, will be updated from trip start
           farePerKm: '0', // Default fare per KM
           toll_charge_update: order.toll_charge_update ? 'true' : 'false', // Pass toll charge update flag
+          trip_type: order.trip_type || '', // Pass trip type to determine if multicity
+          is_multicity: (() => {
+            const t = String(order.trip_type || '').toLowerCase();
+            return (t.includes('multy city') || t.includes('multi') || t.includes('multy')) ? 'true' : 'false';
+          })(),
         }
       });
 
@@ -597,6 +602,11 @@ export default function QuickDashboardScreen() {
           drop: order.drop,
           farePerKm: String(order.total_fare || 0),
           toll_charge_update: order.toll_charge_update ? 'true' : 'false',
+          trip_type: order.trip_type || '',
+          is_multicity: (() => {
+            const t = String(order.trip_type || '').toLowerCase();
+            return (t.includes('multicity') || t.includes('multi') || t.includes('multy')) ? 'true' : 'false';
+          })(),
         }
       });
     }

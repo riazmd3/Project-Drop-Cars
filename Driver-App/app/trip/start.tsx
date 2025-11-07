@@ -84,6 +84,8 @@ export default function StartTripScreen() {
         startKm: String(startKm),
         farePerKm: String(params.farePerKm || '0'),
         toll_charge_update: params.toll_charge_update || 'false',
+        trip_type: params.trip_type || '',
+        is_multicity: params.is_multicity || 'false',
       });
 
       router.replace({
@@ -94,6 +96,8 @@ export default function StartTripScreen() {
           startKm: String(startKm),
           farePerKm: String(params.farePerKm || '0'),
           toll_charge_update: params.toll_charge_update || 'false',
+          trip_type: params.trip_type || '',
+          is_multicity: params.is_multicity || 'false',
         }
       });
     } catch (error: any) {

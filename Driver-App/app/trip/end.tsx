@@ -25,6 +25,7 @@ export default function EndTripScreen() {
   const [tollCharge, setTollCharge] = useState('');
   const [tollChargeUpdate, setTollChargeUpdate] = useState(false);
   const [endingKmShown, setEndingKmShown] = useState(false);
+  const [waitingTime, setWaitingTime] = useState('');
   const router = useRouter();
   const params = useLocalSearchParams<{ 
     order_id?: string; 
@@ -32,11 +33,22 @@ export default function EndTripScreen() {
     startKm?: string; 
     farePerKm?: string;
     toll_charge_update?: string;
+    trip_type?: string;
+    is_multicity?: string;
   }>();
 
   const startKm = parseInt(String(params.startKm || '0')) || 0;
   const farePerKm = parseFloat(String(params.farePerKm || '0')) || 0;
   const tollChargeUpdateEnabled = params.toll_charge_update === 'true';
+  
+  // Check if it's a multicity order (handles variations like "Multy City")
+  const tripTypeLower = String(params.trip_type || '').toLowerCase();
+  const isMulticity = params.is_multicity === 'true' ||
+                      tripTypeLower.includes('multy city') ||
+                      tripTypeLower.includes('multicity') ||
+                      tripTypeLower.includes('multy') ||
+                      tripTypeLower.includes('multi') ||
+                      tripTypeLower.includes('city');
 
   // Debug logging
   React.useEffect(() => {
@@ -47,6 +59,8 @@ export default function EndTripScreen() {
       parsedFarePerKm: farePerKm,
       toll_charge_update: params.toll_charge_update,
       tollChargeUpdateEnabled,
+      trip_type: params.trip_type,
+      computedIsMulticity: isMulticity,
     });
   }, [params]);
 
@@ -90,6 +104,12 @@ export default function EndTripScreen() {
       return;
     }
 
+    // Waiting time must be entered for multicity orders
+    if (isMulticity && (!waitingTime || parseInt(waitingTime) < 0)) {
+      Alert.alert('Error', 'Please enter a valid waiting time in minutes for multicity orders.');
+      return;
+    }
+
     if (submitting) return;
 
     const totalKm = parseInt(endKm) - startKm;
@@ -114,7 +134,8 @@ export default function EndTripScreen() {
           dummyContact, 
           odometerPhoto, 
           tollChargeUpdate === true ? parseFloat(tollCharge) : undefined,
-          tollChargeUpdate
+          tollChargeUpdate,
+          isMulticity ? parseInt(waitingTime, 10) : undefined
         );
       } else {
         console.warn('No assignment_id provided to end trip; finishing without API call');
@@ -262,6 +283,23 @@ export default function EndTripScreen() {
           
         )}
 
+        {/* Waiting Time Input - Only show for multicity orders */}
+        {isMulticity && (
+          <View style={styles.inputSection}>
+            <Text style={styles.sectionTitle}>Waiting Time (minutes)</Text>
+            <TextInput
+              style={styles.kmInput}
+              placeholder="Enter waiting time in minutes (e.g., 450)"
+              value={waitingTime}
+              onChangeText={setWaitingTime}
+              keyboardType="numeric"
+            />
+            <Text style={styles.helperText}>
+              Enter the total waiting time in minutes for this multicity trip
+            </Text>
+          </View>
+        )}
+
         {/* ENDING KM SHOWN CHECKBOX - always visible */}
         <TouchableOpacity 
           style={styles.checkboxContainer}
@@ -276,10 +314,10 @@ export default function EndTripScreen() {
         <TouchableOpacity
           style={[
             styles.endButton,
-            (!endKm || !odometerPhoto || !endingKmShown || (tollChargeUpdate === true && !tollCharge) || submitting) && styles.disabledButton,
+            (!endKm || !odometerPhoto || !endingKmShown || (tollChargeUpdate === true && !tollCharge) || (isMulticity && !waitingTime) || submitting) && styles.disabledButton,
           ]}
           onPress={handleEndTrip}
-          disabled={!endKm || !odometerPhoto || !endingKmShown || (tollChargeUpdate === true && !tollCharge) || submitting}
+          disabled={!endKm || !odometerPhoto || !endingKmShown || (tollChargeUpdate === true && !tollCharge) || (isMulticity && !waitingTime) || submitting}
         >
           {submitting ? (
             <View style={styles.loadingContainer}>

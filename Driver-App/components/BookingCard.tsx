@@ -554,6 +554,10 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
       color: '#3b82f6',
       fontFamily: 'Inter-Bold',
     },
+    cityEndRed: {
+      color: '#EF4444',
+      fontFamily: 'Inter-Bold',
+    },
     checkboxRow: {
       flexDirection: 'row',
       alignItems: 'flex-start',
@@ -783,7 +787,26 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
                     </View>
                     <View style={dynamicStyles.infoCellValue}>
                       <Text style={dynamicStyles.infoValue}>
-                        {startCity && endCity ? (
+                        {allCities.length > 0 ? (
+                          <Text>
+                            {/* Start city - Green */}
+                            <Text style={dynamicStyles.cityStart}>{allCities[0]}</Text>
+                            {/* Middle cities - Blue */}
+                            {allCities.length > 2 && allCities.slice(1, -1).map((city, idx) => (
+                              <Text key={`stop-${idx}`}>
+                                <Text> → </Text>
+                                <Text style={dynamicStyles.cityEnd}>{city}</Text>
+                              </Text>
+                            ))}
+                            {/* End city - Red (or Blue if only 2 cities) */}
+                            {allCities.length > 1 && (
+                              <>
+                                <Text> → </Text>
+                                <Text style={allCities.length === 2 ? dynamicStyles.cityEnd : dynamicStyles.cityEndRed}>{allCities[allCities.length - 1]}</Text>
+                              </>
+                            )}
+                          </Text>
+                        ) : startCity && endCity ? (
                           <Text>
                             <Text style={dynamicStyles.cityStart}>{startCity}</Text>
                             <Text> → </Text>
@@ -807,22 +830,12 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
                     </View>
                   </View>
                   {pickupDate && (
-                    <View style={dynamicStyles.infoRow}>
+                    <View style={[dynamicStyles.infoRow, !(assignmentWindowDuration || deadlineTime) && dynamicStyles.infoRowLast]}>
                       <View style={dynamicStyles.infoCellLabel}>
-                        <Text style={dynamicStyles.infoLabel}>Pickup</Text>
+                        <Text style={dynamicStyles.infoLabel}>Pickup Date & Time</Text>
                       </View>
                       <View style={dynamicStyles.infoCellValue}>
                         <Text style={dynamicStyles.infoValue}>{pickupDate}{pickupTime ? ` • ${pickupTime}` : ''}</Text>
-                      </View>
-                    </View>
-                  )}
-                  {endCity && (
-                    <View style={dynamicStyles.infoRow}>
-                      <View style={dynamicStyles.infoCellLabel}>
-                        <Text style={dynamicStyles.infoLabel}>Drop Location</Text>
-                      </View>
-                      <View style={dynamicStyles.infoCellValue}>
-                        <Text style={dynamicStyles.infoValue}>{endCity}</Text>
                       </View>
                     </View>
                   )}

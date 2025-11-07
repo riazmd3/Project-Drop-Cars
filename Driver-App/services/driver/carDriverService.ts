@@ -86,7 +86,7 @@ export const startTrip = async (orderId: number, startKm?: number, imgUri?: stri
   }
 };
 
-export const endTrip = async (orderId: number, endKm?: number, contact?: string, imgUri?: string, tollCharges?: number, tollChargeUpdate?: boolean) => {
+export const endTrip = async (orderId: number, endKm?: number, contact?: string, imgUri?: string, tollCharges?: number, tollChargeUpdate?: boolean, waitingTime?: number) => {
   try {
     console.log('🏁 Ending trip for order:', orderId);
     
@@ -130,12 +130,19 @@ export const endTrip = async (orderId: number, endKm?: number, contact?: string,
       console.log('💰 Toll charge update is false, not sending updated_toll_charges');
     }
     
+    // Add waiting_time for multicity orders
+    if (waitingTime !== undefined && waitingTime >= 0) {
+      form.append('waiting_time', String(waitingTime));
+      console.log('⏱️ Adding waiting time:', waitingTime);
+    }
+    
     console.log('📤 Sending end trip request:', {
       orderId,
       endKm,
       hasImage: !!imgUri,
       tollCharges,
-      tollChargeUpdate
+      tollChargeUpdate,
+      waitingTime
     });
     
     const response = await axiosDriver.post(`/api/orders/driver/end-trip/${orderId}`, form, { 

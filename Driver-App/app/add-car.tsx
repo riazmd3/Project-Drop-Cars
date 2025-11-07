@@ -48,9 +48,44 @@ export default function AddCarScreen() {
   const { dashboardData } = useDashboard();
   const { flow } = useLocalSearchParams<{ flow?: string }>();
 
-  const carTypes = ['HATCHBACK', 'SEDAN', 'NEW_SEDAN', 'SUV', 'INNOVA', 'INNOVA_CRYSTA'];
+  const carTypes = [
+    'HATCHBACK',
+    'SEDAN_4_PLUS_1',
+    'NEW_SEDAN_2022_MODEL',
+    'ETIOS_4_PLUS_1',
+    'SUV',
+    'SUV_6_PLUS_1',
+    'SUV_7_PLUS_1',
+    'INNOVA',
+    'INNOVA_6_PLUS_1',
+    'INNOVA_7_PLUS_1',
+    'INNOVA_CRYSTA',
+    'INNOVA_CRYSTA_6_PLUS_1',
+    'INNOVA_CRYSTA_7_PLUS_1'
+  ];
 
-  // Function to redirect after successful car addition
+  // Format car type for display (e.g., "SEDAN_4_PLUS_1" -> "Sedan (4+1)")
+  const formatCarTypeDisplay = (carType: string): string => {
+    if (!carType) return '';
+    
+    // Replace underscores with spaces and convert to title case
+    let formatted = carType
+      .toLowerCase()
+      .replace(/_/g, ' ')
+      .split(' ')
+      .map(word => {
+        // Keep acronyms uppercase (SUV, NEW, etc.)
+        if (word === 'suv' || word === 'new') return word.toUpperCase();
+        return word.charAt(0).toUpperCase() + word.slice(1);
+      })
+      .join(' ');
+    
+    // Replace "Plus" patterns with (+)
+    // Pattern: "4 Plus 1" -> "(4+1)"
+    formatted = formatted.replace(/\s+(\d+)\s+Plus\s+(\d+)/gi, ' ($1+$2)');
+    
+    return formatted;
+  };
   const redirectAfterCarAddition = async () => {
     try {
       console.log('🚗 Car added successfully, determining next step...');
@@ -351,7 +386,7 @@ export default function AddCarScreen() {
               onPress={() => setShowTypeDropdown(!showTypeDropdown)}
             >
               <Text style={[styles.dropdownText, { color: colors.text }, !carData.type && styles.placeholderText]}>
-                {carData.type || 'Select Car Type'}
+                {carData.type ? formatCarTypeDisplay(carData.type) : 'Select Car Type'}
               </Text>
               <ChevronDown color="#6B7280" size={20} />
             </TouchableOpacity>
@@ -368,7 +403,7 @@ export default function AddCarScreen() {
                     if (errors.type) setErrors(prev => ({ ...prev, type: '' }));
                   }}
                 >
-                  <Text style={[styles.dropdownItemText, { color: colors.text }]}>{type}</Text>
+                  <Text style={[styles.dropdownItemText, { color: colors.text }]}>{formatCarTypeDisplay(type)}</Text>
                 </TouchableOpacity>
               ))}
             </View>
