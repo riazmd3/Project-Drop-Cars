@@ -752,17 +752,22 @@ export default function QuickDashboardScreen() {
             }
           >
             {driverOrders.map((order, index) => {
-              const isActiveTrip = activeTrip && activeTrip.order_id === order.order_id;
-              // Allow interaction with any order, regardless of status.
+              const isActiveTrip = !!activeTrip && activeTrip.order_id === order.order_id;
+              const hasSomeActiveTrip = !!activeTrip;
+              const isOtherOrderWhileActive = hasSomeActiveTrip && !isActiveTrip;
 
               return (
                 <TouchableOpacity
                   key={`${order.order_id}-${index}`}
                   style={[
                     styles.orderCard,
-                    { backgroundColor: colors.surface }
+                    { backgroundColor: colors.surface, opacity: isOtherOrderWhileActive ? 0.5 : 1 }
                   ]}
-                  onPress={() => navigateToTrip(order)}
+                  disabled={isOtherOrderWhileActive}
+                  onPress={() => {
+                    if (isOtherOrderWhileActive) return; // Block tap when another order is active
+                    navigateToTrip(order);
+                  }}
                 >
                     <View style={styles.orderHeader}>
                     <View style={styles.orderInfo}>

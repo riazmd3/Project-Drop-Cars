@@ -3,8 +3,8 @@ import * as SecureStore from 'expo-secure-store';
 import { emitSessionExpired } from '@/utils/session';
 
 // For React Native, use machine IP instead of localhost
-// const API_BASE_URL = 'http://172.27.4.145:8000/';
-const API_BASE_URL = 'https://drop-cars-api-1049299844333.asia-south2.run.app';
+const API_BASE_URL = 'http://10.228.0.145:8000/';
+// const API_BASE_URL = 'https://drop-cars-api-1049299844333.asia-south2.run.app';
 console.log('🔧 API Config:', { baseURL: API_BASE_URL });
 
 const axiosInstance = axios.create({
