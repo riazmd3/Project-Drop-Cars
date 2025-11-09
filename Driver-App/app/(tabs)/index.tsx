@@ -87,16 +87,45 @@ export default function DashboardScreen() {
     'Ooty','Udhagamandalam','Yercaud','Kanyakumari','Rajapalayam','Sivaganga','Pudukkottai','Ambur','Ranipet','Vaniyambadi','Tiruchengode','Namakkal','Paramakudi','Ramanathapuram','Tenkasi','Sankarankovil','Kovilpatti','Mettur','Mylapore','Tambaram','Ambattur','Pallavaram','Poonamallee','Tiruvallur','Pattukkottai','Arcot','Krishnagiri','Udumalaipettai','Dharapuram','Pernampattu','Tindivanam','Vikravandi','Ulundurpettai','Arakkonam','Sholingur','Tirupattur','Vedaranyam','Manamadurai','Devakottai','Sirkazhi','Mayiladuthurai','Thuraiyur','Manapparai','Puliyankudi','Sengottai','Vadipatti','Usilampatti','Nilakkottai','Rasipuram','Sendamangalam','Kumarapalayam','Mohanur','Kattumannarkoil','Vadalur','Neyveli','Kurinjipadi','Veppur','Kunnam','Lalgudi','Manachanallur','Thuvakudi','Thiruthuraipoondi','Mannargudi','Needamangalam','Kottur','Tiruvadanai','Mudukulathur','Kamuthi','Mallankinaru','Kariapatti','Natham','Melur','Tirumangalam','Kallupatti','Thirumangalam','Sedapatti','Chellampatti','Kallikudi','Nagalapuram','Papanasam','Thiruvidaimarudur','Swamimalai','Thiruppanandal','Thiruvaiyaru','Orathanadu','Peravurani','Gandarvakkottai','Arantangi','Avudayarkoil','Vallam'
   ];
 
-  // Compute available balance after reserving future rides' estimated totals
-  const reservedForFuture = (futureRides || []).reduce((sum, r) => sum + Number((r as any).total_fare ?? 0), 0);
+  // Count accepted orders (future rides) - maximum 3 allowed
+  const acceptedOrdersCount = (futureRides || []).length;
+  const MAX_ACCEPTED_ORDERS = 3;
+  
+  // Get current wallet balance
   const currentWallet = Number(dashboardData?.user_info?.wallet_balance ?? balance ?? 0);
-  const availableBalance = Math.max(0, currentWallet - reservedForFuture);
-  const canAcceptOrder = (order: PendingOrder) => {
+  
+  // Determine button status for an order
+  const getOrderButtonStatus = (order: PendingOrder): { disabled: boolean; buttonText: string } => {
+    // Check if order limit reached (3 orders already accepted)
+    if (acceptedOrdersCount >= MAX_ACCEPTED_ORDERS) {
+      return {
+        disabled: true,
+        buttonText: 'Assign Driver and Car for Your Accepted Orders'
+      };
+    }
+    
+    // Check wallet balance
     const chargesToDeduct = Number((order as any).charges_to_deduct ?? 0);
     const totalFare = Number(order.estimated_price ?? 0);
-    // Use charges_to_deduct if available, otherwise fall back to total fare
     const amountToCheck = chargesToDeduct > 0 ? chargesToDeduct : totalFare;
-    return availableBalance >= amountToCheck;
+    
+    if (currentWallet >= amountToCheck) {
+      return {
+        disabled: false,
+        buttonText: 'Accept Booking'
+      };
+    } else {
+      return {
+        disabled: true,
+        buttonText: 'Insufficient Balance'
+      };
+    }
+  };
+  
+  // Legacy function for backward compatibility (used in handleAcceptBooking)
+  const canAcceptOrder = (order: PendingOrder) => {
+    const status = getOrderButtonStatus(order);
+    return !status.disabled;
   };
 
   // Helper function to extract pickup and drop locations from the API response

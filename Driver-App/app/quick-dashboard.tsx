@@ -31,7 +31,9 @@ import {
   Navigation,
   CheckCircle,
   AlertCircle,
-  FileText
+  FileText,
+  IndianRupee,
+  Moon
 } from 'lucide-react-native';
 import { startTrip, endTrip } from '@/services/driver/carDriverService';
 import axiosDriver from '@/app/api/axiosDriver';
@@ -64,6 +66,9 @@ interface DriverOrder {
   vendor_name?: string;
   vendor_primary_number?: string;
   vendor_secondary_number?: string;
+  waiting_time?: number | null;
+  waiting_charge?: number | null;
+  night_charges?: number | null;
 }
 
 export default function QuickDashboardScreen() {
@@ -228,6 +233,9 @@ export default function QuickDashboardScreen() {
         vendor_name: order.vendor_name,
         vendor_primary_number: order.vendor_primary_number,
         vendor_secondary_number: order.vendor_secondary_number,
+        waiting_time: order.waiting_time ?? order.waiting_minutes ?? null,
+        waiting_charge: order.waiting_charge ?? order.waiting_charges ?? null,
+        night_charges: order.night_charges ?? order.night_charge ?? null,
       }));
       
       setDriverOrders(mappedOrders);
@@ -832,6 +840,24 @@ export default function QuickDashboardScreen() {
                       <Clock size={16} color={colors.textSecondary} />
                       <Text style={[styles.detailText, { color: colors.text }]}>{formatDateTime(order.scheduled_at || order.start_date_time).date} at {formatDateTime(order.scheduled_at || order.start_date_time).time}</Text>
                     </View>
+                    {order.waiting_time !== undefined && order.waiting_time !== null && (
+                      <View style={styles.detailRow}>
+                        <Clock size={16} color={colors.textSecondary} />
+                        <Text style={[styles.detailText, { color: colors.text }]}>Waiting time: {order.waiting_time} mins</Text>
+                      </View>
+                    )}
+                    {order.waiting_charge !== undefined && order.waiting_charge !== null && (
+                      <View style={styles.detailRow}>
+                        <IndianRupee size={16} color={colors.textSecondary} />
+                        <Text style={[styles.detailText, { color: colors.text }]}>Waiting charge: ₹{order.waiting_charge}</Text>
+                      </View>
+                    )}
+                    {order.night_charges !== undefined && order.night_charges !== null && (
+                      <View style={styles.detailRow}>
+                        <Moon size={16} color={colors.textSecondary} />
+                        <Text style={[styles.detailText, { color: colors.text }]}>Night charges: ₹{order.night_charges}</Text>
+                      </View>
+                    )}
                     {order.toll_charge_update && (
                       <View style={styles.detailRow}>
                         <View style={[styles.tollIndicator, { backgroundColor: '#FEF3C7' }]}>
@@ -1064,6 +1090,15 @@ export default function QuickDashboardScreen() {
                           <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Trip: {order.trip_type} • {order.car_type}</Text>
                           <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Distance: {order.trip_distance} km</Text>
                           <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Toll: {hasToll ? 'Yes' : 'No toll'}</Text>
+                          {order.waiting_time !== undefined && order.waiting_time !== null && (
+                            <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Waiting Time: {order.waiting_time} mins</Text>
+                          )}
+                          {order.waiting_charge !== undefined && order.waiting_charge !== null && (
+                            <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Waiting Charge: ₹{order.waiting_charge}</Text>
+                          )}
+                          {order.night_charges !== undefined && order.night_charges !== null && (
+                            <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Night Charges: ₹{order.night_charges}</Text>
+                          )}
                           <Text style={{ color: '#10B981', fontSize: 15, fontFamily: 'Inter-Bold', marginTop: 4 }}>Closed Vendor Price: ₹{order.closed_vendor_price || 0}</Text>
                         </View>
                         <TouchableOpacity onPress={() => setExpandedOrderId(expandedOrderId === ((order as any).id ?? order.order_id) ? null : ((order as any).id ?? order.order_id))}>
@@ -1076,6 +1111,15 @@ export default function QuickDashboardScreen() {
                           <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Permit: ₹{order.permit_charges || 0}</Text>
                           <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Hill Charges: ₹{order.hill_charges || 0}</Text>
                           <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Driver Allowance: ₹{order.driver_allowance || 0}</Text>
+                          {order.waiting_time !== undefined && order.waiting_time !== null && (
+                            <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Waiting Time: {order.waiting_time} mins</Text>
+                          )}
+                          {order.waiting_charge !== undefined && order.waiting_charge !== null && (
+                            <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Waiting Charge: ₹{order.waiting_charge}</Text>
+                          )}
+                          {order.night_charges !== undefined && order.night_charges !== null && (
+                            <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Night Charges: ₹{order.night_charges}</Text>
+                          )}
                           <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Created At: {order.created_at ? new Date(order.created_at).toLocaleString() : '-'}</Text>
                         </View>
                       )}

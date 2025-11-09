@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { ArrowLeft, CheckCircle, MapPin, Clock, IndianRupee, User, Phone, Car, Navigation, DollarSign } from 'lucide-react-native';
+import { ArrowLeft, CheckCircle, MapPin, Clock, IndianRupee, User, Phone, Car, Navigation, DollarSign, Moon } from 'lucide-react-native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { getDriverAssignedOrderReport } from '@/services/driver/carDriverService';
 import LoadingOverlay from '@/components/LoadingOverlay';
@@ -34,6 +34,9 @@ interface TripReport {
   driver_allowance: number;
   permit_charges: number;
   hill_charges: number;
+  waiting_time?: number | null;
+  waiting_charge?: number | null;
+  night_charges?: number | null;
   pickup_notes: string;
   assigned_at: string;
   created_at: string;
@@ -239,6 +242,14 @@ export default function TripReportScreen() {
               Duration: {report.trip_time}
             </Text>
           </View>
+          {report.waiting_time !== undefined && report.waiting_time !== null && (
+            <View style={styles.detailRow}>
+              <Clock size={20} color={colors.primary} />
+              <Text style={[styles.detailText, { color: colors.text }]}>
+                Waiting Time: {report.waiting_time} mins
+              </Text>
+            </View>
+          )}
         </View>
 
         {/* Financial Summary */}
@@ -271,6 +282,22 @@ export default function TripReportScreen() {
               <Text style={[styles.financialAmount, { color: colors.primary }]}>₹{report.driver_allowance}</Text>
             </View>
           )}
+
+          {report.waiting_charge !== undefined && report.waiting_charge !== null && (
+            <View style={styles.financialRow}>
+              <IndianRupee size={20} color={colors.primary} />
+              <Text style={[styles.financialLabel, { color: colors.text }]}>Waiting Charge:</Text>
+              <Text style={[styles.financialAmount, { color: colors.primary }]}>₹{report.waiting_charge}</Text>
+            </View>
+          )}
+
+          {report.waiting_time !== undefined && report.waiting_time !== null && (
+            <View style={styles.financialRow}>
+              <Clock size={20} color={colors.textSecondary} />
+              <Text style={[styles.financialLabel, { color: colors.text }]}>Waiting Time:</Text>
+              <Text style={[styles.financialAmount, { color: colors.textSecondary }]}>{report.waiting_time} mins</Text>
+            </View>
+          )}
           
           {report.permit_charges > 0 && (
             <View style={styles.financialRow}>
@@ -285,6 +312,14 @@ export default function TripReportScreen() {
               <IndianRupee size={20} color={colors.textSecondary} />
               <Text style={[styles.financialLabel, { color: colors.text }]}>Hill Charges:</Text>
               <Text style={[styles.financialAmount, { color: colors.textSecondary }]}>₹{report.hill_charges}</Text>
+            </View>
+          )}
+
+          {report.night_charges !== undefined && report.night_charges !== null && (
+            <View style={styles.financialRow}>
+              <Moon size={20} color={colors.textSecondary} />
+              <Text style={[styles.financialLabel, { color: colors.text }]}>Night Charges:</Text>
+              <Text style={[styles.financialAmount, { color: colors.textSecondary }]}>₹{report.night_charges}</Text>
             </View>
           )}
         </View>

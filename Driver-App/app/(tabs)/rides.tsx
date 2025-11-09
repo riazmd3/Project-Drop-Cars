@@ -43,6 +43,9 @@ interface RideData {
   trip_type?: string;
   estimated_price?: number;
   total_amount?: number | null;
+  waiting_time?: number | null;
+  waiting_charge?: number | null;
+  night_charges?: number | null;
   start_date_time?: string;
   created_at?: string;
   assigned_at?: string | null;
@@ -316,7 +319,9 @@ export default function RidesScreen() {
     const permitCharge = fareData.permit_charges || fareData.permit_charge || 0;
     const hillsCharge = fareData.hill_charges || fareData.hills_charge || 0;
     const tollCharge = fareData.toll_charges || fareData.toll_charge || 0;
-    const waitingCharge = isMulticity ? (fareData.waiting_charge || fareData.waiting_charges || 0) : null;
+    const waitingChargeAmount = fareData.waiting_charge || fareData.waiting_charges;
+    const waitingTimeMinutes = fareData.waiting_time ?? null;
+    const nightCharges = fareData.night_charges ?? fareData.night_charge ?? null;
     
     return (
       <View key={`${ride.id}-${ride.order_id}-${ride.assignment_id || ride.id}`} style={[styles.rideCard, { backgroundColor: colors.surface }]}>
@@ -378,6 +383,12 @@ export default function RidesScreen() {
               <Text style={[styles.detailValueBold, { color: colors.text }]}>{formatRoundedDuration(ride.trip_time)}</Text>
           </View>
         )}
+          {waitingTimeMinutes != null && (
+            <View style={styles.detailRowBold}>
+              <Text style={[styles.detailLabelBold, { color: colors.textSecondary }]}>Waiting Time:</Text>
+              <Text style={[styles.detailValueBold, { color: colors.text }]}>{waitingTimeMinutes} mins</Text>
+            </View>
+          )}
         </View>
 
         {/* Total Amount */}
@@ -431,12 +442,24 @@ export default function RidesScreen() {
                 <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Toll charge:</Text>
                 <Text style={[styles.expandedValue, { color: colors.text }]}>₹{tollCharge}</Text>
               </View>
-              <View style={styles.expandedRow}>
-                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Waiting charge:</Text>
-                <Text style={[styles.expandedValue, { color: colors.text }]}>
-                  {isMulticity ? (waitingCharge ? `₹${waitingCharge}` : '₹0') : 'N/A'}
-                </Text>
-              </View>
+              {waitingChargeAmount != null && (
+                <View style={styles.expandedRow}>
+                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Waiting charge:</Text>
+                  <Text style={[styles.expandedValue, { color: colors.text }]}>₹{waitingChargeAmount}</Text>
+                </View>
+              )}
+              {waitingTimeMinutes != null && (
+                <View style={styles.expandedRow}>
+                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Waiting time:</Text>
+                  <Text style={[styles.expandedValue, { color: colors.text }]}>{waitingTimeMinutes} mins</Text>
+                </View>
+              )}
+              {nightCharges != null && (
+                <View style={styles.expandedRow}>
+                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Night charges:</Text>
+                  <Text style={[styles.expandedValue, { color: colors.text }]}>₹{nightCharges}</Text>
+                </View>
+              )}
             </View>
             
             {/* Order Details */}

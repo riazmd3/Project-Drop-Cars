@@ -44,6 +44,9 @@ export interface PendingOrder {
   extra_permit_charges: number;
   hill_charges: number;
   toll_charges: number;
+  waiting_time?: number | null;
+  waiting_charge?: number | null;
+  night_charges?: number | null;
   pickup_notes: string | null;
   trip_status: string; // PENDING
   pick_near_city: string;
@@ -149,6 +152,9 @@ export interface FutureRide {
   extra_permit_charges: number;
   hill_charges: number;
   toll_charges: number;
+  waiting_time?: number | null;
+  waiting_charge?: number | null;
+  night_charges?: number | null;
   pickup_notes: string | null;
   trip_status: string;
   pick_near_city: string;

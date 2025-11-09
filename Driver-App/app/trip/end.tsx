@@ -26,6 +26,11 @@ export default function EndTripScreen() {
   const [tollChargeUpdate, setTollChargeUpdate] = useState(false);
   const [endingKmShown, setEndingKmShown] = useState(false);
   const [waitingTime, setWaitingTime] = useState('');
+  const handleWaitingTimeChange = (value: string) => {
+    const sanitized = value.replace(/[^0-9]/g, '');
+    setWaitingTime(sanitized);
+  };
+
   const router = useRouter();
   const params = useLocalSearchParams<{ 
     order_id?: string; 
@@ -291,7 +296,7 @@ export default function EndTripScreen() {
               style={styles.kmInput}
               placeholder="Enter waiting time in minutes (e.g., 450)"
               value={waitingTime}
-              onChangeText={setWaitingTime}
+              onChangeText={handleWaitingTimeChange}
               keyboardType="numeric"
             />
             <Text style={styles.helperText}>
