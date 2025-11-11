@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import {
   TextInput,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useFocusEffect } from '@react-navigation/native';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { MapPin, Clock, IndianRupee, Car, User, Phone, RefreshCw, Navigation, ChevronDown, ChevronUp, FileText } from 'lucide-react-native';
@@ -66,7 +67,7 @@ export default function RidesScreen() {
   const { user } = useAuth();
 
   // Fetch all rides data
-  const fetchRidesData = async () => {
+  const fetchRidesData = useCallback(async () => {
     try {
       setLoading(true);
       console.log('📋 Fetching all rides data for Vehicle Owner...');
@@ -168,11 +169,26 @@ export default function RidesScreen() {
       
     } catch (error: any) {
       console.error('❌ Failed to fetch rides data:', error);
-      Alert.alert('Error', error.message || 'Failed to fetch rides data');
+      
+      // Check if error is related to invalid car_type enum
+      const errorMessage = error.message || '';
+      const errorDetail = error.response?.data?.detail || '';
+      
+      if (errorMessage.includes('CAR_TYPE_ENUM') || 
+          errorDetail.includes('is not among the defined enum values') ||
+          (errorDetail.includes('SEDAN') && errorDetail.includes('enum'))) {
+        Alert.alert(
+          'Data Sync Issue',
+          'Some orders have outdated car type information. Please contact support to update the database, or try refreshing later.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        Alert.alert('Error', error.message || 'Failed to fetch rides data');
+      }
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -195,6 +211,16 @@ export default function RidesScreen() {
       fetchRidesData();
     }
   }, [user?.id]); // Only trigger when user ID changes (login/logout)
+
+  // Refresh when tab/screen gains focus
+  useFocusEffect(
+    React.useCallback(() => {
+      if (user) {
+        console.log('📌 My Rides focused, refreshing...');
+        fetchRidesData();
+      }
+    }, [user?.id, fetchRidesData])
+  );
 
   const getCurrentRides = (): RideData[] => {
     let rides: RideData[] = [];
@@ -247,6 +273,32 @@ export default function RidesScreen() {
       case 'cancelled': return '#EF4444';
       default: return '#6B7280';
     }
+  };
+
+  // Helper function to format car type for display
+  const formatCarType = (carType: string | null | undefined): string => {
+    if (!carType) return '';
+    
+    const type = String(carType).trim();
+    
+    // Pattern: X_PLUS_Y or X_PLUS_Y (e.g., SUV_6_PLUS_1, INNOVA_7_PLUS_1)
+    const plusPattern = /^(.+?)_(\d+)_PLUS_(\d+)$/i;
+    const plusMatch = type.match(plusPattern);
+    
+    if (plusMatch) {
+      const base = plusMatch[1].replace(/_/g, ' ');
+      const first = plusMatch[2];
+      const second = plusMatch[3];
+      return `${base} (${first}+${second})`;
+    }
+    
+    // Pattern: NEW_SEDAN_2022_MODEL or similar
+    if (type.includes('NEW_SEDAN_2022_MODEL')) {
+      return 'NEW SEDAN (2022 MODEL)';
+    }
+    
+    // For other cases, replace underscores with spaces
+    return type.replace(/_/g, ' ');
   };
 
   const getStatusIcon = (status: string) => {
@@ -362,7 +414,7 @@ export default function RidesScreen() {
           {ride.car_type && (
             <View style={styles.detailRowBold}>
               <Text style={[styles.detailLabelBold, { color: colors.textSecondary }]}>Vehicle Type:</Text>
-              <Text style={[styles.detailValueBold, { color: colors.text }]}>{ride.car_type}</Text>
+              <Text style={[styles.detailValueBold, { color: colors.text }]}>{formatCarType(ride.car_type)}</Text>
           </View>
           )}
           {pickupDate && (
@@ -385,8 +437,16 @@ export default function RidesScreen() {
         )}
           {waitingTimeMinutes != null && (
             <View style={styles.detailRowBold}>
-              <Text style={[styles.detailLabelBold, { color: colors.textSecondary }]}>Waiting Time:</Text>
-              <Text style={[styles.detailValueBold, { color: colors.text }]}>{waitingTimeMinutes} mins</Text>
+              <Text style={[styles.detailLabelBold, { color: colors.textSecondary }]}>Waiting Charge:</Text>
+              <Text style={[styles.detailValueBold, { color: colors.text }]}>₹{waitingTimeMinutes}</Text>
+            </View>
+          )}
+          
+          {/* Pickup Notes */}
+          {hasPickupNotes && (
+            <View style={styles.detailRowBold}>
+              <Text style={[styles.detailLabelBold, { color: colors.textSecondary }]}>Pickup Notes:</Text>
+              <Text style={[styles.detailValueBold, { color: colors.text, flex: 1, marginLeft: 8 }]}>{ride.pickup_notes}</Text>
             </View>
           )}
         </View>
@@ -442,22 +502,22 @@ export default function RidesScreen() {
                 <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Toll charge:</Text>
                 <Text style={[styles.expandedValue, { color: colors.text }]}>₹{tollCharge}</Text>
               </View>
-              {waitingChargeAmount != null && (
-                <View style={styles.expandedRow}>
-                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Waiting charge:</Text>
-                  <Text style={[styles.expandedValue, { color: colors.text }]}>₹{waitingChargeAmount}</Text>
-                </View>
-              )}
+              <View style={styles.expandedRow}>
+                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Waiting charge:</Text>
+                <Text style={[styles.expandedValue, { color: colors.text }]}>
+                  {waitingChargeAmount != null ? `₹${waitingChargeAmount}` : 'N/A'}
+                </Text>
+              </View>
+              <View style={styles.expandedRow}>
+                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Night charges:</Text>
+                <Text style={[styles.expandedValue, { color: colors.text }]}>
+                  {nightCharges != null ? `₹${nightCharges}` : 'N/A'}
+                </Text>
+              </View>
               {waitingTimeMinutes != null && (
                 <View style={styles.expandedRow}>
-                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Waiting time:</Text>
-                  <Text style={[styles.expandedValue, { color: colors.text }]}>{waitingTimeMinutes} mins</Text>
-                </View>
-              )}
-              {nightCharges != null && (
-                <View style={styles.expandedRow}>
-                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Night charges:</Text>
-                  <Text style={[styles.expandedValue, { color: colors.text }]}>₹{nightCharges}</Text>
+                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Waiting charge:</Text>
+                  <Text style={[styles.expandedValue, { color: colors.text }]}>₹{waitingTimeMinutes}</Text>
                 </View>
               )}
             </View>
@@ -471,7 +531,7 @@ export default function RidesScreen() {
               </View>
               <View style={styles.expandedRow}>
                 <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Car Type:</Text>
-                <Text style={[styles.expandedValue, { color: colors.text }]}>{ride.car_type || 'N/A'}</Text>
+                <Text style={[styles.expandedValue, { color: colors.text }]}>{formatCarType(ride.car_type) || 'N/A'}</Text>
               </View>
               <View style={styles.expandedRow}>
                 <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Distance:</Text>

@@ -323,6 +323,17 @@ export async function getCompletedOrdersForVehicleOwner(): Promise<FutureRideVie
   } catch (error: any) {
     console.error('❌ Failed to fetch completed orders:', error);
     
+    // Check if error is related to invalid car_type enum
+    const errorDetail = error.response?.data?.detail || error.message || '';
+    if (errorDetail.includes('is not among the defined enum values') || 
+        errorDetail.includes('CAR_TYPE_ENUM') ||
+        (errorDetail.includes('SEDAN') && errorDetail.includes('enum'))) {
+      console.warn('⚠️ Backend enum validation error - some orders may have outdated car types');
+      // Return empty array to prevent app crash, but log the issue
+      console.error('⚠️ Cannot fetch completed orders due to invalid car_type values in database. Please contact support.');
+      return [];
+    }
+    
     if (error.response?.status === 401) {
       throw new Error('Authentication failed. Please login again.');
     } else if (error.response?.status === 404) {

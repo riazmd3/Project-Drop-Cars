@@ -236,6 +236,8 @@ export default function QuickDashboardScreen() {
         waiting_time: order.waiting_time ?? order.waiting_minutes ?? null,
         waiting_charge: order.waiting_charge ?? order.waiting_charges ?? null,
         night_charges: order.night_charges ?? order.night_charge ?? null,
+        // Map pickup notes
+        pickup_notes: order.pickup_notes || null,
       }));
       
       setDriverOrders(mappedOrders);
@@ -645,6 +647,32 @@ export default function QuickDashboardScreen() {
     }
   };
 
+  // Helper function to format car type for display
+  const formatCarType = (carType: string | null | undefined): string => {
+    if (!carType) return '';
+    
+    const type = String(carType).trim();
+    
+    // Pattern: X_PLUS_Y or X_PLUS_Y (e.g., SUV_6_PLUS_1, INNOVA_7_PLUS_1)
+    const plusPattern = /^(.+?)_(\d+)_PLUS_(\d+)$/i;
+    const plusMatch = type.match(plusPattern);
+    
+    if (plusMatch) {
+      const base = plusMatch[1].replace(/_/g, ' ');
+      const first = plusMatch[2];
+      const second = plusMatch[3];
+      return `${base} (${first}+${second})`;
+    }
+    
+    // Pattern: NEW_SEDAN_2022_MODEL or similar
+    if (type.includes('NEW_SEDAN_2022_MODEL')) {
+      return 'NEW SEDAN (2022 MODEL)';
+    }
+    
+    // For other cases, replace underscores with spaces
+    return type.replace(/_/g, ' ');
+  };
+
   const fetchOrderHistory = async () => {
     setHistoryLoading(true); setHistoryError('');
     try {
@@ -834,7 +862,7 @@ export default function QuickDashboardScreen() {
                     )}
                     <View style={styles.detailRow}>
                       <Car size={16} color={colors.textSecondary} />
-                      <Text style={[styles.detailText, { color: colors.text }]}>{order.car_type} • {order.trip_type}</Text>
+                      <Text style={[styles.detailText, { color: colors.text }]}>{formatCarType(order.car_type)} • {order.trip_type}</Text>
                     </View>
                     <View style={styles.detailRow}>
                       <Clock size={16} color={colors.textSecondary} />
@@ -842,8 +870,8 @@ export default function QuickDashboardScreen() {
                     </View>
                     {order.waiting_time !== undefined && order.waiting_time !== null && (
                       <View style={styles.detailRow}>
-                        <Clock size={16} color={colors.textSecondary} />
-                        <Text style={[styles.detailText, { color: colors.text }]}>Waiting time: {order.waiting_time} mins</Text>
+                        <IndianRupee size={16} color={colors.textSecondary} />
+                        <Text style={[styles.detailText, { color: colors.text }]}>Waiting charge: ₹{order.waiting_time}</Text>
                       </View>
                     )}
                     {order.waiting_charge !== undefined && order.waiting_charge !== null && (
@@ -866,10 +894,10 @@ export default function QuickDashboardScreen() {
                       </View>
                     )}
                     {/* Pickup Notes */}
-                    {order.pickup_notes && (
+                    {order.pickup_notes && order.pickup_notes !== 'NILL' && order.pickup_notes !== 'null' && (
                       <View style={styles.detailRow}>
                         <FileText size={16} color={colors.textSecondary} />
-                        <Text style={[styles.detailText, { color: colors.text }]}>Notes: {order.pickup_notes}</Text>
+                        <Text style={[styles.detailText, { color: colors.text }]}>Pickup Notes: {order.pickup_notes}</Text>
                       </View>
                     )}
                   </View>
@@ -1087,17 +1115,20 @@ export default function QuickDashboardScreen() {
                             </View>
                           )}
                           <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 4 }}>Date & Time: {order.start_date_time ? new Date(order.start_date_time).toLocaleString() : '-'}</Text>
-                          <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Trip: {order.trip_type} • {order.car_type}</Text>
+                          <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Trip: {order.trip_type} • {formatCarType(order.car_type)}</Text>
                           <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Distance: {order.trip_distance} km</Text>
                           <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Toll: {hasToll ? 'Yes' : 'No toll'}</Text>
                           {order.waiting_time !== undefined && order.waiting_time !== null && (
-                            <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Waiting Time: {order.waiting_time} mins</Text>
+                            <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Waiting Charge: ₹{order.waiting_time}</Text>
                           )}
                           {order.waiting_charge !== undefined && order.waiting_charge !== null && (
                             <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Waiting Charge: ₹{order.waiting_charge}</Text>
                           )}
                           {order.night_charges !== undefined && order.night_charges !== null && (
                             <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Night Charges: ₹{order.night_charges}</Text>
+                          )}
+                          {order.pickup_notes && order.pickup_notes !== 'NILL' && order.pickup_notes !== 'null' && (
+                            <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 4 }}>Pickup Notes: {order.pickup_notes}</Text>
                           )}
                           <Text style={{ color: '#10B981', fontSize: 15, fontFamily: 'Inter-Bold', marginTop: 4 }}>Closed Vendor Price: ₹{order.closed_vendor_price || 0}</Text>
                         </View>
@@ -1112,13 +1143,16 @@ export default function QuickDashboardScreen() {
                           <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Hill Charges: ₹{order.hill_charges || 0}</Text>
                           <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Driver Allowance: ₹{order.driver_allowance || 0}</Text>
                           {order.waiting_time !== undefined && order.waiting_time !== null && (
-                            <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Waiting Time: {order.waiting_time} mins</Text>
+                            <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Waiting Charge: ₹{order.waiting_time}</Text>
                           )}
                           {order.waiting_charge !== undefined && order.waiting_charge !== null && (
                             <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Waiting Charge: ₹{order.waiting_charge}</Text>
                           )}
                           {order.night_charges !== undefined && order.night_charges !== null && (
                             <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Night Charges: ₹{order.night_charges}</Text>
+                          )}
+                          {order.pickup_notes && order.pickup_notes !== 'NILL' && order.pickup_notes !== 'null' && (
+                            <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Pickup Notes: {order.pickup_notes}</Text>
                           )}
                           <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Created At: {order.created_at ? new Date(order.created_at).toLocaleString() : '-'}</Text>
                         </View>

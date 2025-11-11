@@ -319,6 +319,32 @@ export default function FutureRidesScreen() {
     }
   };
 
+  // Helper function to format car type for display
+  const formatCarType = (carType: string | null | undefined): string => {
+    if (!carType) return '';
+    
+    const type = String(carType).trim();
+    
+    // Pattern: X_PLUS_Y or X_PLUS_Y (e.g., SUV_6_PLUS_1, INNOVA_7_PLUS_1)
+    const plusPattern = /^(.+?)_(\d+)_PLUS_(\d+)$/i;
+    const plusMatch = type.match(plusPattern);
+    
+    if (plusMatch) {
+      const base = plusMatch[1].replace(/_/g, ' ');
+      const first = plusMatch[2];
+      const second = plusMatch[3];
+      return `${base} (${first}+${second})`;
+    }
+    
+    // Pattern: NEW_SEDAN_2022_MODEL or similar
+    if (type.includes('NEW_SEDAN_2022_MODEL')) {
+      return 'NEW SEDAN (2022 MODEL)';
+    }
+    
+    // For other cases, replace underscores with spaces
+    return type.replace(/_/g, ' ');
+  };
+
   // Helper function to get status color
   const getStatusColor = (status: string) => {
     switch (status.toUpperCase()) {
@@ -475,7 +501,7 @@ export default function FutureRidesScreen() {
           {ride.car_type && (
             <View style={styles.detailRowBold}>
               <Text style={[styles.detailLabelBold, { color: colors.textSecondary }]}>Vehicle Type:</Text>
-              <Text style={[styles.detailValueBold, { color: colors.text }]}>{ride.car_type}</Text>
+              <Text style={[styles.detailValueBold, { color: colors.text }]}>{formatCarType(ride.car_type)}</Text>
           </View>
           )}
           {pickupDate && (
@@ -498,8 +524,16 @@ export default function FutureRidesScreen() {
           )}
           {waitingTimeMinutes != null && (
             <View style={styles.detailRowBold}>
-              <Text style={[styles.detailLabelBold, { color: colors.textSecondary }]}>Waiting Time:</Text>
-              <Text style={[styles.detailValueBold, { color: colors.text }]}>{waitingTimeMinutes} mins</Text>
+              <Text style={[styles.detailLabelBold, { color: colors.textSecondary }]}>Waiting Charge:</Text>
+              <Text style={[styles.detailValueBold, { color: colors.text }]}>₹{waitingTimeMinutes}</Text>
+            </View>
+          )}
+          
+          {/* Pickup Notes */}
+          {ride.pickup_notes && ride.pickup_notes !== 'NILL' && ride.pickup_notes !== 'null' && (
+            <View style={styles.detailRowBold}>
+              <Text style={[styles.detailLabelBold, { color: colors.textSecondary }]}>Pickup Notes:</Text>
+              <Text style={[styles.detailValueBold, { color: colors.text, flex: 1, marginLeft: 8 }]}>{ride.pickup_notes}</Text>
             </View>
           )}
         </View>
@@ -555,22 +589,22 @@ export default function FutureRidesScreen() {
                 <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Toll charge:</Text>
                 <Text style={[styles.expandedValue, { color: colors.text }]}>₹{tollCharge}</Text>
               </View>
-              {waitingChargeAmount != null && (
-                <View style={styles.expandedRow}>
-                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Waiting charge:</Text>
-                  <Text style={[styles.expandedValue, { color: colors.text }]}>₹{waitingChargeAmount}</Text>
-                </View>
-              )}
+              <View style={styles.expandedRow}>
+                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Waiting charge:</Text>
+                <Text style={[styles.expandedValue, { color: colors.text }]}>
+                  {waitingChargeAmount != null ? `₹${waitingChargeAmount}` : 'N/A'}
+                </Text>
+              </View>
+              <View style={styles.expandedRow}>
+                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Night charges:</Text>
+                <Text style={[styles.expandedValue, { color: colors.text }]}>
+                  {nightCharges != null ? `₹${nightCharges}` : 'N/A'}
+                </Text>
+              </View>
               {waitingTimeMinutes != null && (
                 <View style={styles.expandedRow}>
-                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Waiting time:</Text>
-                  <Text style={[styles.expandedValue, { color: colors.text }]}>{waitingTimeMinutes} mins</Text>
-                </View>
-              )}
-              {nightCharges != null && (
-                <View style={styles.expandedRow}>
-                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Night charges:</Text>
-                  <Text style={[styles.expandedValue, { color: colors.text }]}>₹{nightCharges}</Text>
+                  <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Waiting charge:</Text>
+                  <Text style={[styles.expandedValue, { color: colors.text }]}>₹{waitingTimeMinutes}</Text>
                 </View>
               )}
             </View>
@@ -876,42 +910,94 @@ export default function FutureRidesScreen() {
                   </Text>
                 </View>
               ) : availableCars.length > 0 ? (
-                // Filter and sort cars: by compatibility and priority
+                // Filter and sort cars: by family-based compatibility and priority
                 (availableCars
                   .filter((car) => {
                     if (!selectedRide) return true;
-                    const rank = (type: string) => {
-                      const normalizedType = (type || '').toUpperCase().replace(/_/g, ' ');
-                      switch (normalizedType) {
-                        case 'INNOVA CRYSTA': return 5; // highest priority
-                        case 'INNOVA': return 4;
-                        case 'SUV': return 3;
-                        case 'NEW SEDAN': return 2;
-                        case 'SEDAN': return 2;
-                        case 'HATCHBACK': return 1;
-                        default: return 0;
+                    
+                    // Helper function to get car family from car type
+                    const getCarFamily = (type: string): string | null => {
+                      const normalizedType = (type || '').toUpperCase().trim();
+                      
+                      // INNOVA_CRYSTA family
+                      if (normalizedType.includes('INNOVA_CRYSTA') || normalizedType.includes('INNOVA CRYSTA')) {
+                        return 'INNOVA_CRYSTA';
                       }
+                      // INNOVA family
+                      if (normalizedType.includes('INNOVA') && !normalizedType.includes('CRYSTA')) {
+                        return 'INNOVA';
+                      }
+                      // SUV family
+                      if (normalizedType.includes('SUV')) {
+                        return 'SUV';
+                      }
+                      // SEDAN family
+                      if (normalizedType.includes('SEDAN') || normalizedType.includes('ETIOS')) {
+                        return 'SEDAN';
+                      }
+                      // HATCHBACK family
+                      if (normalizedType.includes('HATCHBACK')) {
+                        return 'HATCHBACK';
+                      }
+                      
+                      return null;
                     };
+                    
+                    // Helper function to check if a car family is compatible with order requirement
+                    const isCompatible = (orderCarType: string, carType: string): boolean => {
+                      const orderFamily = getCarFamily(orderCarType);
+                      const carFamily = getCarFamily(carType);
+                      
+                      if (!orderFamily || !carFamily) return false;
+                      
+                      // Define family hierarchy (lowest to highest)
+                      const familyHierarchy: string[] = ['HATCHBACK', 'SEDAN', 'SUV', 'INNOVA', 'INNOVA_CRYSTA'];
+                      const orderIndex = familyHierarchy.indexOf(orderFamily);
+                      const carIndex = familyHierarchy.indexOf(carFamily);
+                      
+                      if (orderIndex === -1 || carIndex === -1) return false;
+                      
+                      // Car can be used if it's in the same family or higher in hierarchy
+                      return carIndex >= orderIndex;
+                    };
+                    
                     // Only include cars with good status if provided
                     const status = String((car as any)?.car_status || (car as any)?.status || '').toUpperCase();
                     const statusOk = !status || ['AVAILABLE', 'ONLINE', 'IDLE', 'FREE'].includes(status);
-                    return statusOk && rank(car.car_type) >= rank(selectedRide.car_type);
+                    
+                    return statusOk && isCompatible(selectedRide.car_type, car.car_type);
                   })
                   .sort((a, b) => {
-                    const pr = (type: string) => {
-                      const normalizedType = (type || '').toUpperCase().replace(/_/g, ' ');
-                      switch (normalizedType) {
-                        case 'INNOVA CRYSTA': return 5;
-                        case 'INNOVA': return 4;
-                        case 'SUV': return 3;
-                        case 'NEW SEDAN': return 2;
-                        case 'SEDAN': return 2;
-                        case 'HATCHBACK': return 1;
-                        default: return 0;
+                    // Helper function to get priority for sorting (higher number = higher priority)
+                    const getPriority = (type: string): number => {
+                      const normalizedType = (type || '').toUpperCase().trim();
+                      
+                      // INNOVA_CRYSTA family (highest priority)
+                      if (normalizedType.includes('INNOVA_CRYSTA') || normalizedType.includes('INNOVA CRYSTA')) {
+                        return 5;
                       }
+                      // INNOVA family
+                      if (normalizedType.includes('INNOVA') && !normalizedType.includes('CRYSTA')) {
+                        return 4;
+                      }
+                      // SUV family
+                      if (normalizedType.includes('SUV')) {
+                        return 3;
+                      }
+                      // SEDAN family
+                      if (normalizedType.includes('SEDAN') || normalizedType.includes('ETIOS')) {
+                        return 2;
+                      }
+                      // HATCHBACK family
+                      if (normalizedType.includes('HATCHBACK')) {
+                        return 1;
+                      }
+                      
+                      return 0;
                     };
+                    
                     // Higher priority first
-                    return pr(b.car_type) - pr(a.car_type);
+                    return getPriority(b.car_type) - getPriority(a.car_type);
                   }))
                   .map((car) => (
                   <TouchableOpacity
@@ -922,7 +1008,7 @@ export default function FutureRidesScreen() {
                   >
                     <View style={styles.carInfo}>
                       <Text style={[styles.carName, { color: colors.text }]}>
-                        {car.car_name} ({car.car_type})
+                        {car.car_name} ({formatCarType(car.car_type)})
                       </Text>
                       <Text style={[styles.carDetails, { color: colors.textSecondary }]}>
                         {car.car_number}

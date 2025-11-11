@@ -119,6 +119,32 @@ export default function TripReportScreen() {
     };
   };
 
+  // Helper function to format car type for display
+  const formatCarType = (carType: string | null | undefined): string => {
+    if (!carType) return '';
+    
+    const type = String(carType).trim();
+    
+    // Pattern: X_PLUS_Y or X_PLUS_Y (e.g., SUV_6_PLUS_1, INNOVA_7_PLUS_1)
+    const plusPattern = /^(.+?)_(\d+)_PLUS_(\d+)$/i;
+    const plusMatch = type.match(plusPattern);
+    
+    if (plusMatch) {
+      const base = plusMatch[1].replace(/_/g, ' ');
+      const first = plusMatch[2];
+      const second = plusMatch[3];
+      return `${base} (${first}+${second})`;
+    }
+    
+    // Pattern: NEW_SEDAN_2022_MODEL or similar
+    if (type.includes('NEW_SEDAN_2022_MODEL')) {
+      return 'NEW SEDAN (2022 MODEL)';
+    }
+    
+    // For other cases, replace underscores with spaces
+    return type.replace(/_/g, ' ');
+  };
+
   if (loading) {
     return (
       <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -225,7 +251,7 @@ export default function TripReportScreen() {
           <View style={styles.detailRow}>
             <Car size={20} color={colors.primary} />
             <Text style={[styles.detailText, { color: colors.text }]}>
-              {report.car_type} • {report.trip_type}
+              {formatCarType(report.car_type)} • {report.trip_type}
             </Text>
           </View>
           
@@ -244,9 +270,9 @@ export default function TripReportScreen() {
           </View>
           {report.waiting_time !== undefined && report.waiting_time !== null && (
             <View style={styles.detailRow}>
-              <Clock size={20} color={colors.primary} />
+              <IndianRupee size={20} color={colors.primary} />
               <Text style={[styles.detailText, { color: colors.text }]}>
-                Waiting Time: {report.waiting_time} mins
+                Waiting Charge: ₹{report.waiting_time}
               </Text>
             </View>
           )}
@@ -293,9 +319,9 @@ export default function TripReportScreen() {
 
           {report.waiting_time !== undefined && report.waiting_time !== null && (
             <View style={styles.financialRow}>
-              <Clock size={20} color={colors.textSecondary} />
-              <Text style={[styles.financialLabel, { color: colors.text }]}>Waiting Time:</Text>
-              <Text style={[styles.financialAmount, { color: colors.textSecondary }]}>{report.waiting_time} mins</Text>
+              <IndianRupee size={20} color={colors.primary} />
+              <Text style={[styles.financialLabel, { color: colors.text }]}>Waiting Charge:</Text>
+              <Text style={[styles.financialAmount, { color: colors.primary }]}>₹{report.waiting_time}</Text>
             </View>
           )}
           

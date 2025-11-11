@@ -9,7 +9,7 @@ import {
   ScrollView,
 } from 'react-native';
 import { useTheme } from '@/contexts/ThemeContext';
-import { MapPin, Clock, IndianRupee, User, Phone, Car, AlertCircle, X } from 'lucide-react-native';
+import { MapPin, Clock, IndianRupee, User, Phone, Car, AlertCircle, X, FileText } from 'lucide-react-native';
 
 interface Booking {
   order_id: number;
@@ -38,9 +38,10 @@ interface BookingCardProps {
   onAccept: (booking: Booking) => void;
   disabled?: boolean;
   loading?: boolean;
+  buttonText?: string; // Custom button text (e.g., "Accept Booking", "Insufficient Balance", "Assign Driver and Car...")
 }
 
-export default function BookingCard({ booking, onAccept, disabled, loading }: BookingCardProps) {
+export default function BookingCard({ booking, onAccept, disabled, loading, buttonText }: BookingCardProps) {
   const { colors } = useTheme();
   const [timeRemaining, setTimeRemaining] = useState<string>('');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -180,6 +181,32 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
     } catch {
       return raw;
     }
+  };
+
+  // Helper function to format car type for display
+  const formatCarType = (carType: string | null | undefined): string => {
+    if (!carType) return '';
+    
+    const type = String(carType).trim();
+    
+    // Pattern: X_PLUS_Y or X_PLUS_Y (e.g., SUV_6_PLUS_1, INNOVA_7_PLUS_1)
+    const plusPattern = /^(.+?)_(\d+)_PLUS_(\d+)$/i;
+    const plusMatch = type.match(plusPattern);
+    
+    if (plusMatch) {
+      const base = plusMatch[1].replace(/_/g, ' ');
+      const first = plusMatch[2];
+      const second = plusMatch[3];
+      return `${base} (${first}+${second})`;
+    }
+    
+    // Pattern: NEW_SEDAN_2022_MODEL or similar
+    if (type.includes('NEW_SEDAN_2022_MODEL')) {
+      return 'NEW SEDAN (2022 MODEL)';
+    }
+    
+    // For other cases, replace underscores with spaces
+    return type.replace(/_/g, ' ');
   };
   
   const computeDeadline = (): string => {
@@ -682,7 +709,7 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
           {carType && (
           <View style={dynamicStyles.detailRow}>
               <Text style={dynamicStyles.detailLabel}>Vehicle Type:</Text>
-              <Text style={dynamicStyles.detailValue}>{carType}</Text>
+              <Text style={dynamicStyles.detailValue}>{formatCarType(carType)}</Text>
             </View>
               )}
           {pickupDate && (
@@ -712,6 +739,17 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
               <Text style={dynamicStyles.detailValue}>{tripDistance} km</Text>
           </View>
         )}
+          
+          {/* Pickup Notes */}
+          {booking.pickup_notes && booking.pickup_notes !== 'NILL' && booking.pickup_notes !== 'null' && (
+            <View style={dynamicStyles.detailRow}>
+              <FileText size={16} color={colors.textSecondary} style={{ marginRight: 8 }} />
+              <View style={{ flex: 1 }}>
+                <Text style={dynamicStyles.detailLabel}>Pickup Notes:</Text>
+                <Text style={[dynamicStyles.detailValue, { marginTop: 4 }]}>{booking.pickup_notes}</Text>
+              </View>
+            </View>
+          )}
       </View>
 
         {/* Fare - Above Accept Button */}
@@ -740,7 +778,7 @@ export default function BookingCard({ booking, onAccept, disabled, loading }: Bo
           </>
         ) : (
           <Text style={[dynamicStyles.acceptButtonText, disabled && dynamicStyles.disabledButtonText]}>
-            {disabled ? 'Insufficient Balance' : 'Accept Booking'}
+            {buttonText || (disabled ? 'Insufficient Balance' : 'Accept Booking')}
           </Text>
         )}
       </TouchableOpacity>

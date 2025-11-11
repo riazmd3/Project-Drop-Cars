@@ -18,6 +18,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useDashboard, FutureRide } from '@/contexts/DashboardContext';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { useRouter } from 'expo-router';
+import { useFocusEffect } from '@react-navigation/native';
 import { Menu, Wallet, MapPin, Clock, User, Phone, Car, RefreshCw } from 'lucide-react-native';
 import BookingCard from '@/components/BookingCard';
 import DrawerNavigation from '@/components/DrawerNavigation';
@@ -87,12 +88,41 @@ export default function DashboardScreen() {
     'Ooty','Udhagamandalam','Yercaud','Kanyakumari','Rajapalayam','Sivaganga','Pudukkottai','Ambur','Ranipet','Vaniyambadi','Tiruchengode','Namakkal','Paramakudi','Ramanathapuram','Tenkasi','Sankarankovil','Kovilpatti','Mettur','Mylapore','Tambaram','Ambattur','Pallavaram','Poonamallee','Tiruvallur','Pattukkottai','Arcot','Krishnagiri','Udumalaipettai','Dharapuram','Pernampattu','Tindivanam','Vikravandi','Ulundurpettai','Arakkonam','Sholingur','Tirupattur','Vedaranyam','Manamadurai','Devakottai','Sirkazhi','Mayiladuthurai','Thuraiyur','Manapparai','Puliyankudi','Sengottai','Vadipatti','Usilampatti','Nilakkottai','Rasipuram','Sendamangalam','Kumarapalayam','Mohanur','Kattumannarkoil','Vadalur','Neyveli','Kurinjipadi','Veppur','Kunnam','Lalgudi','Manachanallur','Thuvakudi','Thiruthuraipoondi','Mannargudi','Needamangalam','Kottur','Tiruvadanai','Mudukulathur','Kamuthi','Mallankinaru','Kariapatti','Natham','Melur','Tirumangalam','Kallupatti','Thirumangalam','Sedapatti','Chellampatti','Kallikudi','Nagalapuram','Papanasam','Thiruvidaimarudur','Swamimalai','Thiruppanandal','Thiruvaiyaru','Orathanadu','Peravurani','Gandarvakkottai','Arantangi','Avudayarkoil','Vallam'
   ];
 
-  // Count accepted orders (future rides) - maximum 3 allowed
-  const acceptedOrdersCount = (futureRides || []).length;
+  // State to track accepted orders without driver/car assigned
+  const [acceptedOrdersWithoutAssignment, setAcceptedOrdersWithoutAssignment] = useState<any[]>([]);
   const MAX_ACCEPTED_ORDERS = 3;
   
   // Get current wallet balance
   const currentWallet = Number(dashboardData?.user_info?.wallet_balance ?? balance ?? 0);
+  
+  // Fetch accepted orders and count only those without both driver AND car assigned
+  const fetchAcceptedOrdersCount = async () => {
+    try {
+      const authHeaders = await getAuthHeaders();
+      const response = await axiosInstance.get('/api/orders/vehicle-owner/pending', {
+        headers: authHeaders,
+      });
+      
+      const orders = Array.isArray(response.data) ? response.data : [];
+      
+      // Filter to only count orders that DON'T have both driver AND car assigned
+      const ordersWithoutAssignment = orders.filter((order: any) => {
+        const hasDriver = !!(order.assigned_driver_name || order.assigned_driver);
+        const hasCar = !!(order.assigned_car_name || order.assigned_vehicle || order.assigned_car);
+        // Count only if BOTH driver AND car are NOT assigned
+        return !(hasDriver && hasCar);
+      });
+      
+      setAcceptedOrdersWithoutAssignment(ordersWithoutAssignment);
+      console.log('📊 Accepted orders without driver/car:', ordersWithoutAssignment.length);
+    } catch (error: any) {
+      console.error('❌ Failed to fetch accepted orders count:', error);
+      setAcceptedOrdersWithoutAssignment([]);
+    }
+  };
+  
+  // Count accepted orders without both driver and car assigned
+  const acceptedOrdersCount = acceptedOrdersWithoutAssignment.length;
   
   // Determine button status for an order
   const getOrderButtonStatus = (order: PendingOrder): { disabled: boolean; buttonText: string } => {
@@ -164,12 +194,22 @@ export default function DashboardScreen() {
     });
   }, [user, dashboardData, loading, error, pendingOrders]);
 
+  // Refresh accepted orders count when screen comes into focus
+  useFocusEffect(
+    React.useCallback(() => {
+      if (user) {
+        fetchAcceptedOrdersCount();
+      }
+    }, [user])
+  );
+
   // Auto-load data when user is available after login
   useEffect(() => {
     if (user && !loading && !dashboardData) {
       console.log('🔄 User available, auto-loading dashboard data...');
       fetchData();
       fetchPendingOrdersData();
+      fetchAcceptedOrdersCount();
     }
   }, [user, loading, dashboardData]);
 
@@ -179,6 +219,7 @@ export default function DashboardScreen() {
       console.log('👤 User changed, refreshing dashboard data...');
       fetchData();
       fetchPendingOrdersData();
+      fetchAcceptedOrdersCount();
       
       // Automatically send notification token on login (same as toggle ON)
       const sendNotificationTokenOnLogin = async () => {
@@ -360,7 +401,7 @@ export default function DashboardScreen() {
     <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row', marginBottom: 10, marginTop: 4 }}>
       {selectedCities.map(city => (
         <View key={city} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary + '22', borderRadius: 20, marginRight: 8, paddingHorizontal: 12, paddingVertical: 5 }}>
-          <Text style={{ color: colors.primary, marginRight: 4 }}>{city}</Text>
+          <Text style={{ color: colors.primary, marginRight: 4 }}>{String(city || '')}</Text>
           <TouchableOpacity onPress={() => setSelectedCities(selectedCities.filter(x => x !== city))}>
             <Text style={{ color: colors.error, fontWeight: '700', fontSize: 15 }}>✕</Text>
           </TouchableOpacity>
@@ -447,6 +488,7 @@ export default function DashboardScreen() {
       await forceRefreshDashboardData();
       await refreshData();
       await fetchPendingOrdersData(); // Also refresh orders
+      await fetchAcceptedOrdersCount(); // Refresh accepted orders count
       // Refresh wallet balance to reflect latest amount
       try { await refreshBalance(); } catch {}
       
@@ -766,14 +808,35 @@ export default function DashboardScreen() {
   });
   const handleAcceptBooking = (order: PendingOrder) => {
     if (processingOrderId && processingOrderId !== order.order_id.toString()) return;
-    if (!canAcceptOrder(order)) {
+    
+    // Check order limit first
+    if (acceptedOrdersCount >= MAX_ACCEPTED_ORDERS) {
+      Alert.alert(
+        'Order Limit Reached',
+        `You have already accepted ${MAX_ACCEPTED_ORDERS} orders. Please assign driver and car to your accepted orders before accepting new ones.`,
+        [
+          { text: 'OK' },
+          { text: 'Go to Future Rides', onPress: () => router.push('/(tabs)/future-rides') }
+        ]
+      );
+      return;
+    }
+    
+    // Check wallet balance
+    const status = getOrderButtonStatus(order);
+    if (status.disabled) {
+      const chargesToDeduct = Number((order as any).charges_to_deduct ?? 0);
+      const totalFare = Number(order.estimated_price ?? 0);
+      const amountToCheck = chargesToDeduct > 0 ? chargesToDeduct : totalFare;
+      
       Alert.alert(
         'Insufficient Balance',
-        'Not enough available balance after reserving for your future rides. Add money to accept this booking.',
+        `Not enough wallet balance. Required: ₹${amountToCheck}, Available: ₹${currentWallet}. Add money to accept this booking.`,
         [{ text: 'Add Money', onPress: () => router.push('/(tabs)/wallet') }]
       );
       return;
     }
+    
     // Confirmation already handled in BookingCard modal; proceed directly
     acceptBooking(order);
   };
@@ -844,6 +907,9 @@ export default function DashboardScreen() {
         };
 
         addFutureRide(ride);
+
+        // Refresh accepted orders count to update button states
+        await fetchAcceptedOrdersCount();
 
         // Notification removed
 
@@ -923,7 +989,7 @@ export default function DashboardScreen() {
     <Menu color={colors.text} size={24} />
   </TouchableOpacity>
   <Text style={{ fontSize: 18, fontFamily: 'Inter-Bold', color: colors.text, flex: 1, textAlign: 'center' }}>
-    Hi! {dashboardData?.user_info?.full_name || user?.fullName || 'Vehicle Owner'}
+    Hi! {String(dashboardData?.user_info?.full_name || user?.fullName || 'Vehicle Owner')}
   </Text>
   <TouchableOpacity
     style={{ padding: 6, flexDirection: 'row', alignItems: 'center', minWidth: 120, justifyContent: 'flex-end' }}
@@ -953,7 +1019,7 @@ export default function DashboardScreen() {
           </View>
         ) : error ? (
           <View style={dynamicStyles.loadingContainer}>
-            <Text style={dynamicStyles.loadingText}>Error: {error}</Text>
+            <Text style={dynamicStyles.loadingText}>Error: {String(error || 'Unknown error')}</Text>
             <TouchableOpacity 
               style={[dynamicStyles.endTripButton, { marginTop: 16 }]}
               onPress={fetchData}
@@ -989,7 +1055,7 @@ export default function DashboardScreen() {
                             : `${selectedCities.slice(0,2).join(', ')}, ...`));
                   return (
                     <Text style={{ color: '#fff', fontWeight: '600', fontSize: 15 }}>
-                      Select City to Receive Bookings — {summary}
+                      Select City to Receive Bookings — {String(summary || '')}
                     </Text>
                   );
                 })()}
@@ -1061,7 +1127,7 @@ export default function DashboardScreen() {
                       <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexDirection: 'row', marginBottom: 10 }}>
                         {selectedCities.map(city => (
                           <View key={city} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary + '22', borderRadius: 20, marginRight: 8, paddingHorizontal: 12, paddingVertical: 5 }}>
-                            <Text style={{ color: colors.primary, marginRight: 4 }}>{city}</Text>
+                            <Text style={{ color: colors.primary, marginRight: 4 }}>{String(city || '')}</Text>
                             <TouchableOpacity onPress={() => setSelectedCities(selectedCities.filter(x => x !== city))}>
                               <Text style={{ color: colors.error, fontWeight: '700', fontSize: 15 }}>✕</Text>
                   </TouchableOpacity>
@@ -1109,7 +1175,7 @@ export default function DashboardScreen() {
                               }}>
                                 {isSelected && <Text style={{ color: '#fff', fontSize: 12, fontWeight: 'bold' }}>✓</Text>}
                               </View>
-                              <Text style={{ color: isSelected ? colors.primary : colors.text, fontWeight: isSelected ? '700' : '400', fontSize: 16 }}>{city}</Text>
+                              <Text style={{ color: isSelected ? colors.primary : colors.text, fontWeight: isSelected ? '700' : '400', fontSize: 16 }}>{String(city || '')}</Text>
                         </TouchableOpacity>
                           );
                         })}
@@ -1168,8 +1234,12 @@ export default function DashboardScreen() {
                           pickup_drop_location: order.pickup_drop_location, // Pass raw location for multicity parsing
                         }}
                         onAccept={() => handleAcceptBooking(order)}
-                        disabled={!canAcceptOrder(order) || processingOrderId === order.order_id.toString()}
+                        disabled={(() => {
+                          const status = getOrderButtonStatus(order);
+                          return status.disabled || processingOrderId === order.order_id.toString();
+                        })()}
                         loading={processingOrderId === order.order_id.toString()}
+                        buttonText={getOrderButtonStatus(order).buttonText}
                       />
                     );
                   })
