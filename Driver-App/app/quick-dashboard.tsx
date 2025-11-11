@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   Animated,
   Modal,
+  BackHandler,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useAuth } from '@/contexts/AuthContext';
@@ -291,8 +292,30 @@ export default function QuickDashboardScreen() {
   useFocusEffect(
     useCallback(() => {
       loadDriverData();
-      return () => {};
-    }, [loadDriverData])
+      
+      // Handle back button press
+      const backHandler = BackHandler.addEventListener('hardwareBackPress', () => {
+        // Show logout confirmation alert
+        Alert.alert(
+          'Logout',
+          'Are you sure you want to logout?',
+          [
+            { text: 'Cancel', style: 'cancel', onPress: () => false },
+            { 
+              text: 'Logout', 
+              style: 'destructive',
+              onPress: async () => {
+                await handleLogout();
+                return true;
+              }
+            }
+          ]
+        );
+        return true; // Prevent default back behavior
+      });
+
+      return () => backHandler.remove();
+    }, [loadDriverData, handleLogout])
   );
 
   // New API functions for driver status
@@ -896,17 +919,13 @@ export default function QuickDashboardScreen() {
                     {/* Pickup Notes */}
                     {order.pickup_notes && order.pickup_notes !== 'NILL' && order.pickup_notes !== 'null' && (
                       <View style={styles.detailRow}>
-                        <FileText size={16} color={colors.textSecondary} />
-                        <Text style={[styles.detailText, { color: colors.text }]}>Pickup Notes: {order.pickup_notes}</Text>
+                        <FileText size={16} color="#EF4444" />
+                        <Text style={[styles.detailText, { color: '#EF4444' }]}>Pickup Notes: {order.pickup_notes}</Text>
                       </View>
                     )}
                   </View>
 
                   <View style={styles.orderFooter}>
-                    <View style={styles.fareContainer}>
-                      <Text style={styles.fareAmount}>₹{(order as any).customer_price ?? order.total_fare ?? order.estimated_price}</Text>
-                    </View>
-                    
                     {/* Show different buttons based on trip state */}
                     {(activeTrip && activeTrip.order_id === order.order_id) || order.assignment_status === 'DRIVING' ? (
                       // Active trip or DRIVING status - show end trip button
@@ -1141,7 +1160,7 @@ export default function QuickDashboardScreen() {
                           <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Duration: {order.trip_time}</Text>
                           <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Permit: ₹{order.permit_charges || 0}</Text>
                           <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Hill Charges: ₹{order.hill_charges || 0}</Text>
-                          <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Driver Allowance: ₹{order.driver_allowance || 0}</Text>
+                          <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Driver Beta: ₹{order.driver_allowance || 0}</Text>
                           {order.waiting_time !== undefined && order.waiting_time !== null && (
                             <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Waiting Charge: ₹{order.waiting_time}</Text>
                           )}
@@ -1152,7 +1171,7 @@ export default function QuickDashboardScreen() {
                             <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Night Charges: ₹{order.night_charges}</Text>
                           )}
                           {order.pickup_notes && order.pickup_notes !== 'NILL' && order.pickup_notes !== 'null' && (
-                            <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Pickup Notes: {order.pickup_notes}</Text>
+                            <Text style={{ color: '#EF4444', fontSize: 13 }}>Pickup Notes: {order.pickup_notes}</Text>
                           )}
                           <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Created At: {order.created_at ? new Date(order.created_at).toLocaleString() : '-'}</Text>
                         </View>

@@ -325,10 +325,21 @@ export default function DashboardScreen() {
             return cityValue === true;
           });
           setSelectAllCities(allCitiesSelected);
+          // If no cities selected and "All" is not selected, default to "All"
+          if (!allCitiesSelected && cities.length === 0) {
+            setSelectAllCities(true);
+          }
+          hasInitializedCities.current = true;
+        } else {
+          // If no data from server, default to "All"
+          setSelectAllCities(true);
+          setSelectedCities([]);
           hasInitializedCities.current = true;
         }
       } catch (e) {
-        Alert.alert('Error', 'Failed to fetch city selection: ' + String(e));
+        // On error, default to "All"
+        setSelectAllCities(true);
+        setSelectedCities([]);
         hasInitializedCities.current = true; // Still mark as initialized to allow manual selection
       }
     })();
@@ -402,7 +413,15 @@ export default function DashboardScreen() {
       {selectedCities.map(city => (
         <View key={city} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary + '22', borderRadius: 20, marginRight: 8, paddingHorizontal: 12, paddingVertical: 5 }}>
           <Text style={{ color: colors.primary, marginRight: 4 }}>{String(city || '')}</Text>
-          <TouchableOpacity onPress={() => setSelectedCities(selectedCities.filter(x => x !== city))}>
+          <TouchableOpacity onPress={() => {
+            // If trying to remove the last city, default back to "All"
+            if (selectedCities.length === 1) {
+              setSelectAllCities(true);
+              setSelectedCities([]);
+            } else {
+              setSelectedCities(selectedCities.filter(x => x !== city));
+            }
+          }}>
             <Text style={{ color: colors.error, fontWeight: '700', fontSize: 15 }}>✕</Text>
           </TouchableOpacity>
         </View>
@@ -414,8 +433,11 @@ export default function DashboardScreen() {
   const debugOrderMatch: Array<{order_id:number, pick_near_city:any, pickCitiesArr:string[], selectedCities:string[], didMatch:boolean}> = [];
   const filteredOrders: PendingOrder[] = (() => {
     if (!pendingOrders) return [];
-    // If neither 'All' nor any specific city is selected, show no orders by default
-    if (!selectAllCities && selectedCities.length === 0) return [];
+    // Default to "All" if neither 'All' nor any specific city is selected (should not happen, but safety check)
+    if (!selectAllCities && selectedCities.length === 0) {
+      // This should not happen, but if it does, default to showing all orders
+      return pendingOrders;
+    }
     let orders = pendingOrders.filter(o => {
       const pickCitiesArr = parseCityListField(o.pick_near_city ? String(o.pick_near_city) : '');
       const isAll = pickCitiesArr.some(city => city.trim().toUpperCase() === 'ALL');
@@ -915,7 +937,16 @@ export default function DashboardScreen() {
 
         Alert.alert(
           'Booking Accepted',
-          'Order accepted successfully! Check Future rides to assign the car.'
+          'Order accepted successfully! Check Future rides to assign the car.',
+          [
+            {
+              text: 'OK',
+              onPress: () => {
+                // Navigate to Future Rides tab
+                router.push('/(tabs)/future-rides');
+              }
+            }
+          ]
         );
       } else {
         console.log('❌ Accept order response:', acceptResponse);
@@ -1049,13 +1080,13 @@ export default function DashboardScreen() {
                   const summary = selectAllCities
                     ? 'All'
                     : (selectedCities.length === 0
-                        ? 'None'
+                        ? 'All' // Never show "None", default to "All"
                         : (selectedCities.length <= 2
                             ? selectedCities.join(', ')
                             : `${selectedCities.slice(0,2).join(', ')}, ...`));
                   return (
                     <Text style={{ color: '#fff', fontWeight: '600', fontSize: 15 }}>
-                      Select City to Receive Bookings — {String(summary || '')}
+                      Select City to Receive Bookings — {String(summary || 'All')}
                     </Text>
                   );
                 })()}
@@ -1088,13 +1119,9 @@ export default function DashboardScreen() {
                     {/* All checkbox */}
                     <TouchableOpacity
                       onPress={() => {
-                        if (selectAllCities) {
-                          setSelectAllCities(false);
-                          setSelectedCities([]);
-                        } else {
-                          setSelectAllCities(true);
-                          setSelectedCities([]);
-                        }
+                        // Always set to "All" when clicked - cannot deselect "All" if it's the only option
+                        setSelectAllCities(true);
+                        setSelectedCities([]);
                       }}
                   style={{
                     flexDirection: 'row',
@@ -1128,7 +1155,15 @@ export default function DashboardScreen() {
                         {selectedCities.map(city => (
                           <View key={city} style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.primary + '22', borderRadius: 20, marginRight: 8, paddingHorizontal: 12, paddingVertical: 5 }}>
                             <Text style={{ color: colors.primary, marginRight: 4 }}>{String(city || '')}</Text>
-                            <TouchableOpacity onPress={() => setSelectedCities(selectedCities.filter(x => x !== city))}>
+                            <TouchableOpacity onPress={() => {
+                              // If trying to remove the last city, default back to "All"
+                              if (selectedCities.length === 1) {
+                                setSelectAllCities(true);
+                                setSelectedCities([]);
+                              } else {
+                                setSelectedCities(selectedCities.filter(x => x !== city));
+                              }
+                            }}>
                               <Text style={{ color: colors.error, fontWeight: '700', fontSize: 15 }}>✕</Text>
                   </TouchableOpacity>
                 </View>
@@ -1150,7 +1185,13 @@ export default function DashboardScreen() {
                                   setSelectAllCities(false);
                                   setSelectedCities([city]);
                                 } else if (selectedCities.includes(city)) {
-                                  setSelectedCities(selectedCities.filter(c => c !== city));
+                                  // If trying to deselect the last city, default back to "All"
+                                  if (selectedCities.length === 1) {
+                                    setSelectAllCities(true);
+                                    setSelectedCities([]);
+                                  } else {
+                                    setSelectedCities(selectedCities.filter(c => c !== city));
+                                  }
                                 } else {
                                   setSelectedCities([...selectedCities, city]);
                                 }
@@ -1181,7 +1222,14 @@ export default function DashboardScreen() {
                         })}
                     </ScrollView>
                     <TouchableOpacity
-                      onPress={() => setShowCityModal(false)}
+                      onPress={() => {
+                        // Before closing, ensure at least "All" is selected
+                        if (!selectAllCities && selectedCities.length === 0) {
+                          setSelectAllCities(true);
+                          setSelectedCities([]);
+                        }
+                        setShowCityModal(false);
+                      }}
                       style={{ marginTop: 16, alignSelf: 'flex-end' }}
                     >
                       <Text style={{ color: 'rgb(15, 187, 35)', fontWeight: '700', fontSize: 15 }}>Save</Text>

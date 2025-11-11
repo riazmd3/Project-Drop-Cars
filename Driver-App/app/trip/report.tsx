@@ -304,7 +304,7 @@ export default function TripReportScreen() {
           {report.driver_allowance > 0 && (
             <View style={styles.financialRow}>
               <IndianRupee size={20} color={colors.primary} />
-              <Text style={[styles.financialLabel, { color: colors.text }]}>Driver Allowance:</Text>
+              <Text style={[styles.financialLabel, { color: colors.text }]}>Driver Beta:</Text>
               <Text style={[styles.financialAmount, { color: colors.primary }]}>₹{report.driver_allowance}</Text>
             </View>
           )}
@@ -374,8 +374,8 @@ export default function TripReportScreen() {
         {/* Notes */}
         {report.pickup_notes && (
           <View style={[styles.section, { backgroundColor: colors.surface }]}>
-            <Text style={[styles.sectionTitle, { color: colors.text }]}>Notes</Text>
-            <Text style={[styles.notesText, { color: colors.textSecondary }]}>
+            <Text style={[styles.sectionTitle, { color: '#EF4444' }]}>Pickup Notes</Text>
+            <Text style={[styles.notesText, { color: '#EF4444' }]}>
               {report.pickup_notes}
             </Text>
           </View>

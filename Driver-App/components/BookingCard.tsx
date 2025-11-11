@@ -189,15 +189,41 @@ export default function BookingCard({ booking, onAccept, disabled, loading, butt
     
     const type = String(carType).trim();
     
-    // Pattern: X_PLUS_Y or X_PLUS_Y (e.g., SUV_6_PLUS_1, INNOVA_7_PLUS_1)
-    const plusPattern = /^(.+?)_(\d+)_PLUS_(\d+)$/i;
-    const plusMatch = type.match(plusPattern);
+    // Pattern 1: X_PLUS_Y (e.g., SUV_6_PLUS_1, INNOVA_7_PLUS_1, 7_PLUS_1)
+    // Match any text before _PLUS_ or just numbers before _PLUS_
+    const plusPattern1 = /^(.+?)_(\d+)_PLUS_(\d+)$/i;
+    const plusMatch1 = type.match(plusPattern1);
     
-    if (plusMatch) {
-      const base = plusMatch[1].replace(/_/g, ' ');
-      const first = plusMatch[2];
-      const second = plusMatch[3];
+    if (plusMatch1) {
+      const base = plusMatch1[1].replace(/_/g, ' ');
+      const first = plusMatch1[2];
+      const second = plusMatch1[3];
+      // If base is just a number or empty, show only the (X+Y) format
+      if (base.trim() === '' || /^\d+$/.test(base.trim())) {
+        return `(${first}+${second})`;
+      }
       return `${base} (${first}+${second})`;
+    }
+    
+    // Pattern 2: X_PLUS_Y with any case variations (PLUS, plus, Plus)
+    const plusPattern2 = /^(.+?)_(\d+)_(PLUS|plus|Plus)_(\d+)$/i;
+    const plusMatch2 = type.match(plusPattern2);
+    
+    if (plusMatch2) {
+      const base = plusMatch2[1].replace(/_/g, ' ');
+      const first = plusMatch2[2];
+      const second = plusMatch2[4];
+      if (base.trim() === '' || /^\d+$/.test(base.trim())) {
+        return `(${first}+${second})`;
+      }
+      return `${base} (${first}+${second})`;
+    }
+    
+    // Pattern 3: Just numbers with PLUS (e.g., 7_PLUS_1 -> (7+1))
+    const justNumbersPattern = /^(\d+)_PLUS_(\d+)$/i;
+    const justNumbersMatch = type.match(justNumbersPattern);
+    if (justNumbersMatch) {
+      return `(${justNumbersMatch[1]}+${justNumbersMatch[2]})`;
     }
     
     // Pattern: NEW_SEDAN_2022_MODEL or similar
@@ -205,8 +231,13 @@ export default function BookingCard({ booking, onAccept, disabled, loading, butt
       return 'NEW SEDAN (2022 MODEL)';
     }
     
-    // For other cases, replace underscores with spaces
-    return type.replace(/_/g, ' ');
+    // For other cases, replace underscores with spaces and check for "plus" patterns
+    let formatted = type.replace(/_/g, ' ');
+    // Try to find "plus" patterns in the formatted string (e.g., "7 Plus 1" -> "(7+1)")
+    const plusTextPattern = /(\d+)\s+(?:plus|PLUS|Plus)\s+(\d+)/gi;
+    formatted = formatted.replace(plusTextPattern, '($1+$2)');
+    
+    return formatted;
   };
   
   const computeDeadline = (): string => {
@@ -568,7 +599,7 @@ export default function BookingCard({ booking, onAccept, disabled, loading, butt
       fontSize: 14,
       fontFamily: 'Inter-Bold',
       color: colors.text,
-      textAlign: 'right',
+      textAlign: 'left',
     },
     infoValuePositive: {
       color: '#22c55e',
@@ -743,10 +774,10 @@ export default function BookingCard({ booking, onAccept, disabled, loading, butt
           {/* Pickup Notes */}
           {booking.pickup_notes && booking.pickup_notes !== 'NILL' && booking.pickup_notes !== 'null' && (
             <View style={dynamicStyles.detailRow}>
-              <FileText size={16} color={colors.textSecondary} style={{ marginRight: 8 }} />
+              <FileText size={16} color="#EF4444" style={{ marginRight: 8 }} />
               <View style={{ flex: 1 }}>
                 <Text style={dynamicStyles.detailLabel}>Pickup Notes:</Text>
-                <Text style={[dynamicStyles.detailValue, { marginTop: 4 }]}>{booking.pickup_notes}</Text>
+                <Text style={[dynamicStyles.detailValue, { marginTop: 4, color: '#EF4444' }]}>{booking.pickup_notes}</Text>
               </View>
             </View>
           )}
@@ -819,54 +850,89 @@ export default function BookingCard({ booking, onAccept, disabled, loading, butt
               {/* Trip Details Table */}
               <View style={dynamicStyles.modalSection}>
                 <View style={dynamicStyles.infoTable}>
+                  {/* Row 1: From → To */}
                   <View style={dynamicStyles.infoRow}>
                     <View style={dynamicStyles.infoCellLabel}>
-                      <Text style={dynamicStyles.infoLabel}>Trip</Text>
+                      <Text style={dynamicStyles.infoLabel}>From → To</Text>
                     </View>
                     <View style={dynamicStyles.infoCellValue}>
                       <Text style={dynamicStyles.infoValue}>
                         {allCities.length > 0 ? (
                           <Text>
                             {/* Start city - Green */}
-                            <Text style={dynamicStyles.cityStart}>{allCities[0]}</Text>
-                            {/* Middle cities - Blue */}
+                            <Text style={{ color: '#10B981', fontWeight: 'bold' }}>From: {allCities[0]}</Text>
+                            {/* Middle cities - Blue (stops) */}
                             {allCities.length > 2 && allCities.slice(1, -1).map((city, idx) => (
                               <Text key={`stop-${idx}`}>
                                 <Text> → </Text>
-                                <Text style={dynamicStyles.cityEnd}>{city}</Text>
+                                <Text style={{ color: '#3B82F6', fontWeight: 'bold' }}>{city}</Text>
                               </Text>
                             ))}
-                            {/* End city - Red (or Blue if only 2 cities) */}
+                            {/* End city - Red */}
                             {allCities.length > 1 && (
                               <>
                                 <Text> → </Text>
-                                <Text style={allCities.length === 2 ? dynamicStyles.cityEnd : dynamicStyles.cityEndRed}>{allCities[allCities.length - 1]}</Text>
+                                <Text style={{ color: '#EF4444', fontWeight: 'bold' }}>To: {allCities[allCities.length - 1]}</Text>
                               </>
                             )}
                           </Text>
                         ) : startCity && endCity ? (
                           <Text>
-                            <Text style={dynamicStyles.cityStart}>{startCity}</Text>
+                            <Text style={{ color: '#10B981', fontWeight: 'bold' }}>From: {startCity}</Text>
                             <Text> → </Text>
-                            <Text style={dynamicStyles.cityEnd}>{endCity}</Text>
+                            <Text style={{ color: '#EF4444', fontWeight: 'bold' }}>To: {endCity}</Text>
                           </Text>
                         ) : pickup && drop ? (
                           <Text>
-                            <Text style={dynamicStyles.cityStart}>{pickup}</Text>
+                            <Text style={{ color: '#10B981', fontWeight: 'bold' }}>From: {pickup}</Text>
                             <Text> → </Text>
-                            <Text style={dynamicStyles.cityEnd}>{drop}</Text>
+                            <Text style={{ color: '#EF4444', fontWeight: 'bold' }}>To: {drop}</Text>
                           </Text>
                         ) : (
                           <Text>N/A</Text>
                         )}
-                        {tripType ? <Text>{`, ${tripType}`}</Text> : null}
-                        {carType ? <Text>{` • ${carType}`}</Text> : null}
-                        {(tripDistance > 0 || estimatedTime) ? (
-                          <Text>{` (${tripDistance || 0}kms - ${formatRoundedDuration(estimatedTime)})`}</Text>
-                        ) : null}
                       </Text>
                     </View>
                   </View>
+                  
+                  {/* Row 2: Trip Type */}
+                  {tripType && (
+                    <View style={dynamicStyles.infoRow}>
+                      <View style={dynamicStyles.infoCellLabel}>
+                        <Text style={dynamicStyles.infoLabel}>Trip Type</Text>
+                      </View>
+                      <View style={dynamicStyles.infoCellValue}>
+                        <Text style={dynamicStyles.infoValue}>{tripType}</Text>
+                      </View>
+                    </View>
+                  )}
+                  
+                  {/* Row 3: Car Type */}
+                  {carType && (
+                    <View style={dynamicStyles.infoRow}>
+                      <View style={dynamicStyles.infoCellLabel}>
+                        <Text style={dynamicStyles.infoLabel}>Car Type</Text>
+                      </View>
+                      <View style={dynamicStyles.infoCellValue}>
+                        <Text style={[dynamicStyles.infoValue, { color: '#3B82F6' }]}>{formatCarType(carType)}</Text>
+                      </View>
+                    </View>
+                  )}
+                  
+                  {/* Row 4: KM & Time */}
+                  {(tripDistance > 0 || estimatedTime) && (
+                    <View style={[dynamicStyles.infoRow, !pickupDate && !(assignmentWindowDuration || deadlineTime) && dynamicStyles.infoRowLast]}>
+                      <View style={dynamicStyles.infoCellLabel}>
+                        <Text style={dynamicStyles.infoLabel}>Distance & Duration</Text>
+                      </View>
+                      <View style={dynamicStyles.infoCellValue}>
+                        <Text style={[dynamicStyles.infoValue, { color: '#000000' }]}>
+                          {tripDistance || 0}kms - {formatRoundedDuration(estimatedTime)}
+                        </Text>
+                      </View>
+                    </View>
+                  )}
+                  
                   {pickupDate && (
                     <View style={[dynamicStyles.infoRow, !(assignmentWindowDuration || deadlineTime) && dynamicStyles.infoRowLast]}>
                       <View style={dynamicStyles.infoCellLabel}>
@@ -891,6 +957,19 @@ export default function BookingCard({ booking, onAccept, disabled, loading, butt
                   )}
                 </View>
               </View>
+
+              {/* Pickup Notes - Above Terms and Conditions */}
+              {booking.pickup_notes && booking.pickup_notes !== 'NILL' && booking.pickup_notes !== 'null' && (
+                <View style={dynamicStyles.modalSection}>
+                  <View style={dynamicStyles.detailRow}>
+                    <FileText size={16} color={colors.textSecondary} style={{ marginRight: 8 }} />
+                    <View style={{ flex: 1 }}>
+                      <Text style={[dynamicStyles.detailLabel, { color: colors.text }]}>Pickup Notes:</Text>
+                      <Text style={[dynamicStyles.detailValue, { marginTop: 4, color: '#EF4444' }]}>{booking.pickup_notes}</Text>
+                    </View>
+                  </View>
+                </View>
+              )}
 
               {/* Terms acknowledgement */}
               <View style={dynamicStyles.modalSection}>

@@ -532,8 +532,8 @@ export default function FutureRidesScreen() {
           {/* Pickup Notes */}
           {ride.pickup_notes && ride.pickup_notes !== 'NILL' && ride.pickup_notes !== 'null' && (
             <View style={styles.detailRowBold}>
-              <Text style={[styles.detailLabelBold, { color: colors.textSecondary }]}>Pickup Notes:</Text>
-              <Text style={[styles.detailValueBold, { color: colors.text, flex: 1, marginLeft: 8 }]}>{ride.pickup_notes}</Text>
+              <Text style={[styles.detailLabelBold, { color: '#EF4444' }]}>Pickup Notes:</Text>
+              <Text style={[styles.detailValueBold, { color: '#EF4444', flex: 1, marginLeft: 8 }]}>{ride.pickup_notes}</Text>
             </View>
           )}
         </View>
@@ -574,7 +574,7 @@ export default function FutureRidesScreen() {
                 <Text style={[styles.expandedValue, { color: colors.text }]}>₹{pricePerKm}</Text>
               </View>
               <View style={styles.expandedRow}>
-                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Driver allowance:</Text>
+                <Text style={[styles.expandedLabel, { color: colors.textSecondary }]}>Driver Beta:</Text>
                 <Text style={[styles.expandedValue, { color: colors.text }]}>₹{driverAllowance}</Text>
               </View>
               <View style={styles.expandedRow}>
