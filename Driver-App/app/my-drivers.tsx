@@ -122,13 +122,11 @@ export default function MyDriversScreen() {
   // Get status counts for tabs
   const getStatusCounts = () => {
     if (!availableDrivers || availableDrivers.length === 0) {
-      return { ALL: 0, ONLINE: 0, OFFLINE: 0, PROCESSING: 0 };
+      return { ALL: 0, PROCESSING: 0 };
     }
     
     return {
       ALL: availableDrivers.length,
-      ONLINE: availableDrivers.filter(d => d.driver_status === 'ONLINE').length,
-      OFFLINE: availableDrivers.filter(d => d.driver_status === 'OFFLINE').length,
       PROCESSING: availableDrivers.filter(d => d.driver_status === 'PROCESSING').length,
     };
   };
@@ -137,8 +135,6 @@ export default function MyDriversScreen() {
   const getStatusLabel = (status: string) => {
     switch (status) {
       case 'ALL': return 'All';
-      case 'ONLINE': return 'Online';
-      case 'OFFLINE': return 'Offline';
       case 'PROCESSING': return 'Verifying';
       default: return status;
     }
@@ -658,7 +654,7 @@ export default function MyDriversScreen() {
 
           {/* Status Filter Tabs */}
           <View style={dynamicStyles.statusTabsContainer}>
-            {['ALL', 'ONLINE', 'OFFLINE', 'PROCESSING'].map((status) => {
+            {['ALL', 'PROCESSING'].map((status) => {
               const counts = getStatusCounts();
               const isSelected = selectedStatusFilter === status;
               return (
