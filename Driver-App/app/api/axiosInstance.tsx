@@ -1,9 +1,10 @@
 import axios from 'axios';
+import { Alert } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { emitSessionExpired } from '@/utils/session';
 
 // For React Native, use machine IP instead of localhost
-// const API_BASE_URL = 'http://172.27.4.145:8000/';
+// const API_BASE_URL = 'http://10.59.192.145:8000/';
 const API_BASE_URL = 'https://drop-cars-api-1049299844333.asia-south2.run.app';
 console.log('🔧 API Config:', { baseURL: API_BASE_URL });
 
@@ -94,6 +95,37 @@ axiosInstance.interceptors.request.use(
   (error: any) => Promise.reject(error)
 );
 
+const removeAccessToken = async () => {
+  try {
+    await SecureStore.deleteItemAsync('authToken');
+    console.log('🗑️ Cleared authToken');
+  } catch (error) {
+    console.error('Error clearing authToken:', error);
+  }
+
+  try {
+    await SecureStore.deleteItemAsync('userData');
+    console.log('🗑️ Cleared userData');
+  } catch (error) {
+    console.error('Error clearing userData:', error);
+  }
+};
+
+let isShowingAuthAlert = false;
+const showAuthAlert = (title: string, message: string) => {
+  if (isShowingAuthAlert) return;
+  isShowingAuthAlert = true;
+
+  Alert.alert(title, message, [
+    {
+      text: 'OK',
+      onPress: () => {
+        isShowingAuthAlert = false;
+      },
+    },
+  ]);
+};
+
 // Response interceptor with enhanced error logging
 axiosInstance.interceptors.response.use(
   (response: any) => {
@@ -110,7 +142,7 @@ axiosInstance.interceptors.response.use(
     });
     return response;
   },
-  (error: any) => {
+  async (error: any) => {
     console.error('❌ API Error:', {
       message: error.message,
       code: error.code,
@@ -140,23 +172,21 @@ axiosInstance.interceptors.response.use(
     
     if (isAuthError) {
       console.log('🔐 Authentication error detected (401/403), clearing tokens...');
-      
-      // Clear tokens and emit session expired ONLY for auth errors
-      try { 
-        SecureStore.deleteItemAsync('authToken'); 
-        console.log('🗑️ Cleared authToken');
-      } catch (e) { 
-        console.error('Error clearing authToken:', e); 
-      }
-      try { 
-        SecureStore.deleteItemAsync('userData'); 
-        console.log('🗑️ Cleared userData');
-      } catch (e) { 
-        console.error('Error clearing userData:', e); 
-      }
-      
+
+      const errorDetail = error.response?.data?.detail || 'Unauthorized access';
+      const isForceLogout = errorDetail === 'Force Logout Action Raised';
+      const alertTitle = isForceLogout ? 'Force Logout' : 'Session Expired';
+      const alertMessage = isForceLogout
+        ? 'Admin raised a force logout. Please login again with your credentials.'
+        : 'Your session has expired. Please login again.';
+
+      showAuthAlert(alertTitle, alertMessage);
+      await removeAccessToken();
+
       // Emit session expired event
-      emitSessionExpired('Session expired - Please login again');
+      emitSessionExpired(
+        isForceLogout ? 'Force logout - token version changed' : 'Session expired - Please login again'
+      );
     } else {
       // For non-auth errors (400, 404, 500, etc.), just log them without clearing tokens
       console.log('⚠️ Non-authentication error, keeping tokens intact:', {

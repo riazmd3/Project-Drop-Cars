@@ -1,7 +1,10 @@
 import axios from 'axios';
+import { Alert } from 'react-native';
 import * as SecureStore from 'expo-secure-store';
 import { emitSessionExpired } from '@/utils/session';
-// const API_BASE_URL = 'http://172.27.4.145:8000/';
+
+
+// const API_BASE_URL = 'http://10.59.192.145:8000/';
 
 const API_BASE_URL = 'https://drop-cars-api-1049299844333.asia-south2.run.app';
 
@@ -64,6 +67,37 @@ axiosDriver.interceptors.request.use(
   (error) => Promise.reject(error)
 );
 
+const clearDriverSession = async () => {
+  try {
+    await SecureStore.deleteItemAsync('driverAuthToken');
+    console.log('🗑️ Cleared driverAuthToken');
+  } catch (error) {
+    console.error('Error clearing driverAuthToken:', error);
+  }
+
+  try {
+    await SecureStore.deleteItemAsync('driverAuthInfo');
+    console.log('🗑️ Cleared driverAuthInfo');
+  } catch (error) {
+    console.error('Error clearing driverAuthInfo:', error);
+  }
+};
+
+let isShowingDriverAlert = false;
+const showDriverAuthAlert = (title: string, message: string) => {
+  if (isShowingDriverAlert) return;
+  isShowingDriverAlert = true;
+
+  Alert.alert(title, message, [
+    {
+      text: 'OK',
+      onPress: () => {
+        isShowingDriverAlert = false;
+      },
+    },
+  ]);
+};
+
 axiosDriver.interceptors.response.use(
   (response) => response,
   async (error) => {
@@ -85,23 +119,21 @@ axiosDriver.interceptors.response.use(
     
     if (isAuthError) {
       console.log('❌ Driver authentication error detected, clearing tokens');
-      
-      // Clear tokens and emit session expired for authentication errors only
-      try { 
-        await SecureStore.deleteItemAsync('driverAuthToken'); 
-        console.log('🗑️ Cleared driverAuthToken');
-      } catch (e) { 
-        console.error('Error clearing driverAuthToken:', e); 
-      }
-      try { 
-        await SecureStore.deleteItemAsync('driverAuthInfo'); 
-        console.log('🗑️ Cleared driverAuthInfo');
-      } catch (e) { 
-        console.error('Error clearing driverAuthInfo:', e); 
-      }
+
+      const errorDetail = error.response?.data?.detail || 'Unauthorized access';
+      const isForceLogout = errorDetail === 'Force Logout Action Raised';
+      const alertTitle = isForceLogout ? 'Force Logout' : 'Session Expired';
+      const alertMessage = isForceLogout
+        ? 'Admin raised a force logout for drivers. Please login again.'
+        : 'Your driver session has expired. Please login again.';
+
+      showDriverAuthAlert(alertTitle, alertMessage);
+      await clearDriverSession();
       
       // Emit session expired event
-      emitSessionExpired('Driver session expired - Authentication error');
+      emitSessionExpired(
+        isForceLogout ? 'Driver force logout - token version changed' : 'Driver session expired - Authentication error'
+      );
     } else {
       console.log('❌ Driver API error (non-auth), keeping tokens');
     }

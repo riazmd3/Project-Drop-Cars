@@ -1158,8 +1158,6 @@ export default function QuickDashboardScreen() {
                       {expandedOrderId === ((order as any).id ?? order.order_id) && (
                         <View style={{ marginTop: 10, borderTopWidth: 1, borderTopColor: '#E5E7EB', paddingTop: 8 }}>
                           <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Duration: {order.trip_time}</Text>
-                          <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Permit: ₹{order.permit_charges || 0}</Text>
-                          <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Hill Charges: ₹{order.hill_charges || 0}</Text>
                           <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Driver Beta: ₹{order.driver_allowance || 0}</Text>
                           {order.waiting_time !== undefined && order.waiting_time !== null && (
                             <Text style={{ color: colors.textSecondary, fontSize: 13 }}>Waiting Charge: ₹{order.waiting_time}</Text>
