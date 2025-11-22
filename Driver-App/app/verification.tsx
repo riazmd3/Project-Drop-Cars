@@ -197,31 +197,69 @@ export default function VerificationPage({
     }
   };
 
-  const handlePaytmPayment = () => {
-    const upiId = 'arunachalatravelstvm-1@okhdfcbank';
+  const handlePaytmPayment = async () => {
+    const upiId = 'apexabr1@okicici';
     const payeeName = 'ARUNACHALA TRAVELS';
-    const amount = '1';
     const transactionNote = 'Verification Fee';
   
-    // Properly format UPI URL with all required parameters
-    const upiUrl = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
+    // Use mode=02 to force manual amount entry (helps avoid Paytm's ₹1 auto-fill)
+    const params = `pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&tn=${encodeURIComponent(transactionNote)}&mode=02`;
   
-    console.log("UPI URL:", upiUrl);
+    try {
+      // Some Paytm app URI schemes to probe
+      const paytmSchemes = ['paytm://', 'paytmmp://'];
+      let paytmAvailable = false;
+      for (const scheme of paytmSchemes) {
+        // Linking.canOpenURL works for both platforms to check if the app responds to the scheme
+        // on Android we will prefer intent: URI, but this check helps on iOS too.
+        // (Note: on iOS you must add schemes to LSApplicationQueriesSchemes in Info.plist if using bare workflow)
+        // Expo-managed apps may have limitations for canOpenURL on custom schemes on iOS.
+        try {
+          // eslint-disable-next-line no-await-in-loop
+          const ok = await Linking.canOpenURL(scheme);
+          if (ok) {
+            paytmAvailable = true;
+            break;
+          }
+        } catch (e) {
+          // ignore probe errors and try next scheme
+        }
+      }
   
-    Linking.openURL(upiUrl)
-      .then(() => {
-        console.log("UPI app opened successfully");
-      })
-      .catch((error) => {
-        console.error("Failed to open UPI app:", error);
-        Alert.alert(
-          "No UPI App Found",
-          "Install Google Pay, PhonePe or Paytm to continue.",
-          [{ text: "OK" }]
-        );
-      });
+      if (paytmAvailable) {
+        if (Platform.OS === 'android') {
+          // Android: use an intent:// URI and force Paytm package so Paytm opens directly (bypasses gallery/QR banner)
+          // mode=02 ensures manual amount entry
+          const paytmPackage = 'net.one97.paytm';
+          const intentUri = `intent://pay?${params}#Intent;package=${paytmPackage};scheme=upi;end`;
+          await Linking.openURL(intentUri);
+          return;
+        } else {
+          // iOS (or when intent isn't supported): try Paytm scheme directly (paytmmp/paytm)
+          // If it fails, fallback to generic UPI intent below.
+          const paytmDirectUri = `paytmmp://pay?${params}`;
+          const canOpen = await Linking.canOpenURL(paytmDirectUri);
+          if (canOpen) {
+            await Linking.openURL(paytmDirectUri);
+            return;
+          }
+        }
+      }
   
+      // Fallback: open generic UPI intent (will allow user to choose installed UPI app)
+      const genericUpi = `upi://pay?${params}`;
+      await Linking.openURL(genericUpi);
+    } catch (error) {
+      console.error('UPI open error:', error);
+      Alert.alert(
+        'No UPI App Found',
+        'Please install Paytm, Google Pay, or PhonePe to continue.',
+        [{ text: 'OK' }]
+      );
+    }
   };
+  
+  
   
   
   

@@ -415,7 +415,7 @@ export default function WalletScreen() {
               <ArrowUpRight color={colors.success} size={16} />
             ) : (
               <ArrowDownLeft color={colors.error} size={16} />
-            )}
+            )}                                 
           </View>
           <View style={dynamicStyles.transactionInfo}>
             <Text style={dynamicStyles.transactionTitle}>{transaction.notes || transaction.description}</Text>
