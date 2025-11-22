@@ -1035,12 +1035,17 @@ export default function BookingCard({ booking, onAccept, disabled, loading, butt
             <ScrollView style={dynamicStyles.modalBody}>
               <View style={dynamicStyles.modalSection}>
                 <Text style={dynamicStyles.modalValue}>
-                  I'm interested in this trip and comply with all terms and conditions of Drop Cars and I acknowledge and agree to the penalty in case of any non-compliance from my side and unallocation and assignment penalty as per terms.
+                I am interested in this trip and agree to follow all Drop Cars rules.
+I understand that the required wallet amount for this trip will be held until the trip is completed.
+I agree that if I fail to assign driver and vehicle details within the given time, or if I do not complete the trip after accepting, the held amount will be deducted as penalty.
+</Text>
+<Text style={dynamicStyles.modalValue}>
+I also understand that approaching or dealing with the customer directly outside the Drop Cars platform will result in permanent termination of my account.
                 </Text>
                 <Text style={[dynamicStyles.modalLabel, { marginTop: 8 }]}>Penalties</Text>
-                <Text style={dynamicStyles.modalValue}>1) Unallocation penalty up to ₹2000</Text>
-                <Text style={dynamicStyles.modalValue}>2) Assignment penalty up to ₹500</Text>
-                <Text style={dynamicStyles.modalValue}>3) On Time/App related penalty up to ₹500</Text>
+                <Text style={dynamicStyles.modalValue}>-> Penalties may apply up to ₹1000 or more as per Drop Cars Rules.</Text>
+                {/* <Text style={dynamicStyles.modalValue}>2) Assignment penalty up to ₹500</Text>
+                <Text style={dynamicStyles.modalValue}>3) On Time/App related penalty up to ₹500</Text> */}
               </View>
             </ScrollView>
           </View>

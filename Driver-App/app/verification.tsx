@@ -8,6 +8,8 @@ import {
   ScrollView,
   Alert,
   Animated,
+  Linking,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -15,7 +17,8 @@ import {
   Clock, 
   CheckCircle, 
   ArrowRight,
-  RefreshCw
+  RefreshCw,
+  IndianRupee
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/contexts/AuthContext';
@@ -42,6 +45,7 @@ export default function VerificationPage({
   const [accountStatus, setAccountStatus] = useState(propAccountStatus || 'inactive');
   const [isLoading, setIsLoading] = useState(propIsLoading);
   const [rotateAnim] = useState(new Animated.Value(0));
+  const [blinkAnim] = useState(new Animated.Value(0));
   const [showWelcome, setShowWelcome] = useState(false);
 
   // Fetch account status if not provided as prop
@@ -65,6 +69,26 @@ export default function VerificationPage({
       return () => spin.stop();
     }
   }, [isLoading]);
+
+  // Blink animation for Paytm button (green to light green fade)
+  useEffect(() => {
+    const blink = Animated.loop(
+      Animated.sequence([
+        Animated.timing(blinkAnim, {
+          toValue: 1,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+        Animated.timing(blinkAnim, {
+          toValue: 0,
+          duration: 1000,
+          useNativeDriver: true,
+        }),
+      ])
+    );
+    blink.start();
+    return () => blink.stop();
+  }, []);
 
   const fetchAccountStatus = async () => {
     try {
@@ -173,6 +197,36 @@ export default function VerificationPage({
     }
   };
 
+  const handlePaytmPayment = () => {
+    const upiId = 'arunachalatravelstvm-1@okhdfcbank';
+    const payeeName = 'ARUNACHALA TRAVELS';
+    const amount = '1';
+    const transactionNote = 'Verification Fee';
+  
+    // Properly format UPI URL with all required parameters
+    const upiUrl = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amount}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
+  
+    console.log("UPI URL:", upiUrl);
+  
+    Linking.openURL(upiUrl)
+      .then(() => {
+        console.log("UPI app opened successfully");
+      })
+      .catch((error) => {
+        console.error("Failed to open UPI app:", error);
+        Alert.alert(
+          "No UPI App Found",
+          "Install Google Pay, PhonePe or Paytm to continue.",
+          [{ text: "OK" }]
+        );
+      });
+  
+  };
+  
+  
+  
+  
+
   const handleWelcomeComplete = () => {
     setShowWelcome(false);
     router.replace('/(tabs)');
@@ -251,6 +305,40 @@ export default function VerificationPage({
         </View>
 
         <View style={styles.actionContainer}>
+          {/* Paytm Payment Button - Show only when account is under verification */}
+          {(accountStatus?.toUpperCase() === 'PROCESSING' || accountStatus?.toLowerCase() === 'inactive') && (
+            <View style={styles.paymentSection}>
+              <Text style={styles.paymentWarningText}>Kindly pay the Registration fees & Wait Our team will Contact You And Refresh The app to see the updated status</Text>
+              
+              {/* UPI ID Display Card */}
+              <View style={styles.upiDisplayCard}>
+                <Text style={styles.upiDisplayLabel}>Pay to UPI ID:</Text>
+                <Text style={styles.upiDisplayId}>arunachalatravelstvm-1@okhdfcbank</Text>
+                <Text style={styles.upiDisplayName}>ARUNACHALA TRAVELS</Text>
+              </View>
+              
+              <Animated.View
+                style={{
+                  backgroundColor: blinkAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['#10B981', '#86EFAC'], // Green to light green
+                  }),
+                  borderRadius: 12,
+                  marginBottom: 12,
+                }}
+              >
+                <TouchableOpacity 
+                  style={styles.paytmButton}
+                  onPress={handlePaytmPayment}
+                  disabled={isLoading}
+                >
+                  <IndianRupee color="#FFFFFF" size={20} />
+                  <Text style={styles.paytmButtonText}>Pay ₹1 Using Upi</Text>
+                </TouchableOpacity>
+              </Animated.View>
+            </View>
+          )}
+
           <TouchableOpacity 
             style={[styles.primaryButton, { backgroundColor: statusInfo.borderColor }]}
             onPress={statusInfo.buttonAction}
@@ -423,6 +511,65 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontFamily: 'Inter-SemiBold',
     marginRight: 8,
+  },
+  paymentSection: {
+    marginBottom: 16,
+    width: '100%',
+  },
+  paymentWarningText: {
+    color: '#EF4444',
+    fontSize: 14,
+    fontFamily: 'Inter-SemiBold',
+    textAlign: 'center',
+    marginBottom: 12,
+  },
+  upiDisplayCard: {
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+  },
+  upiDisplayLabel: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  upiDisplayId: {
+    fontSize: 16,
+    fontFamily: 'Inter-Bold',
+    color: '#3B82F6',
+    marginBottom: 4,
+    textAlign: 'center',
+  },
+  upiDisplayName: {
+    fontSize: 12,
+    fontFamily: 'Inter-Regular',
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  paytmButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 16,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    backgroundColor: 'transparent',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  paytmButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    marginLeft: 8,
   },
   secondaryButton: {
     paddingVertical: 16,

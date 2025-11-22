@@ -151,7 +151,7 @@ For any queries or support, contact us at:
   const welcomeSteps = [
     {
       icon: <CheckCircle size={80} color="#FFFFFF" />,
-      title: `Welcome to Drop Cars, ${user?.fullName || 'Driver'}!`,
+      title: `Welcome to Drop Cars!`,
       subtitle: "Your Professional Journey Starts Here",
       description: "Drop Cars is India's premier vehicle rental platform connecting vehicle owners with customers. Start earning by providing reliable transportation services.",
       backgroundColor: '#10B981'
@@ -166,14 +166,14 @@ For any queries or support, contact us at:
     {
       icon: <MapPin size={80} color="#FFFFFF" />,
       title: "Step 2: Accept Bookings",
-      subtitle: "View & Accept Available Orders",
-      description: "Browse pending bookings on your dashboard. Each booking shows pickup/drop locations, customer details, and fare. Accept orders that match your schedule and route.",
+      subtitle: "View & Accept Available Bookings",
+      description: "Browse pending bookings on your dashboard. Each booking shows pickup/drop locations, customer details, and fare. Accept Bookings that match your schedule and route.",
       backgroundColor: '#8B5CF6'
     },
     {
       icon: <Users size={80} color="#FFFFFF" />,
       title: "Step 3: Assign Driver & Vehicle",
-      subtitle: "Match Orders with Your Resources",
+      subtitle: "Match  with Your Resources",
       description: "After accepting an order, assign one of your registered drivers and vehicles. Ensure your driver is available and vehicle is ready for the trip.",
       backgroundColor: '#F59E0B'
     },

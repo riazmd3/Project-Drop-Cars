@@ -71,18 +71,25 @@ export default function WalletScreen() {
     }
     setUpiError('');
     setUpiModalVisible(false);
-    // UPI ID as mobile number
-    const upiBase = 'upi://pay';
-    const params = [
-      `pa=9500820541@axl`, // UPI ID or mobile
-      `pn=DropCars`,
-      `am=${amt}`,
-      `cu=INR`
-    ].join('&');
-    const upiUrl = `${upiBase}?${params}`;
-    Linking.openURL(upiUrl).catch(() => {
-      Alert.alert('Error', 'No UPI app found. Please install a UPI payment app.');
-    });
+    
+    // Updated merchant UPI ID
+    const upiId = 'arunachalatravelstvm-1@okhdfcbank';
+    const payeeName = 'ARUNACHALA TRAVELS';
+    const transactionNote = 'Wallet Topup';
+    
+    // Properly format UPI URL with URL encoding for special characters
+    const upiUrl = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amt}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
+    
+    console.log("UPI URL:", upiUrl);
+    
+    Linking.openURL(upiUrl)
+      .then(() => {
+        console.log("UPI app opened successfully");
+      })
+      .catch((error) => {
+        console.error("Failed to open UPI app:", error);
+        Alert.alert('Error', 'No UPI app found. Please install a UPI payment app.');
+      });
   };
 
   // Refresh wallet data
@@ -495,7 +502,12 @@ export default function WalletScreen() {
           <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }}>
             <View style={{ backgroundColor: colors.background, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 24 }}>
               <Text style={[dynamicStyles.sectionTitle, { marginBottom: 10, textAlign: 'center' }]}>Add Money via UPI</Text>
-              <Text style={{ textAlign: 'center', color: colors.textSecondary, marginBottom: 22 }}>Choose amount or enter custom, then select UPI app to pay to <Text style={{ fontWeight: 'bold', color: colors.primary }}>9500820542</Text></Text>
+              <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: colors.border }}>
+                <Text style={{ textAlign: 'center', color: colors.textSecondary, fontSize: 12, marginBottom: 8, fontFamily: 'Inter-Medium' }}>Pay to UPI ID:</Text>
+                <Text style={{ textAlign: 'center', color: colors.primary, fontSize: 16, fontFamily: 'Inter-Bold', fontWeight: 'bold' }}>arunachalatravelstvm-1@okhdfcbank</Text>
+                <Text style={{ textAlign: 'center', color: colors.textSecondary, fontSize: 12, marginTop: 4, fontFamily: 'Inter-Regular' }}>ARUNACHALA TRAVELS</Text>
+              </View>
+              <Text style={{ textAlign: 'center', color: colors.textSecondary, marginBottom: 22, fontSize: 13 }}>Choose amount or enter custom, then select UPI app to pay</Text>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 }}>
                 {quickUpiAmounts.map((amt) => (
                   <TouchableOpacity key={amt} style={{ backgroundColor: isDarkMode ? '#1E3A8A' : '#EFF6FF', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16, marginHorizontal: 2 }} onPress={() => handleUPIPayment(amt)}>

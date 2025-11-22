@@ -1149,7 +1149,7 @@ export default function QuickDashboardScreen() {
                           {order.pickup_notes && order.pickup_notes !== 'NILL' && order.pickup_notes !== 'null' && (
                             <Text style={{ color: colors.textSecondary, fontSize: 13, marginTop: 4 }}>Pickup Notes: {order.pickup_notes}</Text>
                           )}
-                          <Text style={{ color: '#10B981', fontSize: 15, fontFamily: 'Inter-Bold', marginTop: 4 }}>Closed Vendor Price: ₹{order.closed_vendor_price || 0}</Text>
+                          <Text style={{ color: '#10B981', fontSize: 15, fontFamily: 'Inter-Bold', marginTop: 4 }}>Cash Collected: ₹{order.closed_vendor_price || 0}</Text>
                         </View>
                         <TouchableOpacity onPress={() => setExpandedOrderId(expandedOrderId === ((order as any).id ?? order.order_id) ? null : ((order as any).id ?? order.order_id))}>
                           <Text style={{ color: colors.primary, fontSize: 15, fontFamily: 'Inter-SemiBold' }}>{expandedOrderId === ((order as any).id ?? order.order_id) ? 'Hide' : 'See More'}</Text>
