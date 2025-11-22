@@ -10,6 +10,8 @@ import {
   Animated,
   Linking,
   Platform,
+  Modal,
+  Image,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useEffect, useState } from 'react';
@@ -18,11 +20,14 @@ import {
   CheckCircle, 
   ArrowRight,
   RefreshCw,
-  IndianRupee
+  IndianRupee,
+  X,
+  Copy
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useAuth } from '@/contexts/AuthContext';
 import * as SecureStore from 'expo-secure-store';
+import Clipboard from '@react-native-clipboard/clipboard';
 import axiosDriver from '@/app/api/axiosDriver';
 import axiosInstance from '@/app/api/axiosInstance';
 import WelcomeScreen from '@/components/WelcomeScreen';
@@ -47,6 +52,7 @@ export default function VerificationPage({
   const [rotateAnim] = useState(new Animated.Value(0));
   const [blinkAnim] = useState(new Animated.Value(0));
   const [showWelcome, setShowWelcome] = useState(false);
+  const [showQRModal, setShowQRModal] = useState(false);
 
   // Fetch account status if not provided as prop
   useEffect(() => {
@@ -197,66 +203,58 @@ export default function VerificationPage({
     }
   };
 
-  const handlePaytmPayment = async () => {
-    const upiId = 'apexabr1@okicici';
-    const payeeName = 'ARUNACHALA TRAVELS';
-    const transactionNote = 'Verification Fee';
+  const handlePaytmPayment = () => {
+    // Just open UPI app without any pre-filled data - user will enter manually
+    const upiUrl = 'upi://';
   
-    // Use mode=02 to force manual amount entry (helps avoid Paytm's ₹1 auto-fill)
-    const params = `pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&tn=${encodeURIComponent(transactionNote)}&mode=02`;
+    console.log("Opening UPI app...");
   
+    Linking.openURL(upiUrl)
+      .then(() => {
+        console.log("UPI app opened successfully");
+      })
+      .catch((error) => {
+        console.error("Failed to open UPI app:", error);
+        // Try alternative UPI app schemes
+        const alternatives = ['paytm://', 'phonepe://', 'gpay://'];
+        let opened = false;
+        
+        alternatives.forEach((scheme) => {
+          if (!opened) {
+            Linking.canOpenURL(scheme)
+              .then((canOpen) => {
+                if (canOpen && !opened) {
+                  opened = true;
+                  Linking.openURL(scheme);
+                }
+              })
+              .catch(() => {});
+          }
+        });
+        
+        if (!opened) {
+          Alert.alert(
+            "No UPI App Found",
+            "Please install Paytm, Google Pay, PhonePe or any UPI app to continue.",
+            [{ text: "OK" }]
+          );
+        }
+      });
+  };
+
+  const handleUPICopy = () => {
+    const upiId = 'arunachalatravelstvm-1@okhdfcbank';
     try {
-      // Some Paytm app URI schemes to probe
-      const paytmSchemes = ['paytm://', 'paytmmp://'];
-      let paytmAvailable = false;
-      for (const scheme of paytmSchemes) {
-        // Linking.canOpenURL works for both platforms to check if the app responds to the scheme
-        // on Android we will prefer intent: URI, but this check helps on iOS too.
-        // (Note: on iOS you must add schemes to LSApplicationQueriesSchemes in Info.plist if using bare workflow)
-        // Expo-managed apps may have limitations for canOpenURL on custom schemes on iOS.
-        try {
-          // eslint-disable-next-line no-await-in-loop
-          const ok = await Linking.canOpenURL(scheme);
-          if (ok) {
-            paytmAvailable = true;
-            break;
-          }
-        } catch (e) {
-          // ignore probe errors and try next scheme
-        }
-      }
-  
-      if (paytmAvailable) {
-        if (Platform.OS === 'android') {
-          // Android: use an intent:// URI and force Paytm package so Paytm opens directly (bypasses gallery/QR banner)
-          // mode=02 ensures manual amount entry
-          const paytmPackage = 'net.one97.paytm';
-          const intentUri = `intent://pay?${params}#Intent;package=${paytmPackage};scheme=upi;end`;
-          await Linking.openURL(intentUri);
-          return;
-        } else {
-          // iOS (or when intent isn't supported): try Paytm scheme directly (paytmmp/paytm)
-          // If it fails, fallback to generic UPI intent below.
-          const paytmDirectUri = `paytmmp://pay?${params}`;
-          const canOpen = await Linking.canOpenURL(paytmDirectUri);
-          if (canOpen) {
-            await Linking.openURL(paytmDirectUri);
-            return;
-          }
-        }
-      }
-  
-      // Fallback: open generic UPI intent (will allow user to choose installed UPI app)
-      const genericUpi = `upi://pay?${params}`;
-      await Linking.openURL(genericUpi);
+      Clipboard.setString(upiId);
+      Alert.alert('Copied!', 'UPI ID copied to clipboard');
     } catch (error) {
-      console.error('UPI open error:', error);
-      Alert.alert(
-        'No UPI App Found',
-        'Please install Paytm, Google Pay, or PhonePe to continue.',
-        [{ text: 'OK' }]
-      );
+      console.error('Failed to copy:', error);
+      Alert.alert('Error', 'Failed to copy UPI ID');
     }
+  };
+
+  const handleShowQR = () => {
+    setShowQRModal(true);
   };
   
   
@@ -349,11 +347,18 @@ export default function VerificationPage({
               <Text style={styles.paymentWarningText}>Kindly pay the Registration fees & Wait Our team will Contact You And Refresh The app to see the updated status</Text>
               
               {/* UPI ID Display Card */}
-              <View style={styles.upiDisplayCard}>
-                <Text style={styles.upiDisplayLabel}>Pay to UPI ID:</Text>
-                <Text style={styles.upiDisplayId}>arunachalatravelstvm-1@okhdfcbank</Text>
+              <TouchableOpacity 
+                style={styles.upiDisplayCard}
+                onPress={handleShowQR}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.upiDisplayLabel}>Pay to UPI ID (Tap to view QR):</Text>
+                <View style={styles.upiIdRow}>
+                  <Text style={styles.upiDisplayId}>arunachalatravelstvm-1@okhdfcbank</Text>
+                  <Copy color="#3B82F6" size={18} style={{ marginLeft: 8 }} />
+                </View>
                 <Text style={styles.upiDisplayName}>ARUNACHALA TRAVELS</Text>
-              </View>
+              </TouchableOpacity>
               
               <Animated.View
                 style={{
@@ -438,6 +443,60 @@ export default function VerificationPage({
           </View>
         )}
       </ScrollView>
+
+      {/* QR Code Modal */}
+      <Modal
+        visible={showQRModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowQRModal(false)}
+      >
+        <View style={styles.qrModalOverlay}>
+          <View style={styles.qrModalContainer}>
+            <View style={styles.qrModalHeader}>
+              <Text style={styles.qrModalTitle}>Scan QR Code to Pay</Text>
+              <TouchableOpacity 
+                onPress={() => setShowQRModal(false)}
+                style={styles.qrModalCloseButton}
+              >
+                <X color="#666666" size={24} />
+              </TouchableOpacity>
+            </View>
+            
+            <View style={styles.qrImageContainer}>
+              <Image 
+                source={require('Project-Drop-Cars\Driver-App\assets\images\Qrcodepay.jpeg')}
+                style={styles.qrImage}
+                resizeMode="contain"
+                onError={(error) => {
+                  console.error('QR Code image load error:', error);
+                }}
+              />
+            </View>
+            
+            <View style={styles.qrUpiInfo}>
+              <Text style={styles.qrUpiLabel}>UPI ID:</Text>
+              <TouchableOpacity 
+                style={styles.qrUpiIdContainer}
+                onPress={handleUPICopy}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.qrUpiId}>arunachalatravelstvm-1@okhdfcbank</Text>
+                <Copy color="#3B82F6" size={18} style={{ marginLeft: 8 }} />
+              </TouchableOpacity>
+              <Text style={styles.qrUpiName}>ARUNACHALA TRAVELS</Text>
+            </View>
+            
+            <TouchableOpacity 
+              style={styles.qrCopyButton}
+              onPress={handleUPICopy}
+            >
+              <Copy color="#FFFFFF" size={18} />
+              <Text style={styles.qrCopyButtonText}>Copy UPI ID</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -576,11 +635,16 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginBottom: 8,
   },
+  upiIdRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
   upiDisplayId: {
     fontSize: 16,
     fontFamily: 'Inter-Bold',
     color: '#3B82F6',
-    marginBottom: 4,
     textAlign: 'center',
   },
   upiDisplayName: {
@@ -659,4 +723,93 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     flex: 1,
   },
-}); 
+  qrModalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  qrModalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 24,
+    width: '90%',
+    maxWidth: 400,
+    alignItems: 'center',
+  },
+  qrModalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: 20,
+  },
+  qrModalTitle: {
+    fontSize: 20,
+    fontFamily: 'Inter-Bold',
+    color: '#1F2937',
+  },
+  qrModalCloseButton: {
+    padding: 4,
+  },
+  qrImageContainer: {
+    width: 280,
+    height: 280,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  qrImage: {
+    width: '100%',
+    height: '100%',
+  },
+  qrUpiInfo: {
+    width: '100%',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  qrUpiLabel: {
+    fontSize: 12,
+    fontFamily: 'Inter-Medium',
+    color: '#6B7280',
+    marginBottom: 8,
+  },
+  qrUpiIdContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 4,
+  },
+  qrUpiId: {
+    fontSize: 16,
+    fontFamily: 'Inter-Bold',
+    color: '#3B82F6',
+    textAlign: 'center',
+  },
+  qrUpiName: {
+    fontSize: 12,
+    fontFamily: 'Inter-Regular',
+    color: '#6B7280',
+  },
+  qrCopyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#3B82F6',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    width: '100%',
+  },
+  qrCopyButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontFamily: 'Inter-SemiBold',
+    marginLeft: 8,
+  },
+});

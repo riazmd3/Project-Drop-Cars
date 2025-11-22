@@ -11,14 +11,16 @@ import {
   RefreshControl,
   Platform,
   Modal,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useWallet } from '@/contexts/WalletContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'expo-router';
-import { IndianRupee, Plus, ArrowUpRight, ArrowDownLeft, RefreshCw, AlertCircle } from 'lucide-react-native';
+import { IndianRupee, Plus, ArrowUpRight, ArrowDownLeft, RefreshCw, AlertCircle, Copy, X } from 'lucide-react-native';
 import { Linking } from 'react-native';
+import Clipboard from '@react-native-clipboard/clipboard';
 // import { 
 //   processWalletTopup,
 //   handleRazorpayPaymentSuccess,
@@ -61,6 +63,7 @@ export default function WalletScreen() {
   const [upiModalVisible, setUpiModalVisible] = useState(false);
   const [upiAmount, setUpiAmount] = useState('');
   const [upiError, setUpiError] = useState('');
+  const [showQRModal, setShowQRModal] = useState(false);
   const quickUpiAmounts = [500, 1000, 2000, 3000];
 
   const handleUPIPayment = (amountValue: string | number) => {
@@ -72,15 +75,10 @@ export default function WalletScreen() {
     setUpiError('');
     setUpiModalVisible(false);
     
-    // Updated merchant UPI ID
-    const upiId = 'arunachalatravelstvm-1@okhdfcbank';
-    const payeeName = 'ARUNACHALA TRAVELS';
-    const transactionNote = 'Wallet Topup';
+    // Just open UPI app without any pre-filled data - user will enter manually
+    const upiUrl = 'upi://';
     
-    // Properly format UPI URL with URL encoding for special characters
-    const upiUrl = `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(payeeName)}&am=${amt}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
-    
-    console.log("UPI URL:", upiUrl);
+    console.log("Opening UPI app...");
     
     Linking.openURL(upiUrl)
       .then(() => {
@@ -88,8 +86,42 @@ export default function WalletScreen() {
       })
       .catch((error) => {
         console.error("Failed to open UPI app:", error);
-        Alert.alert('Error', 'No UPI app found. Please install a UPI payment app.');
+        // Try alternative UPI app schemes
+        const alternatives = ['paytm://', 'phonepe://', 'gpay://'];
+        let opened = false;
+        
+        alternatives.forEach((scheme) => {
+          if (!opened) {
+            Linking.canOpenURL(scheme)
+              .then((canOpen) => {
+                if (canOpen && !opened) {
+                  opened = true;
+                  Linking.openURL(scheme);
+                }
+              })
+              .catch(() => {});
+          }
+        });
+        
+        if (!opened) {
+          Alert.alert('Error', 'No UPI app found. Please install a UPI payment app.');
+        }
       });
+  };
+
+  const handleUPICopy = () => {
+    const upiId = 'arunachalatravelstvm-1@okhdfcbank';
+    try {
+      Clipboard.setString(upiId);
+      Alert.alert('Copied!', 'UPI ID copied to clipboard');
+    } catch (error) {
+      console.error('Failed to copy:', error);
+      Alert.alert('Error', 'Failed to copy UPI ID');
+    }
+  };
+
+  const handleShowQR = () => {
+    setShowQRModal(true);
   };
 
   // Refresh wallet data
@@ -502,11 +534,18 @@ export default function WalletScreen() {
           <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }}>
             <View style={{ backgroundColor: colors.background, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 24 }}>
               <Text style={[dynamicStyles.sectionTitle, { marginBottom: 10, textAlign: 'center' }]}>Add Money via UPI</Text>
-              <View style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: colors.border }}>
-                <Text style={{ textAlign: 'center', color: colors.textSecondary, fontSize: 12, marginBottom: 8, fontFamily: 'Inter-Medium' }}>Pay to UPI ID:</Text>
-                <Text style={{ textAlign: 'center', color: colors.primary, fontSize: 16, fontFamily: 'Inter-Bold', fontWeight: 'bold' }}>arunachalatravelstvm-1@okhdfcbank</Text>
+              <TouchableOpacity 
+                style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: colors.border }}
+                onPress={handleShowQR}
+                activeOpacity={0.7}
+              >
+                <Text style={{ textAlign: 'center', color: colors.textSecondary, fontSize: 12, marginBottom: 8, fontFamily: 'Inter-Medium' }}>Pay to UPI ID (Tap to view QR):</Text>
+                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
+                  <Text style={{ textAlign: 'center', color: colors.primary, fontSize: 16, fontFamily: 'Inter-Bold', fontWeight: 'bold' }}>arunachalatravelstvm-1@okhdfcbank</Text>
+                  <Copy color={colors.primary} size={18} style={{ marginLeft: 8 }} />
+                </View>
                 <Text style={{ textAlign: 'center', color: colors.textSecondary, fontSize: 12, marginTop: 4, fontFamily: 'Inter-Regular' }}>ARUNACHALA TRAVELS</Text>
-              </View>
+              </TouchableOpacity>
               <Text style={{ textAlign: 'center', color: colors.textSecondary, marginBottom: 22, fontSize: 13 }}>Choose amount or enter custom, then select UPI app to pay</Text>
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 }}>
                 {quickUpiAmounts.map((amt) => (
@@ -534,6 +573,60 @@ export default function WalletScreen() {
               {!!upiError && <Text style={{ color: '#EF4444', textAlign: 'center', marginBottom: 8 }}>{upiError}</Text>}
               <TouchableOpacity style={{ alignSelf: 'center', marginTop: 5 }} onPress={() => setUpiModalVisible(false)}>
                 <Text style={{ color: colors.primary, fontSize: 15, fontFamily: 'Inter-SemiBold' }}>Cancel</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* QR Code Modal */}
+        <Modal
+          visible={showQRModal}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowQRModal(false)}
+        >
+          <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.7)', justifyContent: 'center', alignItems: 'center' }}>
+            <View style={{ backgroundColor: colors.background, borderRadius: 20, padding: 24, width: '90%', maxWidth: 400, alignItems: 'center' }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', width: '100%', marginBottom: 20 }}>
+                <Text style={{ fontSize: 20, fontFamily: 'Inter-Bold', color: colors.text }}>Scan QR Code to Pay</Text>
+                <TouchableOpacity 
+                  onPress={() => setShowQRModal(false)}
+                  style={{ padding: 4 }}
+                >
+                  <X color={colors.textSecondary} size={24} />
+                </TouchableOpacity>
+              </View>
+              
+              <View style={{ width: 280, height: 280, backgroundColor: '#FFFFFF', borderRadius: 12, padding: 16, marginBottom: 20, borderWidth: 1, borderColor: colors.border, justifyContent: 'center', alignItems: 'center' }}>
+                <Image 
+                  source={require('../../assets/images/Qrcodepay.jpeg')}
+                  style={{ width: '100%', height: '100%' }}
+                  resizeMode="contain"
+                  onError={(error) => {
+                    console.error('QR Code image load error:', error);
+                  }}
+                />
+              </View>
+              
+              <View style={{ width: '100%', alignItems: 'center', marginBottom: 20 }}>
+                <Text style={{ fontSize: 12, fontFamily: 'Inter-Medium', color: colors.textSecondary, marginBottom: 8 }}>UPI ID:</Text>
+                <TouchableOpacity 
+                  style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}
+                  onPress={handleUPICopy}
+                  activeOpacity={0.7}
+                >
+                  <Text style={{ fontSize: 16, fontFamily: 'Inter-Bold', color: colors.primary, textAlign: 'center' }}>arunachalatravelstvm-1@okhdfcbank</Text>
+                  <Copy color={colors.primary} size={18} style={{ marginLeft: 8 }} />
+                </TouchableOpacity>
+                <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: colors.textSecondary }}>ARUNACHALA TRAVELS</Text>
+              </View>
+              
+              <TouchableOpacity 
+                style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', backgroundColor: colors.primary, borderRadius: 12, paddingVertical: 14, paddingHorizontal: 24, width: '100%' }}
+                onPress={handleUPICopy}
+              >
+                <Copy color="#FFFFFF" size={18} />
+                <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: 'Inter-SemiBold', marginLeft: 8 }}>Copy UPI ID</Text>
               </TouchableOpacity>
             </View>
           </View>
