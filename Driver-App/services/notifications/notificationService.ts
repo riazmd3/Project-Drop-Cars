@@ -10,7 +10,7 @@ async function setupAndroidChannel() {
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#FF231F7C',
-      sound: 'Notification tone.mp3',
+      sound: 'notification_tone.mp3',
       enableVibrate: true,
     });
     console.log('✅ Android channel configured with sound');
@@ -109,7 +109,7 @@ export async function testForegroundNotification(): Promise<void> {
         title: 'Test Notification',
         body: 'This is a test notification',
         data: { test: true },
-        sound: 'Notification tone.mp3',
+        sound: 'notification_tone.mp3',
         },
         trigger: null, // Send immediately
       });

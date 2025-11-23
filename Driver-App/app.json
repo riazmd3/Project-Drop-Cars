@@ -19,7 +19,7 @@
         {
           "icon": "./assets/notification-icon.png",
           "color": "#ffffff",
-          "sounds": ["./assets/Notification tone.mp3"]
+          "sounds": ["./assets/notification_tone.mp3"]
         }
       ]
     ],

@@ -74,7 +74,7 @@ export class DemoNotificationService {
           title: notification.title,
           body: notification.body,
           data: notification.data,
-          sound: 'Notification tone.mp3',
+          sound: 'notification_tone.mp3',
         },
         trigger: null, // Send immediately
       });
@@ -92,7 +92,7 @@ export class DemoNotificationService {
           title,
           body,
           data: { ...data, demo: true },
-          sound: 'Notification tone.mp3',
+          sound: 'notification_tone.mp3',
         },
         trigger: null,
       });
