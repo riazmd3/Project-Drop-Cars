@@ -18,8 +18,7 @@ import { useWallet } from '@/contexts/WalletContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'expo-router';
-import { IndianRupee, Plus, ArrowUpRight, ArrowDownLeft, RefreshCw, AlertCircle, Copy, X } from 'lucide-react-native';
-import { Linking } from 'react-native';
+import { Plus, ArrowUpRight, ArrowDownLeft, RefreshCw, AlertCircle, Copy, X } from 'lucide-react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 // import { 
 //   processWalletTopup,
@@ -59,58 +58,11 @@ export default function WalletScreen() {
   const { user } = useAuth();
   const [refreshing, setRefreshing] = useState(false);
 
-  // Manual UPI modal state
-  const [upiModalVisible, setUpiModalVisible] = useState(false);
-  const [upiAmount, setUpiAmount] = useState('');
-  const [upiError, setUpiError] = useState('');
+  // QR modal state
   const [showQRModal, setShowQRModal] = useState(false);
-  const quickUpiAmounts = [500, 1000, 2000, 3000];
-
-  const handleUPIPayment = (amountValue: string | number) => {
-    const amt = String(amountValue).trim();
-    if (!amt || isNaN(Number(amt)) || Number(amt) <= 0) {
-      setUpiError('Enter a valid amount');
-      return;
-    }
-    setUpiError('');
-    setUpiModalVisible(false);
-    
-    // Just open UPI app without any pre-filled data - user will enter manually
-    const upiUrl = 'upi://';
-    
-    console.log("Opening UPI app...");
-    
-    Linking.openURL(upiUrl)
-      .then(() => {
-        console.log("UPI app opened successfully");
-      })
-      .catch((error) => {
-        console.error("Failed to open UPI app:", error);
-        // Try alternative UPI app schemes
-        const alternatives = ['paytm://', 'phonepe://', 'gpay://'];
-        let opened = false;
-        
-        alternatives.forEach((scheme) => {
-          if (!opened) {
-            Linking.canOpenURL(scheme)
-              .then((canOpen) => {
-                if (canOpen && !opened) {
-                  opened = true;
-                  Linking.openURL(scheme);
-                }
-              })
-              .catch(() => {});
-          }
-        });
-        
-        if (!opened) {
-          Alert.alert('Error', 'No UPI app found. Please install a UPI payment app.');
-        }
-      });
-  };
 
   const handleUPICopy = () => {
-    const upiId = 'arunachalatravelstvm-1@okhdfcbank';
+    const upiId = '7200217986-1@okbizaxis';
     try {
       Clipboard.setString(upiId);
       Alert.alert('Copied!', 'UPI ID copied to clipboard');
@@ -517,66 +469,14 @@ export default function WalletScreen() {
           </View>
         )}
 
-        {/* Add Money with UPI Button and Modal */}
+        {/* Add Money Button - Opens QR Code Modal Directly */}
         <TouchableOpacity 
           style={[dynamicStyles.addMoneyButton, { marginTop: 24, alignSelf: 'center', paddingHorizontal: 32 }]}
-          onPress={() => { setUpiError(''); setUpiAmount(''); setUpiModalVisible(true); }}
+          onPress={handleShowQR}
         >
           <Text style={dynamicStyles.addMoneyButtonText}>Tap to Add Money</Text>
           <Plus color="#FFFFFF" size={20} style={{ marginLeft: 10 }} />
         </TouchableOpacity>
-        <Modal
-          visible={upiModalVisible}
-          transparent
-          animationType="slide"
-          onRequestClose={() => setUpiModalVisible(false)}
-        >
-          <View style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)', justifyContent: 'flex-end' }}>
-            <View style={{ backgroundColor: colors.background, borderTopLeftRadius: 22, borderTopRightRadius: 22, padding: 24 }}>
-              <Text style={[dynamicStyles.sectionTitle, { marginBottom: 10, textAlign: 'center' }]}>Add Money via UPI</Text>
-              <TouchableOpacity 
-                style={{ backgroundColor: colors.surface, borderRadius: 12, padding: 16, marginBottom: 16, borderWidth: 1, borderColor: colors.border }}
-                onPress={handleShowQR}
-                activeOpacity={0.7}
-              >
-                <Text style={{ textAlign: 'center', color: colors.textSecondary, fontSize: 12, marginBottom: 8, fontFamily: 'Inter-Medium' }}>Pay to UPI ID (Tap to view QR):</Text>
-                <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'center', marginBottom: 4 }}>
-                  <Text style={{ textAlign: 'center', color: colors.primary, fontSize: 16, fontFamily: 'Inter-Bold', fontWeight: 'bold' }}>arunachalatravelstvm-1@okhdfcbank</Text>
-                  <Copy color={colors.primary} size={18} style={{ marginLeft: 8 }} />
-                </View>
-                <Text style={{ textAlign: 'center', color: colors.textSecondary, fontSize: 12, marginTop: 4, fontFamily: 'Inter-Regular' }}>ARUNACHALA TRAVELS</Text>
-              </TouchableOpacity>
-              <Text style={{ textAlign: 'center', color: colors.textSecondary, marginBottom: 22, fontSize: 13 }}>Choose amount or enter custom, then select UPI app to pay</Text>
-              <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginBottom: 20 }}>
-                {quickUpiAmounts.map((amt) => (
-                  <TouchableOpacity key={amt} style={{ backgroundColor: isDarkMode ? '#1E3A8A' : '#EFF6FF', borderRadius: 12, paddingVertical: 10, paddingHorizontal: 16, marginHorizontal: 2 }} onPress={() => handleUPIPayment(amt)}>
-                    <Text style={{ color: colors.primary, fontWeight: 'bold', fontSize: 16 }}>₹{amt}</Text>
-                  </TouchableOpacity>
-                ))}
-              </View>
-              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: 12, paddingHorizontal: 16, borderWidth: 1, borderColor: colors.border, marginBottom: 22 }}>
-                <IndianRupee color={colors.textSecondary} size={20} />
-                <TextInput
-                  style={{ flex: 1, marginLeft: 10, fontSize: 15, color: colors.text, paddingVertical: 8, fontFamily: 'Inter-Regular' }}
-                  value={upiAmount}
-                  onChangeText={setUpiAmount}
-                  placeholder="Custom amount"
-                  placeholderTextColor={colors.textSecondary}
-                  keyboardType="numeric"
-                  maxLength={7}
-                  autoFocus
-                />
-                <TouchableOpacity onPress={() => handleUPIPayment(upiAmount)} style={{ marginLeft: 10, backgroundColor: colors.primary, borderRadius: 8, paddingVertical: 6, paddingHorizontal: 16 }}>
-                  <Text style={{ color: '#FFF', fontWeight: 'bold', fontSize: 15 }}>Pay</Text>
-                </TouchableOpacity>
-              </View>
-              {!!upiError && <Text style={{ color: '#EF4444', textAlign: 'center', marginBottom: 8 }}>{upiError}</Text>}
-              <TouchableOpacity style={{ alignSelf: 'center', marginTop: 5 }} onPress={() => setUpiModalVisible(false)}>
-                <Text style={{ color: colors.primary, fontSize: 15, fontFamily: 'Inter-SemiBold' }}>Cancel</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-        </Modal>
 
         {/* QR Code Modal */}
         <Modal
@@ -615,10 +515,10 @@ export default function WalletScreen() {
                   onPress={handleUPICopy}
                   activeOpacity={0.7}
                 >
-                  <Text style={{ fontSize: 16, fontFamily: 'Inter-Bold', color: colors.primary, textAlign: 'center' }}>arunachalatravelstvm-1@okhdfcbank</Text>
+                  <Text style={{ fontSize: 16, fontFamily: 'Inter-Bold', color: colors.primary, textAlign: 'center' }}>7200217986-1@okbizaxis</Text>
                   <Copy color={colors.primary} size={18} style={{ marginLeft: 8 }} />
                 </TouchableOpacity>
-                <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: colors.textSecondary }}>ARUNACHALA TRAVELS</Text>
+                <Text style={{ fontSize: 12, fontFamily: 'Inter-Regular', color: colors.textSecondary }}>Drop Cars</Text>
               </View>
               
               <TouchableOpacity 
@@ -631,8 +531,6 @@ export default function WalletScreen() {
             </View>
           </View>
         </Modal>
-
-        {/* Remove add-money/payment UI & logic. Only show balance and transaction history. */}
 
         <View style={dynamicStyles.transactionsSection}>
           <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>

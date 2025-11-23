@@ -8,8 +8,6 @@ import {
   ScrollView,
   Alert,
   Animated,
-  Linking,
-  Platform,
   Modal,
   Image,
 } from 'react-native';
@@ -20,7 +18,6 @@ import {
   CheckCircle, 
   ArrowRight,
   RefreshCw,
-  IndianRupee,
   X,
   Copy
 } from 'lucide-react-native';
@@ -50,7 +47,7 @@ export default function VerificationPage({
   const [accountStatus, setAccountStatus] = useState(propAccountStatus || 'inactive');
   const [isLoading, setIsLoading] = useState(propIsLoading);
   const [rotateAnim] = useState(new Animated.Value(0));
-  const [blinkAnim] = useState(new Animated.Value(0));
+  const [upiCardBlinkAnim] = useState(new Animated.Value(0));
   const [showWelcome, setShowWelcome] = useState(false);
   const [showQRModal, setShowQRModal] = useState(false);
 
@@ -76,19 +73,19 @@ export default function VerificationPage({
     }
   }, [isLoading]);
 
-  // Blink animation for Paytm button (green to light green fade)
+  // Blink animation for UPI ID card (green to light green fade)
   useEffect(() => {
     const blink = Animated.loop(
       Animated.sequence([
-        Animated.timing(blinkAnim, {
+        Animated.timing(upiCardBlinkAnim, {
           toValue: 1,
-          duration: 1000,
-          useNativeDriver: true,
+          duration: 500,
+          useNativeDriver: false, // backgroundColor animation requires false
         }),
-        Animated.timing(blinkAnim, {
+        Animated.timing(upiCardBlinkAnim, {
           toValue: 0,
-          duration: 1000,
-          useNativeDriver: true,
+          duration: 500,
+          useNativeDriver: false,
         }),
       ])
     );
@@ -203,47 +200,8 @@ export default function VerificationPage({
     }
   };
 
-  const handlePaytmPayment = () => {
-    // Just open UPI app without any pre-filled data - user will enter manually
-    const upiUrl = 'upi://';
-  
-    console.log("Opening UPI app...");
-  
-    Linking.openURL(upiUrl)
-      .then(() => {
-        console.log("UPI app opened successfully");
-      })
-      .catch((error) => {
-        console.error("Failed to open UPI app:", error);
-        // Try alternative UPI app schemes
-        const alternatives = ['paytm://', 'phonepe://', 'gpay://'];
-        let opened = false;
-        
-        alternatives.forEach((scheme) => {
-          if (!opened) {
-            Linking.canOpenURL(scheme)
-              .then((canOpen) => {
-                if (canOpen && !opened) {
-                  opened = true;
-                  Linking.openURL(scheme);
-                }
-              })
-              .catch(() => {});
-          }
-        });
-        
-        if (!opened) {
-          Alert.alert(
-            "No UPI App Found",
-            "Please install Paytm, Google Pay, PhonePe or any UPI app to continue.",
-            [{ text: "OK" }]
-          );
-        }
-      });
-  };
-
   const handleUPICopy = () => {
-    const upiId = 'arunachalatravelstvm-1@okhdfcbank';
+    const upiId = '7200217986-1@okbizaxis';
     try {
       Clipboard.setString(upiId);
       Alert.alert('Copied!', 'UPI ID copied to clipboard');
@@ -346,37 +304,33 @@ export default function VerificationPage({
             <View style={styles.paymentSection}>
               <Text style={styles.paymentWarningText}>Kindly pay the Registration fees & Wait Our team will Contact You And Refresh The app to see the updated status</Text>
               
-              {/* UPI ID Display Card */}
-              <TouchableOpacity 
-                style={styles.upiDisplayCard}
-                onPress={handleShowQR}
-                activeOpacity={0.7}
-              >
-                <Text style={styles.upiDisplayLabel}>Pay to UPI ID (Tap to view QR):</Text>
-                <View style={styles.upiIdRow}>
-                  <Text style={styles.upiDisplayId}>arunachalatravelstvm-1@okhdfcbank</Text>
-                  <Copy color="#3B82F6" size={18} style={{ marginLeft: 8 }} />
-                </View>
-                <Text style={styles.upiDisplayName}>ARUNACHALA TRAVELS</Text>
-              </TouchableOpacity>
-              
+              {/* UPI ID Display Card - Opens QR Code Modal */}
               <Animated.View
-                style={{
-                  backgroundColor: blinkAnim.interpolate({
-                    inputRange: [0, 1],
-                    outputRange: ['#10B981', '#86EFAC'], // Green to light green
-                  }),
-                  borderRadius: 12,
-                  marginBottom: 12,
-                }}
+                style={[
+                  styles.upiDisplayCard,
+                  {
+                    backgroundColor: upiCardBlinkAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ['#D1FAE5', '#ECFDF5'], // Light green to very light green
+                    }),
+                    borderColor: upiCardBlinkAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: ['#10B981', '#86EFAC'], // Green to light green
+                    }),
+                  }
+                ]}
               >
                 <TouchableOpacity 
-                  style={styles.paytmButton}
-                  onPress={handlePaytmPayment}
-                  disabled={isLoading}
+                  onPress={handleShowQR}
+                  activeOpacity={0.7}
+                  style={{ width: '100%' }}
                 >
-                  <IndianRupee color="#FFFFFF" size={20} />
-                  <Text style={styles.paytmButtonText}>Pay ₹1 Using Upi</Text>
+                  <Text style={styles.upiDisplayLabel}>Pay to UPI ID (Tap to view QR):</Text>
+                  <View style={styles.upiIdRow}>
+                    <Text style={styles.upiDisplayId}>7200217986-1@okbizaxis</Text>
+                    <Copy color="#3B82F6" size={18} style={{ marginLeft: 8 }} />
+                  </View>
+                  <Text style={styles.upiDisplayName}>Drop Cars</Text>
                 </TouchableOpacity>
               </Animated.View>
             </View>
@@ -454,7 +408,7 @@ export default function VerificationPage({
         <View style={styles.qrModalOverlay}>
           <View style={styles.qrModalContainer}>
             <View style={styles.qrModalHeader}>
-              <Text style={styles.qrModalTitle}>Scan QR Code to Pay</Text>
+              <Text style={styles.qrModalTitle}>Scan QR Code to Pay Rs.1000</Text>
               <TouchableOpacity 
                 onPress={() => setShowQRModal(false)}
                 style={styles.qrModalCloseButton}
@@ -465,7 +419,7 @@ export default function VerificationPage({
             
             <View style={styles.qrImageContainer}>
               <Image 
-                source={require('Project-Drop-Cars\Driver-App\assets\images\Qrcodepay.jpeg')}
+                source={require('../assets/images/Qrcodepay.jpeg')}
                 style={styles.qrImage}
                 resizeMode="contain"
                 onError={(error) => {
@@ -481,10 +435,10 @@ export default function VerificationPage({
                 onPress={handleUPICopy}
                 activeOpacity={0.7}
               >
-                <Text style={styles.qrUpiId}>arunachalatravelstvm-1@okhdfcbank</Text>
+                <Text style={styles.qrUpiId}>7200217986-1@okbizaxis</Text>
                 <Copy color="#3B82F6" size={18} style={{ marginLeft: 8 }} />
               </TouchableOpacity>
-              <Text style={styles.qrUpiName}>ARUNACHALA TRAVELS</Text>
+              <Text style={styles.qrUpiName}>Drop Cars</Text>
             </View>
             
             <TouchableOpacity 
@@ -621,12 +575,10 @@ const styles = StyleSheet.create({
     marginBottom: 12,
   },
   upiDisplayCard: {
-    backgroundColor: '#F9FAFB',
     borderRadius: 12,
     padding: 16,
     marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#E5E7EB',
+    borderWidth: 2,
     alignItems: 'center',
   },
   upiDisplayLabel: {
