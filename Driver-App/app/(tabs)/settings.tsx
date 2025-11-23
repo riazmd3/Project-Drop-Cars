@@ -32,7 +32,7 @@ export default function SettingsScreen() {
 
   // Support contact functions
   const handleCallSupport = () => {
-    const phoneNumber = '+919876543210';
+    const phoneNumber = '+917200217986';
     Linking.openURL(`tel:${phoneNumber}`);
   };
 
@@ -43,109 +43,161 @@ export default function SettingsScreen() {
   };
 
   const handleOpenWebsite = () => {
-    const website = 'https://www.arunachalatravels.com';
+    const website = 'https://www.dropcars.in';
     Linking.openURL(website);
   };
 
-  const termsAndConditions = `
-Terms and Conditions – Drop Cars
+  const termsAndConditions = `DROP CARS – DRIVER PARTNER APP
+TERMS & CONDITIONS
 
-Effective Date: from 2025 November
+By joining and using the Drop Cars Driver Partner App, the driver agrees to the following terms.
 
-Welcome to Drop Cars. These Terms and Conditions ("Terms") govern your use of the Drop Cars mobile application and related services (collectively, the "App"). By registering or using the App, you agree to comply with and be bound by these Terms. Please read them carefully.
+1. Registration & Eligibility
 
-1. Definitions
+Drivers must pay a ₹1000 yearly attachment fee to join the Drop Cars platform.
 
-"App" refers to the Drop Cars mobile application and related services.
+Drivers must upload valid documents:
 
-"Vehicle Owner" means the registered owner of a vehicle who offers ride services using their own vehicle and driver.
+Driving Licence
 
-"Driver" refers to the person assigned by the Vehicle Owner to operate the vehicle.
+RC Front & Back
 
-"Customer" means the individual booking rides through the App.
+Insurance
 
-"We," "Us," or "Company" refers to Drop Cars and its administrators.
+Fitness Certificate
 
-2. Eligibility
+Vehicle Permit
 
-Vehicle Owners must:
+Clear Car Photo
 
-• Own validly registered vehicles with all required permits and insurance.
-• Employ or assign licensed drivers who meet legal driving requirements.
-• Ensure vehicles are in safe, roadworthy condition.
+Any fake, edited, or invalid documents will result in account suspension.
 
-3. Registration and Account
+2. Wallet Rules
 
-• Vehicle Owners must create an account on the App using accurate and verifiable details.
-• The Company reserves the right to verify information and suspend or terminate accounts found to be fraudulent or misleading.
+Drivers must maintain a wallet balance to accept trips.
 
-4. Services Provided
+The wallet is used to deduct:
 
-• Drop Cars acts as a technology platform connecting customers with vehicle owners for ride bookings.
-• The Company does not own vehicles or employ drivers.
-• All rides and payments are facilitated through the App, but the service agreement for transportation is between the customer and the vehicle owner.
+10% commission (from KM fare only)
 
-5. Payments and Settlements
+Extra charges applied by vendor
 
-• All ride payments are processed through the App's payment gateway.
-• After service completion, payment will be automatically settled to the vehicle owner's registered account, after deducting applicable service charges or commissions.
-• The Company is not responsible for any disputes between vehicle owners and drivers regarding internal payments or settlements.
-• Taxes, tolls, and additional charges (if applicable) must comply with government laws and policies.
+Applicable penalties
 
-6. Vehicle Owner Responsibilities
+Drivers must add money via UPI before accepting any trip.
 
-Vehicle Owners must:
+3. Debit Logic (Very Important)
 
-• Ensure their drivers follow traffic laws and maintain courteous behavior.
-• Keep the vehicle clean, insured, and regularly serviced.
-• Immediately report accidents, breakdowns, or incidents involving customers.
-• Not engage in unlawful or unsafe transportation activities through the App.
+3.1 Commission
+10% commission is charged only on the KM fare.
+Example: If KM fare = ₹13 → Commission = ₹1.30/km.
 
-7. Driver Conduct
+3.2 Extras – Full Debit
+Any value entered by the vendor in the “Extra” fields is fully deducted from the driver wallet:
 
-Drivers must:
+Extra Cost Per KM
 
-• Possess a valid driving license and required documents.
-• Refrain from alcohol, drugs, or any illegal activity while operating the vehicle.
-• Follow all safety and traffic regulations.
-• Treat passengers respectfully and maintain professionalism at all times.
+Extra Driver Allowance
 
-8. Commission and Fees
+Extra Hill Charge
 
-• The Company may charge a commission or service fee on each completed ride.
-• Fees may vary based on service type or promotional offers and are subject to change with prior notice.
+Extra Permit Charge
 
-9. Liability
+3.3 No-Debit Charges
+These do not reduce driver wallet balance:
 
-• The Company is not liable for any accidents, damages, or losses arising from rides booked through the App.
-• The Vehicle Owner and Driver are solely responsible for compliance with local laws and passenger safety.
-• The Company provides technology support only and is not a transport service provider.
+Base Driver Allowance
 
-10. Data and Privacy
+Base Hill Charge
 
-• User data (vehicle details, contact info, payment details) will be stored and used as per the Drop Cars Privacy Policy.
-• The Company ensures reasonable security measures to protect user information.
+Base Permit Charge
 
-11. Suspension or Termination
+4. Trip Acceptance
 
-The Company reserves the right to:
+Driver can accept a trip only if required wallet balance is available.
 
-• Suspend or terminate any account found violating these Terms or engaging in fraudulent activity.
-• Withhold payments for review in case of reported disputes or fraudulent transactions.
+Once accepted, the required amount is held in the wallet until the trip is completed.
 
-12. Amendments
+After acceptance, the driver must assign driver name, driver contact, and vehicle details within the time shown in the app.
 
-• Drop Cars may modify these Terms from time to time. Any updates will be notified through the App or website. Continued use after such updates constitutes acceptance of the revised Terms.
+5. Assignment Rules
 
-13. Governing Law
+If the driver does not assign vehicle and driver details within the given time, the held wallet amount will be deducted as a penalty.
 
-• These Terms are governed by the laws of India. Any disputes shall be subject to the exclusive jurisdiction of the courts in [Your City/State].
+This penalty cannot be reversed unless approved by admin.
 
-14. Contact Us
+6. Trip Completion
+
+If the driver accepts but does not complete the trip (no-show, cancellation, withdrawal), the held wallet amount is deducted as penalty.
+
+Repeated failure to complete trips will result in temporary or permanent account block.
+
+7. Driver Responsibilities
+
+Follow the exact route and instructions mentioned in the trip details.
+
+Follow any additional notes or requirements set by the vendor.
+
+Maintain professional behaviour with customers and vendors.
+
+Keep the vehicle clean, insured, and roadworthy.
+
+Do not collect additional amount from the customer outside the app fare.
+
+8. Penalties
+
+Penalties as displayed in the app during acceptance:
+
+Unallocation Penalty: up to ₹2000
+
+Assignment Penalty: up to ₹500
+
+On-time / App-related Penalty: up to ₹500
+
+Penalties depend on severity and may be automatically deducted.
+
+9. Prohibited Activities
+
+The following will lead to immediate suspension:
+
+Fake documents
+
+Fake trip acceptance
+
+Misuse of wallet or app features
+
+Sharing customer or vendor numbers publicly
+
+Rude or unsafe behaviour
+
+Attempting to avoid commissions or deductions
+
+Overcharging customers
+
+10. Account Suspension & Removal
+
+Drop Cars reserves the right to suspend or remove the driver account in cases of:
+
+Repeated penalties
+
+Misuse of app
+
+Fraudulent behaviour
+
+Multiple trip failures
+
+Safety issues reported by customer or vendor
+
+11. Support & Resolution
+
+For disputes, wallet issues, or trip problems, drivers may contact Drop Cars Support.
+All penalty and deduction decisions are subject to Drop Cars Admin approval.
+
+-> Contact Us
 
 For any queries or support, contact us at:
 📧 support@dropcars.com
-📞 1234567890
+📞 +917200217986
 `;
 
   const handleLogout = () => {
@@ -547,7 +599,7 @@ For any queries or support, contact us at:
               </View>
               <View style={dynamicStyles.supportContent}>
                 <Text style={[dynamicStyles.supportTitle, { color: colors.text }]}>Call Support</Text>
-                <Text style={[dynamicStyles.supportValue, { color: colors.text }]}>+91 98765 43210</Text>
+                <Text style={[dynamicStyles.supportValue, { color: colors.text }]}>+91 7200217986</Text>
               </View>
               <ChevronRight color={colors.textSecondary} size={20} />
             </TouchableOpacity>
@@ -569,7 +621,7 @@ For any queries or support, contact us at:
               </View>
               <View style={dynamicStyles.supportContent}>
                 <Text style={[dynamicStyles.supportTitle, { color: colors.text }]}>Website</Text>
-                <Text style={[dynamicStyles.supportValue, { color: colors.text }]}>www.arunachalatravels.com</Text>
+                <Text style={[dynamicStyles.supportValue, { color: colors.text }]}>www.dropcars.in</Text>
               </View>
               <ChevronRight color={colors.textSecondary} size={20} />
             </TouchableOpacity>
