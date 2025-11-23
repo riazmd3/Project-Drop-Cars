@@ -18,7 +18,8 @@
         "expo-notifications",
         {
           "icon": "./assets/notification-icon.png",
-          "color": "#ffffff"
+          "color": "#ffffff",
+          "sounds": ["./assets/Notification tone.mp3"]
         }
       ]
     ],
