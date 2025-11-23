@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -48,6 +49,7 @@ export default function LoginScreen() {
   const router = useRouter();
   const { login } = useAuth();
   const { colors } = useTheme();
+  const isNavigating = useRef(false);
 
   const handleLogin = async () => {
     if (!phoneNumber || !password) {
@@ -339,15 +341,40 @@ export default function LoginScreen() {
             </TouchableOpacity>
 
             <TouchableOpacity onPress={async () => {
-              // Clear any existing owner data before switching to driver login
-              try {
-                await SecureStore.deleteItemAsync('authToken');
-                await SecureStore.deleteItemAsync('userData');
-                console.log('✅ Cleared owner data before switching to driver login');
-              } catch (error) {
-                console.log('ℹ️ No owner data to clear');
+              // Prevent multiple simultaneous navigations
+              if (isNavigating.current) {
+                return;
               }
-              router.push('/quick-login');
+              isNavigating.current = true;
+              
+              try {
+                // Dismiss keyboard first and wait for it to fully close
+                Keyboard.dismiss();
+                
+                // Wait for keyboard to fully dismiss (keyboard animation takes ~250ms)
+                // This ensures smooth transition without flickering
+                await new Promise(resolve => setTimeout(resolve, 300));
+                
+                // Clear any existing owner data before switching to driver login
+                try {
+                  await Promise.all([
+                    SecureStore.deleteItemAsync('authToken').catch(() => {}),
+                    SecureStore.deleteItemAsync('userData').catch(() => {}),
+                  ]);
+                  console.log('✅ Cleared owner data before switching to driver login');
+                } catch (error) {
+                  console.log('ℹ️ Error clearing owner data:', error);
+                }
+                
+                // Small delay to ensure state is cleared
+                await new Promise(resolve => setTimeout(resolve, 100));
+                
+                // Navigate after keyboard is fully dismissed
+                router.replace('/quick-login');
+              } catch (error) {
+                console.error('❌ Error during navigation:', error);
+                isNavigating.current = false;
+              }
             }} style={styles.quickDriverButton}>
               <Text style={styles.quickDriverText}>Quick Driver Login</Text>
             </TouchableOpacity>

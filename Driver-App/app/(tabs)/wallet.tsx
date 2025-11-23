@@ -18,27 +18,22 @@ import { useWallet } from '@/contexts/WalletContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useRouter } from 'expo-router';
-import { Plus, ArrowUpRight, ArrowDownLeft, RefreshCw, AlertCircle, Copy, X } from 'lucide-react-native';
+import { Plus, ArrowUpRight, ArrowDownLeft, RefreshCw, AlertCircle, Copy, X, CreditCard } from 'lucide-react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
-// import { 
-//   processWalletTopup,
-//   handleRazorpayPaymentSuccess,
-//   handleRazorpayPaymentFailure,
-//   getRazorpayOptions
-// } from '@/services/payment/paymentService';
-//
-// let RazorpayCheckout: any = null;
-// try {
-//   if (Platform.OS === 'android' || Platform.OS === 'ios') {
-//     RazorpayCheckout = require('react-native-razorpay').default;
-//     console.log('✅ Razorpay SDK loaded successfully for', Platform.OS);
-//   } else {
-//     console.warn('⚠️ Razorpay SDK only supports Android and iOS, current platform:', Platform.OS);
-//   }
-// } catch (error) {
-//   console.warn('⚠️ Razorpay SDK not available:', error);
-//   RazorpayCheckout = null;
-// }
+import { getRazorpayOptions } from '@/services/payment/paymentService';
+
+let RazorpayCheckout: any = null;
+try {
+  if (Platform.OS === 'android' || Platform.OS === 'ios') {
+    RazorpayCheckout = require('react-native-razorpay').default;
+    console.log('✅ Razorpay SDK loaded successfully for', Platform.OS);
+  } else {
+    console.warn('⚠️ Razorpay SDK only supports Android and iOS, current platform:', Platform.OS);
+  }
+} catch (error) {
+  console.warn('⚠️ Razorpay SDK not available:', error);
+  RazorpayCheckout = null;
+}
 
 export default function WalletScreen() {
   const router = useRouter();
@@ -60,6 +55,11 @@ export default function WalletScreen() {
 
   // QR modal state
   const [showQRModal, setShowQRModal] = useState(false);
+  
+  // Razorpay amount input modal state
+  const [showAmountModal, setShowAmountModal] = useState(false);
+  const [razorpayAmount, setRazorpayAmount] = useState('');
+  const [processingRazorpay, setProcessingRazorpay] = useState(false);
 
   const handleUPICopy = () => {
     const upiId = '7200217986-1@okbizaxis';
@@ -74,6 +74,95 @@ export default function WalletScreen() {
 
   const handleShowQR = () => {
     setShowQRModal(true);
+  };
+
+  const handleRazorpayPayment = async () => {
+    const amount = parseFloat(razorpayAmount);
+    
+    if (!razorpayAmount || isNaN(amount) || amount <= 0) {
+      Alert.alert('Invalid Amount', 'Please enter a valid amount');
+      return;
+    }
+
+    if (amount < 1) {
+      Alert.alert('Invalid Amount', 'Minimum amount is ₹1');
+      return;
+    }
+
+    if (!RazorpayCheckout) {
+      Alert.alert('Error', 'Razorpay is not available on this platform');
+      return;
+    }
+
+    try {
+      setProcessingRazorpay(true);
+      setShowAmountModal(false);
+
+      // Get user data for Razorpay
+      const userData = {
+        name: user?.fullName || 'User',
+        email: (user as any)?.email || `${user?.primaryMobile || 'user'}@dropcars.in`,
+        contact: user?.primaryMobile || '9999999999'
+      };
+
+      console.log('💰 Starting Razorpay payment for amount:', amount);
+      
+      // Create Razorpay order
+      const orderResponse = await processTopup(amount, userData);
+      
+      if (!orderResponse.success || !orderResponse.razorpay_order_id) {
+        throw new Error('Failed to create Razorpay order');
+      }
+
+      // Get Razorpay options
+      const options = getRazorpayOptions(
+        orderResponse.razorpay_order_id,
+        amount * 100, // Convert to paise
+        'Wallet Top-up',
+        userData
+      );
+
+      console.log('🔧 Opening Razorpay checkout with options:', options);
+
+      // Open Razorpay checkout
+      RazorpayCheckout.open(options)
+        .then(async (data: any) => {
+          console.log('✅ Razorpay payment success:', data);
+          
+          // Handle payment success
+          await handlePaymentSuccess({
+            razorpay_payment_id: data.razorpay_payment_id,
+            razorpay_order_id: data.razorpay_order_id,
+            razorpay_signature: data.razorpay_signature
+          });
+
+          // Refresh wallet data
+          await refreshBalance();
+          await refreshTransactions();
+
+          Alert.alert('Success', `₹${amount} added to your wallet successfully!`);
+          setRazorpayAmount('');
+        })
+        .catch(async (error: any) => {
+          console.error('❌ Razorpay payment error:', error);
+          
+          // Handle payment failure
+          handlePaymentFailure(error);
+          
+          if (error.error?.code === 'BAD_REQUEST_ERROR') {
+            Alert.alert('Payment Failed', error.error?.description || 'Invalid payment details');
+          } else if (error.error?.code === 'NETWORK_ERROR') {
+            Alert.alert('Network Error', 'Please check your internet connection and try again');
+          } else if (error.error?.code !== 'PAYMENT_CANCELLED') {
+            Alert.alert('Payment Failed', error.error?.description || 'Payment could not be processed');
+          }
+        });
+    } catch (error: any) {
+      console.error('❌ Error processing Razorpay payment:', error);
+      Alert.alert('Error', error.message || 'Failed to process payment. Please try again.');
+    } finally {
+      setProcessingRazorpay(false);
+    }
   };
 
   // Refresh wallet data
@@ -469,14 +558,27 @@ export default function WalletScreen() {
           </View>
         )}
 
-        {/* Add Money Button - Opens QR Code Modal Directly */}
-        <TouchableOpacity 
-          style={[dynamicStyles.addMoneyButton, { marginTop: 24, alignSelf: 'center', paddingHorizontal: 32 }]}
-          onPress={handleShowQR}
-        >
-          <Text style={dynamicStyles.addMoneyButtonText}>Tap to Add Money</Text>
-          <Plus color="#FFFFFF" size={20} style={{ marginLeft: 10 }} />
-        </TouchableOpacity>
+        {/* Add Money Buttons Section */}
+        <View style={{ marginTop: 24, gap: 12 }}>
+          {/* Add Money via UPI Button - Opens QR Code Modal */}
+          <TouchableOpacity 
+            style={[dynamicStyles.addMoneyButton, { paddingHorizontal: 24, backgroundColor: colors.primary }]}
+            onPress={handleShowQR}
+          >
+            <Text style={dynamicStyles.addMoneyButtonText}>Add Money via UPI</Text>
+            <Copy color="#FFFFFF" size={20} style={{ marginLeft: 10 }} />
+          </TouchableOpacity>
+
+          {/* Add Money via Razorpay Button */}
+          <TouchableOpacity 
+            style={[dynamicStyles.addMoneyButton, { paddingHorizontal: 24, backgroundColor: colors.success }]}
+            onPress={() => setShowAmountModal(true)}
+            disabled={processingRazorpay}
+          >
+            <Text style={dynamicStyles.addMoneyButtonText}>Add Money</Text>
+            <CreditCard color="#FFFFFF" size={20} style={{ marginLeft: 10 }} />
+          </TouchableOpacity>
+        </View>
 
         {/* QR Code Modal */}
         <Modal
@@ -527,6 +629,97 @@ export default function WalletScreen() {
               >
                 <Copy color="#FFFFFF" size={18} />
                 <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: 'Inter-SemiBold', marginLeft: 8 }}>Copy UPI ID</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </Modal>
+
+        {/* Razorpay Amount Input Modal */}
+        <Modal
+          visible={showAmountModal}
+          transparent
+          animationType="slide"
+          onRequestClose={() => setShowAmountModal(false)}
+        >
+          <View style={{ flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.7)', justifyContent: 'center', alignItems: 'center' }}>
+            <View style={{ backgroundColor: colors.background, borderRadius: 20, padding: 24, width: '90%', maxWidth: 400 }}>
+              <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+                <Text style={{ fontSize: 20, fontFamily: 'Inter-Bold', color: colors.text }}>Add Money</Text>
+                <TouchableOpacity 
+                  onPress={() => {
+                    setShowAmountModal(false);
+                    setRazorpayAmount('');
+                  }}
+                  style={{ padding: 4 }}
+                  disabled={processingRazorpay}
+                >
+                  <X color={colors.textSecondary} size={24} />
+                </TouchableOpacity>
+              </View>
+              
+              <Text style={{ fontSize: 14, fontFamily: 'Inter-Medium', color: colors.textSecondary, marginBottom: 12 }}>
+                Enter amount to add to your wallet
+              </Text>
+              
+              <View style={{ flexDirection: 'row', alignItems: 'center', backgroundColor: colors.surface, borderRadius: 12, paddingHorizontal: 16, paddingVertical: 12, marginBottom: 20, borderWidth: 1, borderColor: colors.border }}>
+                <Text style={{ fontSize: 18, fontFamily: 'Inter-Bold', color: colors.text }}>₹</Text>
+                <TextInput
+                  style={{ flex: 1, marginLeft: 10, fontSize: 18, fontFamily: 'Inter-SemiBold', color: colors.text }}
+                  value={razorpayAmount}
+                  onChangeText={(text) => {
+                    // Allow only numbers and one decimal point
+                    const cleaned = text.replace(/[^0-9.]/g, '');
+                    // Ensure only one decimal point
+                    const parts = cleaned.split('.');
+                    if (parts.length > 2) return;
+                    setRazorpayAmount(cleaned);
+                  }}
+                  placeholder="Enter amount"
+                  placeholderTextColor={colors.textSecondary}
+                  keyboardType="decimal-pad"
+                  maxLength={10}
+                  editable={!processingRazorpay}
+                />
+              </View>
+
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                {[100, 500, 1000, 2000].map((amt) => (
+                  <TouchableOpacity
+                    key={amt}
+                    style={{ flex: 1, backgroundColor: colors.surface, borderRadius: 8, paddingVertical: 10, borderWidth: 1, borderColor: colors.border }}
+                    onPress={() => setRazorpayAmount(amt.toString())}
+                    disabled={processingRazorpay}
+                  >
+                    <Text style={{ textAlign: 'center', fontSize: 14, fontFamily: 'Inter-SemiBold', color: colors.text }}>₹{amt}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <TouchableOpacity 
+                style={{ 
+                  flexDirection: 'row', 
+                  alignItems: 'center', 
+                  justifyContent: 'center', 
+                  backgroundColor: colors.success, 
+                  borderRadius: 12, 
+                  paddingVertical: 14, 
+                  marginTop: 20,
+                  opacity: processingRazorpay ? 0.7 : 1
+                }}
+                onPress={handleRazorpayPayment}
+                disabled={processingRazorpay}
+              >
+                {processingRazorpay ? (
+                  <>
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                    <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: 'Inter-SemiBold', marginLeft: 8 }}>Processing...</Text>
+                  </>
+                ) : (
+                  <>
+                    <CreditCard color="#FFFFFF" size={18} />
+                    <Text style={{ color: '#FFFFFF', fontSize: 16, fontFamily: 'Inter-SemiBold', marginLeft: 8 }}>Proceed to Pay</Text>
+                  </>
+                )}
               </TouchableOpacity>
             </View>
           </View>

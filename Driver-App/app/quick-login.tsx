@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  Keyboard,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
@@ -25,6 +26,7 @@ export default function QuickLoginScreen() {
   const router = useRouter();
   const { login } = useAuth();
   const { colors } = useTheme();
+  const isNavigating = useRef(false);
 
   const isValidPhone = (value: string) => {
     const digits = (value || '').replace(/\D/g, '');
@@ -149,17 +151,43 @@ export default function QuickLoginScreen() {
       >
         <View style={styles.content}>
           <TouchableOpacity onPress={async () => {
-            // Clear any existing driver data before switching to owner login
-            try {
-              await SecureStore.deleteItemAsync('driverAuthToken');
-              await SecureStore.deleteItemAsync('driverAuthInfo');
-              await SecureStore.deleteItemAsync('driverLastLogin');
-              console.log('✅ Cleared driver data before switching to owner login');
-            } catch (error) {
-              console.log('ℹ️ No driver data to clear');
+            // Prevent multiple simultaneous navigations
+            if (isNavigating.current) {
+              return;
             }
-            // Use replace to avoid GO_BACK errors when there's no history
-            router.replace('/login');
+            isNavigating.current = true;
+            
+            try {
+              // Dismiss keyboard first and wait for it to fully close
+              Keyboard.dismiss();
+              
+              // Wait for keyboard to fully dismiss (keyboard animation takes ~250ms)
+              // This ensures smooth transition without flickering
+              await new Promise(resolve => setTimeout(resolve, 300));
+              
+              // Clear any existing driver data before switching to owner login
+              // Wait for all deletions to complete before navigating
+              try {
+                await Promise.all([
+                  SecureStore.deleteItemAsync('driverAuthToken').catch(() => {}),
+                  SecureStore.deleteItemAsync('driverAuthInfo').catch(() => {}),
+                  SecureStore.deleteItemAsync('driverLastLogin').catch(() => {}),
+                ]);
+                console.log('✅ Cleared driver data before switching to owner login');
+              } catch (error) {
+                console.log('ℹ️ Error clearing driver data:', error);
+              }
+              
+              // Small delay to ensure state is cleared before navigation
+              // This prevents the index.tsx auth check from seeing stale driver data
+              await new Promise(resolve => setTimeout(resolve, 100));
+              
+              // Use replace to avoid GO_BACK errors when there's no history
+              router.replace('/login');
+            } catch (error) {
+              console.error('❌ Error during navigation:', error);
+              isNavigating.current = false;
+            }
           }} style={styles.backButton}>
             <ArrowLeft color="#FFFFFF" size={24} />
           </TouchableOpacity>

@@ -866,7 +866,7 @@ export default function FutureRidesScreen() {
               ) : (
                 <View style={styles.modalEmpty}>
                   <Text style={[styles.modalEmptyText, { color: colors.textSecondary }]}>
-                    No available drivers found
+                    No available drivers found wait Until The Verfication process Complete for the driver
                   </Text>
                 </View>
               )}

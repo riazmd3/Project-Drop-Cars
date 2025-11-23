@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { View, StyleSheet, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/contexts/AuthContext';
@@ -12,9 +12,18 @@ export default function IndexScreen() {
   const { signout } = useCarDriver();
   const [userRole, setUserRole] = useState<'owner' | 'driver' | null>(null);
   const [sessionExpiredCleared, setSessionExpiredCleared] = useState(false);
+  
+  // Add refs to prevent multiple simultaneous checks and navigation loops
+  const isCheckingAuth = useRef(false);
+  const hasNavigated = useRef(false);
+  const checkTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    checkAuthStatus();
+    // Only check auth once on mount
+    if (!isCheckingAuth.current && !hasNavigated.current) {
+      checkAuthStatus();
+    }
+    
     const off = onSessionExpired(async () => {
       try { Alert.alert('Session expired', 'Please login again.'); } catch {}
       
@@ -39,18 +48,39 @@ export default function IndexScreen() {
       }
       
       setUserRole(null);
+      hasNavigated.current = false; // Reset navigation flag
       router.replace('/login');
     });
-    return off;
+    
+    return () => {
+      off();
+      // Clear timeout on unmount
+      if (checkTimeoutRef.current) {
+        clearTimeout(checkTimeoutRef.current);
+      }
+    };
   }, []);
 
   const checkAuthStatus = async () => {
+    // Prevent multiple simultaneous checks
+    if (isCheckingAuth.current || hasNavigated.current) {
+      console.log('⏸️ Auth check already in progress or navigation already happened, skipping...');
+      return;
+    }
+    
+    isCheckingAuth.current = true;
+    
     try {
       // If session was explicitly expired, don't auto-login
       if (sessionExpiredCleared) {
         console.log('🛑 Session was expired, skipping auto-login');
+        isCheckingAuth.current = false;
         return;
       }
+      
+      // Small delay to allow any pending SecureStore operations to complete
+      // This prevents race conditions when navigating between login screens
+      await new Promise(resolve => setTimeout(resolve, 150));
       
       // Check for Vehicle Owner authentication
       const voToken = await SecureStore.getItemAsync('authToken');
@@ -75,6 +105,7 @@ export default function IndexScreen() {
       const hasOwnerAuth = voToken && voUserData;
       const hasDriverAuth = driverToken && driverUserData;
       
+      // Mark navigation flag before navigating to prevent loops
       if (hasOwnerAuth && hasDriverAuth) {
         // Both tokens exist - check who logged in last
         const ownerTime = voLastLogin ? parseInt(voLastLogin) : 0;
@@ -91,6 +122,7 @@ export default function IndexScreen() {
           setUserRole('driver');
           const driverInfo = JSON.parse(driverUserData);
           setUser(driverInfo);
+          hasNavigated.current = true;
           router.replace('/quick-dashboard');
           return;
         } else {
@@ -122,6 +154,9 @@ export default function IndexScreen() {
               accountStatus
             });
             
+            // Mark navigation flag before navigating
+            hasNavigated.current = true;
+            
             // Determine where to redirect based on counts and status
             // PRIORITY: Check document completion FIRST, then account status
             if (carCount === 0) {
@@ -140,10 +175,12 @@ export default function IndexScreen() {
           } else {
             // No login response data, default to dashboard
             console.log('ℹ️ No login response data, defaulting to dashboard');
+            hasNavigated.current = true;
             router.replace('/(tabs)');
           }
         } catch (error) {
           console.error('❌ Error checking login data:', error);
+          hasNavigated.current = true;
           router.replace('/(tabs)');
         }
       } else if (driverToken && driverUserData) {
@@ -152,17 +189,22 @@ export default function IndexScreen() {
         setUserRole('driver');
         const driverInfo = JSON.parse(driverUserData);
         setUser(driverInfo);
+        hasNavigated.current = true;
         router.replace('/quick-dashboard');
       } else {
         // No authentication found
         console.log('❌ No authentication found');
         setUserRole(null);
+        hasNavigated.current = true;
         router.replace('/login');
       }
     } catch (error) {
       console.error('❌ Auth check failed:', error);
       setUserRole(null);
+      hasNavigated.current = true;
       router.replace('/login');
+    } finally {
+      isCheckingAuth.current = false;
     }
   };
 
