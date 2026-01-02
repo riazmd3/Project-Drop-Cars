@@ -21,7 +21,7 @@ export default function IndexScreen() {
   useEffect(() => {
     // Only check auth once on mount
     if (!isCheckingAuth.current && !hasNavigated.current) {
-      checkAuthStatus();
+    checkAuthStatus();
     }
     
     const off = onSessionExpired(async () => {

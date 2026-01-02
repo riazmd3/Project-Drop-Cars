@@ -56,11 +56,11 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ThemeProvider>
-        <AuthProvider>
-          <WalletProvider>
-            <DashboardProvider>
-              <NotificationProvider>
-                <CarDriverProvider>
+          <AuthProvider>
+            <WalletProvider>
+              <DashboardProvider>
+                <NotificationProvider>
+                  <CarDriverProvider>
                   <Stack screenOptions={{ headerShown: false }}>
                     <Stack.Screen name="index" />
                     <Stack.Screen name="login" />
@@ -71,11 +71,11 @@ export default function RootLayout() {
                     <Stack.Screen name="+not-found" />
                   </Stack>
                   <StatusBar style="auto" />
-                </CarDriverProvider>
-              </NotificationProvider>
-            </DashboardProvider>
-          </WalletProvider>
-        </AuthProvider>
+                  </CarDriverProvider>
+                </NotificationProvider>
+              </DashboardProvider>
+            </WalletProvider>
+          </AuthProvider>
       </ThemeProvider>
     </GestureHandlerRootView>
   );

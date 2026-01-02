@@ -355,13 +355,13 @@ export default function LoginScreen() {
                 // This ensures smooth transition without flickering
                 await new Promise(resolve => setTimeout(resolve, 300));
                 
-                // Clear any existing owner data before switching to driver login
-                try {
+              // Clear any existing owner data before switching to driver login
+              try {
                   await Promise.all([
                     SecureStore.deleteItemAsync('authToken').catch(() => {}),
                     SecureStore.deleteItemAsync('userData').catch(() => {}),
                   ]);
-                  console.log('✅ Cleared owner data before switching to driver login');
+                console.log('✅ Cleared owner data before switching to driver login');
                 } catch (error) {
                   console.log('ℹ️ Error clearing owner data:', error);
                 }

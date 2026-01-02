@@ -34,7 +34,8 @@
     },
     "android": {
       "package": "com.dropcars.driverapp",
-      "googleServicesFile": "./assets/google-services.json"
+      "googleServicesFile": "./assets/google-services.json",
+      "versionCode": 2
     },
     "runtimeVersion": "1.0.0",
     "updates": {

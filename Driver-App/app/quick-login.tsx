@@ -165,15 +165,15 @@ export default function QuickLoginScreen() {
               // This ensures smooth transition without flickering
               await new Promise(resolve => setTimeout(resolve, 300));
               
-              // Clear any existing driver data before switching to owner login
+            // Clear any existing driver data before switching to owner login
               // Wait for all deletions to complete before navigating
-              try {
+            try {
                 await Promise.all([
                   SecureStore.deleteItemAsync('driverAuthToken').catch(() => {}),
                   SecureStore.deleteItemAsync('driverAuthInfo').catch(() => {}),
                   SecureStore.deleteItemAsync('driverLastLogin').catch(() => {}),
                 ]);
-                console.log('✅ Cleared driver data before switching to owner login');
+              console.log('✅ Cleared driver data before switching to owner login');
               } catch (error) {
                 console.log('ℹ️ Error clearing driver data:', error);
               }
