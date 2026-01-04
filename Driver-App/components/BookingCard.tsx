@@ -503,6 +503,11 @@ export default function BookingCard({ booking, onAccept, disabled, loading, butt
     disabledButtonText: {
       color: '#E5E7EB',
     },
+    amountTextGreen: {
+      color: '#10B981', // Green color for amount
+      fontSize: 16,
+      fontFamily: 'Inter-Bold',
+    },
     loadingButton: {
       backgroundColor: colors.primary,
       opacity: 0.8,
@@ -808,9 +813,17 @@ export default function BookingCard({ booking, onAccept, disabled, loading, butt
             <Text style={dynamicStyles.acceptButtonText}>Accepting...</Text>
           </>
         ) : (
-          <Text style={[dynamicStyles.acceptButtonText, disabled && dynamicStyles.disabledButtonText]}>
-            {buttonText || (disabled ? 'Insufficient Balance' : 'Accept Booking')}
-          </Text>
+          disabled && buttonText && buttonText.includes('Add ₹') ? (
+            <Text style={dynamicStyles.acceptButtonText}>
+              <Text style={dynamicStyles.disabledButtonText}>Add </Text>
+              <Text style={dynamicStyles.amountTextGreen}>{buttonText.match(/₹\d+/)?.[0] || ''}</Text>
+              <Text style={dynamicStyles.disabledButtonText}> to accept booking</Text>
+            </Text>
+          ) : (
+            <Text style={[dynamicStyles.acceptButtonText, disabled && dynamicStyles.disabledButtonText]}>
+              {buttonText || (disabled ? 'Insufficient Balance' : 'Accept Booking')}
+            </Text>
+          )
         )}
       </TouchableOpacity>
     </View>

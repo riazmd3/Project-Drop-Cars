@@ -88,14 +88,16 @@ export default function DashboardScreen() {
     'Ooty','Udhagamandalam','Yercaud','Kanyakumari','Rajapalayam','Sivaganga','Pudukkottai','Ambur','Ranipet','Vaniyambadi','Tiruchengode','Namakkal','Paramakudi','Ramanathapuram','Tenkasi','Sankarankovil','Kovilpatti','Mettur','Mylapore','Tambaram','Ambattur','Pallavaram','Poonamallee','Tiruvallur','Pattukkottai','Arcot','Krishnagiri','Udumalaipettai','Dharapuram','Pernampattu','Tindivanam','Vikravandi','Ulundurpettai','Arakkonam','Sholingur','Tirupattur','Vedaranyam','Manamadurai','Devakottai','Sirkazhi','Mayiladuthurai','Thuraiyur','Manapparai','Puliyankudi','Sengottai','Vadipatti','Usilampatti','Nilakkottai','Rasipuram','Sendamangalam','Kumarapalayam','Mohanur','Kattumannarkoil','Vadalur','Neyveli','Kurinjipadi','Veppur','Kunnam','Lalgudi','Manachanallur','Thuvakudi','Thiruthuraipoondi','Mannargudi','Needamangalam','Kottur','Tiruvadanai','Mudukulathur','Kamuthi','Mallankinaru','Kariapatti','Natham','Melur','Tirumangalam','Kallupatti','Thirumangalam','Sedapatti','Chellampatti','Kallikudi','Nagalapuram','Papanasam','Thiruvidaimarudur','Swamimalai','Thiruppanandal','Thiruvaiyaru','Orathanadu','Peravurani','Gandarvakkottai','Arantangi','Avudayarkoil','Vallam'
   ];
 
-  // State to track accepted orders without driver/car assigned
+  // State to track all accepted orders (for wallet calculation)
+  const [allAcceptedOrders, setAllAcceptedOrders] = useState<any[]>([]);
+  // State to track accepted orders without driver/car assigned (for order limit check)
   const [acceptedOrdersWithoutAssignment, setAcceptedOrdersWithoutAssignment] = useState<any[]>([]);
   const MAX_ACCEPTED_ORDERS = 3;
   
   // Get current wallet balance
   const currentWallet = Number(dashboardData?.user_info?.wallet_balance ?? balance ?? 0);
   
-  // Fetch accepted orders and count only those without both driver AND car assigned
+  // Fetch accepted orders from /api/orders/vehicle-owner/pending
   const fetchAcceptedOrdersCount = async () => {
     try {
       const authHeaders = await getAuthHeaders();
@@ -105,27 +107,93 @@ export default function DashboardScreen() {
       
       const orders = Array.isArray(response.data) ? response.data : [];
       
-      // Filter to only count orders that DON'T have both driver AND car assigned
-      const ordersWithoutAssignment = orders.filter((order: any) => {
+      // Debug: Log all orders received
+      console.log('🔍 Fetched accepted orders from API:', orders.length);
+      orders.forEach((order: any, index: number) => {
+        console.log(`  Order ${index + 1}:`, {
+          id: order.id,
+          assignment_id: order.assignment_id,
+          charges_to_deduct: order.charges_to_deduct,
+          assignment_status: order.assignment_status,
+          trip_status: order.trip_status,
+          cancelled_at: order.cancelled_at,
+          completed_at: order.completed_at,
+          vendor_id: order.vendor_id
+        });
+      });
+      
+      // Filter out cancelled and completed orders - only count active accepted orders
+      const activeAcceptedOrders = orders.filter((order: any) => {
+        const isCancelled = !!order.cancelled_at;
+        const isCompleted = !!order.completed_at;
+        const hasValidStatus = order.assignment_status && 
+          !['CANCELLED', 'COMPLETED'].includes(order.assignment_status.toUpperCase());
+        return !isCancelled && !isCompleted && hasValidStatus;
+      });
+      
+      console.log('✅ Active accepted orders (after filtering):', activeAcceptedOrders.length);
+      
+      // Store ALL active accepted orders (for wallet calculation)
+      // Note: API should already filter by authenticated vehicle owner via JWT token
+      setAllAcceptedOrders(activeAcceptedOrders);
+      
+      // Filter active orders to only count those that DON'T have both driver AND car assigned (for order limit)
+      const activeOrdersWithoutAssignment = activeAcceptedOrders.filter((order: any) => {
         const hasDriver = !!(order.assigned_driver_name || order.assigned_driver);
         const hasCar = !!(order.assigned_car_name || order.assigned_vehicle || order.assigned_car);
         // Count only if BOTH driver AND car are NOT assigned
         return !(hasDriver && hasCar);
       });
       
-      setAcceptedOrdersWithoutAssignment(ordersWithoutAssignment);
-      console.log('📊 Accepted orders without driver/car:', ordersWithoutAssignment.length);
+      setAcceptedOrdersWithoutAssignment(activeOrdersWithoutAssignment);
+      console.log('📊 All accepted orders (total):', orders.length);
+      console.log('📊 Active accepted orders (for wallet):', activeAcceptedOrders.length);
+      console.log('📊 Active accepted orders without driver/car (for limit):', activeOrdersWithoutAssignment.length);
     } catch (error: any) {
       console.error('❌ Failed to fetch accepted orders count:', error);
+      setAllAcceptedOrders([]);
       setAcceptedOrdersWithoutAssignment([]);
     }
   };
   
-  // Count accepted orders without both driver and car assigned
+  // Count accepted orders without both driver and car assigned (for order limit check)
   const acceptedOrdersCount = acceptedOrdersWithoutAssignment.length;
   
+  // Calculate total reserved amount from ALL accepted orders (sum of charges_to_deduct)
+  // This includes all accepted orders regardless of driver/car assignment status
+  // Only count orders with valid charges_to_deduct (greater than 0)
+  const totalReservedAmount = allAcceptedOrders.reduce((sum, order: any) => {
+    const chargesToDeduct = Number(order.charges_to_deduct ?? 0);
+    // Only add if charges_to_deduct is a valid positive number
+    if (isNaN(chargesToDeduct) || chargesToDeduct <= 0) {
+      console.warn('⚠️ Invalid charges_to_deduct in order:', {
+        orderId: order.id,
+        charges_to_deduct: order.charges_to_deduct
+      });
+      return sum;
+    }
+    return sum + chargesToDeduct;
+  }, 0);
+  
+  // Calculate available balance after reserving for accepted orders
+  const availableBalance = Math.max(0, currentWallet - totalReservedAmount);
+  
+  // Debug logging for wallet calculation
+  useEffect(() => {
+    console.log('💰 Wallet Calculation Debug:', {
+      currentWallet,
+      totalReservedAmount,
+      availableBalance,
+      acceptedOrdersCount: allAcceptedOrders.length,
+      ordersDetails: allAcceptedOrders.map((o: any) => ({
+        id: o.id,
+        charges_to_deduct: o.charges_to_deduct
+      }))
+    });
+  }, [currentWallet, totalReservedAmount, availableBalance, allAcceptedOrders]);
+  
   // Determine button status for an order
-  const getOrderButtonStatus = (order: PendingOrder): { disabled: boolean; buttonText: string } => {
+  const getOrderButtonStatus = (order: PendingOrder): { disabled: boolean; buttonText: string; amountNeeded?: number } => {
     // Check if order limit reached (3 orders already accepted)
     if (acceptedOrdersCount >= MAX_ACCEPTED_ORDERS) {
       return {
@@ -134,20 +202,37 @@ export default function DashboardScreen() {
       };
     }
     
-    // Check wallet balance
+    // Use charges_to_deduct from backend response
     const chargesToDeduct = Number((order as any).charges_to_deduct ?? 0);
-    const totalFare = Number(order.estimated_price ?? 0);
-    const amountToCheck = chargesToDeduct > 0 ? chargesToDeduct : totalFare;
     
-    if (currentWallet >= amountToCheck) {
+    // Debug logging for this specific order
+    console.log('🔍 Order button status check:', {
+      orderId: order.order_id,
+      chargesToDeduct,
+      currentWallet,
+      totalReservedAmount,
+      availableBalance,
+      canAccept: availableBalance >= chargesToDeduct
+    });
+    
+    // Check if available balance (after reserving for accepted orders) is sufficient
+    if (availableBalance >= chargesToDeduct) {
       return {
         disabled: false,
         buttonText: 'Accept Booking'
       };
     } else {
+      // Calculate how much more is needed
+      const amountNeeded = Math.ceil(chargesToDeduct - availableBalance);
+      console.log('⚠️ Insufficient balance:', {
+        chargesToDeduct,
+        availableBalance,
+        amountNeeded
+      });
       return {
         disabled: true,
-        buttonText: 'Insufficient Balance'
+        buttonText: `Add ₹${amountNeeded} to accept booking`,
+        amountNeeded: amountNeeded
       };
     }
   };
@@ -847,13 +932,12 @@ export default function DashboardScreen() {
     // Check wallet balance
     const status = getOrderButtonStatus(order);
     if (status.disabled) {
+      // Use charges_to_deduct from backend
       const chargesToDeduct = Number((order as any).charges_to_deduct ?? 0);
-      const totalFare = Number(order.estimated_price ?? 0);
-      const amountToCheck = chargesToDeduct > 0 ? chargesToDeduct : totalFare;
       
       Alert.alert(
         'Insufficient Balance',
-        `Not enough wallet balance. Required: ₹${amountToCheck}, Available: ₹${currentWallet}. Add money to accept this booking.`,
+        `Not enough wallet balance. Required: ₹${chargesToDeduct}, Available: ₹${availableBalance.toFixed(2)}. Add money to accept this booking.`,
         [{ text: 'Add Money', onPress: () => router.push('/(tabs)/wallet') }]
       );
       return;
@@ -1030,13 +1114,6 @@ export default function DashboardScreen() {
           <Text style={{ fontSize: 15, color:'rgb(15, 187, 35)', fontFamily: 'Inter-SemiBold', marginLeft: 8 }}>| Add money</Text>
   </TouchableOpacity>
 </View>
-      {currentWallet < 1000 && (
-        <View style={dynamicStyles.warningBanner}>
-          <Text style={dynamicStyles.warningText}>
-            Wallet balance below ₹1000. Add money to receive bookings.
-          </Text>
-        </View>
-      )}
       <ScrollView 
         style={dynamicStyles.content} 
         showsVerticalScrollIndicator={false}

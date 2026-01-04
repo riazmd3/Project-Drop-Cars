@@ -46,7 +46,7 @@ export interface WalletBalance {
 
 // Razorpay configuration
 const RAZORPAY_CONFIG = {
-  key_id: 'rzp_test_RGj0EDXZq8QnUS', // Test key - safe to use in frontend
+  key_id: 'rzp_live_RuMG3DMZFdeT3Y', // Live key - safe to use in frontend
   // key_secret: REMOVED - Never put secret keys in frontend code!
   currency: 'INR',
   company_name: 'Drop Cars',
