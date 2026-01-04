@@ -1043,13 +1043,6 @@ export default function DashboardScreen() {
           <Text style={{ fontSize: 15, color:'rgb(15, 187, 35)', fontFamily: 'Inter-SemiBold', marginLeft: 8 }}>| Add money</Text>
   </TouchableOpacity>
 </View>
-      {currentWallet < 1000 && (
-        <View style={dynamicStyles.warningBanner}>
-          <Text style={dynamicStyles.warningText}>
-            Wallet balance below ₹1000. Add money to receive bookings.
-          </Text>
-        </View>
-      )}
       <ScrollView 
         style={dynamicStyles.content} 
         showsVerticalScrollIndicator={false}
