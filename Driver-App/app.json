@@ -2,7 +2,7 @@
   "expo": {
     "name": "Drop Cars-Driver App",
     "slug": "dropcars3",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "icon": "./assets/logo_icon.png",
     "newArchEnabled": true,
     "web": {
@@ -35,7 +35,7 @@
     "android": {
       "package": "com.dropcars.driverapp",
       "googleServicesFile": "./assets/google-services.json",
-      "versionCode": 2
+      "versionCode": 3
     },
     "runtimeVersion": "1.0.0",
     "updates": {
