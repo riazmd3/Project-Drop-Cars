@@ -482,7 +482,7 @@ export default function FutureRidesScreen() {
         {/* Header: Booking ID and Trip Type */}
         <View style={styles.rideHeader}>
           <Text style={[styles.orderIdBold, { color: colors.text }]}>
-            Booking ID: #{ride.id}
+            Booking ID: #{ride.order_id || ride.id}
             </Text>
           {ride.trip_type && (
             <Text style={styles.tripTypeBold}>{ride.trip_type}</Text>

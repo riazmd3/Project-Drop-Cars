@@ -325,7 +325,7 @@ export default function RidesScreen() {
   };
 
   const renderRideCard = (ride: RideData) => {
-    const isExpanded = expandedOrderId === ride.id.toString();
+    const isExpanded = expandedOrderId === (ride.order_id || ride.id).toString();
     const hasPickupNotes = ride.pickup_notes && ride.pickup_notes !== 'NILL' && ride.pickup_notes !== 'null';
     const isMulticity = String(ride.trip_type || '').toLowerCase().includes('multicity') || String(ride.trip_type || '').toLowerCase().includes('multy');
     
@@ -380,7 +380,7 @@ export default function RidesScreen() {
         {/* Header: Booking ID and Trip Type */}
         <View style={styles.rideHeader}>
           <Text style={[styles.orderIdBold, { color: colors.text }]}>
-            Booking ID: #{ride.id}
+            Booking ID: #{ride.order_id || ride.id}
             </Text>
           {ride.trip_type && (
             <Text style={styles.tripTypeBold}>{ride.trip_type}</Text>
@@ -463,7 +463,7 @@ export default function RidesScreen() {
         {/* Fare Breakdown Button */}
         <TouchableOpacity
           style={[styles.seeMoreButton, { backgroundColor: colors.background, borderColor: colors.border }]}
-          onPress={() => setExpandedOrderId(isExpanded ? null : ride.id.toString())}
+          onPress={() => setExpandedOrderId(isExpanded ? null : (ride.order_id || ride.id).toString())}
         >
           <Text style={[styles.seeMoreText, { color: colors.primary }]}>
             {isExpanded ? 'Hide Fare Breakdown' : 'Fare Breakdown'}

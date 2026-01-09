@@ -5,9 +5,9 @@
     "version": "1.0.1",
     "icon": "./assets/logo_icon.png",
     "splash": {
-      "image": "./assets/WhatsApp Image 2026-01-08 at 12.20.34 AM.jpeg",
+      "image": "./assets/logo_icon.png",
       "resizeMode": "cover",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#1a1a2e"
     },
     "newArchEnabled": true,
     "web": {

@@ -828,7 +828,7 @@ export default function QuickDashboardScreen() {
                 >
                     <View style={styles.orderHeader}>
                     <View style={styles.orderInfo}>
-                      <Text style={styles.orderId}>Order #{(order as any).id ?? order.order_id ?? (order as any).source_order_id}</Text>
+                      <Text style={styles.orderId}>Order #{order.order_id ?? (order as any).id ?? (order as any).source_order_id}</Text>
                       <View style={styles.statusBadge}>
                         {getStatusIcon(order.assignment_status)}
                         <Text style={{ ...styles.statusText, color: getStatusColor(order.assignment_status) }}>{order.assignment_status}</Text>
