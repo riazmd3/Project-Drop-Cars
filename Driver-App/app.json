@@ -24,7 +24,8 @@
         {
           "icon": "./assets/notification-icon.png",
           "color": "#ffffff",
-          "sounds": ["./assets/notification_tone.mp3"]
+          "sounds": ["./assets/notification_tone.wav"],
+          "mode": "production"
         }
       ]
     ],
@@ -40,7 +41,11 @@
     "android": {
       "package": "com.dropcars.driverapp",
       "googleServicesFile": "./assets/google-services.json",
-      "versionCode": 3
+      "versionCode": 3,
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/logo_icon.png",
+        "backgroundColor": "#ffffff"
+      }
     },
     "runtimeVersion": "1.0.0",
     "updates": {
