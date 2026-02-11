@@ -2,44 +2,50 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform, Alert } from 'react-native';
 
-// CRITICAL FIX: Set up Android channel BEFORE handler
+// Shared Android channel ID for custom sound
+export const ANDROID_NOTIFICATION_CHANNEL_ID = 'dropcars-custom-sound';
+
+// Set up Android channel with custom sound BEFORE handler
 async function setupAndroidChannel() {
   if (Platform.OS === 'android') {
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'default',
+    await Notifications.setNotificationChannelAsync(ANDROID_NOTIFICATION_CHANNEL_ID, {
+      name: 'DropCars Alerts',
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#FF231F7C',
-      sound: 'notification_tone.mp3',
+      // IMPORTANT: this must match the filename configured in app.json "sounds"
+      // and the file bundled in ./assets, e.g. "./assets/notification_tone.wav"
+      sound: 'notification_tone.wav',
       enableVibrate: true,
     });
-    console.log('✅ Android channel configured with sound');
+    console.log(`✅ Android channel '${ANDROID_NOTIFICATION_CHANNEL_ID}' configured with custom sound`);
   }
 }
 
-// CRITICAL FIX: Configure handler AFTER channel setup
+// Configure handler AFTER channel setup
 async function setupNotificationHandler() {
   await setupAndroidChannel(); // Channel first!
   
-Notifications.setNotificationHandler({
+  Notifications.setNotificationHandler({
     handleNotification: async (notification) => {
       console.log('🔔 Notification received in handler:', notification);
       return {
-    shouldShowAlert: true,
-    shouldPlaySound: true,
+        shouldShowAlert: true,
+        shouldPlaySound: true,
         shouldSetBadge: false,
-    shouldShowBanner: true,
-    shouldShowList: true,
+        // These are Android-only, safe to include
+        shouldShowBanner: true,
+        shouldShowList: true,
       };
     },
   });
   console.log('✅ Notification handler configured');
 }
 
-// Initialize notification setup (CRITICAL FIX)
+// Initialize notification setup once at module load
 setupNotificationHandler();
 
-// Register for push notifications and get token (FIXED - NO DUPLICATE CHANNEL)
+// Register for push notifications and get token
 export async function registerForPushNotificationsAsync(): Promise<string | null> {
   try {
     // REMOVED: Duplicate channel setup - already done in setupNotificationHandler()
@@ -72,7 +78,7 @@ export async function registerForPushNotificationsAsync(): Promise<string | null
   }
 }
 
-// Set up notification listeners (CRITICAL FOR FOREGROUND NOTIFICATIONS)
+// Set up notification listeners (foreground + tap logging)
 export const setupNotificationListeners = () => {
   console.log('🔔 Setting up notification listeners...');
   
@@ -100,21 +106,25 @@ export const setupNotificationListeners = () => {
   return { receivedListener, responseListener };
 };
 
-// Simple test notification (EXACT COPY FROM VENDOR APP)
+// Simple test notification using the custom sound/channel
 export async function testForegroundNotification(): Promise<void> {
   try {
     console.log('🧪 Testing notification...');
-      await Notifications.scheduleNotificationAsync({
-        content: {
+    await Notifications.scheduleNotificationAsync({
+      content: {
         title: 'Test Notification',
         body: 'This is a test notification',
         data: { test: true },
-        sound: 'notification_tone.mp3',
-        },
-        trigger: null, // Send immediately
-      });
+        // For iOS and Android < 8, this name must match the bundled sound file
+        sound: 'notification_tone.wav',
+      },
+      // For Android 8+, channelId must be set so the channel's custom sound is used
+      trigger: Platform.OS === 'android'
+        ? { seconds: 1, channelId: ANDROID_NOTIFICATION_CHANNEL_ID }
+        : null, // Immediate on iOS
+    });
     console.log('✅ Test notification sent');
-    } catch (error) {
+  } catch (error) {
     console.error('❌ Failed to send test notification:', error);
   }
 }

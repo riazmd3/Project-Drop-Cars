@@ -1,5 +1,6 @@
 import * as Notifications from 'expo-notifications';
-import { Alert } from 'react-native';
+import { Alert, Platform } from 'react-native';
+import { ANDROID_NOTIFICATION_CHANNEL_ID } from './notificationService';
 
 export interface DemoNotification {
   id: string;
@@ -74,9 +75,12 @@ export class DemoNotificationService {
           title: notification.title,
           body: notification.body,
           data: notification.data,
-          sound: 'notification_tone.mp3',
+          // Use bundled custom sound (configured in app.json)
+          sound: 'notification_tone.wav',
         },
-        trigger: null, // Send immediately
+        trigger: Platform.OS === 'android'
+          ? { seconds: 1, channelId: ANDROID_NOTIFICATION_CHANNEL_ID }
+          : null, // immediate on iOS
       });
       
       console.log(`🎭 Demo notification sent: ${notification.title}`);
@@ -92,9 +96,11 @@ export class DemoNotificationService {
           title,
           body,
           data: { ...data, demo: true },
-          sound: 'notification_tone.mp3',
+          sound: 'notification_tone.wav',
         },
-        trigger: null,
+        trigger: Platform.OS === 'android'
+          ? { seconds: 1, channelId: ANDROID_NOTIFICATION_CHANNEL_ID }
+          : null,
       });
       
       console.log(`🎭 Simulated notification: ${title}`);
