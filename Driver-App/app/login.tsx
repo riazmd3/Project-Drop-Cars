@@ -380,21 +380,6 @@ export default function LoginScreen() {
               <Text style={styles.quickDriverText}>Quick Driver Login</Text>
             </TouchableOpacity>
           </View>
-
-          {/* Footer with developer credits */}
-          <TouchableOpacity 
-            onPress={() => {
-              Linking.openURL('https://www.linkedin.com/in/riaz-mohammed-12573a262/').catch(err => {
-                console.error('Failed to open LinkedIn:', err);
-                Alert.alert('Error', 'Could not open LinkedIn profile');
-              });
-            }}
-            style={styles.footerContainer}
-          >
-            <Text style={styles.footerText}>
-              Developed And Deployed by Riaz Mohammed & Pugazheshwar
-            </Text>
-          </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
     </LinearGradient>

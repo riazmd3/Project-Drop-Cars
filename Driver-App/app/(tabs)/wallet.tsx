@@ -363,6 +363,16 @@ export default function WalletScreen() {
       fontFamily: 'Inter-SemiBold',
       marginLeft: 8,
     },
+    upiLinkContainer: {
+      marginTop: 8,
+      alignItems: 'center',
+    },
+    upiLinkText: {
+      fontSize: 13,
+      fontFamily: 'Inter-Medium',
+      color: colors.primary,
+      textDecorationLine: 'underline',
+    },
     loadingButton: {
       opacity: 0.7,
     },
@@ -558,18 +568,9 @@ export default function WalletScreen() {
           </View>
         )}
 
-        {/* Add Money Buttons Section */}
-        <View style={{ marginTop: 24, gap: 12 }}>
-          {/* Add Money via UPI Button - Opens QR Code Modal */}
-          <TouchableOpacity 
-            style={[dynamicStyles.addMoneyButton, { paddingHorizontal: 24, backgroundColor: colors.primary }]}
-            onPress={handleShowQR}
-          >
-            <Text style={dynamicStyles.addMoneyButtonText}>Add Money via UPI</Text>
-            <Copy color="#FFFFFF" size={20} style={{ marginLeft: 10 }} />
-          </TouchableOpacity>
-
-          {/* Add Money via Razorpay Button */}
+        {/* Add Money primary button + small UPI link */}
+        <View style={{ marginTop: 24 }}>
+          {/* Main Add Money button (Razorpay) */}
           <TouchableOpacity 
             style={[dynamicStyles.addMoneyButton, { paddingHorizontal: 24, backgroundColor: colors.success }]}
             onPress={() => setShowAmountModal(true)}
@@ -578,6 +579,13 @@ export default function WalletScreen() {
             <Text style={dynamicStyles.addMoneyButtonText}>Add Money</Text>
             <CreditCard color="#FFFFFF" size={20} style={{ marginLeft: 10 }} />
           </TouchableOpacity>
+
+          {/* Small "Add money via UPI" text link, like "Forgot password" */}
+          <View style={dynamicStyles.upiLinkContainer}>
+            <TouchableOpacity onPress={handleShowQR} disabled={processingRazorpay}>
+              <Text style={dynamicStyles.upiLinkText}>Add money via UPI</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* QR Code Modal */}

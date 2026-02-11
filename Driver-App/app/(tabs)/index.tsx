@@ -54,6 +54,34 @@ function parseCityListField(field: string | null | undefined): string[] {
   return raw.split(',').map(c => c.trim()).filter(Boolean);
 }
 
+// Helper: convert trip duration text (e.g. "3 hours 30 mins") to total minutes
+function parseTripDurationToMinutes(raw: string | null | undefined): number {
+  if (!raw) return Number.MAX_SAFE_INTEGER;
+  try {
+    const segments = String(raw).split('+');
+    let totalMinutes = 0;
+
+    segments.forEach((seg) => {
+      const s = seg.toLowerCase();
+      const hMatch = s.match(/(\d+)\s*(?:hours?|hrs?|h)\b/);
+      const mMatch = s.match(/(\d+)\s*(?:minutes?|mins?|m)\b/);
+      const h = hMatch ? Number(hMatch[1]) : 0;
+      const m = mMatch ? Number(mMatch[1]) : 0;
+      totalMinutes += h * 60 + m;
+    });
+
+    // Fallback: if parsing failed but the raw value is numeric, use it directly
+    if (!totalMinutes) {
+      const numeric = Number(String(raw).replace(/[^\d.]/g, ''));
+      if (!Number.isNaN(numeric)) return numeric;
+    }
+
+    return totalMinutes || Number.MAX_SAFE_INTEGER;
+  } catch {
+    return Number.MAX_SAFE_INTEGER;
+  }
+}
+
 export default function DashboardScreen() {
   const { user, logout } = useAuth();
   const { balance, refreshBalance } = useWallet();
@@ -494,6 +522,29 @@ export default function DashboardScreen() {
         ].some(field => field && String(field).toLowerCase().includes(searchTerm));
       });
     }
+
+    // Sort so that:
+    // 1) Earlier pickup date/time comes first
+    // 2) For same pickup time, shorter trip duration comes first
+    orders.sort((a, b) => {
+      const timeA = a.start_date_time ? new Date(a.start_date_time).getTime() : 0;
+      const timeB = b.start_date_time ? new Date(b.start_date_time).getTime() : 0;
+
+      if (timeA !== timeB) {
+        return timeA - timeB; // earlier pickups first
+      }
+
+      const durA = parseTripDurationToMinutes((a as any).trip_time);
+      const durB = parseTripDurationToMinutes((b as any).trip_time);
+
+      if (durA !== durB) {
+        return durA - durB; // shorter trips first
+      }
+
+      // Stable fallback: lower order_id first
+      return Number(a.order_id) - Number(b.order_id);
+    });
+
     return orders;
   })();
 
