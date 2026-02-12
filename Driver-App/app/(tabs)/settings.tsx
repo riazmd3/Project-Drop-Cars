@@ -7,11 +7,9 @@ import {
   TouchableOpacity,
   Switch,
   Alert,
-  ActivityIndicator,
   Modal,
   Dimensions,
   Linking,
-  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -19,12 +17,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { useDashboard } from '@/contexts/DashboardContext';
-import { Moon, Sun, LogOut, ChevronRight, User, Bell, Shield, Car, Users, X, Phone, Mail, Globe, CheckCircle, XCircle, Circle } from 'lucide-react-native';
-import {
-  testForegroundNotification,
-  verifyCustomSoundSetup,
-  CUSTOM_SOUND_EXPECTED,
-} from '@/services/notifications/notificationService';
+import { Moon, Sun, LogOut, ChevronRight, User, Shield, Car, Users, X, Phone, Mail, Globe } from 'lucide-react-native';
 
 const { height: screenHeight } = Dimensions.get('window');
 
@@ -35,54 +28,6 @@ export default function SettingsScreen() {
   const { dashboardData, loading } = useDashboard();
   const router = useRouter();
   const [showTermsModal, setShowTermsModal] = useState(false);
-
-  // Custom sound checklist: manual checkboxes (key = item id)
-  const [checklist, setChecklist] = useState<Record<string, boolean>>({
-    app_json_sounds: false,
-    app_json_channel: false,
-    asset_exists: false,
-    android_channel: false,
-    push_payload: false,
-    dev_build: false,
-    test_played: false,
-  });
-  const [verifyResult, setVerifyResult] = useState<{
-    channelExists: boolean;
-    channelHasCustomSound: boolean;
-    message: string;
-  } | null>(null);
-  const [verifying, setVerifying] = useState(false);
-
-  const toggleCheck = (id: string) => {
-    setChecklist((prev) => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  const runVerification = async () => {
-    setVerifying(true);
-    setVerifyResult(null);
-    try {
-      const result = await verifyCustomSoundSetup();
-      setVerifyResult({
-        channelExists: result.channelExists,
-        channelHasCustomSound: result.channelHasCustomSound,
-        message: result.message,
-      });
-      setChecklist((prev) => ({
-        ...prev,
-        android_channel: result.channelExists && result.channelHasCustomSound,
-      }));
-    } catch (e) {
-      setVerifyResult({
-        channelExists: false,
-        channelHasCustomSound: false,
-        message: e instanceof Error ? e.message : String(e),
-      });
-    } finally {
-      setVerifying(false);
-    }
-  };
-
-  const allChecked = Object.values(checklist).every(Boolean);
 
   // Support contact functions
   const handleCallSupport = () => {
@@ -567,121 +512,6 @@ For any queries or support, contact us at:
               />
             }
           />
-
-          {/* Quick test for notification sound */}
-          <SettingItem
-            icon={<Bell color={colors.textSecondary} size={20} />}
-            title="Test Notification Sound"
-            subtitle="Send a test notification with custom sound"
-            onPress={() => {
-              testForegroundNotification().catch((err) => {
-                console.error('Failed to send test notification:', err);
-                Alert.alert('Error', 'Failed to send test notification. Please check console logs.');
-              });
-            }}
-          />
-        </View>
-
-        {/* Custom notification sound checklist – verify all criteria before build */}
-        <View style={dynamicStyles.section}>
-          <Text style={dynamicStyles.sectionTitle}>Custom sound checklist</Text>
-          <Text style={[dynamicStyles.settingSubtitle, { marginBottom: 12, marginLeft: 4 }]}>
-            Tick each item when verified. Use “Run checks” for auto-verification on this device.
-          </Text>
-          <View style={[dynamicStyles.settingItem, { flexDirection: 'column', alignItems: 'stretch' }]}>
-            {[
-              {
-                id: 'app_json_sounds',
-                label: `app.json plugin has sounds: ["${CUSTOM_SOUND_EXPECTED.soundsJsonValue}"]`,
-                manual: true,
-              },
-              {
-                id: 'app_json_channel',
-                label: `app.json plugin has defaultChannel: "${CUSTOM_SOUND_EXPECTED.channelId}"`,
-                manual: true,
-              },
-              {
-                id: 'asset_exists',
-                label: `File assets/${CUSTOM_SOUND_EXPECTED.soundFile} exists in project`,
-                manual: true,
-              },
-              {
-                id: 'android_channel',
-                label: Platform.OS === 'android' ? 'Android channel exists with custom sound' : 'N/A (iOS)',
-                manual: false,
-              },
-              {
-                id: 'push_payload',
-                label: 'Push payload includes sound + android.channelId (see CUSTOM_NOTIFICATION_SOUND_CHECKLIST.md)',
-                manual: true,
-              },
-              {
-                id: 'dev_build',
-                label: 'Using development build (not Expo Go)',
-                manual: true,
-              },
-              {
-                id: 'test_played',
-                label: 'Test notification played custom sound (tap Test above first)',
-                manual: true,
-              },
-            ].map((item) => {
-              const checked = checklist[item.id];
-              const isAuto = item.id === 'android_channel';
-              return (
-                <TouchableOpacity
-                  key={item.id}
-                  style={{
-                    flexDirection: 'row',
-                    alignItems: 'center',
-                    paddingVertical: 10,
-                    borderBottomWidth: 1,
-                    borderBottomColor: colors.border,
-                  }}
-                  onPress={() => (item.manual || isAuto) && toggleCheck(item.id)}
-                  disabled={false}
-                >
-                  {checked ? (
-                    <CheckCircle color={colors.primary} size={22} style={{ marginRight: 10 }} />
-                  ) : (
-                    <Circle color={colors.textSecondary} size={22} style={{ marginRight: 10 }} />
-                  )}
-                  <Text style={[dynamicStyles.settingSubtitle, { flex: 1, color: colors.text }]} numberOfLines={3}>
-                    {item.label}
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-            {verifyResult && (
-              <Text style={[dynamicStyles.settingSubtitle, { marginTop: 8, color: colors.textSecondary }]}>
-                Run result: {verifyResult.message}
-              </Text>
-            )}
-            <View style={{ flexDirection: 'row', marginTop: 12, gap: 8 }}>
-              <TouchableOpacity
-                style={{
-                  flex: 1,
-                  paddingVertical: 10,
-                  borderRadius: 8,
-                  backgroundColor: colors.primary,
-                  alignItems: 'center',
-                }}
-                onPress={runVerification}
-                disabled={verifying}
-              >
-                {verifying ? (
-                  <ActivityIndicator size="small" color="#FFF" />
-                ) : (
-                  <Text style={{ color: '#FFF', fontWeight: '600' }}>Run checks</Text>
-                )}
-              </TouchableOpacity>
-              <View style={{ justifyContent: 'center' }}>
-                <Text style={[dynamicStyles.settingSubtitle, { color: allChecked ? colors.primary : colors.textSecondary }]}>
-                  {allChecked ? '✓ All checked' : `${Object.values(checklist).filter(Boolean).length}/${Object.keys(checklist).length}`}
-                </Text>
-              </View>
-            </View>
-          </View>
         </View>
 
         <View style={dynamicStyles.section}>
