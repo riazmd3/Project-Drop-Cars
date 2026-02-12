@@ -38,10 +38,12 @@ interface BookingCardProps {
   onAccept: (booking: Booking) => void;
   disabled?: boolean;
   loading?: boolean;
-  buttonText?: string; // Custom button text (e.g., "Accept Booking", "Insufficient Balance", "Assign Driver and Car...")
+  buttonText?: string; // Custom button text (e.g., "Accept Booking", "Insufficient Balance", "Add ₹X to Accept the Booking")
+  /** When user taps "Add ₹X to accept booking", call this with the amount and do not open accept modal. */
+  onAddMoneyPress?: (amount: number) => void;
 }
 
-export default function BookingCard({ booking, onAccept, disabled, loading, buttonText }: BookingCardProps) {
+export default function BookingCard({ booking, onAccept, disabled, loading, buttonText, onAddMoneyPress }: BookingCardProps) {
   const { colors } = useTheme();
   const [timeRemaining, setTimeRemaining] = useState<string>('');
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -370,7 +372,14 @@ export default function BookingCard({ booking, onAccept, disabled, loading, butt
     return () => clearInterval(interval);
   }, [booking]);
 
+  const isAddMoneyState = !!(disabled && buttonText && buttonText.includes('Add ₹'));
+  const addMoneyAmount = isAddMoneyState ? parseInt(buttonText!.match(/₹(\d+)/)?.[1] || '0', 10) : 0;
+
   const handleAcceptPress = () => {
+    if (isAddMoneyState && onAddMoneyPress && addMoneyAmount > 0) {
+      onAddMoneyPress(addMoneyAmount);
+      return;
+    }
     setShowConfirmModal(true);
   };
   
@@ -396,7 +405,8 @@ export default function BookingCard({ booking, onAccept, disabled, loading, butt
       elevation: 4,
     },
     disabledCard: {
-      opacity: 0.6,
+      backgroundColor: colors.background ?? '#F3F4F6',
+      opacity: 0.95,
     },
     header: {
       flexDirection: 'row',
@@ -501,10 +511,12 @@ export default function BookingCard({ booking, onAccept, disabled, loading, butt
       backgroundColor: '#9CA3AF',
     },
     disabledButtonText: {
-      color: '#E5E7EB',
+      color: '#1F2937', // Dark gray for high contrast on light gray button
+      fontSize: 16,
+      fontFamily: 'Inter-Bold',
     },
     amountTextGreen: {
-      color: '#10B981', // Green color for amount
+      color: '#065F46', // Dark green for amount (high contrast, readable on light areas)
       fontSize: 16,
       fontFamily: 'Inter-Bold',
     },
@@ -797,15 +809,15 @@ export default function BookingCard({ booking, onAccept, disabled, loading, butt
         </View>
         </View>
 
-        {/* Accept Button */}
+        {/* Accept Button - when "Add ₹X" the button stays primary and is tappable to go to wallet */}
       <TouchableOpacity
         style={[
           dynamicStyles.acceptButton,
-          disabled && dynamicStyles.disabledButton,
+          disabled && !isAddMoneyState && dynamicStyles.disabledButton,
           loading && dynamicStyles.loadingButton
         ]}
-          onPress={handleAcceptPress}
-        disabled={disabled || loading}
+        onPress={handleAcceptPress}
+        disabled={loading}
       >
         {loading ? (
           <>
@@ -813,11 +825,11 @@ export default function BookingCard({ booking, onAccept, disabled, loading, butt
             <Text style={dynamicStyles.acceptButtonText}>Accepting...</Text>
           </>
         ) : (
-          disabled && buttonText && buttonText.includes('Add ₹') ? (
+          isAddMoneyState ? (
             <Text style={dynamicStyles.acceptButtonText}>
-              <Text style={dynamicStyles.disabledButtonText}>Add </Text>
-              <Text style={dynamicStyles.amountTextGreen}>{buttonText.match(/₹\d+/)?.[0] || ''}</Text>
-              <Text style={dynamicStyles.disabledButtonText}> to accept booking</Text>
+              <Text style={dynamicStyles.acceptButtonText}>Add </Text>
+              <Text style={dynamicStyles.amountTextGreen}>{buttonText!.match(/₹\d+/)?.[0] || ''}</Text>
+              <Text style={dynamicStyles.acceptButtonText}> to accept booking</Text>
             </Text>
           ) : (
             <Text style={[dynamicStyles.acceptButtonText, disabled && dynamicStyles.disabledButtonText]}>

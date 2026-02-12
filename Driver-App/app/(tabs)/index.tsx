@@ -523,6 +523,16 @@ export default function DashboardScreen() {
       });
     }
 
+    // Hide past pickup-date orders (show today + future first)
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    orders = orders.filter(o => {
+      if (!o.start_date_time) return true;
+      const d = new Date(o.start_date_time);
+      if (isNaN(d.getTime())) return true;
+      return d.getTime() >= todayStart.getTime();
+    });
+
     // Sort so that:
     // 1) Earlier pickup date/time comes first
     // 2) For same pickup time, shorter trip duration comes first
@@ -1413,6 +1423,7 @@ export default function DashboardScreen() {
                         })()}
                         loading={processingOrderId === order.order_id.toString()}
                         buttonText={getOrderButtonStatus(order).buttonText}
+                        onAddMoneyPress={(amount) => router.push({ pathname: '/(tabs)/wallet', params: { amount: String(amount) } })}
                       />
                     );
                   })

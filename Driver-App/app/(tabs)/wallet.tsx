@@ -17,7 +17,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useWallet } from '@/contexts/WalletContext';
 import { useTheme } from '@/contexts/ThemeContext';
 import { useAuth } from '@/contexts/AuthContext';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Plus, ArrowUpRight, ArrowDownLeft, RefreshCw, AlertCircle, Copy, X, CreditCard } from 'lucide-react-native';
 import Clipboard from '@react-native-clipboard/clipboard';
 import { getRazorpayOptions } from '@/services/payment/paymentService';
@@ -37,6 +37,7 @@ try {
 
 export default function WalletScreen() {
   const router = useRouter();
+  const { amount: addAmountParam } = useLocalSearchParams<{ amount?: string }>();
   const { 
     balance, 
     transactions, 
@@ -60,6 +61,17 @@ export default function WalletScreen() {
   const [showAmountModal, setShowAmountModal] = useState(false);
   const [razorpayAmount, setRazorpayAmount] = useState('');
   const [processingRazorpay, setProcessingRazorpay] = useState(false);
+
+  // When navigated from "Add ₹X to accept booking", pre-fill amount and open add-money modal
+  useEffect(() => {
+    if (addAmountParam != null && addAmountParam !== '') {
+      const value = addAmountParam.trim();
+      if (value && !isNaN(Number(value))) {
+        setRazorpayAmount(value);
+        setShowAmountModal(true);
+      }
+    }
+  }, [addAmountParam]);
 
   const handleUPICopy = () => {
     const upiId = '7200217986-1@okbizaxis';
