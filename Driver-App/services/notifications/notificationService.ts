@@ -2,14 +2,14 @@ import * as Notifications from 'expo-notifications';
 import * as Device from 'expo-device';
 import { Platform, Alert } from 'react-native';
 
-// Shared Android channel ID for custom sound
-export const ANDROID_NOTIFICATION_CHANNEL_ID = 'dropcars-custom-sound';
+// Shared Android channel ID for custom sound (NEW v2 channel)
+export const ANDROID_NOTIFICATION_CHANNEL_ID = 'dropcars-custom-sound-v2';
 
 // Set up Android channel with custom sound BEFORE handler
 async function setupAndroidChannel() {
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync(ANDROID_NOTIFICATION_CHANNEL_ID, {
-      name: 'DropCars Alerts',
+      name: 'DropCars Alerts (New)',
       importance: Notifications.AndroidImportance.MAX,
       vibrationPattern: [0, 250, 250, 250],
       lightColor: '#FF231F7C',

@@ -1,6 +1,6 @@
 import * as Notifications from 'expo-notifications';
 import { Alert, Platform } from 'react-native';
-import { ANDROID_NOTIFICATION_CHANNEL_ID } from './notificationService';
+import { ANDROID_NOTIFICATION_CHANNEL_ID } from '@/services/notifications/notificationService';
 
 export interface DemoNotification {
   id: string;

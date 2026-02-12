@@ -19,6 +19,7 @@ import { useTheme } from '@/contexts/ThemeContext';
 import { useNotifications } from '@/contexts/NotificationContext';
 import { useDashboard } from '@/contexts/DashboardContext';
 import { Moon, Sun, LogOut, ChevronRight, User, Bell, Shield, Car, Users, X, Phone, Mail, Globe } from 'lucide-react-native';
+import { testForegroundNotification } from '@/services/notifications/notificationService';
 
 const { height: screenHeight } = Dimensions.get('window');
 
@@ -512,6 +513,19 @@ For any queries or support, contact us at:
                 thumbColor={isDarkMode ? '#FFFFFF' : '#F3F4F6'}
               />
             }
+          />
+
+          {/* Quick test for notification sound */}
+          <SettingItem
+            icon={<Bell color={colors.textSecondary} size={20} />}
+            title="Test Notification Sound"
+            subtitle="Send a test notification with custom sound"
+            onPress={() => {
+              testForegroundNotification().catch((err) => {
+                console.error('Failed to send test notification:', err);
+                Alert.alert('Error', 'Failed to send test notification. Please check console logs.');
+              });
+            }}
           />
 
           {/* <SettingItem
