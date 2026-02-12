@@ -106,6 +106,62 @@ export const setupNotificationListeners = () => {
   return { receivedListener, responseListener };
 };
 
+/** Expected values for checklist (match app.json and code) */
+export const CUSTOM_SOUND_EXPECTED = {
+  channelId: ANDROID_NOTIFICATION_CHANNEL_ID,
+  soundFile: 'notification_tone.wav',
+  /** In app.json plugin use filename only: "notification_tone.wav" (not ./assets/...) */
+  soundsJsonValue: 'notification_tone.wav',
+} as const;
+
+/**
+ * Verify custom sound setup at runtime. Use in Settings checklist.
+ * On Android: checks that the channel exists and has custom sound.
+ * On iOS: channel API not used; returns platform info only.
+ */
+export async function verifyCustomSoundSetup(): Promise<{
+  platform: string;
+  channelExists: boolean;
+  channelHasCustomSound: boolean;
+  message: string;
+}> {
+  if (Platform.OS !== 'android') {
+    return {
+      platform: Platform.OS,
+      channelExists: true,
+      channelHasCustomSound: true,
+      message: 'iOS: verify app.json sounds and test with "Test Notification Sound".',
+    };
+  }
+  try {
+    const channel = await Notifications.getNotificationChannelAsync(ANDROID_NOTIFICATION_CHANNEL_ID);
+    if (!channel) {
+      return {
+        platform: 'android',
+        channelExists: false,
+        channelHasCustomSound: false,
+        message: 'Channel not found. Reopen app so channel is created, or reinstall build.',
+      };
+    }
+    const hasCustom = channel.sound === 'custom';
+    return {
+      platform: 'android',
+      channelExists: true,
+      channelHasCustomSound: hasCustom,
+      message: hasCustom
+        ? 'Channel exists with custom sound.'
+        : 'Channel exists but sound is not custom (default). Check app.json plugin and rebuild.',
+    };
+  } catch (e) {
+    return {
+      platform: 'android',
+      channelExists: false,
+      channelHasCustomSound: false,
+      message: `Error: ${e instanceof Error ? e.message : String(e)}`,
+    };
+  }
+}
+
 // Simple test notification using the custom sound/channel
 export async function testForegroundNotification(): Promise<void> {
   try {

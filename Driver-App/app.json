@@ -24,7 +24,7 @@
         {
           "icon": "./assets/notification-icon.png",
           "color": "#ffffff",
-          "sounds": ["./assets/notification_tone.wav"],
+          "sounds": ["notification_tone.wav"],
           "defaultChannel": "dropcars-custom-sound-v2",
           "mode": "production"
         }

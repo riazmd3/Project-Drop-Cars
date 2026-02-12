@@ -7,7 +7,7 @@ Use this checklist before creating a new **development build** so the custom sou
 ## 1. App config (`app.json`)
 
 - [ ] **expo-notifications** plugin has:
-  - `"sounds": ["./assets/notification_tone.wav"]` — path relative to project root so the plugin can find and bundle the file.
+  - `"sounds": ["notification_tone.wav"]` — filename only (no path); file must be in project (e.g. `assets/notification_tone.wav`) so the plugin can bundle it.
   - `"defaultChannel": "dropcars-custom-sound-v2"` — so FCM uses this channel (and its custom sound) for push notifications.
 - [ ] File `assets/notification_tone.wav` exists (`.wav` recommended by Expo; avoid long duration).
 
