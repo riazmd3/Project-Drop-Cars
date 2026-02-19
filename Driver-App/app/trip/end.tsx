@@ -119,11 +119,6 @@ export default function EndTripScreen() {
     const totalKm = parseInt(endKm) - startKm;
     const totalFare = calculateFare();
 
-    if (totalKm <= 0) {
-      Alert.alert('Error', 'End KM must be greater than start KM');
-      return;
-    }
-
     try {
       setSubmitting(true);
       const assignment_id = String(params.assignment_id || '');
