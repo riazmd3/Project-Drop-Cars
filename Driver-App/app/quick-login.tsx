@@ -193,7 +193,7 @@ export default function QuickLoginScreen() {
           </TouchableOpacity>
 
           <View style={styles.header}>
-            <Text style={styles.title}>Quick Driver</Text>
+            <Text style={styles.title}>Duty Driver</Text>
             <Text style={styles.subtitle}>Login with your driver credentials</Text>
           </View>
 

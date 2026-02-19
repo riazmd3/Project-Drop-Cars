@@ -303,8 +303,8 @@ export default function FutureRidesScreen() {
       // Check for specific "Updated" error message
       if (error?.response?.data?.detail === "Updated") {
         Alert.alert(
-          'Quick Driver Assignment', 
-          'This order has been updated and assigned to a quick driver. Please check the updated status.',
+          'Duty Driver Assignment', 
+          'This order has been updated and assigned to a duty driver. Please check the updated status.',
           [
             {
               text: 'OK',

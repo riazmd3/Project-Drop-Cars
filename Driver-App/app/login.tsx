@@ -377,7 +377,7 @@ export default function LoginScreen() {
                 isNavigating.current = false;
               }
             }} style={styles.quickDriverButton}>
-              <Text style={styles.quickDriverText}>Quick Driver Login</Text>
+              <Text style={styles.quickDriverText}>Duty Driver Login</Text>
             </TouchableOpacity>
           </View>
         </View>
