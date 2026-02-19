@@ -40,7 +40,7 @@ export default function AddCarMenuScreen() {
   const [errors, setErrors] = useState<{[key: string]: string}>({});
   const [showTypeDropdown, setShowTypeDropdown] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  
+
   const router = useRouter();
   const { user } = useAuth();
   const { colors } = useTheme();
@@ -117,15 +117,11 @@ export default function AddCarMenuScreen() {
     try {
       const result = await ImagePicker.launchImageLibraryAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
-        allowsEditing: false,
+        allowsEditing: true,
         quality: 1,
       });
-
       if (!result.canceled) {
-        setCarImages(prev => ({
-          ...prev,
-          [imageKey]: result.assets[0].uri
-        }));
+        setCarImages(prev => ({ ...prev, [imageKey]: result.assets[0].uri }));
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to pick image');

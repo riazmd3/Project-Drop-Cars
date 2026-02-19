@@ -81,7 +81,6 @@ export default function EndTripScreen() {
         aspect: [4, 3],
         quality: 1,
       });
-
       if (!result.canceled) {
         setOdometerPhoto(result.assets[0].uri);
       }

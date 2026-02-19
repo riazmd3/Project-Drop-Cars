@@ -516,8 +516,7 @@ export default function BookingCard({ booking, onAccept, disabled, loading, butt
       fontFamily: 'Inter-Bold',
     },
     amountTextGreen: {
-      color: '#065F46', // Dark green for amount (high contrast, readable on light areas)
-      fontSize: 16,
+      color: '#ffffff', 
       fontFamily: 'Inter-Bold',
     },
     loadingButton: {

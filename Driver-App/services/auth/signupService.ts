@@ -183,17 +183,9 @@ export const signupAccount = async (personalData: any, documents: any): Promise<
         // Check for specific error messages and provide user-friendly messages
         const errorData = error.response.data;
         if (errorData && typeof errorData === 'object') {
-          const errorMessage = errorData.detail || errorData.message || errorData.error || '';
-          
-          if (errorMessage.toLowerCase().includes('mobile') && errorMessage.toLowerCase().includes('exist')) {
-            throw new Error('This mobile number is already registered. Please use a different mobile number or try logging in.');
-          } else if (errorMessage.toLowerCase().includes('aadhar') && errorMessage.toLowerCase().includes('exist')) {
-            throw new Error('This Aadhar number is already registered. Please use a different Aadhar number.');
-          } else if (errorMessage.toLowerCase().includes('email') && errorMessage.toLowerCase().includes('exist')) {
-            throw new Error('This email is already registered. Please use a different email.');
-          } else if (errorMessage.toLowerCase().includes('validation') || errorMessage.toLowerCase().includes('required')) {
-            throw new Error(`Please check your information: ${errorMessage}`);
-          } else if (errorMessage) {
+          const rawDetail = errorData.detail ?? errorData.message ?? errorData.error;
+          const errorMessage = typeof rawDetail === 'string' ? rawDetail : (Array.isArray(rawDetail) ? rawDetail.map((e: any) => e.msg || e.message || String(e)).join(', ') : '');
+          if (errorMessage) {
             throw new Error(errorMessage);
           }
         }
@@ -231,18 +223,27 @@ export const signupAccount = async (personalData: any, documents: any): Promise<
   } else if (lastError.code === 'ENOTFOUND') {
     throw new Error('Server not found - please check if the backend server is running.');
   } else if (lastError.response?.status === 422) {
-    const errorDetails = lastError.response.data?.detail || lastError.response.data?.message || 'Invalid data provided';
-    console.error('🔍 422 Validation Error Details:', errorDetails);
-    throw new Error(`Validation error: ${errorDetails}. Check all required fields.`);
+    const data = lastError.response.data;
+    const detail = data?.detail ?? data?.message ?? 'Invalid data provided';
+    const msg = typeof detail === 'string' ? detail : (Array.isArray(detail) ? detail.map((e: any) => e.msg || e.message || String(e)).join(', ') : 'Validation error. Check all required fields.');
+    console.error('🔍 422 Validation Error Details:', detail);
+    throw new Error(msg);
   } else if (lastError.response?.status === 400) {
-    throw new Error(`Bad request: ${lastError.response.data?.message || 'Invalid data provided'}`);
+    const data = lastError.response.data;
+    const detail = data?.detail ?? data?.message ?? data?.error;
+    const msg = typeof detail === 'string' ? detail : (Array.isArray(detail) ? detail.map((e: any) => e.msg || e.message || String(e)).join(', ') : 'Invalid data provided');
+    throw new Error(msg);
   } else if (lastError.response?.status === 500) {
     throw new Error('Server error - please try again later or contact support.');
   } else if (lastError.response?.data?.message) {
     throw new Error(lastError.response.data.message);
-  } else {
-    throw new Error(`Signup failed: ${lastError.message || 'Unknown error occurred'}`);
+  } else if (lastError.response?.status >= 400 && lastError.response?.status < 500 && lastError.response?.data) {
+    const data = lastError.response.data;
+    const detail = data?.detail ?? data?.message ?? data?.error;
+    const msg = typeof detail === 'string' ? detail : (Array.isArray(detail) ? detail.map((e: any) => e.msg || e.message || String(e)).join(', ') : null);
+    if (msg) throw new Error(msg);
   }
+  throw new Error(lastError.message || 'Signup failed. Please try again.');
 };
 
 // Test function to check API connectivity

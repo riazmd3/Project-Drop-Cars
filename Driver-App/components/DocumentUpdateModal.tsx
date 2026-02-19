@@ -39,18 +39,15 @@ export default function DocumentUpdateModal({
   const takePhoto = async () => {
     try {
       const permissionResult = await ImagePicker.requestCameraPermissionsAsync();
-      
       if (permissionResult.granted === false) {
         Alert.alert('Permission Required', 'Camera permission is required to take photos.');
         return;
       }
-
       const result = await ImagePicker.launchCameraAsync({
         mediaTypes: ImagePicker.MediaTypeOptions.Images,
         allowsEditing: true,
         quality: 0.8,
       });
-
       if (!result.canceled && result.assets[0]) {
         setSelectedImage(result.assets[0].uri);
       }
@@ -67,7 +64,6 @@ export default function DocumentUpdateModal({
         allowsEditing: true,
         quality: 0.8,
       });
-
       if (!result.canceled && result.assets[0]) {
         setSelectedImage(result.assets[0].uri);
       }

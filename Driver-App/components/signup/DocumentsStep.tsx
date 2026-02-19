@@ -40,15 +40,10 @@ export default function DocumentsStep({ data, onUpdate, onBack, formData, onSign
         allowsEditing: true,
         quality: 1,
       });
-
       if (!result.canceled) {
         const rawUri = result.assets[0].uri;
         const fixedUri = normalizeLocalUri(rawUri);
-        const updatedDocuments = {
-          ...documents,
-          [documentKey]: fixedUri
-        };
-        console.log('🖼️ Document selected:', { rawUri, fixedUri });
+        const updatedDocuments = { ...documents, [documentKey]: fixedUri };
         setDocuments(updatedDocuments);
         onUpdate(updatedDocuments);
       }
@@ -123,24 +118,29 @@ export default function DocumentsStep({ data, onUpdate, onBack, formData, onSign
       }
     } catch (error: any) {
       console.error('❌ Signup failed:', error);
-      
-      // Provide specific error messages
+
       let errorMessage = 'Signup failed. Please try again.';
-      
+
       if (error.code === 'ECONNABORTED') {
         errorMessage = 'Request timeout - server is taking too long to respond. Please try again.';
       } else if (error.code === 'ERR_NETWORK') {
         errorMessage = 'Network error - please check your internet connection and try again.';
       } else if (error.code === 'ENOTFOUND') {
         errorMessage = 'Server not found - please check if the backend server is running.';
-      } else if (error.response?.status === 400) {
-        errorMessage = `Bad request: ${error.response.data?.message || 'Invalid data provided'}`;
       } else if (error.response?.status === 500) {
         errorMessage = 'Server error - please try again later or contact support.';
+      } else if (error.message && typeof error.message === 'string' && !error.message.startsWith('Signup failed:')) {
+        errorMessage = error.message;
+      } else if (error.response?.status === 400) {
+        const data = error.response?.data;
+        const detail = data?.detail ?? data?.message;
+        errorMessage = typeof detail === 'string' ? detail : (detail ? String(detail) : errorMessage);
+      } else if (error.response?.data?.detail) {
+        errorMessage = typeof error.response.data.detail === 'string' ? error.response.data.detail : String(error.response.data.detail);
       } else if (error.response?.data?.message) {
         errorMessage = error.response.data.message;
       }
-      
+
       Alert.alert('Signup Failed', errorMessage);
     } finally {
       setLoading(false);

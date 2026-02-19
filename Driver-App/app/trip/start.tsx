@@ -20,7 +20,7 @@ export default function StartTripScreen() {
   const [startKm, setStartKm] = useState('');
   const [odometerPhoto, setOdometerPhoto] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [odometerShown, setOdometerShown] = useState(false); // <-- Checkbox state
+  const [odometerShown, setOdometerShown] = useState(false);
   const router = useRouter();
   const params = useLocalSearchParams<{ 
     order_id?: string; 
@@ -36,7 +36,6 @@ export default function StartTripScreen() {
         aspect: [4, 3],
         quality: 1,
       });
-
       if (!result.canceled) {
         setOdometerPhoto(result.assets[0].uri);
       }

@@ -4,9 +4,9 @@ import * as SecureStore from 'expo-secure-store';
 import { emitSessionExpired } from '@/utils/session';
 
 
-// const API_BASE_URL = 'http://10.59.192.145:8000/';
+const API_BASE_URL = 'http://10.116.186.247:8000/';
 
-const API_BASE_URL = 'https://drop-cars-api-207918408785.asia-south2.run.app';
+// const API_BASE_URL = 'https://drop-cars-api-207918408785.asia-south2.run.app';
 
 const axiosDriver = axios.create({
   baseURL: API_BASE_URL,

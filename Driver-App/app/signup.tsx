@@ -7,8 +7,7 @@ import {
   SafeAreaView,
 } from 'react-native';
 import { useRouter } from 'expo-router';
-import PersonalDetailsStep from '@/components/signup/PersonalDetailsStep';
-import DocumentsStep from '@/components/signup/DocumentsStep';
+import SignupSinglePage from '@/components/signup/SignupSinglePage';
 import SuccessScreen from '@/components/SuccessScreen';
 import { ArrowLeft } from 'lucide-react-native';
 import { TouchableOpacity } from 'react-native';
@@ -37,25 +36,24 @@ export default function SignupScreen() {
   const [signupResponse, setSignupResponse] = useState<any>(null);
   const router = useRouter();
 
-  const updateFormData = (step: string, data: any) => {
-    setFormData(prev => ({ ...prev, [step]: data }));
-  };
-
-  const nextStep = () => {
-    if (currentStep < 3) {
-      setCurrentStep(currentStep + 1);
-    }
-  };
-
-  const previousStep = () => {
-    if (currentStep > 1) {
-      setCurrentStep(currentStep - 1);
-    }
-  };
-
   const handleSignupSuccess = (response: any) => {
     setSignupResponse(response);
-    nextStep();
+    if (response?.userData) {
+      setFormData(prev => ({
+        ...prev,
+        personalDetails: {
+          fullName: response.userData.fullName,
+          primaryMobile: response.userData.primaryMobile,
+          secondaryMobile: response.userData.secondaryMobile,
+          password: response.userData.password,
+          address: response.userData.address,
+          city: response.userData.city,
+          pincode: response.userData.pincode,
+          aadharNumber: response.userData.aadharNumber,
+        },
+      }));
+    }
+    setCurrentStep(2);
   };
 
   const handleContinue = async () => {
@@ -96,24 +94,8 @@ export default function SignupScreen() {
   const renderStep = () => {
     switch (currentStep) {
       case 1:
-        return (
-          <PersonalDetailsStep
-            data={formData.personalDetails}
-            onUpdate={(data) => updateFormData('personalDetails', data)}
-            onNext={nextStep}
-          />
-        );
+        return <SignupSinglePage onSignupSuccess={handleSignupSuccess} />;
       case 2:
-        return (
-          <DocumentsStep
-            data={formData.documents}
-            onUpdate={(data) => updateFormData('documents', data)}
-            onBack={previousStep}
-            formData={formData}
-            onSignupSuccess={handleSignupSuccess}
-          />
-        );
-      case 3:
         return (
           <SuccessScreen
             message="Your account has been created successfully! Now let's set up your vehicle and driver details."
@@ -133,17 +115,17 @@ export default function SignupScreen() {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Driver Registration</Text>
         <View style={styles.headerRight}>
-          {currentStep < 3 && (
+          {currentStep < 2 && (
             <View style={styles.stepIndicator}>
-              <Text style={styles.stepText}>{currentStep}/3</Text>
+              <Text style={styles.stepText}>{currentStep}/2</Text>
             </View>
           )}
         </View>
       </View>
 
-      {currentStep < 3 && (
+      {currentStep < 2 && (
         <View style={styles.progressBar}>
-          <View style={[styles.progressFill, { width: `${(currentStep / 3) * 100}%` }]} />
+          <View style={[styles.progressFill, { width: `${(currentStep / 2) * 100}%` }]} />
         </View>
       )}
 

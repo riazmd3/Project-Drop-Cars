@@ -43,7 +43,7 @@ export default function AddDriverScreen() {
     pincode: '',
   });
   const [showPassword, setShowPassword] = useState(false);
-  
+
   const [driverImages, setDriverImages] = useState({
     licence_front_img: '',
   });
@@ -87,12 +87,8 @@ export default function AddDriverScreen() {
         allowsEditing: true,
         quality: 1,
       });
-
       if (!result.canceled) {
-        setDriverImages(prev => ({
-          ...prev,
-          [imageKey]: result.assets[0].uri
-        }));
+        setDriverImages(prev => ({ ...prev, [imageKey]: result.assets[0].uri }));
       }
     } catch (error) {
       Alert.alert('Error', 'Failed to pick image');
@@ -458,7 +454,6 @@ export default function AddDriverScreen() {
           </TouchableOpacity>
         </View>
       </ScrollView>
-
     </SafeAreaView>
   );
 }
